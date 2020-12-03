@@ -6,6 +6,7 @@
             "endpoints": [
                 {
                     "path": "/users",
+                    "method": "GET",
                     "response": {
                         "users": [{% for n in range(5) %}
                             {
@@ -30,6 +31,7 @@
             "endpoints": [
                 {
                     "path": "/companies",
+                    "method": "POST",
                     "response": {
                         "companies": [{% for n in range(5) %}
                             {

@@ -36,18 +36,33 @@ class Definition():
 
 
 class GenericHandler(tornado.web.RequestHandler):
-    def initialize(self, response):
-        self.response = response
+    def initialize(self, method, response):
+        self.custom_response = response
+        self.custom_method = method.lower()
 
     def get(self):
-        self.write(self.response)
+        if self.custom_method != 'get':
+            self._unimplemented_method()
+        self.write(self.custom_response)
+
+    def post(self):
+        if self.custom_method != 'post':
+            self._unimplemented_method()
+        self.write(self.custom_response)
 
 
 def make_app(endpoints):
     endpoint_handlers = []
     for endpoint in endpoints:
         endpoint_handlers.append(
-            (endpoint['path'], GenericHandler, dict(response=endpoint['response']))
+            (
+                endpoint['path'],
+                GenericHandler,
+                dict(
+                    method=endpoint['method'],
+                    response=endpoint['response']
+                )
+            )
         )
     return tornado.web.Application(endpoint_handlers)
 
