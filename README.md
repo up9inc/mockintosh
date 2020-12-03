@@ -73,7 +73,23 @@ Today's services are all about performance, so we offer special features for per
             ],
             //"status": "{random.int 200 500}"
             "status": 200,
-            "headers": []
+            "headers": [
+              {
+                "hname": "hval"
+              },
+              {
+                "{{var1}}": "{{var2}}"
+              }
+            ],
+            // "body": "simple string"
+            "body": {
+              "useTemplating": true,
+              "text": "",
+              "fromFile": "",
+              "modifications": [
+                "{{jsonPath '$.path' 'value'}}" // somehow else?
+              ]
+            }
           },
         },
       ]
