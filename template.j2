@@ -1,7 +1,7 @@
 {
     "services": [
         {
-            "comment": "Mock for http://example.com",
+            "comment": "Mock for http://example1.com",
             "port": 8001,
             "endpoints": [
                 {
@@ -10,8 +10,8 @@
                         "users": [{% for n in range(5) %}
                             {
                                 "userId": "{{ range(10000, 100000) | random }}",
-                                "firstname": "{{ fake.first_name() }}",
-                                "lastname": "{{ fake.last_name() }}",
+                                "firstName": "{{ fake.first_name() }}",
+                                "lastName": "{{ fake.last_name() }}",
                                 "friends": [{% for n in range(range(5) | random) %}
                                     {
                                         "id": "{{ uuid() }}"
@@ -20,6 +20,24 @@
                             }{% if not loop.last %},{% endif %}
                         {% endfor %}],
                         "total": 10
+                    }
+                }
+            ]
+        },
+        {
+            "comment": "Mock for http://example2.com",
+            "port": 8002,
+            "endpoints": [
+                {
+                    "path": "/companies",
+                    "response": {
+                        "companies": [{% for n in range(5) %}
+                            {
+                                "name": "{{ fake.company() }}",
+                                "motto": "{{ fake.catch_phrase() }}"
+                            }{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                        "total": 2
                     }
                 }
             ]
