@@ -7,7 +7,7 @@ We respect the achievements of predecessors (Wiremock, Mockoon etc), we offer si
 We aim for cloud-native/microservices, so the main case is many mocks running at once. Also, we aim for small Docker
 image size, and small RAM requirement.
 
-Today's services are all about performance, so we offer special features for performance/reliability testing 
+Today's services are all about performance, so we offer special features for performance/reliability testing
 (see [this section](#performancechaos-profiles)).
 
 ## Config Example
@@ -18,19 +18,68 @@ Today's services are all about performance, so we offer special features for per
     // management API, allows to reload configs, get the stats etc
     "port": 9000
   },
+  "performanceProfiles": {
+    "profile1": {
+      "ratio": 0.5,
+      "delay": 1.5,
+      "faults": {
+        "RST": 0.1,
+        "400": 0.1,
+        "500": 0.1,
+        "503": 0.1,
+      }
+    }
+  },
   "globals": {
     "requestInterceptors": [
       "mypackage.subpackage.myfunc"
-    ]
+    ],
+    "performanceProfile": "profile1",
+    "headers": []
   },
   "services": [
     {
+      // first service
       "comment": "Mock for http://card-service.trdemo",
       "port": 8001,
-      "managementRoot": "__admin"
-      // per-service management API
+      // optional per-service management API
+      "managementRoot": "__admin",
+      "endpoints": [
+        {
+          "path": "/somepath/{{regex '[^/]'}}/action",
+          // "path": "/somepath/{{justval}}/action"
+
+          "headers": [],
+          // TODO
+          "queryString": [],
+          // TODO
+
+          "body": {
+            // "schema": "path/to/schemafile",
+            "schema": {
+              // inline schema
+            }
+          },
+          "response": {
+            "performanceProfile": "profile2",
+            // "dataset": "path/to.csv",
+            "dataset": [
+              {
+                "var1": "val1"
+              },
+              {
+                "var1": "val2"
+              }
+            ],
+            //"status": "{random.int 200 500}"
+            "status": 200,
+            "headers": []
+          },
+        },
+      ]
     },
     {
+      // second service on different port
       "comment": "Mock for http://frontend-service.trdemo",
       "port": 8002
     },
@@ -44,7 +93,7 @@ JSON+YAML config format
 
 Ability to serve multiple services from single container, without much resource overhead
 
-Have JSON schema for configuration language - avoid Mockoon’s mistake of not documenting enough
+Have JSON schema for configuration language - avoid Mockoon’s mistake of not exposing the format enough
 
 Import from OpenAPI and Postman collections
 
@@ -68,6 +117,8 @@ Sequences of responses
 
 Ability to control a lot of response via request headers - for quick experimentation and code-level configuration in any
 language
+
+Content-Length that self-maintains, unless chunked transfer
 
 ## Management API
 
