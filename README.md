@@ -1,11 +1,42 @@
-# Chupeta
+# Chupeta, the API mocking server for microservice environments
 
 ## About
 
-We respect the achievements of predecessors (Wiremock, Mockoon etc), we offer similar syntax.
+We respect the achievements of predecessors (Wiremock, Mockoon etc), we offer similar configuration syntax.
 
-We aim for cloud-native/microservices, so the main case is many mocks running at once. Also, we aim for the smallest
-Docker image size, the smallest RAM requirement.
+We aim for cloud-native/microservices, so the main case is many mocks running at once. Also, we aim for small Docker
+image size, and small RAM requirement.
+
+Today's services are all about performance, so we offer special features for performance/reliability testing 
+(see [this section](#performancechaos-profiles)).
+
+## Config Example
+
+```json5
+{
+  "management": {
+    // management API, allows to reload configs, get the stats etc
+    "port": 9000
+  },
+  "globals": {
+    "requestInterceptors": [
+      "mypackage.subpackage.myfunc"
+    ]
+  },
+  "services": [
+    {
+      "comment": "Mock for http://card-service.trdemo",
+      "port": 8001,
+      "managementRoot": "__admin"
+      // per-service management API
+    },
+    {
+      "comment": "Mock for http://frontend-service.trdemo",
+      "port": 8002
+    },
+  ]
+}
+```
 
 ## General
 
@@ -37,34 +68,6 @@ Sequences of responses
 
 Ability to control a lot of response via request headers - for quick experimentation and code-level configuration in any
 language
-
-## Config Example
-
-```json5
-{
-  "management": {
-    // management API, allows to reload configs, get the stats etc
-    "port": 9000
-  },
-  "globals": {
-    "requestInterceptors": [
-      "mypackage.subpackage.myfunc"
-    ]
-  },
-  "services": [
-    {
-      "comment": "Mock for http://card-service.trdemo",
-      "port": 8001,
-      "managementRoot": "__admin"
-      // per-service management API
-    },
-    {
-      "comment": "Mock for http://frontend-service.trdemo",
-      "port": 8002
-    },
-  ]
-}
-```
 
 ## Management API
 
