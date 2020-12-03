@@ -1,10 +1,12 @@
 # Chupeta
 
+## About
 We respect the achievements of predecessors (Wiremock, Mockoon etc), we offer similar syntax.
 
-We aim for cloud-native/microservices, so the main case is many mocks running at once. Also, we aim for the smallest Docker
-image size, the smallest RAM requirement.
+We aim for cloud-native/microservices, so the main case is many mocks running at once. Also, we aim for the smallest
+Docker image size, the smallest RAM requirement.
 
+## General
 Ability to serve multiple services from one container, without much resource overhead - mockoon does it
 
 Ability to provide custom code that alters responses - hoverfly’s middleware
@@ -19,7 +21,8 @@ Variants of responses based on rules
 
 Have JSON schema for configuration language - avoid Mockoon’s mistake of not documenting enough
 
-Ability to control a lot of response via request headers - for quick experimentation and code-level configuration in any language
+Ability to control a lot of response via request headers - for quick experimentation and code-level configuration in any
+language
 
 Import from OpenAPI and Postman collections
 
@@ -27,20 +30,53 @@ Ability to attach handler to request/response logger, for integration
 
 Ability to catch unhandled requests and turn those into configuration templates
 
-API to modify configuration remotely, maybe programmatically (for UP9 live control)
 
 JSON+YAML config format
 
 Ability to get stats on mock items covered
 
-JSON schema validation of request bodies
+JSON schema validation of request bodies (validation)
 
-Performance testing mode, round-robining the delays/500/400/RST, offering “profile” of fuzziness
-
+## Config Example
 ```json5
 {
+  "management": { // management API, allows to reload configs, get the stats etc
+    "port": 9000
+  },
+  "globals": {
+    "requestInterceptors": ["mypackage.subpackage.myfunc"]
+  },
   "services": [
-    
+    {
+      "comment": "Mock for http://card-service.trdemo",
+      "port": 8001,
+      "managementRoot": "__admin" // per-service management API
+    },
+    {
+      "comment": "Mock for http://frontend-service.trdemo",
+      "port": 8002
+    },
   ]
 }
 ```
+
+## Management API
+
+API to modify configuration remotely, maybe programmatically (for UP9 live control)
+Global and per-service
+Allows to reload config on the fly
+Allows to get and reset the stats of the service
+Allows to reset the cursors of datasets/performance profiles
+
+## Performance/Chaos Profiles
+
+Performance profile allows injecting faults and delays, 
+round-robining the delays/500/400/RST, 
+offering “profile ratio” of fuzziness
+
+## Extensibility
+
+Object model for request and response
+Ability to provide python function/object to alter response
+Ability to provide python function/object to access the request/response notifications
+
