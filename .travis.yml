@@ -1,0 +1,7 @@
+language: minimal
+services:
+  - docker
+install:
+  []
+script:
+  - docker build .
