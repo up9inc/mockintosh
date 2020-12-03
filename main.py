@@ -2,6 +2,7 @@
 
 import sys
 import json
+import inspect
 from uuid import uuid4
 
 from jinja2 import Template
@@ -41,14 +42,16 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_method = method.lower()
 
     def get(self):
-        if self.custom_method != 'get':
-            self._unimplemented_method()
+        self.dynamic_unimplemented_method_guard()
         self.write(self.custom_response)
 
     def post(self):
-        if self.custom_method != 'post':
-            self._unimplemented_method()
+        self.dynamic_unimplemented_method_guard()
         self.write(self.custom_response)
+
+    def dynamic_unimplemented_method_guard(self):
+        if self.custom_method != inspect.stack()[1][3]:
+            self._unimplemented_method()
 
 
 def make_app(endpoints):
