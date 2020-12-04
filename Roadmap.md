@@ -79,7 +79,7 @@
   "performanceProfiles": {
     "profile1": {
       "ratio": 0.5,
-      "delay": 1.5,
+      "delay": 1.5, // can be distributions
       "faults": {
         "RST": 0.1,
         "400": 0.1,
@@ -97,6 +97,7 @@
   },
   "services": [
     {
+      // headers and performance profile per-service, maybe interceptors too
       // first service
       "comment": "Mock for http://card-service.trdemo",
       "port": 8001,
@@ -104,18 +105,20 @@
       "managementRoot": "/__admin",
       "endpoints": [
         {
+          "id": "unique id for endpoint",
+          // "path": "/somepath/all/action",
           "path": "/somepath/{{regex '[^/]'}}/action",
           // "path": "/somepath/{{justval}}/action"
-
+          // GET /somepath/1233423/action
           "headers": {
-            "Hname": "hval",
+            "Content-Type": "application/json",
             "hname2": "{{regex '.+'}}"
           },
           "queryString": {
             "param1": "val1",
             "p2": "{{regex '.+'}}"
           },
-          "body": {
+          "body": { // regex criteria
             // "schema": "path/to/schemafile",
             "schema": {
               // inline schema
@@ -132,17 +135,17 @@
                 "var1": "val2"
               }
             ],
-            //"status": "{random.int 200 500}"
+            // "status": "{{random.int 200 500}}"
             "status": 200,
             "headers": [
               {
                 "hname": "hval"
               },
               {
-                "{{var1}}": "{{var2}}"
+                "{{var1}}": "{{justval}}"
               }
             ],
-            // "body": "simple string"
+            // "body": "simple {{time.now}} string"
             "body": {
               "useTemplating": true,
               "text": "",
@@ -165,3 +168,7 @@
 }
 ```
 
+# Ideas
+
+- `chupeta --cli` to start interactive shell that would allow building the mock configuration interactively
+- `cat OpenAPI.json | chupeta > chupeta-config.yml`
