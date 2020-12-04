@@ -49,11 +49,14 @@ Today's services are all about performance, so we offer special features for per
           "path": "/somepath/{{regex '[^/]'}}/action",
           // "path": "/somepath/{{justval}}/action"
 
-          "headers": [],
-          // TODO
-          "queryString": [],
-          // TODO
-
+          "headers": {
+            "Hname": "hval",
+            "hname2": "{{regex '.+'}}"
+          },
+          "queryString": {
+            "param1": "val1",
+            "p2": "{{regex '.+'}}"
+          },
           "body": {
             // "schema": "path/to/schemafile",
             "schema": {
@@ -87,7 +90,8 @@ Today's services are all about performance, so we offer special features for per
               "text": "",
               "fromFile": "",
               "modifications": [
-                "{{jsonPath '$.path' 'value'}}" // somehow else?
+                "{{jsonPath '$.path' 'value'}}"
+                // somehow else?
               ]
             }
           },
@@ -117,7 +121,7 @@ Ability to catch unhandled requests and turn those into configuration templates
 
 Ability to get stats on mock items covered
 
-JSON schema validation of request bodies (validation)
+JSON schema validation of request bodies (validation). Implicit validation through detailed response information.
 
 ## Stubbing
 
