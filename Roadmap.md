@@ -2,7 +2,8 @@
 
 ## Milestone 1
 
-1. Open Source project with documentation, examples, code quality. UP9 will do a lot of promotion for it.
+1. Open Source project with documentation, examples, code quality, unit tests with coverage. 
+   - UP9 will do a lot of promotion for it, has to be good quality
 1. CI process that tracks docker image size
 2. Integration tests that run program/docker image and issue calls against it
 3. setup.py, CLI
@@ -19,7 +20,8 @@
 
 1. Endpoints configuration with only Path matcher
 2. Response with templating 
-3. Content-Length that self-maintains, unless chunked transfer, some other magical HTTP protocol things (Accept etc)
+3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things 
+   (Accept etc)
 
 ## Milestone 3
 
