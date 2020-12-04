@@ -2,6 +2,7 @@ language: python
 services:
   - docker
 install:
+  - pip install pytest
   - docker build . -t mock && docker image ls mock
 script:
   - stty cols 120
