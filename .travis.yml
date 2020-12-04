@@ -4,5 +4,6 @@ services:
 install:
   - pip install pytest
 script:
+  - stty cols 120
   - travis_fold start "Unit Tests" && travis_fold end "Unit Tests"
-  - travis_fold start "Integration Tests" && docker build . -t mock && docker run -d mock && travis_fold end "Integration Tests"
+  - travis_fold start "Integration Tests" && docker build . -t mock && docker run -d -p 8000:8000 mock && curl --fail -v http://localhost:8000 && travis_fold end "Integration Tests"
