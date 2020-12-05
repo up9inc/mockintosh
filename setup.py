@@ -45,7 +45,7 @@ setup(
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.1.0-alpha.1',
-    description='Mock API server generator with templating and concurrency',
+    description='The API mocking server for microservice environments',
     long_description=long_description,
     long_description_content_type='text/markdown',
 

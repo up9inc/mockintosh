@@ -105,4 +105,4 @@ ENV/
 # --- ADDITIONS ---
 
 # Editors / IDEs
-.vscode
+.vscode/
