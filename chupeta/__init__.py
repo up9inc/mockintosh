@@ -1,4 +1,12 @@
-#!/bin/python3
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+"""
+.. module:: __init__
+    :platform: Unix
+    :synopsis: the top-level module of Chupeta.
+.. moduleauthor:: M. Mert Yildiran <mehmet@up9.com>
+"""
 
 import sys
 import json
@@ -70,10 +78,14 @@ def make_app(endpoints):
     return tornado.web.Application(endpoint_handlers)
 
 
-if __name__ == "__main__":
+def initiate():
     source = sys.argv[1]
     definition = Definition(source)
     for service in definition.data['services']:
         app = make_app(service['endpoints'])
         app.listen(service['port'])
     tornado.ioloop.IOLoop.current().start()
+
+
+if __name__ == '__main__':
+    initiate()
