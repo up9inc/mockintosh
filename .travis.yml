@@ -1,4 +1,7 @@
 language: python
+branches:
+  only:
+    - main
 services:
   - docker
 install:
@@ -7,8 +10,8 @@ install:
 script:
   - stty cols 120
   - travis_fold start "Unit.Tests" && travis_fold end "Unit.Tests"
-  - travis_fold start "Integration.Tests" && docker run -d -p 8000:8000 -v `pwd`:/tmp mock && sleep 5 && curl --fail -v http://localhost:8000 && travis_fold end "Integration.Tests"
+  - travis_fold start "Integration.Tests" && docker run -d -p 8000-9000:8000-9000 -v `pwd`:/tmp mock && sleep 5 && curl --fail -v http://localhost:8000 && travis_fold end "Integration.Tests"
 after_success:
   - codecov
 after_failure:
-  - cat server.log  # the log from container 
+  - cat server.log  # the log from container
