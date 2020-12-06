@@ -10,7 +10,6 @@ COPY README.md .
 
 RUN pip3 install .
 
-# EXPOSE 8001
 EXPOSE 1-65535
 
 ENTRYPOINT ["chupeta"]

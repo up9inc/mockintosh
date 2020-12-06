@@ -35,6 +35,5 @@ chupeta examples/template.j2
 or the Docker container:
 
 ```bash
-docker run -p 8001:8001 -v /home/mertyildiran/Documents/UP9/chupeta/examples/template.j2:/template.j2 chupeta /template.j2
-docker run -p 1-65535:1-65535 -v /home/mertyildiran/Documents/UP9/chupeta/examples/template.j2:/template.j2 chupeta /template.j2
+docker run -p 8000-8010:8000-8010 -v /home/mertyildiran/Documents/UP9/chupeta/examples/template.j2:/template.j2 chupeta /template.j2
 ```

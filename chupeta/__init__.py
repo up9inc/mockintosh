@@ -11,6 +11,8 @@
 import sys
 import json
 import inspect
+import argparse
+import logging
 from uuid import uuid4
 
 from jinja2 import Template
@@ -35,7 +37,10 @@ class Definition():
     def _compile(self):
         source_text = None
         with open(self.source, 'r') as file:
+            logging.info('Reading configuration file from path: %s' % self.source)
             source_text = file.read()
+            logging.debug('Configuration text: %s' % source_text)
+        logging.info('Parsing the configuration file...')
         template = Template(source_text)
         self.add_globals(template)
         self.compiled = template.render()
@@ -50,16 +55,21 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_method = method.lower()
 
     def get(self):
+        self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.custom_response)
 
     def post(self):
+        self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.custom_response)
 
     def dynamic_unimplemented_method_guard(self):
         if self.custom_method != inspect.stack()[1][3]:
             self._unimplemented_method()
+
+    def log_request(self):
+        logging.debug('Received request:\n%s' % self.request.__dict__)
 
 
 def make_app(endpoints):
@@ -75,15 +85,39 @@ def make_app(endpoints):
                 )
             )
         )
-    return tornado.web.Application(endpoint_handlers)
+        logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
+        logging.debug('with response:\n%s' % endpoint['response'])
+    return tornado.web.Application(endpoint_handlers, debug=True)
 
 
 def initiate():
-    source = sys.argv[1]
+    """The top-level method to serve as the entry point of Dragonfire.
+
+    This method is the entry point defined in `setup.py` for the `dragonfire` executable that
+    placed a directory in `$PATH`.
+
+    This method parses the command-line arguments and handles the top-level initiations accordingly.
+    """
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('source', help='Path to configuration file.', nargs='?')
+    ap.add_argument('-q', '--quite', help='Disable all the log output.', action='store_true')
+    ap.add_argument('-v', '--verbose', help='Increase verbosity of log output.', action='store_true')
+    args = vars(ap.parse_args())
+
+    if args['quite']:
+        logging.basicConfig(level=logging.ERROR)
+    elif args['verbose']:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    source = args['source']
     definition = Definition(source)
     for service in definition.data['services']:
         app = make_app(service['endpoints'])
         app.listen(service['port'])
+        logging.warning('Started to listen: %s://%s:%s' % ('http', 'localhost', service['port']))
     tornado.ioloop.IOLoop.current().start()
 
 
