@@ -36,4 +36,6 @@ or the Docker container:
 
 ```bash
 docker run -p 8000-8010:8000-8010 -v /home/mertyildiran/Documents/UP9/chupeta/examples/template.j2:/template.j2 chupeta /template.j2
+# or
+docker run --network host -v /home/mertyildiran/Documents/UP9/chupeta/examples/template.j2:/template.j2 chupeta /template.j2
 ```
