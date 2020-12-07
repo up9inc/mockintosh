@@ -147,7 +147,15 @@ def initiate():
     for service in definition.data['services']:
         app = make_app(service['endpoints'])
         app.listen(service['port'])
-        logging.warning('Started to listen: %s://%s:%s' % ('http', 'localhost', service['port']))
+        logging.info('Started to listen: %s://%s:%s' % ('http', 'localhost', service['port']))
+
+    if 'unittest' in sys.modules.keys():
+        import os
+        import psutil
+        import signal
+        parent_pid = psutil.Process(os.getpid()).ppid()
+        os.kill(parent_pid, signal.SIGALRM)
+
     tornado.ioloop.IOLoop.current().start()
 
 

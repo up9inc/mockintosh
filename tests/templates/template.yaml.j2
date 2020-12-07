@@ -8,7 +8,7 @@ services:
     response:
       users:
       {% for n in range(5) %}
-      - userId: '{{ range(10000, 100000) | random }}'
+      - userId: {{ range(10000, 100000) | random }}
         firstName: '{{ fake.first_name() }}'
         lastName: '{{ fake.last_name() }}'
         friends:
