@@ -147,7 +147,8 @@ def initiate():
     for service in definition.data['services']:
         app = make_app(service['endpoints'])
         app.listen(service['port'])
-        logging.info('Started to listen: %s://%s:%s' % ('http', 'localhost', service['port']))
+        logging.info('Registered listen: %s://%s:%s' % ('http', 'localhost', service['port']))
+        logging.info('Finished registering: %s' % service['comment'])
 
     if 'unittest' in sys.modules.keys():
         import os
@@ -155,6 +156,7 @@ def initiate():
         parent_pid = os.getppid()
         os.kill(parent_pid, signal.SIGUSR1)
 
+    logging.info('Mock server is ready!')
     tornado.ioloop.IOLoop.current().start()
 
 
