@@ -20,6 +20,7 @@ from jinja2 import Template
 from faker import Faker
 import tornado.ioloop
 import tornado.web
+from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 
@@ -144,11 +145,31 @@ def initiate():
 
     source = args['source']
     definition = Definition(source)
+    port_mapping = {}
     for service in definition.data['services']:
-        app = make_app(service['endpoints'])
-        app.listen(service['port'])
-        logging.info('Registered listen: %s://%s:%s' % ('http', 'localhost', service['port']))
-        logging.info('Finished registering: %s' % service['comment'])
+        port = str(service['port'])
+        if port not in port_mapping:
+            port_mapping[port] = []
+        port_mapping[port].append(service)
+
+    for port, services in port_mapping.items():
+        rules = []
+        for service in services:
+            if 'hostname' not in service:
+                service['hostname'] = 'localhost'
+            app = make_app(service['endpoints'])
+            rules.append(
+                Rule(HostMatches(service['hostname']), app)
+            )
+
+            logging.info('Registered hostname and port: %s://%s:%d' % ('http', service['hostname'], service['port']))
+            logging.info('Finished registering: %s' % service['comment'])
+
+        if services:
+            router = RuleRouter(rules)
+            server = tornado.web.HTTPServer(router)
+            server.listen(services[0]['port'])
+            logging.info('Will listen port number: %d' % service['port'])
 
     if 'unittest' in sys.modules.keys():
         import os
