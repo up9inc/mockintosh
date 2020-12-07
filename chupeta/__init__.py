@@ -10,6 +10,7 @@
 
 import sys
 import json
+import yaml
 import inspect
 import argparse
 import logging
@@ -20,14 +21,18 @@ from faker import Faker
 import tornado.ioloop
 import tornado.web
 
+from chupeta.exceptions import UnrecognizedConfigFileFormat
+
 
 class Definition():
     def __init__(self, source):
         self.source = source
         self.compiled = None
         self.data = None
+        self.valid_json = False
+        self.valid_yaml = False
         self._compile()
-        self.parse()
+        self.load()
 
     def add_globals(self, template):
         fake = Faker()
@@ -45,8 +50,33 @@ class Definition():
         self.add_globals(template)
         self.compiled = template.render()
 
-    def parse(self):
-        self.data = json.loads(self.compiled)
+    def load(self):
+        invalid_json_error_msg = None
+        invalid_yaml_error_msg = None
+
+        try:
+            self.data = json.loads(self.compiled)
+            self.valid_json = True
+            logging.info('Configuration file is a valid JSON file.')
+        except json.decoder.JSONDecodeError as e:
+            logging.debug('Configuration file is not recognized as a JSON file.')
+            invalid_json_error_msg = str(e)
+
+        try:
+            self.data = yaml.safe_load(self.compiled)
+            self.valid_yaml = True
+            logging.info('Configuration file is a valid YAML file.')
+        except yaml.scanner.ScannerError as e:
+            logging.debug('Configuration file is not recognized as a YAML file.')
+            invalid_yaml_error_msg = str(e)
+
+        if not self.valid_json and not self.valid_yaml:
+            raise UnrecognizedConfigFileFormat(
+                'Configuration file is neither a JSON file nor a YAML file!',
+                self.source,
+                invalid_json_error_msg,
+                invalid_yaml_error_msg
+            )
 
 
 class GenericHandler(tornado.web.RequestHandler):
