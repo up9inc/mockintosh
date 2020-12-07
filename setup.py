@@ -108,7 +108,10 @@ setup(
     # $ pip install -e .[dev,test]
     extras_require={
         'optionals': [
-            'flake8'
+            'flake8',
+            'psutil',
+            'pytest',
+            'codecov'
         ]
     },
 

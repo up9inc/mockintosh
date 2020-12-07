@@ -5,12 +5,11 @@ branches:
 services:
   - docker
 install:
-  - pip install pytest codecov
-  - travis_fold start "Build.Image" && docker build . -t mock && docker image ls mock && travis_fold end "Build.Image"
+  - travis_fold start "Install.Pip.Package" && pip3 install . && pip3 show chupeta && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Build.Image" && docker build . -t chupeta && docker image ls chupeta && travis_fold end "Build.Image"
 script:
   - stty cols 120
-  - travis_fold start "Unit.Tests" && travis_fold end "Unit.Tests"
-  - travis_fold start "Integration.Tests" && docker run -d -p 8000-8010:8000-8010 -v `pwd`:/tmp mock && sleep 5 && curl --fail -v http://localhost:8000 && travis_fold end "Integration.Tests"
+  - travis_fold start "Unit.Tests" && pytest tests -s -v && travis_fold end "Unit.Tests"
 after_success:
   - codecov
 after_failure:

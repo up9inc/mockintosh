@@ -31,12 +31,12 @@ class TestFeatures(unittest.TestCase):
             self.mock_server_process = Process(target=initiate, args=())
             self.mock_server_process.start()
 
-        signal.signal(signal.SIGALRM, signal_handler)
+        signal.signal(signal.SIGUSR1, signal_handler)
         signal.pause()
 
     def tearDown(self):
         super().tearDown()
-        self.mock_server_process.kill()
+        self.mock_server_process.terminate()
 
     def test_ping_ports(self):
         ports = (8001, 8002)

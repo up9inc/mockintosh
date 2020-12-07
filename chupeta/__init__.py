@@ -151,10 +151,9 @@ def initiate():
 
     if 'unittest' in sys.modules.keys():
         import os
-        import psutil
         import signal
-        parent_pid = psutil.Process(os.getpid()).ppid()
-        os.kill(parent_pid, signal.SIGALRM)
+        parent_pid = os.getppid()
+        os.kill(parent_pid, signal.SIGUSR1)
 
     tornado.ioloop.IOLoop.current().start()
 
