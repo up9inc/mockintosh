@@ -9,8 +9,6 @@
 """
 
 import sys
-import unittest
-import time
 import signal
 import subprocess
 import pytest
@@ -30,6 +28,7 @@ test_parameters = []
 for template in templates:
     test_parameters.append(('default', template))
     test_parameters.append(('docker', template))
+
 
 @pytest.mark.parametrize(('mode', 'template'), test_parameters)
 class TestFeatures:

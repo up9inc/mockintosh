@@ -3,10 +3,11 @@
 
 import socket
 import time
-import errno
+
 
 def signal_handler(sig, frame):
     pass
+
 
 def tcping(host, port=65533, timeout=2):
     s = socket.socket()
@@ -19,8 +20,8 @@ def tcping(host, port=65533, timeout=2):
         s.close()
         result = True
         end = time.time()
-    except:
+    except Exception:
         pass
     end = time.time()
-    ms = 1000*(end-start)
-    return result, round(ms,2)
+    ms = 1000 * (end - start)
+    return result, round(ms, 2)

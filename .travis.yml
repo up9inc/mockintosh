@@ -5,10 +5,11 @@ branches:
 services:
   - docker
 install:
-  - travis_fold start "Install.Pip.Package" && pip3 install . && pip3 show chupeta && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Install.Pip.Package" && pip3 install -e . && pip3 show chupeta && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && docker build . -t chupeta && docker image ls chupeta && travis_fold end "Build.Image"
 script:
   - stty cols 120
+  - flake8
   - travis_fold start "Unit.Tests" && pytest tests -s -v && travis_fold end "Unit.Tests"
 after_success:
   - codecov

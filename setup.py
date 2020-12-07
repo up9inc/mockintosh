@@ -9,11 +9,10 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
-from subprocess import PIPE, Popen
 
 __location__ = path.abspath(path.dirname(__file__))
 
