@@ -39,7 +39,7 @@ class TestFeatures:
             self.mock_server_process = Process(target=initiate, args=())
             self.mock_server_process.start()
 
-        signal.signal(signal.SIGUSR1, signal_handler)
+        signal.signal(signal.SIGALRM, signal_handler)
         signal.pause()
 
     def teardown_method(self):

@@ -203,7 +203,7 @@ def initiate():
         import os
         import signal
         parent_pid = os.getppid()
-        os.kill(parent_pid, signal.SIGUSR1)
+        os.kill(parent_pid, signal.SIGALRM)
 
     logging.info('Mock server is ready!')
     tornado.ioloop.IOLoop.current().start()
