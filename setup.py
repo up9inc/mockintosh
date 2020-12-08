@@ -106,7 +106,7 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'optionals': [
+        'dev': [
             'flake8',
             'psutil',
             'pytest',
