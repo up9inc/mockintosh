@@ -13,6 +13,7 @@ import inspect
 import json
 import logging
 import sys
+from os import path
 from uuid import uuid4
 
 import tornado.ioloop
@@ -21,20 +22,25 @@ import yaml
 from faker import Faker
 from jinja2 import Template
 from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
+from jsonschema import validate
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 
+__location__ = path.abspath(path.dirname(__file__))
+
 
 class Definition():
-    def __init__(self, source):
+    def __init__(self, source, schema):
         self.source = source
         self.compiled = None
         self.data = None
         self.valid_json = False
         self.valid_yaml = False
+        self.schema = schema
         self._compile()
         self.load()
+        self.validate()
 
     def add_globals(self, template):
         fake = Faker()
@@ -82,6 +88,10 @@ class Definition():
                 invalid_json_error_msg,
                 invalid_yaml_error_msg
             )
+
+    def validate(self):
+        validate(instance=self.data, schema=self.schema)
+        logging.info('Configuration file is valid according to the JSON schema.')
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -155,8 +165,14 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
+    schema_path = path.join(__location__, 'schema.json')
+    with open(schema_path, 'r') as file:
+        schema_text = file.read()
+        logging.debug('JSON schema: %s' % schema_text)
+        schema = json.loads(schema_text)
+
     source = args['source']
-    definition = Definition(source)
+    definition = Definition(source, schema)
     port_mapping = {}
     for service in definition.data['services']:
         port = str(service['port'])
