@@ -23,6 +23,7 @@ import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
+from chupeta import configs
 
 
 class Definition():
@@ -42,10 +43,13 @@ class Definition():
 
     def _compile(self):
         source_text = None
-        with open(self.source, 'r') as file:
-            logging.info('Reading configuration file from path: %s' % self.source)
-            source_text = file.read()
-            logging.debug('Configuration text: %s' % source_text)
+        if self.source is None:
+            source_text = configs.get_default()
+        else:
+            with open(self.source, 'r') as file:
+                logging.info('Reading configuration file from path: %s' % self.source)
+                source_text = file.read()
+                logging.debug('Configuration text: %s' % source_text)
         logging.info('Parsing the configuration file...')
         template = Template(source_text)
         self.add_globals(template)
@@ -122,9 +126,9 @@ def make_app(endpoints, debug=False):
 
 
 def initiate():
-    """The top-level method to serve as the entry point of Dragonfire.
+    """The top-level method to serve as the entry point of Chupeta.
 
-    This method is the entry point defined in `setup.py` for the `dragonfire` executable that
+    This method is the entry point defined in `setup.py` for the `chupeta` executable that
     placed a directory in `$PATH`.
 
     This method parses the command-line arguments and handles the top-level initiations accordingly.

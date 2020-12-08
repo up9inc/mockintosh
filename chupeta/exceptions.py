@@ -1,3 +1,14 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+"""
+.. module:: __init__
+    :platform: Unix
+    :synopsis: module that contains the exceptions.
+.. moduleauthor:: M. Mert Yildiran <mehmet@up9.com>
+"""
+
+
 class UnrecognizedConfigFileFormat(Exception):
     """Raised in case of both JSON and YAML parser is failed for the configuration file.
     """
