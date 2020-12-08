@@ -8,18 +8,18 @@
 .. moduleauthor:: M. Mert Yildiran <mehmet@up9.com>
 """
 
-import sys
-import json
-import yaml
-import inspect
 import argparse
+import inspect
+import json
 import logging
+import sys
 from uuid import uuid4
 
-from jinja2 import Template
-from faker import Faker
 import tornado.ioloop
 import tornado.web
+import yaml
+from faker import Faker
+from jinja2 import Template
 from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
@@ -131,18 +131,25 @@ def initiate():
     """
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('source', help='Path to configuration file.', nargs='?')
-    ap.add_argument('-d', '--debug', help='Enable Tornado Web Server\'s debug mode.', action='store_true')
-    ap.add_argument('-q', '--quite', help='Disable all the log output.', action='store_true')
-    ap.add_argument('-v', '--verbose', help='Increase verbosity of log output.', action='store_true')
+    ap.add_argument('source', help='Path to configuration file', nargs='?')
+    ap.add_argument('-d', '--debug', help='Enable Tornado Web Server\'s debug mode', action='store_true')
+    ap.add_argument('-q', '--quiet', help='Less logging messages, only warnings and errors', action='store_true')
+    ap.add_argument('-v', '--verbose', help='More logging messages, including debug', action='store_true')
+    ap.add_argument('-l', '--logfile', help='Also write log into a file', action='store')
     args = vars(ap.parse_args())
 
-    if args['quite']:
-        logging.basicConfig(level=logging.ERROR)
+    fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
+    if args['quiet']:
+        logging.basicConfig(level=logging.WARNING, format=fmt)
     elif args['verbose']:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format=fmt)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format=fmt)
+
+    if args['logfile']:
+        handler = logging.FileHandler(args['logfile'])
+        handler.setFormatter(logging.Formatter(fmt))
+        logging.getLogger('').addHandler(handler)
 
     source = args['source']
     definition = Definition(source)
