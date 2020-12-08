@@ -12,7 +12,7 @@ We respect the achievements of predecessors (Wiremock, Mockoon etc), we offer si
 
 ## Build
 
-Installating it directly:
+Installation it directly:
 
 ```bash
 pip3 install .
@@ -32,7 +32,7 @@ Running directly:
 chupeta examples/template.j2
 ```
 
-or the Docker container:
+or as a Docker container:
 
 ```bash
 docker run -p 8000-8010:8000-8010 -v `pwd`/tests/templates/template.json.j2:/template.json.j2 chupeta /template.json.j2
