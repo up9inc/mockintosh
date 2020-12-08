@@ -32,7 +32,7 @@ class TestFeatures:
 
         self.mock_server_process = None
         __location__ = path.abspath(path.dirname(__file__))
-        template_path = path.join(__location__, template)
+        template_path = path.join(__location__, '../%s' % template)
 
         testargs = [PROGRAM, template_path]
         with patch.object(sys, 'argv', testargs):
