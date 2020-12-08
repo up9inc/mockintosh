@@ -18,9 +18,9 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/')
         self.assertEqual(200, resp.status_code)
 
-        # since service :8001 does not specify hostname, it should accept any
-        resp = requests.get(SRV1 + '/', headers={'Host': 'someservice.domain'})
-        self.assertEqual(200, resp.status_code)
+        # # since service :8001 does not specify hostname, it should accept any
+        # resp = requests.get(SRV1 + '/', headers={'Host': 'someservice.domain'})
+        # self.assertEqual(200, resp.status_code)
 
     def test_host_header(self):
         resp = requests.get(SRV2 + '/')
