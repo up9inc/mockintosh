@@ -6,7 +6,7 @@ services:
   - docker
 install:
   - pip3 install flake8
-  - travis_fold start "Install.Pip.Package" && pip3 install -e . && pip3 show chupeta && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Install.Pip.Package" && pip3 install -e .[dev] && pip3 show chupeta && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && docker build . -t chupeta && docker image ls chupeta && travis_fold end "Build.Image"
 script:
   - stty cols 120
