@@ -1,0 +1,27 @@
+{
+  "services": [
+    {
+      "comment": "First basic service",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/",
+          "method": "GET",
+          "response": {}
+        }
+      ]
+    },
+    {
+      "comment": "Mock for http://frontend-service.trdemo",
+      "port": 8002,
+      "hostname": "specified.host",
+      "endpoints": [
+        {
+          "path": "/",
+          "method": "get",
+          "response": {}
+        }
+      ]
+    }
+  ]
+}
