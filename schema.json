@@ -7,6 +7,9 @@
         "comment": {
           "type": "string"
         },
+        "hostname": {
+          "type": "string"
+        },
         "port": {
           "type": "integer"
         },
@@ -17,7 +20,11 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "required": [
+        "port",
+        "endpoints"
+      ]
     },
     "endpoint_ref": {}
   },
