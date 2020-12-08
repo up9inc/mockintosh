@@ -110,7 +110,8 @@ setup(
             'flake8',
             'psutil',
             'pytest',
-            'codecov'
+            'codecov',
+            'requests'
         ]
     },
 
