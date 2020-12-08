@@ -103,7 +103,7 @@ class GenericHandler(tornado.web.RequestHandler):
         logging.debug('Received request:\n%s' % self.request.__dict__)
 
 
-def make_app(endpoints):
+def make_app(endpoints, debug=False):
     endpoint_handlers = []
     for endpoint in endpoints:
         endpoint_handlers.append(
@@ -118,7 +118,7 @@ def make_app(endpoints):
         )
         logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
         logging.debug('with response:\n%s' % endpoint['response'])
-    return tornado.web.Application(endpoint_handlers, debug=True)
+    return tornado.web.Application(endpoint_handlers, debug=debug)
 
 
 def initiate():
@@ -132,6 +132,7 @@ def initiate():
 
     ap = argparse.ArgumentParser()
     ap.add_argument('source', help='Path to configuration file.', nargs='?')
+    ap.add_argument('-d', '--debug', help='Enable Tornado Web Server\'s debug mode.', action='store_true')
     ap.add_argument('-q', '--quite', help='Disable all the log output.', action='store_true')
     ap.add_argument('-v', '--verbose', help='Increase verbosity of log output.', action='store_true')
     args = vars(ap.parse_args())
@@ -157,7 +158,7 @@ def initiate():
         for service in services:
             if 'hostname' not in service:
                 service['hostname'] = 'localhost'
-            app = make_app(service['endpoints'])
+            app = make_app(service['endpoints'], args['debug'])
             rules.append(
                 Rule(HostMatches(service['hostname']), app)
             )
