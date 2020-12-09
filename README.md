@@ -24,7 +24,7 @@ or as a Docker image:
 docker build -t chupeta .
 ```
 
-To verify the installation run `chupeta` and visit [http://localhost:8001/]
+To verify the installation run `chupeta` and visit [http://localhost:8001](http://localhost:8001)
 you should be seeing `{"hello": "world"}` response.
 
 ## Run
@@ -60,7 +60,7 @@ services: # List of your microservices
 - comment: "Mock for http://example2.com"
   hostname: "service2.example.com"
   port: 8002
-  endpoints:
+  endpoints: ...
 ```
 
 The fields of an endpoint is shown below:
