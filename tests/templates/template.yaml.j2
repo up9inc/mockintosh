@@ -1,6 +1,7 @@
 ---
 services:
-- comment: Mock for http://example1.com
+- comment: "Mock for http://example1.com"
+  hostname: "service1.example.com"
   port: 8001
   endpoints:
   - path: "/users"
@@ -17,7 +18,8 @@ services:
         {% endfor %}
       {% endfor %}
       total: 10
-- comment: Mock for http://example2.com
+- comment: "Mock for http://example2.com"
+  hostname: "service2.example.com"
   port: 8002
   endpoints:
   - path: "/companies"
