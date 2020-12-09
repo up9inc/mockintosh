@@ -3,7 +3,6 @@
 
 """
 .. module:: __init__
-    :platform: Unix
     :synopsis: module that contains pre-defined configurations.
 """
 

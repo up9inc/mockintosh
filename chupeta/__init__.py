@@ -3,7 +3,6 @@
 
 """
 .. module:: __init__
-    :platform: Unix
     :synopsis: the top-level module of Chupeta.
 """
 

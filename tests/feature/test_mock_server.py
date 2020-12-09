@@ -3,7 +3,6 @@
 
 """
 .. module:: __init__
-    :platform: Unix
     :synopsis: End-to-end tests related to mock server's itself.
 """
 
