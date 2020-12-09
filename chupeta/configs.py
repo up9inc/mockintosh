@@ -13,7 +13,6 @@ def get_default():
   "services": [
     {
       "comment": "Default Mock Service Config",
-      "hostname": "localhost",
       "port": 8001,
       "endpoints": [
         {

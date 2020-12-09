@@ -181,17 +181,23 @@ def initiate():
     for port, services in port_mapping.items():
         rules = []
         for service in services:
-            if 'hostname' not in service:
-                service['hostname'] = 'localhost'
             app = make_app(service['endpoints'], args['debug'])
-            rules.append(
-                Rule(HostMatches(service['hostname']), app)
-            )
+            if 'hostname' not in service:
+                app.listen(service['port'])
+                logging.info('Will listen port number: %d' % service['port'])
+            else:
+                rules.append(
+                    Rule(HostMatches(service['hostname']), app)
+                )
 
-            logging.info('Registered hostname and port: %s://%s:%d' % ('http', service['hostname'], service['port']))
+                logging.info('Registered hostname and port: %s://%s:%d' % (
+                    'http',
+                    service['hostname'],
+                    service['port']
+                ))
             logging.info('Finished registering: %s' % service['comment'])
 
-        if services:
+        if rules:
             router = RuleRouter(rules)
             server = tornado.web.HTTPServer(router)
             server.listen(services[0]['port'])

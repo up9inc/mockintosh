@@ -32,7 +32,7 @@ you should be seeing `{"hello": "world"}` response.
 Running directly:
 
 ```bash
-chupeta examples/template.j2
+chupeta tests/templates/template.json.j2
 ```
 
 or as a Docker container:
