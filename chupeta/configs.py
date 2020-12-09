@@ -5,7 +5,6 @@
 .. module:: __init__
     :platform: Unix
     :synopsis: module that contains pre-defined configurations.
-.. moduleauthor:: M. Mert Yildiran <mehmet@up9.com>
 """
 
 

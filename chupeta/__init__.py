@@ -5,7 +5,6 @@
 .. module:: __init__
     :platform: Unix
     :synopsis: the top-level module of Chupeta.
-.. moduleauthor:: M. Mert Yildiran <mehmet@up9.com>
 """
 
 import argparse

@@ -51,10 +51,6 @@ setup(
     # The project's main homepage.
     url='https://github.com/up9inc/chupeta',
 
-    # Author details
-    author='M. Mert Yildiran',
-    author_email='mehmet@up9.com',
-
     # Choose your license
     license='GPL-3.0+',
 
