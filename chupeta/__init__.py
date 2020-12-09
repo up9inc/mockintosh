@@ -36,8 +36,11 @@ class Definition():
         self.valid_json = False
         self.valid_yaml = False
         self.schema = schema
-        self._compile()
-        self.load()
+        if self.source is None:
+            self.data = configs.get_default()
+        else:
+            self._compile()
+            self.load()
         self.validate()
 
     def add_globals(self, template):
@@ -47,13 +50,10 @@ class Definition():
 
     def _compile(self):
         source_text = None
-        if self.source is None:
-            source_text = configs.get_default()
-        else:
-            with open(self.source, 'r') as file:
-                logging.info('Reading configuration file from path: %s' % self.source)
-                source_text = file.read()
-                logging.debug('Configuration text: %s' % source_text)
+        with open(self.source, 'r') as file:
+            logging.info('Reading configuration file from path: %s' % self.source)
+            source_text = file.read()
+            logging.debug('Configuration text: %s' % source_text)
         logging.info('Parsing the configuration file...')
         template = Template(source_text)
         self.add_globals(template)

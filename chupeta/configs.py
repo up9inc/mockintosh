@@ -8,22 +8,20 @@
 
 
 def get_default():
-    return """
-{
-  "services": [
-    {
-      "comment": "Default Mock Service Config",
-      "port": 8001,
-      "endpoints": [
-        {
-          "path": "/",
-          "method": "GET",
-          "response": {
-            "hello": "world"
-          }
-        }
-      ]
+    return {
+        'services': [
+            {
+                'comment': 'Default Mock Service Config',
+                'port': 8001,
+                'endpoints': [
+                    {
+                        'path': '/',
+                        'method': 'GET',
+                        'response': {
+                            'hello': 'world'
+                        }
+                    }
+                ]
+            }
+        ]
     }
-  ]
-}
-"""
