@@ -5,13 +5,15 @@ branches:
 services:
   - docker
 install:
-  - pip install pytest codecov
-  - travis_fold start "Build.Image" && docker build . -t mock && docker image ls mock && travis_fold end "Build.Image"
+  - pip3 install flake8
+  - travis_fold start "Install.Pip.Package" && pip3 install -e .[dev] && pip3 show chupeta && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Build.Image" && docker build . -t chupeta && docker image ls chupeta && travis_fold end "Build.Image"
 script:
   - stty cols 120
-  - travis_fold start "Unit.Tests" && travis_fold end "Unit.Tests"
-  - travis_fold start "Integration.Tests" && docker run -d -p 8000-9000:8000-9000 -v `pwd`:/tmp mock && sleep 5 && curl --fail -v http://localhost:8000 && travis_fold end "Integration.Tests"
+  - travis_fold start "Feature.Tests" && pytest -s -v tests/feature && travis_fold end "Feature.Tests"
+  - travis_fold start "Integration.Tests" && docker run -d -p 8000-8010:8000-8010 -v `pwd`:/tmp chupeta -v -l /tmp/server.log /tmp/tests/templates/integration.json.j2 && sleep 5 && pytest -s -v tests/integration/tests_integration.py && travis_fold end "Integration.Tests"
+  - flake8
 after_success:
   - codecov
 after_failure:
-  - cat server.log  # the log from container
+  -  travis_fold start "server_log" && ( cat server.log || echo No logfile) && travis_fold end "server_log" # the log from container

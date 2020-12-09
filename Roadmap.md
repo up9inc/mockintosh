@@ -1,6 +1,6 @@
 # Roadmap
 
-## Milestone 1
+## Milestone 1 - Complete
 
 1. Open Source project with documentation, examples, code quality, unit tests with coverage. 
    - UP9 will do a lot of promotion for it, has to be good quality

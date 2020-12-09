@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "service_ref": {
+      "type": "object",
+      "properties": {
+        "comment": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint_ref"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "port",
+        "endpoints"
+      ]
+    },
+    "endpoint_ref": {}
+  },
+  "type": "object",
+  "properties": {
+    "services": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/service_ref"
+      }
+    }
+  },
+  "additionalProperties": false
+}
