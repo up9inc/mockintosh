@@ -24,6 +24,7 @@ from jsonschema import validate
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
+from chupeta.params import PathParam
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -40,6 +41,7 @@ class Definition():
         else:
             self.load()
         self.validate()
+        self.analyze()
 
     def load(self):
         source_text = None
@@ -79,11 +81,35 @@ class Definition():
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
+    def analyze(self):
+        for service in self.data['services']:
+            for endpoint in service['endpoints']:
+                endpoint['params'] = {}
+                segments = endpoint['path'].split('/')
+                new_segments = []
+                for index, segment in enumerate(segments):
+                    var = self.get_var(segment)
+                    if var is not None:
+                        param = PathParam(var, index)
+                        endpoint['params'][var] = param
+                        new_segments.append('.*')
+                    else:
+                        new_segments.append(segment)
+
+                endpoint['path'] = '/'.join(new_segments)
+
+    def get_var(self, text):
+        if text.startswith('{{') and text.endswith('}}'):
+            return text[2:-2].strip()
+        else:
+            return None
+
 
 class GenericHandler(tornado.web.RequestHandler):
-    def initialize(self, method, response):
+    def initialize(self, method, response, params):
         self.custom_response = response
         self.custom_method = method.lower()
+        self.custom_params = params
 
     def get(self):
         self.log_request()
@@ -106,6 +132,12 @@ class GenericHandler(tornado.web.RequestHandler):
         fake = Faker()
         template.globals['uuid'] = uuid4
         template.globals['fake'] = fake
+        self.add_params(template)
+
+    def add_params(self, template):
+        for key, param in self.custom_params.items():
+            if isinstance(param, PathParam):
+                template.globals[key] = self.request.path.split('/')[param.index]
 
     def render_template(self):
         source_text = None
@@ -176,7 +208,8 @@ def make_app(endpoints, debug=False):
                 GenericHandler,
                 dict(
                     method=endpoint['method'],
-                    response=endpoint['response']
+                    response=endpoint['response'],
+                    params=endpoint['params']
                 )
             )
         )
