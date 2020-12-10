@@ -1,0 +1,34 @@
+{
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/users",
+          "method": "GET",
+          "response": {
+            "useTemplating": true,
+            "fromFile": "tests/configs/templates/users.json.j2"
+          }
+        }
+      ]
+    },
+    {
+      "comment": "Mock for Service2",
+      "hostname": "service2.example.com",
+      "port": 8002,
+      "endpoints": [
+        {
+          "path": "/companies",
+          "method": "POST",
+          "response": {
+            "useTemplating": true,
+            "fromFile": "tests/configs/templates/companies.yaml.j2"
+          }
+        }
+      ]
+    }
+  ]
+}

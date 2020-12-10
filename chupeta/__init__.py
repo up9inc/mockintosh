@@ -31,7 +31,6 @@ __location__ = path.abspath(path.dirname(__file__))
 class Definition():
     def __init__(self, source, schema):
         self.source = source
-        self.compiled = None
         self.data = None
         self.valid_json = False
         self.valid_yaml = False
@@ -39,32 +38,21 @@ class Definition():
         if self.source is None:
             self.data = configs.get_default()
         else:
-            self._compile()
             self.load()
         self.validate()
 
-    def add_globals(self, template):
-        fake = Faker()
-        template.globals['uuid'] = uuid4
-        template.globals['fake'] = fake
-
-    def _compile(self):
+    def load(self):
         source_text = None
         with open(self.source, 'r') as file:
             logging.info('Reading configuration file from path: %s' % self.source)
             source_text = file.read()
             logging.debug('Configuration text: %s' % source_text)
-        logging.info('Parsing the configuration file...')
-        template = Template(source_text)
-        self.add_globals(template)
-        self.compiled = template.render()
 
-    def load(self):
         invalid_json_error_msg = None
         invalid_yaml_error_msg = None
 
         try:
-            self.data = json.loads(self.compiled)
+            self.data = json.loads(source_text)
             self.valid_json = True
             logging.info('Configuration file is a valid JSON file.')
         except json.decoder.JSONDecodeError as e:
@@ -72,7 +60,7 @@ class Definition():
             invalid_json_error_msg = str(e)
 
         try:
-            self.data = yaml.safe_load(self.compiled)
+            self.data = yaml.safe_load(source_text)
             self.valid_yaml = True
             logging.info('Configuration file is a valid YAML file.')
         except yaml.scanner.ScannerError as e:
@@ -100,12 +88,12 @@ class GenericHandler(tornado.web.RequestHandler):
     def get(self):
         self.log_request()
         self.dynamic_unimplemented_method_guard()
-        self.write(self.custom_response)
+        self.write(self.render_template())
 
     def post(self):
         self.log_request()
         self.dynamic_unimplemented_method_guard()
-        self.write(self.custom_response)
+        self.write(self.render_template())
 
     def dynamic_unimplemented_method_guard(self):
         if self.custom_method != inspect.stack()[1][3]:
@@ -114,10 +102,74 @@ class GenericHandler(tornado.web.RequestHandler):
     def log_request(self):
         logging.debug('Received request:\n%s' % self.request.__dict__)
 
+    def add_globals(self, template):
+        fake = Faker()
+        template.globals['uuid'] = uuid4
+        template.globals['fake'] = fake
+
+    def render_template(self):
+        source_text = None
+        is_response_str = isinstance(self.custom_response, str)
+        if is_response_str:
+            source_text = self.custom_response
+        elif 'text' in self.custom_response:
+            source_text = self.custom_response['text']
+        else:
+            template_path = self.custom_response['fromFile']
+            with open(template_path, 'r') as file:
+                logging.info('Reading template file from path: %s' % template_path)
+                source_text = file.read()
+                logging.debug('Configuration text: %s' % source_text)
+
+        compiled = None
+        if not is_response_str and (
+            'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False
+        ):
+            compiled = source_text
+        else:
+            template = Template(source_text)
+            self.add_globals(template)
+            compiled = template.render()
+
+        valid_json = False
+        valid_yaml = False
+
+        try:
+            response = json.loads(compiled)
+            valid_json = True
+            logging.info('Template is a valid JSON.')
+        except json.decoder.JSONDecodeError as e:
+            logging.debug('Template is not recognized as a JSON.')
+            invalid_json_error_msg = str(e)
+
+        try:
+            response = yaml.safe_load(compiled)
+            valid_yaml = True
+            logging.info('Template is a valid YAML.')
+        except yaml.scanner.ScannerError as e:
+            logging.debug('Template is not recognized as a YAML.')
+            invalid_yaml_error_msg = str(e)
+
+        if not valid_json and not valid_yaml:
+            raise UnrecognizedConfigFileFormat(
+                'Template is neither a JSON nor a YAML!',
+                compiled,
+                invalid_json_error_msg,
+                invalid_yaml_error_msg
+            )
+
+        if is_response_str:
+            return response
+        else:
+            return response['body']
+
 
 def make_app(endpoints, debug=False):
     endpoint_handlers = []
     for endpoint in endpoints:
+        if 'method' not in endpoint:
+            endpoint['method'] = 'GET'
+
         endpoint_handlers.append(
             (
                 endpoint['path'],

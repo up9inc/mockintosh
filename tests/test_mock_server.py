@@ -19,7 +19,7 @@ from utilities import signal_handler, tcping
 PROGRAM = 'chupeta'
 
 templates = [
-    'templates/template.json.j2'
+    'configs/config.json'
 ]
 
 

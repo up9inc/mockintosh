@@ -1,0 +1,8 @@
+---
+body:
+  companies:
+  {% for n in range(5) %}
+  - name: '{{ fake.company() }}'
+    motto: '{{ fake.catch_phrase() }}'
+  {% endfor %}
+  total: 2
