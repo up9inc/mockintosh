@@ -22,6 +22,7 @@
 2. Response with templating 
 3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things 
    (Accept etc)
+4. Log exception if loading server failed   
 
 ## Milestone 3
 

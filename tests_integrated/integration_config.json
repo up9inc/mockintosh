@@ -20,6 +20,10 @@
         {
           "path": "/parameterized2/{{regEx '^prefix-.+$'}}/subval",
           "response": "regex capture: {{request.urlPath}}"
+        },
+        {
+          "path": "/parameterized1/{{regEx '^prefix2-.+$'}}/subval2",
+          "response": "tricky regex capture: {{request.urlPath}}"
         }
       ]
     },

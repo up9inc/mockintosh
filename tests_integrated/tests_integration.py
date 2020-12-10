@@ -48,3 +48,8 @@ class IntegrationTests(unittest.TestCase):
         path = '/parameterized2/wrongprefix-' + str(int(time.time())) + '/subval'
         resp = requests.get(SRV1 + path)
         self.assertEqual(404, resp.status_code)
+
+        path = '/parameterized1/prefix2-' + str(int(time.time())) + '/subval2'
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("tricky regex capture: " + path, resp.text)
