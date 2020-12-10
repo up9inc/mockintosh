@@ -13,20 +13,34 @@ import logging
 import sys
 from os import path
 from uuid import uuid4
+from functools import wraps
 
 import tornado.ioloop
 import tornado.web
 import yaml
 from faker import Faker
 from jinja2 import Template
+from pybars import Compiler
 from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
 from jsonschema import validate
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 from chupeta.params import PathParam
+from chupeta.methods import hbs_fake, random_integer
 
 __location__ = path.abspath(path.dirname(__file__))
+
+JINJA = 'Jinja2'
+PYBARS = 'Handlebars'
+
+
+def _ignore_first_arg(fn):
+    @wraps(fn)
+    def wrapper(_, /, *args, **kwargs):
+        return fn(*args, **kwargs)
+
+    return wrapper
 
 
 class Definition():
@@ -128,20 +142,45 @@ class GenericHandler(tornado.web.RequestHandler):
     def log_request(self):
         logging.debug('Received request:\n%s' % self.request.__dict__)
 
-    def add_globals(self, template):
+    def add_globals(self, template, helpers=None):
         fake = Faker()
-        template.globals['uuid'] = uuid4
-        template.globals['fake'] = fake
-        self.add_params(template)
+        context = {}
+        if helpers is None:
+            helpers = template.globals
+            context = helpers
+        helpers['uuid'] = uuid4
+        helpers['fake'] = fake
+        helpers['random_integer'] = random_integer
+        context = self.add_params(context)
 
-    def add_params(self, template):
+        # It means the template engine is PYBARS
+        if helpers is not None:
+            for key, helper in helpers.items():
+                if callable(helper):
+                    helpers[key] = _ignore_first_arg(helper)
+
+            def super_fake(_, /, *args, **kwargs):
+                return hbs_fake(fake, *args, **kwargs)
+
+            helpers['fake'] = super_fake
+
+        return context, helpers
+
+    def add_params(self, context):
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                template.globals[key] = self.request.path.split('/')[param.index]
+                context[key] = self.request.path.split('/')[param.index]
+        return context
 
     def render_template(self):
         source_text = None
         is_response_str = isinstance(self.custom_response, str)
+
+        template_engine = PYBARS
+        if 'templatingEngine' in self.custom_response and self.custom_response['templatingEngine'] == JINJA:
+            template_engine = JINJA
+        logging.info('Templating engine is: %s' % template_engine)
+
         if is_response_str:
             source_text = self.custom_response
         elif 'text' in self.custom_response:
@@ -151,7 +190,7 @@ class GenericHandler(tornado.web.RequestHandler):
             with open(template_path, 'r') as file:
                 logging.info('Reading template file from path: %s' % template_path)
                 source_text = file.read()
-                logging.debug('Configuration text: %s' % source_text)
+                logging.debug('Template file text: %s' % source_text)
 
         compiled = None
         if not is_response_str and (
@@ -159,9 +198,17 @@ class GenericHandler(tornado.web.RequestHandler):
         ):
             compiled = source_text
         else:
-            template = Template(source_text)
-            self.add_globals(template)
-            compiled = template.render()
+            if template_engine == JINJA:
+                template = Template(source_text)
+                self.add_globals(template)
+                compiled = template.render()
+            else:
+                compiler = Compiler()
+                context, helpers = self.add_globals(compiler._compiler, helpers={})
+                template = compiler.compile(source_text)
+                compiled = template(context, helpers=helpers)
+
+        logging.debug('Render output: %s' % compiled)
 
         valid_json = False
         valid_yaml = False
