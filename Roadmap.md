@@ -16,7 +16,7 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-## Milestone 2
+## Milestone 2 - WIP
 
 1. Endpoints configuration with only Path matcher
 2. Response with templating 

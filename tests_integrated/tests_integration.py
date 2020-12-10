@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import unittest
 
 import requests
@@ -28,3 +29,22 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV2 + '/', headers={'Host': 'specified.host:8002'})
         self.assertEqual(200, resp.status_code)
+
+    def test_path_parameters(self):
+        param = str(int(time.time()))
+        resp = requests.get(SRV1 + '/parameterized1/' + param + '/subval')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("intoVar capture: " + param, resp.text)
+
+        resp = requests.get(SRV1 + '/parameterized1/staticVal/subval')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("static path components have priority", resp.text)
+
+        path = '/parameterized2/prefix-' + str(int(time.time())) + '/subval'
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("regex capture: " + path, resp.text)
+
+        path = '/parameterized2/wrongprefix-' + str(int(time.time())) + '/subval'
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
