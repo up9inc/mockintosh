@@ -49,7 +49,8 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + path)
         self.assertEqual(404, resp.status_code)
 
-        path = '/parameterized1/prefix2-' + str(int(time.time())) + '/subval2'
+        param = str(int(time.time()))
+        path = '/parameterized1/prefix2-' + param + '/subval2'
         resp = requests.get(SRV1 + path)
         self.assertEqual(200, resp.status_code)
-        self.assertEqual("tricky regex capture: " + path, resp.text)
+        self.assertEqual("tricky regex capture: " + param, resp.text)
