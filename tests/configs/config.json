@@ -12,6 +12,14 @@
             "useTemplating": true,
             "fromFile": "tests/configs/templates/users.json.j2"
           }
+        },
+        {
+          "path": "/users/{{ id }}",
+          "method": "GET",
+          "response": {
+            "useTemplating": true,
+            "fromFile": "tests/configs/templates/user.json.j2"
+          }
         }
       ]
     },
