@@ -11,6 +11,7 @@ import inspect
 import json
 import logging
 import sys
+import re
 from os import path
 from uuid import uuid4
 from functools import wraps
@@ -99,24 +100,33 @@ class Definition():
         for service in self.data['services']:
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
-                segments = endpoint['path'].split('/')
+                segments = path.split(endpoint['path'])
                 new_segments = []
                 for index, segment in enumerate(segments):
-                    var = self.get_var(segment)
+                    var, new_segment = self.render_segment(segment)
                     if var is not None:
                         param = PathParam(var, index)
                         endpoint['params'][var] = param
-                        new_segments.append('.*')
-                    else:
-                        new_segments.append(segment)
+                    new_segments.append(new_segment)
 
                 endpoint['path'] = '/'.join(new_segments)
 
-    def get_var(self, text):
-        if text.startswith('{{') and text.endswith('}}'):
-            return text[2:-2].strip()
-        else:
-            return None
+    def render_segment(self, text):
+        var = None
+        context = {}
+        compiler = Compiler()
+        template = compiler.compile(text)
+        compiled = template(context, helpers={})
+        if not compiled:
+            match = re.match(r'{{(.*)}}', text)
+            if match is not None:
+                name = match.group(1).strip()
+                context[name] = '.*'
+                compiled = template(context, helpers={})
+                var = name
+            else:
+                compiled = text
+        return var, compiled
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -169,7 +179,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def add_params(self, context):
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                context[key] = self.request.path.split('/')[param.index]
+                context[key] = path.split(self.request.path)[param.index]
         return context
 
     def render_template(self):
