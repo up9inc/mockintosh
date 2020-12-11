@@ -1,4 +1,5 @@
 {
+  "templatingEngine": "Handlebars",
   "services": [
     {
       "comment": "First basic service",

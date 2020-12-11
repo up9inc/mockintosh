@@ -8,3 +8,5 @@
 
 PYBARS = 'Handlebars'
 JINJA = 'Jinja2'
+
+SUPPORTED_ENGINES = (PYBARS, JINJA)

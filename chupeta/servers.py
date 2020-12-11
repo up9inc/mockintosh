@@ -63,7 +63,6 @@ class HttpServer():
         logging.info('Mock server is ready!')
         tornado.ioloop.IOLoop.current().start()
 
-
     def make_app(self, endpoints, debug=False):
         endpoint_handlers = []
         for endpoint in endpoints:

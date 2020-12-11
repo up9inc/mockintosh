@@ -8,6 +8,6 @@
 
 
 class PathParam():
-    def __init__(self, var, index):
-        self.var = var
+    def __init__(self, name, index):
+        self.name = name
         self.index = index

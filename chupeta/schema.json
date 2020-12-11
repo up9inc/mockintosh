@@ -63,6 +63,9 @@
   },
   "type": "object",
   "properties": {
+    "templatingEngine": {
+      "type": "string"
+    },
     "services": {
       "type": "array",
       "items": {

@@ -13,10 +13,9 @@ import inspect
 import yaml
 import tornado.web
 
-from chupeta.constants import PYBARS, JINJA
 from chupeta.templating import TemplateRenderer
 from chupeta.params import PathParam
-from chupeta.methods import uuid, fake, random_integer, _safe_path_split
+from chupeta.methods import uuid, fake, random_integer, _safe_path_split, _detect_engine
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 
 
@@ -53,10 +52,7 @@ class GenericHandler(tornado.web.RequestHandler):
         source_text = None
         is_response_str = isinstance(self.custom_response, str)
 
-        template_engine = PYBARS
-        if 'templatingEngine' in self.custom_response and self.custom_response['templatingEngine'] == JINJA:
-            template_engine = JINJA
-        logging.info('Templating engine is: %s' % template_engine)
+        template_engine = _detect_engine(self.custom_response, 'response')
 
         if is_response_str:
             source_text = self.custom_response

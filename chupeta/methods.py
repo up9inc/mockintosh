@@ -6,10 +6,13 @@
     :synopsis: module that contains methods to be injected into template engines.
 """
 
-from uuid import uuid4
-import random
 import re
+import random
+import logging
+from uuid import uuid4
 from functools import wraps
+
+from chupeta.constants import PYBARS, JINJA
 
 
 def fake():
@@ -48,3 +51,11 @@ def _safe_path_split(path):
 def _to_camel_case(snake_case):
     components = snake_case.split('_')
     return components[0] + ''.join(x.title() for x in components[1:])
+
+
+def _detect_engine(data, context='config'):
+    template_engine = PYBARS
+    if 'templatingEngine' in data and data['templatingEngine'].lower() == JINJA.lower():
+        template_engine = JINJA
+    logging.info('Templating engine (%s) is: %s' % (context, template_engine))
+    return template_engine

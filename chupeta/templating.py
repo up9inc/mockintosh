@@ -10,11 +10,10 @@ from jinja2 import Template
 from pybars import Compiler
 from faker import Faker
 
-from chupeta.constants import PYBARS, JINJA
+from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
 from chupeta.exceptions import UnsupportedTemplateEngine
 from chupeta.methods import hbs_fake, _ignore_first_arg, _to_camel_case
 
-SUPPORTED_ENGINES = (PYBARS, JINJA)
 compiler = Compiler()
 
 

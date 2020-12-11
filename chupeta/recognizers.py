@@ -8,22 +8,22 @@
 
 import re
 
-from pybars import Compiler
-
+from chupeta.templating import TemplateRenderer
 from chupeta.params import PathParam
-from chupeta.methods import reg_ex, _ignore_first_arg, _safe_path_split
+from chupeta.methods import reg_ex, _safe_path_split
 
 
 class PathRecognizer():
-    def __init__(self, path, params):
+    def __init__(self, path, params, engine):
         self.path = path
         self.params = params
+        self.engine = engine
 
     def recognize(self):
         segments = _safe_path_split(self.path)
         new_segments = []
         for index, segment in enumerate(segments):
-            var, new_segment = self.render_segment(segment)
+            var, new_segment = self.render_segment(segment, index)
             if var is not None:
                 param = PathParam(var, index)
                 self.params[var] = param
@@ -31,20 +31,21 @@ class PathRecognizer():
 
         return '/'.join(new_segments)
 
-    def render_segment(self, text):
+    def render_segment(self, text, index):
         var = None
-        context = {}
-        helpers = {}
-        helpers['regEx'] = _ignore_first_arg(reg_ex)
-        compiler = Compiler()
-        template = compiler.compile(text)
-        compiled = template(context, helpers=helpers)
+
+        renderer = TemplateRenderer(
+            self.engine,
+            text,
+            inject_methods=[reg_ex]
+        )
+        compiled = renderer.render()
+
         if not compiled:
             match = re.match(r'{{(.*)}}', text)
             if match is not None:
                 name = match.group(1).strip()
-                context[name] = '.*'
-                compiled = template(context, helpers=helpers)
+                compiled = '.*'
                 var = name
             else:
                 compiled = text

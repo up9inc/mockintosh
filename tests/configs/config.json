@@ -1,4 +1,5 @@
 {
+  "templatingEngine": "Handlebars",
   "services": [
     {
       "comment": "Mock for Service1",

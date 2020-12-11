@@ -9,7 +9,6 @@
 import argparse
 import json
 import logging
-import sys
 from os import path
 
 import yaml
@@ -19,6 +18,7 @@ from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 from chupeta.recognizers import PathRecognizer
 from chupeta.servers import HttpServer
+from chupeta.methods import _detect_engine
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -35,6 +35,7 @@ class Definition():
         else:
             self.load()
         self.validate()
+        self.template_engine = _detect_engine(self.data, 'config')
         self.analyze()
 
     def load(self):
@@ -81,7 +82,11 @@ class Definition():
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
 
-                path_recognizer = PathRecognizer(endpoint['path'], endpoint['params'])
+                path_recognizer = PathRecognizer(
+                    endpoint['path'],
+                    endpoint['params'],
+                    self.template_engine
+                )
                 endpoint['path'] = path_recognizer.recognize()
 
 
