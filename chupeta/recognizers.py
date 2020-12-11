@@ -8,9 +8,11 @@
 
 import re
 
+from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from chupeta.exceptions import UnsupportedTemplateEngine
 from chupeta.templating import TemplateRenderer
 from chupeta.params import PathParam
-from chupeta.methods import reg_ex, _safe_path_split
+from chupeta.methods import _safe_path_split
 
 
 class PathRecognizer():
@@ -37,6 +39,13 @@ class PathRecognizer():
 
     def render_segment(self, text, index):
         var = None
+
+        if self.engine == PYBARS:
+            from chupeta.hbs.methods import reg_ex
+        elif self.engine == JINJA:
+            from chupeta.j2.methods import reg_ex
+        else:
+            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
 
         renderer = TemplateRenderer(
             self.engine,

@@ -13,9 +13,11 @@ import inspect
 import yaml
 import tornado.web
 
+from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from chupeta.exceptions import UnsupportedTemplateEngine
 from chupeta.templating import TemplateRenderer
 from chupeta.params import PathParam
-from chupeta.methods import uuid, fake, random_integer, _safe_path_split, _detect_engine
+from chupeta.methods import _safe_path_split, _detect_engine
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 
 
@@ -25,12 +27,12 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_method = method.lower()
         self.custom_params = params
 
-    def get(self):
+    def get(self, *args, **kwargs):
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
 
-    def post(self):
+    def post(self, *args, **kwargs):
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
@@ -72,6 +74,13 @@ class GenericHandler(tornado.web.RequestHandler):
         ):
             compiled = source_text
         else:
+            if template_engine == PYBARS:
+                from chupeta.hbs.methods import uuid, fake, random_integer
+            elif template_engine == JINJA:
+                from chupeta.j2.methods import uuid, fake, random_integer
+            else:
+                raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
+
             renderer = TemplateRenderer(
                 template_engine,
                 source_text,

@@ -12,7 +12,8 @@ from faker import Faker
 
 from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
 from chupeta.exceptions import UnsupportedTemplateEngine
-from chupeta.methods import hbs_fake, _ignore_first_arg, _to_camel_case
+from chupeta.methods import _to_camel_case
+from chupeta.hbs.methods import fake as hbs_fake
 
 compiler = Compiler()
 
@@ -46,7 +47,8 @@ class TemplateRenderer():
         compiler = Compiler()
         context, helpers = self.add_globals(compiler._compiler, helpers={})
         template = compiler.compile(self.text)
-        return template(context, helpers=helpers)
+        compiled = template(context, helpers=helpers)
+        return compiled
 
     def render_jinja(self):
         template = Template(self.text)
@@ -61,6 +63,7 @@ class TemplateRenderer():
 
         # To provide the support of both PYBARS and JINJA
         context = {}
+        # It means the template engine is PYBARS
         if helpers is None:
             helpers = template.globals
             context = helpers
@@ -80,19 +83,11 @@ class TemplateRenderer():
         if self.add_params_callback is not None:
             context = self.add_params_callback(context)
 
-        # It means the template engine is PYBARS
-        if helpers is not None:
-            for key, helper in helpers.items():
-                # PYBARS calls the methods with an extra and
-                # unnecessary `this` argument at the beginning
-                if callable(helper):
-                    helpers[key] = _ignore_first_arg(helper)
+        # Workaround to provide Faker support in PYBARS
+        if helpers is not None and 'fake' in self.inject_methods_name_list:
+            def super_fake(this, /, *args, **kwargs):
+                return hbs_fake(this, fake, *args, **kwargs)
 
-            # Workaround to provide Faker support in PYBARS
-            if 'fake' in self.inject_methods_name_list:
-                def super_fake(_, /, *args, **kwargs):
-                    return hbs_fake(fake, *args, **kwargs)
-
-                helpers['fake'] = super_fake
+            helpers['fake'] = super_fake
 
         return context, helpers
