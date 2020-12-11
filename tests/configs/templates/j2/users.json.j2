@@ -2,7 +2,7 @@
   "body": {
     "users": [{% for n in range(5) %}
       {
-        "userId": {{ random_integer(10000, 100000) }},
+        "userId": {{ randomInteger(10000, 100000) }},
         "firstName": "{{ fake.first_name() }}",
         "lastName": "{{ fake.last_name() }}",
         "friends": [{% for n in range(range(5) | random) %}

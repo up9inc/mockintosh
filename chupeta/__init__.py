@@ -105,7 +105,6 @@ class Definition():
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
                 segments = _safe_path_split(endpoint['path'])
-                print(segments)
                 new_segments = []
                 for index, segment in enumerate(segments):
                     var, new_segment = self.render_segment(segment)
@@ -167,7 +166,7 @@ class GenericHandler(tornado.web.RequestHandler):
             context = helpers
         helpers['uuid'] = uuid4
         helpers['fake'] = fake
-        helpers['random_integer'] = random_integer
+        helpers['randomInteger'] = random_integer
         context = self.add_params(context)
 
         # It means the template engine is PYBARS
