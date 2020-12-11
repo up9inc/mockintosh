@@ -12,12 +12,10 @@ import json
 import logging
 import sys
 from os import path
-from uuid import uuid4
 
 import tornado.ioloop
 import tornado.web
 import yaml
-from faker import Faker
 from tornado.routing import Rule, RuleRouter, HostMatches
 from jsonschema import validate
 
@@ -27,7 +25,7 @@ from chupeta import configs
 from chupeta.params import PathParam
 from chupeta.recognizers import PathRecognizer
 from chupeta.templating import TemplateRenderer
-from chupeta.methods import hbs_fake, random_integer, _ignore_first_arg, _safe_path_split
+from chupeta.methods import uuid, fake, random_integer, _safe_path_split
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -117,30 +115,6 @@ class GenericHandler(tornado.web.RequestHandler):
     def log_request(self):
         logging.debug('Received request:\n%s' % self.request.__dict__)
 
-    def add_globals(self, template, helpers=None):
-        fake = Faker()
-        context = {}
-        if helpers is None:
-            helpers = template.globals
-            context = helpers
-        helpers['uuid'] = uuid4
-        helpers['fake'] = fake
-        helpers['randomInteger'] = random_integer
-        context = self.add_params(context)
-
-        # It means the template engine is PYBARS
-        if helpers is not None:
-            for key, helper in helpers.items():
-                if callable(helper):
-                    helpers[key] = _ignore_first_arg(helper)
-
-            def super_fake(_, /, *args, **kwargs):
-                return hbs_fake(fake, *args, **kwargs)
-
-            helpers['fake'] = super_fake
-
-        return context, helpers
-
     def add_params(self, context):
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
@@ -173,8 +147,17 @@ class GenericHandler(tornado.web.RequestHandler):
         ):
             compiled = source_text
         else:
-            renderer = TemplateRenderer(template_engine, source_text)
-            compiled = renderer.render(self.add_globals)
+            renderer = TemplateRenderer(
+                template_engine,
+                source_text,
+                inject_methods=[
+                    uuid,
+                    fake,
+                    random_integer
+                ],
+                add_params_callback=self.add_params
+            )
+            compiled = renderer.render()
 
         logging.debug('Render output: %s' % compiled)
 

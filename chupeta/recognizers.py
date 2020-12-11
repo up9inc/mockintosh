@@ -11,7 +11,7 @@ import re
 from pybars import Compiler
 
 from chupeta.params import PathParam
-from chupeta.methods import regex, _ignore_first_arg, _safe_path_split
+from chupeta.methods import reg_ex, _ignore_first_arg, _safe_path_split
 
 
 class PathRecognizer():
@@ -35,7 +35,7 @@ class PathRecognizer():
         var = None
         context = {}
         helpers = {}
-        helpers['regEx'] = _ignore_first_arg(regex)
+        helpers['regEx'] = _ignore_first_arg(reg_ex)
         compiler = Compiler()
         template = compiler.compile(text)
         compiled = template(context, helpers=helpers)
