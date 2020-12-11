@@ -2,14 +2,14 @@
 
 ## Milestone 1 - Complete
 
-1. Open Source project with documentation, examples, code quality, unit tests with coverage. 
-   - UP9 will do a lot of promotion for it, has to be good quality
+1. Open Source project with documentation, examples, code quality, unit tests with coverage.
+    - UP9 will do a lot of promotion for it, has to be good quality
 1. CI process that tracks docker image size
 2. Integration tests that run program/docker image and issue calls against it
 3. setup.py, CLI
 3. Multi-service engine
 4. Config reading from file
-   - consider JSON+YAML variants
+    - consider JSON+YAML variants
 5. No-config start with some default config
 7. JSON Schema for configuration, validated for each config
 6. Performance aspects kept in mind from the beginning
@@ -19,10 +19,10 @@
 ## Milestone 2 - WIP
 
 1. Endpoints configuration with only Path matcher
-2. Response with templating 
-3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things 
+2. Response with templating
+3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things
    (Accept etc)
-4. Log exception if loading server failed   
+4. Log exception if loading server failed
 
 ## Milestone 3
 
@@ -34,9 +34,9 @@
 
 1. Multi-response functionality
 1. Configuration-by-request
-   - Ability to control a lot of response via request headers - for quick experimentation and code-level configuration in any
-     language
-1. Dataset support 
+    - Ability to control a lot of response via request headers - for quick experimentation and code-level configuration
+      in any language
+1. Dataset support
 1. Ability to refer to external files containing request _and_ response bodies
 
 ## Milestone N
@@ -49,6 +49,10 @@
     - Allows to reload config on the fly Allows to get and reset the stats of the service
     - Allows to reset the cursors of datasets/performance profiles
     - config retrieval
+
+## Milestone N
+
+- template helpers: random numbers, strings, dates, names, addresses etc
 
 ## Milestone N
 
@@ -80,7 +84,8 @@
   "performanceProfiles": {
     "profile1": {
       "ratio": 0.5,
-      "delay": 1.5, // can be distributions
+      "delay": 1.5,
+      // can be distributions
       "faults": {
         "RST": 0.1,
         "400": 0.1,
@@ -119,7 +124,8 @@
             "param1": "val1",
             "p2": "{{regex '.+'}}"
           },
-          "body": { // regex criteria
+          "body": {
+            // regex criteria
             // "schema": "path/to/schemafile",
             "schema": {
               // inline schema
