@@ -75,6 +75,9 @@ class GenericHandler(tornado.web.RequestHandler):
             renderer = TemplateRenderer(
                 template_engine,
                 source_text,
+                inject_objects={
+                    'request': self.request
+                },
                 inject_methods=[
                     uuid,
                     fake,

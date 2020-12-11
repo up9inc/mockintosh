@@ -18,9 +18,10 @@ compiler = Compiler()
 
 
 class TemplateRenderer():
-    def __init__(self, engine, text, inject_methods=[], add_params_callback=None):
+    def __init__(self, engine, text, inject_objects={}, inject_methods=[], add_params_callback=None):
         self.engine = engine
         self.text = text
+        self.inject_objects = inject_objects
         self.inject_methods = inject_methods
         self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
         self.add_params_callback = add_params_callback
@@ -71,7 +72,11 @@ class TemplateRenderer():
             else:
                 helpers[_to_camel_case(method.__name__)] = method
 
-        # If any params wants to injected
+        # Inject the objects:
+        for key, value in self.inject_objects.items():
+            context[key] = value
+
+        # If any params wants to be injected
         if self.add_params_callback is not None:
             context = self.add_params_callback(context)
 
