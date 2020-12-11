@@ -7,6 +7,8 @@
 """
 
 import random
+import re
+from functools import wraps
 
 
 def hbs_fake(fake, attr):
@@ -19,3 +21,15 @@ def random_integer(minimum, maximum):
 
 def regex(regex, *args):
     return regex
+
+
+def _ignore_first_arg(fn):
+    @wraps(fn)
+    def wrapper(_, /, *args, **kwargs):
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def _safe_path_split(path):
+    return re.split(r'/(?![^{{}}]*}})', path)

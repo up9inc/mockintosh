@@ -22,30 +22,18 @@ import yaml
 from faker import Faker
 from jinja2 import Template
 from pybars import Compiler
-from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
+from tornado.routing import Rule, RuleRouter, HostMatches
 from jsonschema import validate
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 from chupeta.params import PathParam
-from chupeta.methods import hbs_fake, random_integer, regex
+from chupeta.methods import hbs_fake, random_integer, regex, _ignore_first_arg, _safe_path_split
 
 __location__ = path.abspath(path.dirname(__file__))
 
 JINJA = 'Jinja2'
 PYBARS = 'Handlebars'
-
-
-def _ignore_first_arg(fn):
-    @wraps(fn)
-    def wrapper(_, /, *args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-def _safe_path_split(path):
-    return re.split(r'/(?![^{{}}]*}})', path)
 
 
 class Definition():
