@@ -20,8 +20,6 @@
 
 1. Endpoints configuration with only Path matcher
 2. Response with templating
-3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things
-   (Accept etc)
 4. Log exception if loading server failed
 
 ## Milestone 3
@@ -29,6 +27,9 @@
 1. Request headers and query string
 2. JSON body schema validation
 3. urlencoded and multipart request bodies?
+4. response headers
+3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things
+   (Accept etc)
 
 ## Milestone 4
 
