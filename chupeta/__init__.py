@@ -11,29 +11,25 @@ import inspect
 import json
 import logging
 import sys
-import re
 from os import path
 from uuid import uuid4
-from functools import wraps
 
 import tornado.ioloop
 import tornado.web
 import yaml
 from faker import Faker
-from jinja2 import Template
-from pybars import Compiler
 from tornado.routing import Rule, RuleRouter, HostMatches
 from jsonschema import validate
 
+from chupeta.constants import PYBARS, JINJA
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 from chupeta.params import PathParam
-from chupeta.methods import hbs_fake, random_integer, regex, _ignore_first_arg, _safe_path_split
+from chupeta.recognizers import PathRecognizer
+from chupeta.templating import TemplateRenderer
+from chupeta.methods import hbs_fake, random_integer, _ignore_first_arg, _safe_path_split
 
 __location__ = path.abspath(path.dirname(__file__))
-
-JINJA = 'Jinja2'
-PYBARS = 'Handlebars'
 
 
 class Definition():
@@ -68,13 +64,14 @@ class Definition():
             logging.debug('Configuration file is not recognized as a JSON file.')
             invalid_json_error_msg = str(e)
 
-        try:
-            self.data = yaml.safe_load(source_text)
-            self.valid_yaml = True
-            logging.info('Configuration file is a valid YAML file.')
-        except yaml.scanner.ScannerError as e:
-            logging.debug('Configuration file is not recognized as a YAML file.')
-            invalid_yaml_error_msg = str(e)
+        if not self.valid_json:
+            try:
+                self.data = yaml.safe_load(source_text)
+                self.valid_yaml = True
+                logging.info('Configuration file is a valid YAML file.')
+            except yaml.scanner.ScannerError as e:
+                logging.debug('Configuration file is not recognized as a YAML file.')
+                invalid_yaml_error_msg = str(e)
 
         if not self.valid_json and not self.valid_yaml:
             raise UnrecognizedConfigFileFormat(
@@ -92,35 +89,9 @@ class Definition():
         for service in self.data['services']:
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
-                segments = _safe_path_split(endpoint['path'])
-                new_segments = []
-                for index, segment in enumerate(segments):
-                    var, new_segment = self.render_segment(segment)
-                    if var is not None:
-                        param = PathParam(var, index)
-                        endpoint['params'][var] = param
-                    new_segments.append(new_segment)
 
-                endpoint['path'] = '/'.join(new_segments)
-
-    def render_segment(self, text):
-        var = None
-        context = {}
-        helpers = {}
-        helpers['regEx'] = _ignore_first_arg(regex)
-        compiler = Compiler()
-        template = compiler.compile(text)
-        compiled = template(context, helpers=helpers)
-        if not compiled:
-            match = re.match(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                context[name] = '.*'
-                compiled = template(context, helpers=helpers)
-                var = name
-            else:
-                compiled = text
-        return var, compiled
+                path_recognizer = PathRecognizer(endpoint['path'], endpoint['params'])
+                endpoint['path'] = path_recognizer.recognize()
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -202,15 +173,8 @@ class GenericHandler(tornado.web.RequestHandler):
         ):
             compiled = source_text
         else:
-            if template_engine == JINJA:
-                template = Template(source_text)
-                self.add_globals(template)
-                compiled = template.render()
-            else:
-                compiler = Compiler()
-                context, helpers = self.add_globals(compiler._compiler, helpers={})
-                template = compiler.compile(source_text)
-                compiled = template(context, helpers=helpers)
+            renderer = TemplateRenderer(template_engine, source_text)
+            compiled = renderer.render(self.add_globals)
 
         logging.debug('Render output: %s' % compiled)
 
