@@ -28,7 +28,7 @@ from jsonschema import validate
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 from chupeta.params import PathParam
-from chupeta.methods import hbs_fake, random_integer
+from chupeta.methods import hbs_fake, random_integer, regex
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -42,6 +42,10 @@ def _ignore_first_arg(fn):
         return fn(*args, **kwargs)
 
     return wrapper
+
+
+def _safe_path_split(path):
+    return re.split(r'/(?![^{{}}]*}})', path)
 
 
 class Definition():
@@ -100,7 +104,8 @@ class Definition():
         for service in self.data['services']:
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
-                segments = path.split(endpoint['path'])
+                segments = _safe_path_split(endpoint['path'])
+                print(segments)
                 new_segments = []
                 for index, segment in enumerate(segments):
                     var, new_segment = self.render_segment(segment)
@@ -114,15 +119,17 @@ class Definition():
     def render_segment(self, text):
         var = None
         context = {}
+        helpers = {}
+        helpers['regEx'] = _ignore_first_arg(regex)
         compiler = Compiler()
         template = compiler.compile(text)
-        compiled = template(context, helpers={})
+        compiled = template(context, helpers=helpers)
         if not compiled:
             match = re.match(r'{{(.*)}}', text)
             if match is not None:
                 name = match.group(1).strip()
                 context[name] = '.*'
-                compiled = template(context, helpers={})
+                compiled = template(context, helpers=helpers)
                 var = name
             else:
                 compiled = text
@@ -179,7 +186,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def add_params(self, context):
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                context[key] = path.split(self.request.path)[param.index]
+                context[key] = _safe_path_split(self.request.path)[param.index]
         return context
 
     def render_template(self):

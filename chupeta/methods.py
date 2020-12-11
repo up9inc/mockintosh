@@ -15,3 +15,7 @@ def hbs_fake(fake, attr):
 
 def random_integer(minimum, maximum):
     return random.randint(minimum, maximum)
+
+
+def regex(regex, *args):
+    return regex
