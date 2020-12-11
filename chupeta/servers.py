@@ -65,7 +65,7 @@ class HttpServer():
 
     def make_app(self, endpoints, debug=False):
         endpoint_handlers = []
-        endpoints = sorted(endpoints, key=lambda x: x['low_priority'], reverse=False)
+        endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
         for endpoint in endpoints:
             if 'method' not in endpoint:

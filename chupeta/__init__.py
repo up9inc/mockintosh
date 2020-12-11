@@ -87,7 +87,7 @@ class Definition():
                     endpoint['params'],
                     self.template_engine
                 )
-                endpoint['path'], endpoint['low_priority'] = path_recognizer.recognize()
+                endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
 
 
 def initiate():

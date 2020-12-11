@@ -20,7 +20,7 @@ class PathRecognizer():
         self.engine = engine
 
     def recognize(self):
-        low_priority = False
+        priority = 0
         segments = _safe_path_split(self.path)
         new_segments = []
         for index, segment in enumerate(segments):
@@ -28,12 +28,12 @@ class PathRecognizer():
             if var is not None:
                 param = PathParam(var, index)
                 self.params[var] = param
-                low_priority = True
-            if new_segment != segment:
-                low_priority = True
+                priority = 2
+            if priority == 0 and new_segment != segment:
+                priority = 1
             new_segments.append(new_segment)
 
-        return '/'.join(new_segments), low_priority
+        return '/'.join(new_segments), priority
 
     def render_segment(self, text, index):
         var = None
