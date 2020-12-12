@@ -7,6 +7,7 @@
 """
 
 import re
+from collections import OrderedDict
 
 from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
 from chupeta.exceptions import UnsupportedTemplateEngine
@@ -25,7 +26,7 @@ class PathRecognizer():
         priority = 0
         segments = _safe_path_split(self.path)
         new_segments = []
-        all_contexts = {}
+        all_contexts = OrderedDict()
         for index, segment in enumerate(segments):
             var, new_segment, context = self.render_segment(segment, index)
             if var is not None:

@@ -12,6 +12,7 @@ import inspect
 
 import yaml
 import tornado.web
+from tornado.web import HTTPError
 
 from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
 from chupeta.exceptions import UnsupportedTemplateEngine
@@ -26,32 +27,37 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_response = response
         self.custom_method = method.lower()
         self.custom_params = params
-        self.custom_context = context
+
+        self.initial_context = context
         self.default_context = {
             'request': self.request
         }
+        self.custom_context = {}
+
+    def super_verb(self, *args):
+        self.populate_context(*args)
+        self.log_request()
+        self.dynamic_unimplemented_method_guard()
+        self.write(self.render_template())
 
     def get(self, *args):
-        self.populate_context(args)
-        self.log_request()
-        self.dynamic_unimplemented_method_guard()
-        self.write(self.render_template())
+        self.super_verb(*args)
 
     def post(self, *args):
-        self.populate_context(args)
-        self.log_request()
-        self.dynamic_unimplemented_method_guard()
-        self.write(self.render_template())
+        self.super_verb(*args)
 
     def populate_context(self, *args):
-        if not args:
-            return
-        for i, key in enumerate(self.custom_context):
-            self.custom_context[key] = args[0][i]
+        self.custom_context = {}
+        if args:
+            if len(args) >= len(self.initial_context):
+                for i, key in enumerate(self.initial_context):
+                    self.custom_context[key] = args[i]
+            else:
+                HTTPError(400)
         self.custom_context.update(self.default_context)
 
     def dynamic_unimplemented_method_guard(self):
-        if self.custom_method != inspect.stack()[1][3]:
+        if self.custom_method != inspect.stack()[2][3]:
             self._unimplemented_method()
 
     def log_request(self):
