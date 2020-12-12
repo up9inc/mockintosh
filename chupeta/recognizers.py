@@ -25,8 +25,9 @@ class PathRecognizer():
         priority = 0
         segments = _safe_path_split(self.path)
         new_segments = []
+        all_contexts = {}
         for index, segment in enumerate(segments):
-            var, new_segment = self.render_segment(segment, index)
+            var, new_segment, context = self.render_segment(segment, index)
             if var is not None:
                 param = PathParam(var, index)
                 self.params[var] = param
@@ -34,8 +35,9 @@ class PathRecognizer():
             if priority == 0 and new_segment != segment:
                 priority = 1
             new_segments.append(new_segment)
+            all_contexts.update(context)
 
-        return '/'.join(new_segments), priority
+        return '/'.join(new_segments), priority, all_contexts
 
     def render_segment(self, text, index):
         var = None
@@ -52,7 +54,7 @@ class PathRecognizer():
             text,
             inject_methods=[reg_ex]
         )
-        compiled = renderer.render()
+        compiled, context = renderer.render()
 
         if not compiled:
             match = re.match(r'{{(.*)}}', text)
@@ -62,4 +64,4 @@ class PathRecognizer():
                 var = name
             else:
                 compiled = text
-        return var, compiled
+        return var, compiled, context

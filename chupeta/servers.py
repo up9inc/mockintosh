@@ -78,7 +78,8 @@ class HttpServer():
                     dict(
                         method=endpoint['method'],
                         response=endpoint['response'],
-                        params=endpoint['params']
+                        params=endpoint['params'],
+                        context=endpoint['context']
                     )
                 )
             )

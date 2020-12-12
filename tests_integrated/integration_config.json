@@ -23,7 +23,7 @@
           "response": "regex capture: {{request.path}}"
         },
         {
-          "path": "/parameterized1/{{regEx '^prefix2-([^/])+$' 'varname'}}/subval2",
+          "path": "/parameterized1/{{regEx 'prefix2-([^/])*' 'varname'}}/subval2",
           "response": "tricky regex capture: {{varname}}"
         }
       ]

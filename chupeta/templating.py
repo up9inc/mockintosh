@@ -48,12 +48,12 @@ class TemplateRenderer():
         context, helpers = self.add_globals(compiler._compiler, helpers={})
         template = compiler.compile(self.text)
         compiled = template(context, helpers=helpers)
-        return compiled
+        return compiled, context
 
     def render_jinja(self):
         template = Template(self.text)
         self.add_globals(template)
-        return template.render()
+        return template.render(), None  # TODO: Implement Jinja2 context/globals return
 
     def add_globals(self, template, helpers=None):
         fake = None

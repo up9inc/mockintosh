@@ -22,20 +22,33 @@ from chupeta.exceptions import UnrecognizedConfigFileFormat
 
 
 class GenericHandler(tornado.web.RequestHandler):
-    def initialize(self, method, response, params):
+    def initialize(self, method, response, params, context):
         self.custom_response = response
         self.custom_method = method.lower()
         self.custom_params = params
+        self.custom_context = context
+        self.default_context = {
+            'request': self.request
+        }
 
-    def get(self, *args, **kwargs):
+    def get(self, *args):
+        self.populate_context(args)
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
 
-    def post(self, *args, **kwargs):
+    def post(self, *args):
+        self.populate_context(args)
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
+
+    def populate_context(self, *args):
+        if not args:
+            return
+        for i, key in enumerate(self.custom_context):
+            self.custom_context[key] = args[0][i]
+        self.custom_context.update(self.default_context)
 
     def dynamic_unimplemented_method_guard(self):
         if self.custom_method != inspect.stack()[1][3]:
@@ -84,9 +97,7 @@ class GenericHandler(tornado.web.RequestHandler):
             renderer = TemplateRenderer(
                 template_engine,
                 source_text,
-                inject_objects={
-                    'request': self.request
-                },
+                inject_objects=self.custom_context,
                 inject_methods=[
                     uuid,
                     fake,
@@ -94,7 +105,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 ],
                 add_params_callback=self.add_params
             )
-            compiled = renderer.render()
+            compiled, _ = renderer.render()
 
         logging.debug('Render output: %s' % compiled)
 
