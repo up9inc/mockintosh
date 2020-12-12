@@ -91,6 +91,7 @@ class TemplateRenderer():
         # Workaround to provide Faker support in PYBARS
         if engine == PYBARS and 'fake' in self.inject_methods_name_list:
             logging.debug('Use Handlebars version of Faker.')
+
             def super_fake(this, *args, **kwargs):
                 return hbs_fake(this, fake, *args, **kwargs)
 
