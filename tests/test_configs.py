@@ -6,19 +6,11 @@
     :synopsis: End-to-end tests related to mock server's itself.
 """
 
-import sys
-import signal
 import pytest
-from os import path
-from unittest.mock import patch
-from multiprocessing import Process
 
-from chupeta import initiate
-from utilities import signal_handler, tcping
+from utilities import signal_handler, tcping, run_mock_server
 
-PROGRAM = 'chupeta'
-
-templates = [
+configs = [
     'configs/json/hbs/common/config.json',
     'configs/json/j2/common/config.json',
     'configs/yaml/hbs/common/config.yaml',
@@ -26,27 +18,16 @@ templates = [
 ]
 
 
-@pytest.mark.parametrize(('template'), templates)
+@pytest.mark.parametrize(('config'), configs)
 class TestCommon:
     def setup_method(self):
-        template = self._item.callspec.getparam('template')
-
-        self.mock_server_process = None
-        __location__ = path.abspath(path.dirname(__file__))
-        template_path = path.join(__location__, template)
-
-        testargs = [PROGRAM, template_path]
-        with patch.object(sys, 'argv', testargs):
-            self.mock_server_process = Process(target=initiate, args=())
-            self.mock_server_process.start()
-
-        signal.signal(signal.SIGALRM, signal_handler)
-        signal.sigtimedwait([signal.SIGALRM], 5)
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(config)
 
     def teardown_method(self):
         self.mock_server_process.terminate()
 
-    def test_ping_ports(self, template):
+    def test_ping_ports(self, config):
         ports = (8001, 8002)
         for port in ports:
             result, _ = tcping('localhost', port)
