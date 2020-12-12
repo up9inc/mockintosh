@@ -145,12 +145,27 @@ class TestCore():
         with nostdout() and nostderr():
             self.mock_server_process = run_mock_server(get_config_path(config))
         if 'j2' in config:
-            assert self.mock_server_process.is_alive() == False
+            assert self.mock_server_process.is_alive() is False
         else:
             resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == var
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/templating_engine_in_response.json',
+        'configs/json/j2/core/templating_engine_in_response.json',
+        'configs/yaml/hbs/core/templating_engine_in_response.yaml',
+        'configs/yaml/j2/core/templating_engine_in_response.yaml'
+    ])
+    def test_correct_templating_engine_in_response_should_render_correctly(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert isinstance(data['hello'], str)
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/no_templating_engine_in_response.json',
@@ -166,6 +181,42 @@ class TestCore():
         else:
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/no_use_templating_no_templating_engine_in_response.json',
+        'configs/json/j2/core/no_use_templating_no_templating_engine_in_response.json',
+        'configs/yaml/hbs/core/no_use_templating_no_templating_engine_in_response.yaml',
+        'configs/yaml/j2/core/no_use_templating_no_templating_engine_in_response.yaml'
+    ])
+    def test_no_use_templating_no_templating_engine_in_response_should_default_to_handlebars(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        if 'j2' in config:
+            assert 500 == resp.status_code
+        else:
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/use_templating_false_in_response.json',
+        'configs/json/j2/core/use_templating_false_in_response.json',
+        'configs/yaml/hbs/core/use_templating_false_in_response.yaml',
+        'configs/yaml/j2/core/use_templating_false_in_response.yaml'
+    ])
+    def test_use_templating_false_should_not_render(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        if 'json' in config and 'hbs' in config:
+            assert 500 == resp.status_code
+        else:
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+            data = resp.json()
+            if 'j2' in config:
+                assert data['hello'] == "{{ fake.first_name() }}"
+            else:
+                assert data['hello'] == "{{ fake \"first_name\" }}"
 
     def test_multiple_services_on_same_port(self):
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'

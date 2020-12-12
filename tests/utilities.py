@@ -5,11 +5,11 @@ import sys
 import socket
 import time
 import signal
+import io
 from os import path
 from unittest.mock import patch
 from multiprocessing import Process
 import contextlib
-import io as cStringIO
 
 from chupeta.constants import PROGRAM
 from chupeta import initiate
@@ -63,7 +63,7 @@ def nostdout():
     """
 
     save_stdout = sys.stdout
-    sys.stdout = cStringIO.StringIO()
+    sys.stdout = io.StringIO()
     yield
     sys.stdout = save_stdout
 
@@ -73,6 +73,6 @@ def nostderr():
     """Method to suppress the standard error. (use it with `with` statements)
     """
     save_stderr = sys.stderr
-    sys.stderr = cStringIO.StringIO()
+    sys.stderr = io.StringIO()
     yield
     sys.stderr = save_stderr

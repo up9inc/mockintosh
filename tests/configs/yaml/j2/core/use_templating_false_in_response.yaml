@@ -1,0 +1,11 @@
+---
+services:
+- comment: Mock for Service1
+  hostname: service1.example.com
+  port: 8001
+  endpoints:
+  - path: "/"
+    method: GET
+    response:
+      useTemplating: false
+      fromFile: tests/configs/yaml/j2/core/templates/hello.yaml.j2
