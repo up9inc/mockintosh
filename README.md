@@ -21,7 +21,7 @@ pip3 install .
 or as a Docker image:
 
 ```bash
-docker build -t chupeta .
+docker build --no-cache -t chupeta .
 ```
 
 To verify the installation run `chupeta` and visit [http://localhost:8001](http://localhost:8001)
@@ -38,9 +38,9 @@ chupeta tests/configs/config.json
 or as a Docker container:
 
 ```bash
-docker run -p 8000-8010:8000-8010 -v `pwd`/tests/templates/template.json.j2:/template.json.j2 chupeta /template.json.j2
+docker run -p 8000-8010:8000-8010 -v `pwd`/tests_integrated/integration_config.json:/integration_config.json chupeta /integration_config.json
 # or
-docker run --network host -v `pwd`/tests/templates/template.json.j2:/template.json.j2 chupeta /template.json.j2
+docker run --network host -v `pwd`/tests_integrated/integration_config.json:/integration_config.json chupeta /integration_config.json
 ```
 
 ## The Mock Server Config

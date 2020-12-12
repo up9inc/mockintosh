@@ -78,6 +78,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
         if is_response_str:
             source_text = self.custom_response
+        elif not self.custom_response:
+            source_text = ''
+            is_response_str = True
         elif 'text' in self.custom_response:
             source_text = self.custom_response['text']
         else:
