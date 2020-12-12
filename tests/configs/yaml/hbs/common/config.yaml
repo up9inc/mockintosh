@@ -1,0 +1,26 @@
+---
+templatingEngine: Handlebars
+services:
+- comment: Mock for Service1
+  hostname: service1.example.com
+  port: 8001
+  endpoints:
+  - path: "/users"
+    method: GET
+    response:
+      useTemplating: true
+      fromFile: tests/configs/yaml/hbs/common/templates/users.json.hbs
+  - path: "/users/{{ id }}"
+    method: GET
+    response:
+      useTemplating: true
+      fromFile: tests/configs/yaml/hbs/common/templates/user.json.hbs
+- comment: Mock for Service2
+  hostname: service2.example.com
+  port: 8002
+  endpoints:
+  - path: "/companies"
+    method: POST
+    response:
+      useTemplating: true
+      fromFile: tests/configs/yaml/hbs/common/templates/companies.yaml.hbs
