@@ -11,8 +11,6 @@ import os
 import pytest
 import requests
 
-from chupeta.constants import PROGRAM
-from chupeta import initiate
 from utilities import tcping, run_mock_server, get_config_path
 
 configs = [
@@ -125,4 +123,3 @@ class TestCommandLineArguments():
     def test_verbose(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
-

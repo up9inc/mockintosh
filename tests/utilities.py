@@ -5,7 +5,6 @@ import sys
 import socket
 import time
 import signal
-import io
 from os import path
 from unittest.mock import patch
 from multiprocessing import Process
