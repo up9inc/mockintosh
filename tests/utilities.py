@@ -9,9 +9,8 @@ from os import path
 from unittest.mock import patch
 from multiprocessing import Process
 
+from chupeta.constants import PROGRAM
 from chupeta import initiate
-
-PROGRAM = 'chupeta'
 
 
 def signal_handler(sig, frame):

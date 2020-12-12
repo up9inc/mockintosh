@@ -64,6 +64,9 @@ class Definition():
             except yaml.scanner.ScannerError as e:
                 logging.debug('Configuration file is not recognized as a YAML file.')
                 invalid_yaml_error_msg = str(e)
+            except yaml.parser.ParserError as e:
+                logging.debug('Configuration file is not recognized as a YAML file.')
+                invalid_yaml_error_msg = str(e)
 
         if not self.valid_json and not self.valid_yaml:
             raise UnrecognizedConfigFileFormat(
@@ -88,6 +91,16 @@ class Definition():
                     self.template_engine
                 )
                 endpoint['path'], endpoint['priority'], endpoint['context'] = path_recognizer.recognize()
+
+
+def get_schema():
+    schema = None
+    schema_path = path.join(__location__, 'schema.json')
+    with open(schema_path, 'r') as file:
+        schema_text = file.read()
+        logging.debug('JSON schema: %s' % schema_text)
+        schema = json.loads(schema_text)
+    return schema
 
 
 def initiate():
@@ -120,13 +133,9 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    schema_path = path.join(__location__, 'schema.json')
-    with open(schema_path, 'r') as file:
-        schema_text = file.read()
-        logging.debug('JSON schema: %s' % schema_text)
-        schema = json.loads(schema_text)
-
     source = args['source']
+    schema = get_schema()
+
     definition = Definition(source, schema)
     http_server = HttpServer(definition, args['debug'])
     http_server.run()

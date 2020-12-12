@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: End-to-end tests related to mock server's itself.
+    :synopsis: Contains classes that tests mock server's features.
 """
 
 import os
@@ -11,6 +11,8 @@ import os
 import pytest
 import requests
 
+from chupeta.constants import PROGRAM
+from chupeta import initiate
 from utilities import tcping, run_mock_server, get_config_path
 
 configs = [
@@ -114,3 +116,4 @@ class TestCommandLineArguments():
         mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
         mock_server_process.terminate()
+

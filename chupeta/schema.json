@@ -73,5 +73,8 @@
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "required": [
+    "services"
+  ]
 }
