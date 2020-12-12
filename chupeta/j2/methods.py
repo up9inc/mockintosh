@@ -23,6 +23,6 @@ def uuid():
     return uuid4()
 
 
-def reg_ex(this, regex, /, *args, **kwargs):
+def reg_ex(this, regex, *args, **kwargs):
     # TODO: Add the ability to capture regex groups (just like in Handlebars)
     return regex

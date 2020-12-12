@@ -22,7 +22,7 @@ def uuid(this):
     return uuid4()
 
 
-def reg_ex(this, regex, /, *args, **kwargs):
+def reg_ex(this, regex, *args, **kwargs):
     for arg in args:
         this.context[arg] = None
     return regex

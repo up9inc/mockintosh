@@ -85,7 +85,7 @@ class TemplateRenderer():
 
         # Workaround to provide Faker support in PYBARS
         if helpers is not None and 'fake' in self.inject_methods_name_list:
-            def super_fake(this, /, *args, **kwargs):
+            def super_fake(this, *args, **kwargs):
                 return hbs_fake(this, fake, *args, **kwargs)
 
             helpers['fake'] = super_fake
