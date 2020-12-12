@@ -78,7 +78,7 @@ A response example that leverages Jinja2 templating and Faker is shown below:
 response: # Response of the endpoint
   users: # A list of mocked user data
   {% for n in range(5) %} # 0-5 random length of users will be mocked
-  - userId: {{ range(10000, 100000) | random }} # Random integer
+  - id: {{ range(10000, 100000) | random }} # Random integer
     firstName: '{{ fake.first_name() }}' # Fake first name
     lastName: '{{ fake.last_name() }}' # Fake last name
     friends: # List of user's friends
