@@ -8,7 +8,6 @@
 
 import re
 import logging
-from functools import wraps
 
 from chupeta.constants import PYBARS, JINJA
 
