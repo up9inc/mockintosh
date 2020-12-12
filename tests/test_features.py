@@ -11,7 +11,7 @@ import os
 import pytest
 import requests
 
-from utilities import tcping, run_mock_server, get_config_path
+from utilities import tcping, run_mock_server, get_config_path, nostdout, nostderr
 
 configs = [
     'configs/json/hbs/common/config.json',
@@ -123,3 +123,84 @@ class TestCommandLineArguments():
     def test_verbose(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
+
+
+class TestCore():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/no_templating_engine.json',
+        'configs/json/j2/core/no_templating_engine.json',
+        'configs/yaml/hbs/core/no_templating_engine.yaml',
+        'configs/yaml/j2/core/no_templating_engine.yaml'
+    ])
+    def test_no_templating_engine_should_default_to_handlebars(self, config):
+        var = 'print_this'
+        with nostdout() and nostderr():
+            self.mock_server_process = run_mock_server(get_config_path(config))
+        if 'j2' in config:
+            assert self.mock_server_process.is_alive() == False
+        else:
+            resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == var
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/no_templating_engine_in_response.json',
+        'configs/json/j2/core/no_templating_engine_in_response.json',
+        'configs/yaml/hbs/core/no_templating_engine_in_response.yaml',
+        'configs/yaml/j2/core/no_templating_engine_in_response.yaml'
+    ])
+    def test_no_templating_engine_in_response_should_default_to_handlebars(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        if 'j2' in config:
+            assert 500 == resp.status_code
+        else:
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+    def test_multiple_services_on_same_port(self):
+        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
+    def test_two_services_one_with_hostname_one_without(self):
+        config = 'configs/json/hbs/core/two_services_one_with_hostname_one_without.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        # Service 1 (the one without the hostname) should accept any `Host` header
+        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        # Service 2 (the one with the hostname) should require a correct `Host` header
+        resp = requests.get(SRV_8002 + '/')
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8002 + '/', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'

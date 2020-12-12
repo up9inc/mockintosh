@@ -26,7 +26,7 @@ class TestExceptions():
 
     @pytest.mark.parametrize(('config'), [
         'configs/empty.json',
-        'configs/empty.yaml',
+        'configs/empty.yaml'
     ])
     def test_json_schema_validation_error(self, config):
         with pytest.raises(ValidationError, match=r".*"):
