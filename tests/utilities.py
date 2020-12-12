@@ -36,12 +36,10 @@ def tcping(host, port=65533, timeout=2):
     return result, round(ms, 2)
 
 
-def run_mock_server(config):
+def run_mock_server(*args):
     mock_server_process = None
-    __location__ = path.abspath(path.dirname(__file__))
-    config_path = path.join(__location__, config)
 
-    testargs = [PROGRAM, config_path]
+    testargs = [PROGRAM, *args]
     with patch.object(sys, 'argv', testargs):
         mock_server_process = Process(target=initiate, args=())
         mock_server_process.start()
@@ -50,3 +48,8 @@ def run_mock_server(config):
     signal.sigtimedwait([signal.SIGALRM], 5)
 
     return mock_server_process
+
+
+def get_config_path(config):
+    __location__ = path.abspath(path.dirname(__file__))
+    return path.join(__location__, config)

@@ -11,7 +11,7 @@ import os
 import pytest
 import requests
 
-from utilities import tcping, run_mock_server
+from utilities import tcping, run_mock_server, get_config_path
 
 configs = [
     'configs/json/hbs/common/config.json',
@@ -29,9 +29,10 @@ SRV_8002_HOST = 'service2.example.com'
 
 @pytest.mark.parametrize(('config'), configs)
 class TestCommon():
+
     def setup_method(self):
         config = self._item.callspec.getparam('config')
-        self.mock_server_process = run_mock_server(config)
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
     def teardown_method(self):
         self.mock_server_process.terminate()
@@ -56,7 +57,7 @@ class TestCommon():
         assert isinstance(data['users'][0]['firstName'], str)
         assert data['users'][0]['lastName']
         assert isinstance(data['users'][0]['lastName'], str)
-        assert isinstance(data['users'][0]['friends'], list) or data['users'][0]['friends'] == None
+        assert isinstance(data['users'][0]['friends'], list) or data['users'][0]['friends'] is None
 
     def test_user(self, config):
         user_id = 3
@@ -70,7 +71,7 @@ class TestCommon():
         assert isinstance(data['firstName'], str)
         assert data['lastName']
         assert isinstance(data['lastName'], str)
-        assert isinstance(data['friends'], list) or data['friends'] == None
+        assert isinstance(data['friends'], list) or data['friends'] is None
 
     def test_companies(self, config):
         resp = requests.post(SRV_8002 + '/companies', headers={'Host': SRV_8002_HOST})
@@ -84,3 +85,32 @@ class TestCommon():
         assert isinstance(data['companies'][0]['name'], str)
         assert data['companies'][0]['motto']
         assert isinstance(data['companies'][0]['motto'], str)
+
+
+class TestCommandLineArguments():
+
+    def test_no_arguments(self):
+        mock_server_process = run_mock_server()
+        resp = requests.get(SRV_8001 + '/')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'hello world'
+        mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_debug(self, config):
+        mock_server_process = run_mock_server(get_config_path(config), '--debug')
+        TestCommon.test_users(TestCommon, config)
+        mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_quiet(self, config):
+        mock_server_process = run_mock_server(get_config_path(config), '--quiet')
+        TestCommon.test_users(TestCommon, config)
+        mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_verbose(self, config):
+        mock_server_process = run_mock_server(get_config_path(config), '--verbose')
+        TestCommon.test_users(TestCommon, config)
+        mock_server_process.terminate()
