@@ -91,29 +91,38 @@ class TestCommon():
 
 class TestCommandLineArguments():
 
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
     def test_no_arguments(self):
-        mock_server_process = run_mock_server()
+        self.mock_server_process = run_mock_server()
         resp = requests.get(SRV_8001 + '/')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'hello world'
-        mock_server_process.terminate()
+
+    def test_pipe_stdin(self):
+        config = 'configs/json/hbs/common/config.json'
+        with open(get_config_path(config), 'r') as file:
+            self.mock_server_process = run_mock_server(stdin=file)
+            TestCommon.test_users(TestCommon, config)
 
     @pytest.mark.parametrize(('config'), configs)
     def test_debug(self, config):
-        mock_server_process = run_mock_server(get_config_path(config), '--debug')
+        self.mock_server_process = run_mock_server(get_config_path(config), '--debug')
         TestCommon.test_users(TestCommon, config)
-        mock_server_process.terminate()
 
     @pytest.mark.parametrize(('config'), configs)
     def test_quiet(self, config):
-        mock_server_process = run_mock_server(get_config_path(config), '--quiet')
+        self.mock_server_process = run_mock_server(get_config_path(config), '--quiet')
         TestCommon.test_users(TestCommon, config)
-        mock_server_process.terminate()
 
     @pytest.mark.parametrize(('config'), configs)
     def test_verbose(self, config):
-        mock_server_process = run_mock_server(get_config_path(config), '--verbose')
+        self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
-        mock_server_process.terminate()
 

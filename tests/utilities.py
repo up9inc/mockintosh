@@ -5,6 +5,7 @@ import sys
 import socket
 import time
 import signal
+import io
 from os import path
 from unittest.mock import patch
 from multiprocessing import Process
@@ -35,13 +36,14 @@ def tcping(host, port=65533, timeout=2):
     return result, round(ms, 2)
 
 
-def run_mock_server(*args):
+def run_mock_server(*args, stdin=None):
     mock_server_process = None
 
     testargs = [PROGRAM, *args]
     with patch.object(sys, 'argv', testargs):
-        mock_server_process = Process(target=initiate, args=())
-        mock_server_process.start()
+        with patch.object(sys, '__stdin__', stdin):
+            mock_server_process = Process(target=initiate, args=())
+            mock_server_process.start()
 
     signal.signal(signal.SIGALRM, signal_handler)
     signal.sigtimedwait([signal.SIGALRM], 5)

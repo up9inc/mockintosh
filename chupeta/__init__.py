@@ -6,6 +6,7 @@
     :synopsis: the top-level module of Chupeta.
 """
 
+import sys
 import argparse
 import json
 import logging
@@ -24,8 +25,9 @@ __location__ = path.abspath(path.dirname(__file__))
 
 
 class Definition():
-    def __init__(self, source, schema):
+    def __init__(self, source, schema, is_file=True):
         self.source = source
+        self.source_text = None if is_file else source
         self.data = None
         self.valid_json = False
         self.valid_yaml = False
@@ -39,17 +41,17 @@ class Definition():
         self.analyze()
 
     def load(self):
-        source_text = None
-        with open(self.source, 'r') as file:
-            logging.info('Reading configuration file from path: %s' % self.source)
-            source_text = file.read()
-            logging.debug('Configuration text: %s' % source_text)
+        if self.source_text is None:
+            with open(self.source, 'r') as file:
+                logging.info('Reading configuration file from path: %s' % self.source)
+                self.source_text = file.read()
+                logging.debug('Configuration text: %s' % self.source_text)
 
         invalid_json_error_msg = None
         invalid_yaml_error_msg = None
 
         try:
-            self.data = json.loads(source_text)
+            self.data = json.loads(self.source_text)
             self.valid_json = True
             logging.info('Configuration file is a valid JSON file.')
         except json.decoder.JSONDecodeError as e:
@@ -58,7 +60,7 @@ class Definition():
 
         if not self.valid_json:
             try:
-                self.data = yaml.safe_load(source_text)
+                self.data = yaml.safe_load(self.source_text)
                 self.valid_yaml = True
                 logging.info('Configuration file is a valid YAML file.')
             except yaml.scanner.ScannerError as e:
@@ -103,6 +105,22 @@ def get_schema():
     return schema
 
 
+def run(source, is_file=True, debug=False):
+    schema = get_schema()
+
+    if 'unittest' in sys.modules.keys():
+        sys.stdin = sys.__stdin__
+    if source is None and sys.stdin is not None and not sys.stdin.isatty():
+        stdin_text = sys.stdin.read()
+        if stdin_text:
+            source = stdin_text
+            is_file = False
+
+    definition = Definition(source, schema, is_file=is_file)
+    http_server = HttpServer(definition, debug=debug)
+    http_server.run()
+
+
 def initiate():
     """The top-level method to serve as the entry point of Chupeta.
 
@@ -133,12 +151,7 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    source = args['source']
-    schema = get_schema()
-
-    definition = Definition(source, schema)
-    http_server = HttpServer(definition, args['debug'])
-    http_server.run()
+    run(args['source'], debug=args['debug'])
 
 
 if __name__ == '__main__':
