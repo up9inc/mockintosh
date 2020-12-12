@@ -27,7 +27,7 @@ templates = [
 
 
 @pytest.mark.parametrize(('template'), templates)
-class TestFeatures:
+class TestCommon:
     def setup_method(self):
         template = self._item.callspec.getparam('template')
 
