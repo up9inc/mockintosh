@@ -34,7 +34,7 @@
           "method": "POST",
           "response": {
             "useTemplating": true,
-            "fromFile": "tests/configs/json/j2/common/templates/companies.yaml.j2"
+            "fromFile": "tests/configs/json/j2/common/templates/companies.json.j2"
           }
         }
       ]

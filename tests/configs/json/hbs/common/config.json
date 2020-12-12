@@ -34,7 +34,7 @@
           "method": "POST",
           "response": {
             "useTemplating": true,
-            "fromFile": "tests/configs/json/hbs/common/templates/companies.yaml.hbs"
+            "fromFile": "tests/configs/json/hbs/common/templates/companies.json.hbs"
           }
         }
       ]

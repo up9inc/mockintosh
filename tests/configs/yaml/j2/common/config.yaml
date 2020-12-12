@@ -9,12 +9,12 @@ services:
     method: GET
     response:
       useTemplating: true
-      fromFile: tests/configs/yaml/j2/common/templates/users.json.j2
+      fromFile: tests/configs/yaml/j2/common/templates/users.yaml.j2
   - path: "/users/{{ id }}"
     method: GET
     response:
       useTemplating: true
-      fromFile: tests/configs/yaml/j2/common/templates/user.json.j2
+      fromFile: tests/configs/yaml/j2/common/templates/user.yaml.j2
 - comment: Mock for Service2
   hostname: service2.example.com
   port: 8002
