@@ -19,7 +19,8 @@ from utilities import signal_handler, tcping
 PROGRAM = 'chupeta'
 
 templates = [
-    'configs/config.json'
+    'configs/hbs/config.json',
+    'configs/j2/config.json'
 ]
 
 
@@ -38,7 +39,7 @@ class TestFeatures:
             self.mock_server_process.start()
 
         signal.signal(signal.SIGALRM, signal_handler)
-        signal.pause()
+        signal.sigtimedwait([signal.SIGALRM], 5)
 
     def teardown_method(self):
         self.mock_server_process.terminate()

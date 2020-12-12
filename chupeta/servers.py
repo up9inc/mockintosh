@@ -79,7 +79,8 @@ class HttpServer():
                         method=endpoint['method'],
                         response=endpoint['response'],
                         params=endpoint['params'],
-                        context=endpoint['context']
+                        context=endpoint['context'],
+                        definition_engine=self.definition.template_engine
                     )
                 )
             )

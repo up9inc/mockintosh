@@ -23,10 +23,11 @@ from chupeta.exceptions import UnrecognizedConfigFileFormat
 
 
 class GenericHandler(tornado.web.RequestHandler):
-    def initialize(self, method, response, params, context):
+    def initialize(self, method, response, params, context, definition_engine):
         self.custom_response = response
         self.custom_method = method.lower()
         self.custom_params = params
+        self.definition_engine = definition_engine
 
         self.initial_context = context
         self.default_context = {
@@ -74,7 +75,7 @@ class GenericHandler(tornado.web.RequestHandler):
         response = None
 
         is_response_str = isinstance(self.custom_response, str)
-        template_engine = _detect_engine(self.custom_response, 'response')
+        template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
 
         if is_response_str:
             source_text = self.custom_response

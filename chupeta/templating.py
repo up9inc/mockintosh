@@ -6,6 +6,8 @@
     :synopsis: module that contains templating related classes.
 """
 
+import logging
+
 from jinja2 import Template
 from pybars import Compiler
 from faker import Faker
@@ -53,7 +55,7 @@ class TemplateRenderer():
     def render_jinja(self):
         template = Template(self.text)
         self.add_globals(template)
-        return template.render(), None  # TODO: Implement Jinja2 context/globals return
+        return template.render(), {}  # TODO: Implement Jinja2 context/globals return
 
     def add_globals(self, template, helpers=None):
         fake = None
@@ -63,14 +65,17 @@ class TemplateRenderer():
 
         # To provide the support of both PYBARS and JINJA
         context = {}
-        # It means the template engine is PYBARS
+        engine = PYBARS
+        # It means the template engine is JINJA
         if helpers is None:
+            engine = JINJA
             helpers = template.globals
             context = helpers
 
         # Inject the methods:
         for method in self.inject_methods:
             if method.__name__ == 'fake':
+                logging.debug('Inject Faker object into the template.')
                 helpers[method.__name__] = fake
             else:
                 helpers[_to_camel_case(method.__name__)] = method
@@ -84,7 +89,8 @@ class TemplateRenderer():
             context = self.add_params_callback(context)
 
         # Workaround to provide Faker support in PYBARS
-        if helpers is not None and 'fake' in self.inject_methods_name_list:
+        if engine == PYBARS and 'fake' in self.inject_methods_name_list:
+            logging.debug('Use Handlebars version of Faker.')
             def super_fake(this, *args, **kwargs):
                 return hbs_fake(this, fake, *args, **kwargs)
 

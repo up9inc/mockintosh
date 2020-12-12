@@ -106,3 +106,6 @@ ENV/
 
 # Editors / IDEs
 .vscode/
+
+# Ignore the file that are created for development
+*dev.*
