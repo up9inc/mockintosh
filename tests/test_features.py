@@ -342,3 +342,32 @@ class TestPath():
         assert data['var1'] == param1
         assert data['var2'] == param2
         assert data['var3'] == param3
+
+    def test_multiple_regex_capture_groups(self, config):
+        param1 = str(int(time.time()))
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time()))
+        param4 = str(int(time.time()))
+        param5 = str(int(time.time()))
+        path = '/parameterized4/text/prefix-%s-%s-%s-suffix/%s_%s' % (param1, param2, param3, param4, param5)
+        resp = requests.get(SRV_8001 + path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'var1: %s, var2: %s, var3: %s, var4: %s, var5: %s' % (
+            param1,
+            param2,
+            param3,
+            param4,
+            param5
+        )
+
+        path = '/parameterized4/template-file/prefix-%s-%s-%s-suffix/%s_%s' % (param1, param2, param3, param4, param5)
+        resp = requests.get(SRV_8001 + path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['var1'] == param1
+        assert data['var2'] == param2
+        assert data['var3'] == param3
+        assert data['var4'] == param4
+        assert data['var5'] == param5

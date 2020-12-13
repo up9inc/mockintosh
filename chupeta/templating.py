@@ -6,6 +6,7 @@
     :synopsis: module that contains templating related classes.
 """
 
+import copy
 import logging
 
 from jinja2 import Template
@@ -55,12 +56,12 @@ class TemplateRenderer():
 
     def render_jinja(self):
         template = Template(self.text)
-        context, _ = self.add_globals(template)
-        if JINJA_VARNAME_DICT not in context:
-            context = {}
-        else:
-            context = context[JINJA_VARNAME_DICT]
-        return template.render(), context
+        if JINJA_VARNAME_DICT in template.globals:
+            template.globals[JINJA_VARNAME_DICT] = {}
+        self.add_globals(template)
+        if JINJA_VARNAME_DICT not in template.globals:
+            template.globals[JINJA_VARNAME_DICT] = {}
+        return template.render(), copy.deepcopy(template.globals[JINJA_VARNAME_DICT])
 
     def add_globals(self, template, helpers=None):
         fake = None
