@@ -126,6 +126,18 @@ class TestCommandLineArguments():
         self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
 
+    def test_logfile(self):
+        config = 'configs/not_existing_file'
+        logfile_name = 'error.log'
+        if os.path.isfile(logfile_name):
+            os.remove(logfile_name)
+        self.mock_server_process = run_mock_server(get_config_path(config), '--logfile', logfile_name)
+        assert self.mock_server_process.is_alive() is False
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as file:
+            error_log = file.read()
+            assert 'Mock server loading error' in error_log and 'No such file or directory' in error_log
+
 
 class TestCore():
 

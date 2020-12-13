@@ -19,7 +19,7 @@ from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
 from chupeta.recognizers import PathRecognizer
 from chupeta.servers import HttpServer
-from chupeta.methods import _detect_engine
+from chupeta.methods import _detect_engine, _nostderr
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -99,7 +99,8 @@ def run(source, is_file=True, debug=False):
         http_server = HttpServer(definition, debug=debug)
     except Exception:
         logging.exception('Mock server loading error:')
-        sys.exit(1)
+        with _nostderr():
+            raise
     http_server.run()
 
 

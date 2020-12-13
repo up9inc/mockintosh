@@ -6,8 +6,11 @@
     :synopsis: module that contains common methods.
 """
 
+import sys
+import io
 import re
 import logging
+from contextlib import contextmanager
 
 from chupeta.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT
 
@@ -35,3 +38,13 @@ def _jinja_add_varname(context, varname):
     if JINJA_VARNAME_DICT not in context.environment.globals:
         context.environment.globals[JINJA_VARNAME_DICT] = {}
     context.environment.globals[JINJA_VARNAME_DICT][varname] = None
+
+
+@contextmanager
+def _nostderr():
+    """Method to suppress the standard error. (use it with `with` statements)
+    """
+    save_stderr = sys.stderr
+    sys.stderr = io.StringIO()
+    yield
+    sys.stderr = save_stderr
