@@ -117,8 +117,12 @@ def run(source, is_file=True, debug=False):
             source = stdin_text
             is_file = False
 
-    definition = Definition(source, schema, is_file=is_file)
-    http_server = HttpServer(definition, debug=debug)
+    try:
+        definition = Definition(source, schema, is_file=is_file)
+        http_server = HttpServer(definition, debug=debug)
+    except Exception as e:
+        logging.exception('Mock server loading error:')
+        raise(e)
     http_server.run()
 
 
@@ -140,6 +144,7 @@ def initiate():
     args = vars(ap.parse_args())
 
     fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
+    logging.basicConfig(filename='error.log', level=logging.ERROR, format=fmt)
     if args['quiet']:
         logging.basicConfig(level=logging.WARNING, format=fmt)
     elif args['verbose']:

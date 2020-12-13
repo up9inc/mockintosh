@@ -21,8 +21,9 @@ class HttpServer():
     def __init__(self, definition, debug=False):
         self.definition = definition
         self.debug = debug
+        self.load()
 
-    def run(self):
+    def load(self):
         port_mapping = {}
         for service in self.definition.data['services']:
             port = str(service['port'])
@@ -55,6 +56,7 @@ class HttpServer():
                 server.listen(services[0]['port'])
                 logging.info('Will listen port number: %d' % service['port'])
 
+    def run(self):
         if 'unittest' in sys.modules.keys():
             import os
             import signal
