@@ -38,6 +38,16 @@
           "response": {
             "fromFile": "tests/configs/json/hbs/path/templates/3.json.hbs"
           }
+        },
+        {
+          "path": "/parameterized3/text/{{var1}}/{{var2}}/{{var3}}",
+          "response": "var1: {{var1}}, var2: {{var2}}, var3: {{var3}}"
+        },
+        {
+          "path": "/parameterized3/template-file/{{var1}}/{{var2}}/{{var3}}",
+          "response": {
+            "fromFile": "tests/configs/json/hbs/path/templates/4.json.hbs"
+          }
         }
       ]
     }

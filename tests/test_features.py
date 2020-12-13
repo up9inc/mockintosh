@@ -325,3 +325,20 @@ class TestPath():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['capture'] == param
+
+    def test_multiple_parameters(self, config):
+        param1 = str(int(time.time()))
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/parameterized3/text/%s/%s/%s' % (param1, param2, param3))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'var1: %s, var2: %s, var3: %s' % (param1, param2, param3)
+
+        resp = requests.get(SRV_8001 + '/parameterized3/template-file/%s/%s/%s' % (param1, param2, param3))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['var1'] == param1
+        assert data['var2'] == param2
+        assert data['var3'] == param3
