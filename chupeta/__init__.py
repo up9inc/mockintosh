@@ -30,8 +30,6 @@ class Definition():
         self.source = source
         self.source_text = None if is_file else source
         self.data = None
-        self.valid_json = False
-        self.valid_yaml = False
         self.schema = schema
         if self.source is None:
             self.data = configs.get_default()
@@ -48,35 +46,14 @@ class Definition():
                 self.source_text = file.read()
                 logging.debug('Configuration text: %s' % self.source_text)
 
-        invalid_json_error_msg = None
-        invalid_yaml_error_msg = None
-
         try:
-            self.data = json.loads(self.source_text)
-            self.valid_json = True
-            logging.info('Configuration file is a valid JSON file.')
-        except json.decoder.JSONDecodeError as e:
-            logging.debug('Configuration file is not recognized as a JSON file.')
-            invalid_json_error_msg = str(e)
-
-        if not self.valid_json:
-            try:
-                self.data = yaml.safe_load(self.source_text)
-                self.valid_yaml = True
-                logging.info('Configuration file is a valid YAML file.')
-            except yaml.scanner.ScannerError as e:
-                logging.debug('Configuration file is not recognized as a YAML file.')
-                invalid_yaml_error_msg = str(e)
-            except yaml.parser.ParserError as e:
-                logging.debug('Configuration file is not recognized as a YAML file.')
-                invalid_yaml_error_msg = str(e)
-
-        if not self.valid_json and not self.valid_yaml:
+            self.data = yaml.safe_load(self.source_text)
+            logging.info('Configuration file is a valid YAML file.')
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
             raise UnrecognizedConfigFileFormat(
                 'Configuration file is neither a JSON file nor a YAML file!',
                 self.source,
-                invalid_json_error_msg,
-                invalid_yaml_error_msg
+                str(e)
             )
 
     def validate(self):
