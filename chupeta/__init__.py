@@ -25,6 +25,7 @@ __location__ = path.abspath(path.dirname(__file__))
 
 
 class Definition():
+
     def __init__(self, source, schema, is_file=True):
         self.source = source
         self.source_text = None if is_file else source

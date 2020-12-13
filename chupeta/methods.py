@@ -9,7 +9,7 @@
 import re
 import logging
 
-from chupeta.constants import PYBARS, JINJA, SHORT_JINJA
+from chupeta.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT
 
 
 def _safe_path_split(path):
@@ -29,3 +29,9 @@ def _detect_engine(data, context='config', default=PYBARS):
         template_engine = JINJA
     logging.info('Templating engine (%s) is: %s' % (context, template_engine))
     return template_engine
+
+
+def _jinja_add_varname(context, varname):
+    if JINJA_VARNAME_DICT not in context.environment.globals:
+        context.environment.globals[JINJA_VARNAME_DICT] = {}
+    context.environment.globals[JINJA_VARNAME_DICT][varname] = None

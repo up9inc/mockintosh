@@ -17,6 +17,7 @@ from chupeta.handlers import GenericHandler
 
 
 class HttpServer():
+
     def __init__(self, definition, debug=False):
         self.definition = definition
         self.debug = debug

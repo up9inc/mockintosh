@@ -7,6 +7,8 @@
 """
 
 import os
+import random
+import time
 
 import pytest
 import requests
@@ -60,7 +62,7 @@ class TestCommon():
         assert isinstance(data['users'][0]['friends'], list) or data['users'][0]['friends'] is None
 
     def test_user(self, config):
-        user_id = 3
+        user_id = random.randint(1, 1000)
         resp = requests.get(SRV_8001 + '/users/%s' % user_id, headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -255,3 +257,71 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/path/config.json',
+    'configs/json/j2/path/config.json',
+    'configs/yaml/hbs/path/config.yaml',
+    'configs/yaml/j2/path/config.yaml'
+])
+class TestPath():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_parameter(self, config):
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/parameterized1/text/%s/subval' % param)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'intoVar capture: %s' % param
+
+        resp = requests.get(SRV_8001 + '/parameterized1/template-file/%s/subval' % param)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['var'] == param
+
+    def test_static_value_priority(self, config):
+        resp = requests.get(SRV_8001 + '/parameterized1/text/staticVal/subval')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'static path components have priority'
+
+    def test_regex_match(self, config):
+        path = '/parameterized2/text/prefix-%s/subval' % str(int(time.time()))
+        resp = requests.get(SRV_8001 + path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'regex match: %s' % path
+
+        path = '/parameterized2/template-file/prefix-%s/subval' % str(int(time.time()))
+        resp = requests.get(SRV_8001 + path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['request']['path'] == path
+
+        path = '/parameterized2/text/wrongprefix-%s/subval' % str(int(time.time()))
+        resp = requests.get(SRV_8001 + path)
+        assert 404 == resp.status_code
+
+    def test_regex_capture_group(self, config):
+        param = str(int(time.time()))
+        path = '/parameterized1/text/prefix2-%s/subval2' % param
+        resp = requests.get(SRV_8001 + path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'regex capture group: %s' % param
+
+        path = '/parameterized1/template-file/prefix2-%s/subval2' % param
+        resp = requests.get(SRV_8001 + path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['capture'] == param

@@ -15,3 +15,5 @@ SHORT_PYBARS = 'hbs'
 SHORT_JINJA = 'j2'
 
 SUPPORTED_ENGINES = (PYBARS, JINJA)
+
+JINJA_VARNAME_DICT = 'jinja_varname_dict'

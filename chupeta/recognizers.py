@@ -17,6 +17,7 @@ from chupeta.methods import _safe_path_split
 
 
 class PathRecognizer():
+
     def __init__(self, path, params, engine):
         self.path = path
         self.params = params

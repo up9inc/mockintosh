@@ -12,7 +12,7 @@ from jinja2 import Template
 from pybars import Compiler
 from faker import Faker
 
-from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT
 from chupeta.exceptions import UnsupportedTemplateEngine
 from chupeta.methods import _to_camel_case
 from chupeta.hbs.methods import fake as hbs_fake
@@ -21,6 +21,7 @@ compiler = Compiler()
 
 
 class TemplateRenderer():
+
     def __init__(self, engine, text, inject_objects={}, inject_methods=[], add_params_callback=None):
         self.engine = engine
         self.text = text
@@ -54,8 +55,12 @@ class TemplateRenderer():
 
     def render_jinja(self):
         template = Template(self.text)
-        self.add_globals(template)
-        return template.render(), {}  # TODO: Implement Jinja2 context/globals return
+        context, _ = self.add_globals(template)
+        if JINJA_VARNAME_DICT not in context:
+            context = {}
+        else:
+            context = context[JINJA_VARNAME_DICT]
+        return template.render(), context
 
     def add_globals(self, template, helpers=None):
         fake = None

@@ -9,6 +9,10 @@
 import random
 from uuid import uuid4
 
+from jinja2.utils import contextfunction
+
+from chupeta.methods import _jinja_add_varname
+
 
 def fake():
     # Fake fake :)
@@ -23,6 +27,8 @@ def uuid():
     return uuid4()
 
 
-def reg_ex(this, regex, *args, **kwargs):
-    # TODO: Add the ability to capture regex groups (just like in Handlebars)
+@contextfunction
+def reg_ex(context, regex, *args, **kwargs):
+    for arg in args:
+        _jinja_add_varname(context, arg)
     return regex
