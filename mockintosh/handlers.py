@@ -7,7 +7,6 @@
 """
 
 import os
-import json
 import logging
 import inspect
 
@@ -127,34 +126,17 @@ class GenericHandler(tornado.web.RequestHandler):
 
         logging.debug('Render output: %s' % compiled)
 
-        valid_json = False
-        valid_yaml = False
-
         if is_response_str:
             return compiled
         else:
             try:
-                response = json.loads(compiled)
-                valid_json = True
-                logging.info('Template is a valid JSON.')
-            except json.decoder.JSONDecodeError as e:
-                logging.debug('Template is not recognized as a JSON.')
-                invalid_json_error_msg = str(e)
-
-            try:
                 response = yaml.safe_load(compiled)
-                valid_yaml = True
                 logging.info('Template is a valid YAML.')
-            except yaml.scanner.ScannerError as e:
-                logging.debug('Template is not recognized as a YAML.')
-                invalid_yaml_error_msg = str(e)
-
-            if not valid_json and not valid_yaml:
+            except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
                 raise UnrecognizedConfigFileFormat(
                     'Template is neither a JSON nor a YAML!',
                     compiled,
-                    invalid_json_error_msg,
-                    invalid_yaml_error_msg
+                    str(e)
                 )
 
         return response
