@@ -1,5 +1,5 @@
 {
-  "templatingEngine": "Handlebars",
+  "templatingEngine": "Jinja2",
   "services": [
     {
       "comment": "Mock for Service1",
@@ -33,7 +33,7 @@
           "path": "/service2-endpoint2",
           "method": "GET",
           "response": {
-            "status": "{{lookup (lookup request.queryString 'rc') 0}}"
+            "status": "{{request.queryString['rc'][0]}}"
           }
         }
       ]

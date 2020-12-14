@@ -32,14 +32,15 @@ class GenericHandler(tornado.web.RequestHandler):
         self.definition_engine = definition_engine
 
         self.initial_context = context
+        self.custom_request = self.build_custom_request()
         self.default_context = {
-            'request': self.request
+            'request': self.custom_request
         }
         self.custom_context = {}
 
     def super_verb(self, *args):
-        self.determine_status_code()
         self.populate_context(*args)
+        self.determine_status_code()
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
@@ -95,6 +96,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     logging.debug('Template file text: %s' % source_text)
             else:
                 source_text = body
+        else:
+            return ''
 
         compiled = None
         if not is_response_str and (
@@ -156,10 +159,35 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return response
 
+    def build_custom_request(self):
+        custom_request = Request()
+        custom_request.path = self.request.path
+        for key, value in self.request.query_arguments.items():
+            custom_request.queryString[key] = [x.decode('utf-8') for x in value]
+        return custom_request
+
     def determine_status_code(self):
         status_code = None
         if 'status' in self.custom_response:
-            status_code = int(self.custom_response['status'])
+            if isinstance(self.custom_response['status'], str):
+                renderer = TemplateRenderer(
+                    self.definition_engine,
+                    self.custom_response['status'],
+                    inject_objects=self.custom_context,
+                    inject_methods=[],
+                    add_params_callback=self.add_params
+                )
+                compiled, _ = renderer.render()
+                status_code = int(compiled)
+            else:
+                status_code = self.custom_response['status']
         else:
             status_code = 200
         self.set_status(status_code)
+
+
+class Request():
+
+    def __init__(self):
+        self.path = None
+        self.queryString = {}

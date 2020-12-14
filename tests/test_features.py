@@ -270,10 +270,23 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
-    def test_status_code(self):
-        config = 'configs/json/hbs/core/status_code.json'
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/core/status_code.json',
+    'configs/json/j2/core/status_code.json',
+    'configs/yaml/hbs/core/status_code.yaml',
+    'configs/yaml/j2/core/status_code.yaml',
+])
+class TestStatus():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
         self.mock_server_process = run_mock_server(get_config_path(config))
 
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_status_code(self, config):
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 202 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -283,6 +296,11 @@ class TestCore():
         assert 403 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
+
+    def test_status_code_templated(self, config):
+        query = '?rc=303'
+        resp = requests.get(SRV_8001 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        assert 303 == resp.status_code
 
 
 @pytest.mark.parametrize(('config'), [
