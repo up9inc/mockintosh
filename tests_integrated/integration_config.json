@@ -35,6 +35,7 @@
           },
           "response": {
             "body": "qstr match 1: {{request.queryString.param1}} {{capturedVar}} {{anyValIntoVar}}",
+            "status": "202",
             "headers": {
               "Content-Type": "application/x-my-own",
               "param2": "{{request.queryString.param2}} {{request.queryString.param3}}"
@@ -50,6 +51,7 @@
           },
           "response": {
             "body": "headers match 1: {{request.headers.hdr1}} {{capturedVar}}",
+            "status": 201,
             "headers": {
               "Set-Cookie": [
                 "name1={{request.headers.hdr2}}",
@@ -57,6 +59,13 @@
               ]
             }
           }
+        },
+        {
+          "path": "/header-matching1",
+          "headers": {
+            "hdr4": "another header"
+          },
+          "response": "alternative header"
         },
         {
           "path": "/body-jsonschema1",

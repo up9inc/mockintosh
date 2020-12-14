@@ -61,7 +61,7 @@ class IntegrationTests(unittest.TestCase):
         param3 = str(int(time.time() / 2))
         path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
         resp = requests.get(SRV1 + path)
-        self.assertEqual(200, resp.status_code)
+        self.assertEqual(202, resp.status_code)
         self.assertEqual("qstr match 1: constant val " + param2 + ' ' + param2, resp.text)
         self.assertEqual("application/x-my-own", resp.headers.get("content-type"))
         self.assertEqual("%s prefix-%s-suffix" % (param2, param3), resp.headers.get("param2"))
@@ -84,7 +84,7 @@ class IntegrationTests(unittest.TestCase):
         path = '/header-matching1'
         resp = requests.get(SRV1 + path,
                             headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefix-%s-suffix" % param3})
-        self.assertEqual(200, resp.status_code)
+        self.assertEqual(201, resp.status_code)
         self.assertEqual(param2, resp.cookies['name1'])
         self.assertEqual("prefix-" + param3 + "-suffix", resp.cookies['name2'])
 
@@ -99,6 +99,11 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + path,
                             headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefics-%s-suffix" % param3})
         self.assertEqual(404, resp.status_code)
+
+        resp = requests.get(SRV1 + path,
+                            headers={"hdr4": "another header"})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("alternative header", resp.text)
 
     def test_body_jsonschema(self):
         path = '/body-jsonschema1'

@@ -76,6 +76,12 @@
                 "headers": {
                   "$ref": "#/definitions/headers_ref"
                 },
+                "status": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
                 "body": {
                   "type": "string"
                 },

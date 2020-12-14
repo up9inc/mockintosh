@@ -26,6 +26,7 @@
 
 1. Request headers and query string matching
 2. Request JSON body schema validation as part of matching
+3. Response status code   
 4. response headers - global and local
 
 ## Milestone 4
