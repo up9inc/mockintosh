@@ -76,10 +76,11 @@
                 "headers": {
                   "$ref": "#/definitions/headers_ref"
                 },
-                "text": {
+                "body": {
                   "type": "string"
                 }
-              }
+              },
+              "additionalProperties": false
             }
           ]
         }

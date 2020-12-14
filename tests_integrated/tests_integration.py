@@ -64,3 +64,40 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("qstr match 1: constant val " + param2, resp.text)
         self.assertEqual("application/x-my-own", resp.headers.get("content-type"))
         self.assertEqual("%s prefix-%s-suffix" % (param2, param3), resp.headers.get("param2"))
+
+        path = '/qstr-matching1?param1=constantval&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+        path = '/qstr-matching1?param1=constant%%20val&param22=%s&param3=prefix-%s-suffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+        path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-zuffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+    def test_headers(self):
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("qstr match 1: constant val " + param2, resp.text)
+        self.assertEqual("application/x-my-own", resp.headers.get("content-type"))
+        self.assertEqual("%s prefix-%s-suffix" % (param2, param3), resp.headers.get("param2"))
+
+        path = '/qstr-matching1?param1=constantval&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+        path = '/qstr-matching1?param1=constant%%20val&param22=%s&param3=prefix-%s-suffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+        path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-zuffix' % (param2, param3)
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+    def test_body_jsonschema(self):
+        pass

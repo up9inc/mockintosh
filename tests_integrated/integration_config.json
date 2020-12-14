@@ -34,7 +34,7 @@
             "param3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
-            "text": "qstr match 1: {{request.queryString.param1}} {{capturedVar}}",
+            "body": "qstr match 1: {{request.queryString.param1}} {{capturedVar}}",
             "headers": {
               "Content-Type": "application/x-my-own",
               "param2": "{{request.queryString.param2}} {{request.queryString.param3}}"
@@ -49,7 +49,7 @@
             "hdr3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
-            "text": "headers match 1: {{request.headers.hdr1}} {{capturedVar}}",
+            "body": "headers match 1: {{request.headers.hdr1}} {{capturedVar}}",
             "headers": {
               "multi-val": [
                 "{{request.headers.hdr2}}",
