@@ -81,6 +81,12 @@
             }
           },
           "response": "body json schema matched"
+        },
+        {
+          "path": "/status-template1",
+          "response": {
+            "status": "{{request.queryString.rc}}"
+          }
         }
       ]
     },

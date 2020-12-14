@@ -107,9 +107,14 @@ class IntegrationTests(unittest.TestCase):
 
     def test_body_jsonschema(self):
         path = '/body-jsonschema1'
-        resp = requests.get(SRV1 + path, json={"somekey": "valid"})
+        resp = requests.post(SRV1 + path, json={"somekey": "valid"})
         self.assertEqual(200, resp.status_code)
 
         path = '/body-jsonschema1'
-        resp = requests.get(SRV1 + path, json={"somekey2": "invalid"})
+        resp = requests.post(SRV1 + path, json={"somekey2": "invalid"})
         self.assertEqual(404, resp.status_code)
+
+    def test_status_templated(self):
+        path = '/status-template1'
+        resp = requests.get(SRV1 + path + "?rc=303")
+        self.assertEqual(303, resp.status_code)
