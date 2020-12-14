@@ -56,7 +56,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual("tricky regex capture: " + param, resp.text)
 
-    def test_queryString(self):
+    def test_query_string(self):
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
         path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-suffix' % (param2, param3)

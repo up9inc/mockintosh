@@ -38,6 +38,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
+        self.determine_status_code()
         self.populate_context(*args)
         self.log_request()
         self.dynamic_unimplemented_method_guard()
@@ -154,3 +155,11 @@ class GenericHandler(tornado.web.RequestHandler):
                 )
 
         return response
+
+    def determine_status_code(self):
+        status_code = None
+        if 'status' in self.custom_response:
+            status_code = int(self.custom_response['status'])
+        else:
+            status_code = 200
+        self.set_status(status_code)
