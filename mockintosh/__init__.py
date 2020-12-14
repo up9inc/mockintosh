@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: the top-level module of Chupeta.
+    :synopsis: the top-level module of Mockintosh.
 """
 
 import sys
@@ -15,11 +15,11 @@ from os import path
 import yaml
 from jsonschema import validate
 
-from chupeta.exceptions import UnrecognizedConfigFileFormat
-from chupeta import configs
-from chupeta.recognizers import PathRecognizer
-from chupeta.servers import HttpServer
-from chupeta.methods import _detect_engine, _nostderr
+from mockintosh.exceptions import UnrecognizedConfigFileFormat
+from mockintosh import configs
+from mockintosh.recognizers import PathRecognizer
+from mockintosh.servers import HttpServer
+from mockintosh.methods import _detect_engine, _nostderr
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -105,9 +105,9 @@ def run(source, is_file=True, debug=False):
 
 
 def initiate():
-    """The top-level method to serve as the entry point of Chupeta.
+    """The top-level method to serve as the entry point of Mockintosh.
 
-    This method is the entry point defined in `setup.py` for the `chupeta` executable that
+    This method is the entry point defined in `setup.py` for the `mockintosh` executable that
     placed a directory in `$PATH`.
 
     This method parses the command-line arguments and handles the top-level initiations accordingly.

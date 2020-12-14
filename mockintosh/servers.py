@@ -13,7 +13,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
-from chupeta.handlers import GenericHandler
+from mockintosh.handlers import GenericHandler
 
 
 class HttpServer():

@@ -6,12 +6,12 @@ services:
   - docker
 install:
   - pip3 install flake8
-  - travis_fold start "Install.Pip.Package" && pip3 install -e .[dev] && pip3 show chupeta && travis_fold end "Install.Pip.Package"
-  - travis_fold start "Build.Image" && docker build . -t chupeta && docker image ls chupeta && travis_fold end "Build.Image"
+  - travis_fold start "Install.Pip.Package" && pip3 install -e .[dev] && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Build.Image" && docker build . -t mockintosh && docker image ls mockintosh && travis_fold end "Build.Image"
 script:
   - stty cols 120
   - travis_fold start "Unit.Tests" && pytest tests -s -v && travis_fold end "Unit.Tests"
-  - travis_fold start "Integration.Tests" && docker run -d -p 8000-8010:8000-8010 -v `pwd`:/tmp chupeta -v -l /tmp/server.log /tmp/tests_integrated/integration_config.json && sleep 5 && pytest -v tests_integrated/tests_integration.py && travis_fold end "Integration.Tests"
+  - travis_fold start "Integration.Tests" && docker run -d -p 8000-8010:8000-8010 -v `pwd`:/tmp mockintosh -v -l /tmp/server.log /tmp/tests_integrated/integration_config.json && sleep 5 && pytest -v tests_integrated/tests_integration.py && travis_fold end "Integration.Tests"
   - flake8
 after_success:
   - codecov

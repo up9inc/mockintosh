@@ -14,12 +14,12 @@ import yaml
 import tornado.web
 from tornado.web import HTTPError
 
-from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
-from chupeta.exceptions import UnsupportedTemplateEngine
-from chupeta.templating import TemplateRenderer
-from chupeta.params import PathParam
-from chupeta.methods import _safe_path_split, _detect_engine
-from chupeta.exceptions import UnrecognizedConfigFileFormat
+from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from mockintosh.exceptions import UnsupportedTemplateEngine
+from mockintosh.templating import TemplateRenderer
+from mockintosh.params import PathParam
+from mockintosh.methods import _safe_path_split, _detect_engine
+from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -99,9 +99,9 @@ class GenericHandler(tornado.web.RequestHandler):
             compiled = source_text
         else:
             if template_engine == PYBARS:
-                from chupeta.hbs.methods import uuid, fake, random_integer
+                from mockintosh.hbs.methods import uuid, fake, random_integer
             elif template_engine == JINJA:
-                from chupeta.j2.methods import uuid, fake, random_integer
+                from mockintosh.j2.methods import uuid, fake, random_integer
             else:
                 raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 

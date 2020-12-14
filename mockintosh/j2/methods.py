@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from jinja2.utils import contextfunction
 
-from chupeta.methods import _jinja_add_varname
+from mockintosh.methods import _jinja_add_varname
 
 
 def fake():
