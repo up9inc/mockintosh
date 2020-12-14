@@ -87,6 +87,9 @@
                 },
                 "useTemplating": {
                   "type": "boolean"
+                },
+                "templatingEngine": {
+                  "type": "string"
                 }
               },
               "additionalProperties": false

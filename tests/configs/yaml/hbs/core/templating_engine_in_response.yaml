@@ -8,4 +8,4 @@ services:
     method: GET
     response:
       templatingEngine: "Handlebars"
-      fromFile: tests/configs/yaml/hbs/core/templates/hello.yaml.hbs
+      body: "@tests/configs/yaml/hbs/core/templates/hello.yaml.hbs"

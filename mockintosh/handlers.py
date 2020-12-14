@@ -6,6 +6,7 @@
     :synopsis: module that contains request handlers.
 """
 
+import os
 import json
 import logging
 import inspect
@@ -83,14 +84,16 @@ class GenericHandler(tornado.web.RequestHandler):
         elif not self.custom_response:
             source_text = ''
             is_response_str = True
-        elif 'text' in self.custom_response:
-            source_text = self.custom_response['text']
-        else:
-            template_path = self.custom_response['fromFile']
-            with open(template_path, 'r') as file:
-                logging.info('Reading template file from path: %s' % template_path)
-                source_text = file.read()
-                logging.debug('Template file text: %s' % source_text)
+        elif 'body' in self.custom_response:
+            body = self.custom_response['body']
+            if body[0] == '@' and os.path.isfile(body[1:]):
+                template_path = body[1:]
+                with open(template_path, 'r') as file:
+                    logging.info('Reading template file from path: %s' % template_path)
+                    source_text = file.read()
+                    logging.debug('Template file text: %s' % source_text)
+            else:
+                source_text = body
 
         compiled = None
         if not is_response_str and (
@@ -150,4 +153,4 @@ class GenericHandler(tornado.web.RequestHandler):
                     invalid_yaml_error_msg
                 )
 
-        return response['body']
+        return response

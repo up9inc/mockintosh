@@ -10,7 +10,7 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
-            "fromFile": "tests/configs/json/hbs/core/templates/hello.json.hbs"
+            "body": "@tests/configs/json/hbs/core/templates/hello.json.hbs"
           }
         }
       ]

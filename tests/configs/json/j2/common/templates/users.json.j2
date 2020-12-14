@@ -1,17 +1,15 @@
 {
-  "body": {
-    "users": [{% for n in range(5) %}
-      {
-        "id": {{ randomInteger(10000, 100000) }},
-        "firstName": "{{ fake.first_name() }}",
-        "lastName": "{{ fake.last_name() }}",
-        "friends": [{% for n in range(range(5) | random) %}
-          {
-            "id": "{{ uuid() }}"
-          }{% if not loop.last %},{% endif %}
-        {% endfor %}]
-      }{% if not loop.last %},{% endif %}
-    {% endfor %}],
-    "total": 10
-  }
+  "users": [{% for n in range(5) %}
+    {
+      "id": {{ randomInteger(10000, 100000) }},
+      "firstName": "{{ fake.first_name() }}",
+      "lastName": "{{ fake.last_name() }}",
+      "friends": [{% for n in range(range(5) | random) %}
+        {
+          "id": "{{ uuid() }}"
+        }{% if not loop.last %},{% endif %}
+      {% endfor %}]
+    }{% if not loop.last %},{% endif %}
+  {% endfor %}],
+  "total": 10
 }
