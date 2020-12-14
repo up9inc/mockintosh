@@ -2,4 +2,4 @@
 include LICENSE
 
 # Include the JSON schema
-include chupeta/schema.json
+include mockintosh/schema.json

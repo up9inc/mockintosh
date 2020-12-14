@@ -11,8 +11,8 @@ from unittest.mock import patch
 from multiprocessing import Process
 import contextlib
 
-from chupeta.constants import PROGRAM
-from chupeta import initiate
+from mockintosh.constants import PROGRAM
+from mockintosh import initiate
 
 
 def signal_handler(sig, frame):

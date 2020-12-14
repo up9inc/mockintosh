@@ -38,7 +38,7 @@ with open(path.join(__location__, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='chupeta',
+    name='mockintosh',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -49,7 +49,7 @@ setup(
     long_description_content_type='text/markdown',
 
     # The project's main homepage.
-    url='https://github.com/up9inc/chupeta',
+    url='https://github.com/up9inc/mockintosh',
 
     # Choose your license
     license='GPL-3.0+',
@@ -116,7 +116,7 @@ setup(
     # have to be included in MANIFEST.in as well.
     package_data={
         # If any package contains data files, include them:
-        'chupeta': ['schema.json']
+        'mockintosh': ['schema.json']
     },
 
     # Although 'package_data' is the preferred approach, in some case you may
@@ -130,7 +130,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'chupeta=chupeta:initiate',
+            'mockintosh=mockintosh:initiate',
         ],
     },
     ext_modules=[]
