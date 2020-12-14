@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/",
+          "method": "GET",
+          "response": {
+            "useTemplating": true,
+            "fromFile": "tests/configs/json/hbs/core/templates/hello.json.hbs"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "templatingEngine": "Jinja2",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/parameterized1/text/{{intoVar}}/subval",
+          "response": "intoVar capture: {{intoVar}}"
+        },
+        {
+          "path": "/parameterized1/template-file/{{intoVar}}/subval",
+          "response": {
+            "fromFile": "tests/configs/json/j2/path/templates/1.json.j2"
+          }
+        },
+        {
+          "path": "/parameterized1/text/staticVal/subval",
+          "response": "static path components have priority"
+        },
+        {
+          "path": "/parameterized2/text/{{regEx('prefix-.*')}}/subval",
+          "response": "regex match: {{request.path}}"
+        },
+        {
+          "path": "/parameterized2/template-file/{{regEx('prefix-.*')}}/subval",
+          "response": {
+            "fromFile": "tests/configs/json/j2/path/templates/2.json.j2"
+          }
+        },
+        {
+          "path": "/parameterized1/text/{{regEx('prefix2-([^/]+)', 'varname')}}/subval2",
+          "response": "regex capture group: {{varname}}"
+        },
+        {
+          "path": "/parameterized1/template-file/{{regEx('prefix2-([^/]+)', 'varname')}}/subval2",
+          "response": {
+            "fromFile": "tests/configs/json/j2/path/templates/3.json.j2"
+          }
+        },
+        {
+          "path": "/parameterized3/text/{{var1}}/{{var2}}/{{var3}}",
+          "response": "var1: {{var1}}, var2: {{var2}}, var3: {{var3}}"
+        },
+        {
+          "path": "/parameterized3/template-file/{{var1}}/{{var2}}/{{var3}}",
+          "response": {
+            "fromFile": "tests/configs/json/j2/path/templates/4.json.j2"
+          }
+        },
+        {
+          "path": "/parameterized4/text/{{regEx('prefix-(.*)-(.*)-(.*)-suffix', 'var1', 'var2', 'var3')}}/{{regEx('(.*)_(.*)', 'var4', 'var5')}}",
+          "response": "var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}"
+        },
+        {
+          "path": "/parameterized4/template-file/{{regEx('prefix-(.*)-(.*)-(.*)-suffix', 'var1', 'var2', 'var3')}}/{{regEx('(.*)_(.*)', 'var4', 'var5')}}",
+          "response": {
+            "fromFile": "tests/configs/json/j2/path/templates/5.json.j2"
+          }
+        },
+        {
+          "path": "/parameterized5/text/{{var1}}/{{regEx('prefix-(.*)-(.*)-suffix', 'var2', 'var3')}}/{{var4}}/{{regEx('prefix2-(.*)', 'var5')}}",
+          "response": "var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}"
+        },
+        {
+          "path": "/parameterized5/template-file/{{var1}}/{{regEx('prefix-(.*)-(.*)-suffix', 'var2', 'var3')}}/{{var4}}/{{regEx('prefix2-(.*)', 'var5')}}",
+          "response": {
+            "fromFile": "tests/configs/json/j2/path/templates/5.json.j2"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/{{regEx '(.*)' 'varname'}}",
+          "method": "GET",
+          "response": "{{varname}}"
+        }
+      ]
+    }
+  ]
+}

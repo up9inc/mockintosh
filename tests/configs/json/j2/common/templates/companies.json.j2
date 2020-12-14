@@ -1,0 +1,11 @@
+{
+  "body": {
+    "companies": [{% for n in range(5) %}
+      {
+        "name": "{{ fake.company() }}",
+        "motto": "{{ fake.catch_phrase() }}"
+      }{% if not loop.last %},{% endif %}
+    {% endfor %}],
+    "total": 2
+  }
+}

@@ -6,131 +6,102 @@
     :synopsis: the top-level module of Chupeta.
 """
 
+import sys
 import argparse
-import inspect
 import json
 import logging
-import sys
 from os import path
-from uuid import uuid4
 
-import tornado.ioloop
-import tornado.web
 import yaml
-from faker import Faker
-from jinja2 import Template
-from tornado.routing import Rule, RuleRouter, HostMatches  # PathMatches can be used too
 from jsonschema import validate
 
 from chupeta.exceptions import UnrecognizedConfigFileFormat
 from chupeta import configs
+from chupeta.recognizers import PathRecognizer
+from chupeta.servers import HttpServer
+from chupeta.methods import _detect_engine, _nostderr
 
 __location__ = path.abspath(path.dirname(__file__))
 
 
 class Definition():
-    def __init__(self, source, schema):
+
+    def __init__(self, source, schema, is_file=True):
         self.source = source
-        self.compiled = None
+        self.source_text = None if is_file else source
         self.data = None
-        self.valid_json = False
-        self.valid_yaml = False
         self.schema = schema
         if self.source is None:
             self.data = configs.get_default()
         else:
-            self._compile()
             self.load()
         self.validate()
-
-    def add_globals(self, template):
-        fake = Faker()
-        template.globals['uuid'] = uuid4
-        template.globals['fake'] = fake
-
-    def _compile(self):
-        source_text = None
-        with open(self.source, 'r') as file:
-            logging.info('Reading configuration file from path: %s' % self.source)
-            source_text = file.read()
-            logging.debug('Configuration text: %s' % source_text)
-        logging.info('Parsing the configuration file...')
-        template = Template(source_text)
-        self.add_globals(template)
-        self.compiled = template.render()
+        self.template_engine = _detect_engine(self.data, 'config')
+        self.analyze()
 
     def load(self):
-        invalid_json_error_msg = None
-        invalid_yaml_error_msg = None
+        if self.source_text is None:
+            with open(self.source, 'r') as file:
+                logging.info('Reading configuration file from path: %s' % self.source)
+                self.source_text = file.read()
+                logging.debug('Configuration text: %s' % self.source_text)
 
         try:
-            self.data = json.loads(self.compiled)
-            self.valid_json = True
-            logging.info('Configuration file is a valid JSON file.')
-        except json.decoder.JSONDecodeError as e:
-            logging.debug('Configuration file is not recognized as a JSON file.')
-            invalid_json_error_msg = str(e)
-
-        try:
-            self.data = yaml.safe_load(self.compiled)
-            self.valid_yaml = True
+            self.data = yaml.safe_load(self.source_text)
             logging.info('Configuration file is a valid YAML file.')
-        except yaml.scanner.ScannerError as e:
-            logging.debug('Configuration file is not recognized as a YAML file.')
-            invalid_yaml_error_msg = str(e)
-
-        if not self.valid_json and not self.valid_yaml:
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
             raise UnrecognizedConfigFileFormat(
                 'Configuration file is neither a JSON file nor a YAML file!',
                 self.source,
-                invalid_json_error_msg,
-                invalid_yaml_error_msg
+                str(e)
             )
 
     def validate(self):
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
+    def analyze(self):
+        for service in self.data['services']:
+            for endpoint in service['endpoints']:
+                endpoint['params'] = {}
 
-class GenericHandler(tornado.web.RequestHandler):
-    def initialize(self, method, response):
-        self.custom_response = response
-        self.custom_method = method.lower()
-
-    def get(self):
-        self.log_request()
-        self.dynamic_unimplemented_method_guard()
-        self.write(self.custom_response)
-
-    def post(self):
-        self.log_request()
-        self.dynamic_unimplemented_method_guard()
-        self.write(self.custom_response)
-
-    def dynamic_unimplemented_method_guard(self):
-        if self.custom_method != inspect.stack()[1][3]:
-            self._unimplemented_method()
-
-    def log_request(self):
-        logging.debug('Received request:\n%s' % self.request.__dict__)
-
-
-def make_app(endpoints, debug=False):
-    endpoint_handlers = []
-    for endpoint in endpoints:
-        endpoint_handlers.append(
-            (
-                endpoint['path'],
-                GenericHandler,
-                dict(
-                    method=endpoint['method'],
-                    response=endpoint['response']
+                path_recognizer = PathRecognizer(
+                    endpoint['path'],
+                    endpoint['params'],
+                    self.template_engine
                 )
-            )
-        )
-        logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
-        logging.debug('with response:\n%s' % endpoint['response'])
-    return tornado.web.Application(endpoint_handlers, debug=debug)
+                endpoint['path'], endpoint['priority'], endpoint['context'] = path_recognizer.recognize()
+
+
+def get_schema():
+    schema = None
+    schema_path = path.join(__location__, 'schema.json')
+    with open(schema_path, 'r') as file:
+        schema_text = file.read()
+        logging.debug('JSON schema: %s' % schema_text)
+        schema = json.loads(schema_text)
+    return schema
+
+
+def run(source, is_file=True, debug=False):
+    schema = get_schema()
+
+    if 'unittest' in sys.modules.keys():
+        sys.stdin = sys.__stdin__
+    if source is None and sys.stdin is not None and not sys.stdin.isatty():
+        stdin_text = sys.stdin.read()
+        if stdin_text:
+            source = stdin_text
+            is_file = False
+
+    try:
+        definition = Definition(source, schema, is_file=is_file)
+        http_server = HttpServer(definition, debug=debug)
+    except Exception:
+        logging.exception('Mock server loading error:')
+        with _nostderr():
+            raise
+    http_server.run()
 
 
 def initiate():
@@ -163,54 +134,7 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    schema_path = path.join(__location__, 'schema.json')
-    with open(schema_path, 'r') as file:
-        schema_text = file.read()
-        logging.debug('JSON schema: %s' % schema_text)
-        schema = json.loads(schema_text)
-
-    source = args['source']
-    definition = Definition(source, schema)
-    port_mapping = {}
-    for service in definition.data['services']:
-        port = str(service['port'])
-        if port not in port_mapping:
-            port_mapping[port] = []
-        port_mapping[port].append(service)
-
-    for port, services in port_mapping.items():
-        rules = []
-        for service in services:
-            app = make_app(service['endpoints'], args['debug'])
-            if 'hostname' not in service:
-                app.listen(service['port'])
-                logging.info('Will listen port number: %d' % service['port'])
-            else:
-                rules.append(
-                    Rule(HostMatches(service['hostname']), app)
-                )
-
-                logging.info('Registered hostname and port: %s://%s:%d' % (
-                    'http',
-                    service['hostname'],
-                    service['port']
-                ))
-            logging.info('Finished registering: %s' % service['comment'])
-
-        if rules:
-            router = RuleRouter(rules)
-            server = tornado.web.HTTPServer(router)
-            server.listen(services[0]['port'])
-            logging.info('Will listen port number: %d' % service['port'])
-
-    if 'unittest' in sys.modules.keys():
-        import os
-        import signal
-        parent_pid = os.getppid()
-        os.kill(parent_pid, signal.SIGALRM)
-
-    logging.info('Mock server is ready!')
-    tornado.ioloop.IOLoop.current().start()
+    run(args['source'], debug=args['debug'])
 
 
 if __name__ == '__main__':

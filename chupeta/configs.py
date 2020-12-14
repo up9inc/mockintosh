@@ -17,9 +17,7 @@ def get_default():
                     {
                         'path': '/',
                         'method': 'GET',
-                        'response': {
-                            'hello': 'world'
-                        }
+                        'response': 'hello world'
                     }
                 ]
             }

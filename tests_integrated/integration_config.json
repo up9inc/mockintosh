@@ -1,4 +1,5 @@
 {
+  "templatingEngine": "Handlebars",
   "services": [
     {
       "comment": "First basic service",
@@ -7,12 +8,28 @@
         {
           "path": "/",
           "method": "GET",
-          "response": {}
+          "response": "static response"
+        },
+        {
+          "path": "/parameterized1/{{intoVar}}/subval",
+          "response": "intoVar capture: {{intoVar}}"
+        },
+        {
+          "path": "/parameterized1/staticVal/subval",
+          "response": "static path components have priority"
+        },
+        {
+          "path": "/parameterized2/{{regEx 'prefix-.*'}}/subval",
+          "response": "regex capture: {{request.path}}"
+        },
+        {
+          "path": "/parameterized1/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2",
+          "response": "tricky regex capture: {{varname}}"
         }
       ]
     },
     {
-      "comment": "Mock for http://frontend-service.trdemo",
+      "comment": "Service with specified.host",
       "port": 8002,
       "hostname": "specified.host",
       "endpoints": [

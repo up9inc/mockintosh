@@ -26,16 +26,56 @@
         "endpoints"
       ]
     },
-    "endpoint_ref": {}
+    "endpoint_ref": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "response"
+      ],
+      "additionalProperties": false
+    }
   },
   "type": "object",
   "properties": {
+    "templatingEngine": {
+      "type": "string"
+    },
     "services": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "$ref": "#/definitions/service_ref"
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "required": [
+    "services"
+  ]
 }

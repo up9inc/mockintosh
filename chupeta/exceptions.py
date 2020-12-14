@@ -11,9 +11,21 @@ class UnrecognizedConfigFileFormat(Exception):
     """Raised in case of both JSON and YAML parser is failed for the configuration file.
     """
 
-    def __init__(self, message, filepath, json_error_msg, yaml_error_msg):
+    def __init__(self, message, filepath, yaml_error_msg):
         message += '\nFile path: %s' % filepath
-        message += '\nJSON load error: %s' % json_error_msg
         message += '\nYAML load error: %s' % yaml_error_msg
         # Call the base class constructor with the parameters it needs
         super().__init__(message)
+
+
+class UnsupportedTemplateEngine(Exception):
+    """Raised in case of an unsupported template engine is detected.
+    """
+
+    def __init__(self, engine, supported_engines):
+        super().__init__(
+            '\nUnsupported template engine: %s\nSupported template engines: %s' % (
+                engine,
+                ', '.join(supported_engines)
+            )
+        )
