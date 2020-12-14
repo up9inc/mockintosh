@@ -9,11 +9,11 @@
 import re
 from collections import OrderedDict
 
-from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA
-from chupeta.exceptions import UnsupportedTemplateEngine
-from chupeta.templating import TemplateRenderer
-from chupeta.params import PathParam
-from chupeta.methods import _safe_path_split
+from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from mockintosh.exceptions import UnsupportedTemplateEngine
+from mockintosh.templating import TemplateRenderer
+from mockintosh.params import PathParam
+from mockintosh.methods import _safe_path_split
 
 
 class PathRecognizer():
@@ -45,9 +45,9 @@ class PathRecognizer():
         var = None
 
         if self.engine == PYBARS:
-            from chupeta.hbs.methods import reg_ex
+            from mockintosh.hbs.methods import reg_ex
         elif self.engine == JINJA:
-            from chupeta.j2.methods import reg_ex
+            from mockintosh.j2.methods import reg_ex
         else:
             raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
 

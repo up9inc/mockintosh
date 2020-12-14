@@ -9,9 +9,9 @@
 import pytest
 from jsonschema.exceptions import ValidationError
 
-from chupeta import Definition, get_schema
-from chupeta.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine
-from chupeta.templating import TemplateRenderer
+from mockintosh import Definition, get_schema
+from mockintosh.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine
+from mockintosh.templating import TemplateRenderer
 from utilities import get_config_path
 
 schema = get_schema()

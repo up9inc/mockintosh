@@ -1,4 +1,4 @@
-# Chupeta, the API mocking server for microservice environments
+# Mockintosh, the API mocking server for microservice environments
 
 ## About
 
@@ -21,10 +21,10 @@ pip3 install .
 or as a Docker image:
 
 ```bash
-docker build --no-cache -t chupeta .
+docker build --no-cache -t mockintosh .
 ```
 
-To verify the installation run `chupeta` and visit [http://localhost:8001](http://localhost:8001)
+To verify the installation run `mockintosh` and visit [http://localhost:8001](http://localhost:8001)
 you should be seeing the `hello world` response.
 
 ## Run
@@ -32,20 +32,20 @@ you should be seeing the `hello world` response.
 Running directly:
 
 ```bash
-chupeta tests/configs/json/hbs/common/config.json
+mockintosh tests/configs/json/hbs/common/config.json
 ```
 
 or as a Docker container:
 
 ```bash
-docker run -p 8000-8010:8000-8010 -v `pwd`/tests/configs/json/hbs/common/config.json chupeta /config.json
+docker run -p 8000-8010:8000-8010 -v `pwd`/tests/configs/json/hbs/common/config.json mockintosh /config.json
 # or
-docker run --network host -v `pwd`/tests/configs/json/hbs/common/config.json chupeta /config.json
+docker run --network host -v `pwd`/tests/configs/json/hbs/common/config.json mockintosh /config.json
 ```
 
 # The Mock Server Config
 
-Chupeta supports both JSON and YAML formats as the mock server configuration file. Templating is also possible using
+Mockintosh supports both JSON and YAML formats as the mock server configuration file. Templating is also possible using
 [Handlebars](https://handlebarsjs.com/guide/) (default) and [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/)
 templating engines. Any of the standard provides of [Faker](https://faker.readthedocs.io/en/master/providers.html)
 can also be used within the Handlebars or Jinja2 templates.
@@ -97,9 +97,9 @@ response: # Response of the endpoint
 
 ## Command-line Arguments
 
-The list of command-line arguments can be seen by running `chupeta --help`.
+The list of command-line arguments can be seen by running `mockintosh --help`.
 
-If no configuration file is provided `chupeta` starts with the default config shown below:
+If no configuration file is provided `mockintosh` starts with the default config shown below:
 
 ```json
 {
@@ -120,10 +120,10 @@ If no configuration file is provided `chupeta` starts with the default config sh
 }
 ```
 
-Chupeta also supports piping config text into its `stdin` like:
+Mockintosh also supports piping config text into its `stdin` like:
 
 ```bash
-cat tests/configs/json/hbs/common/config.json | chupeta
+cat tests/configs/json/hbs/common/config.json | mockintosh
 ```
 
 `--debug` option enables Tornado Web Server's debug mode.
@@ -162,7 +162,7 @@ so that a request like `GET /parameterized/staticval/someval` would return *`sta
 
 #### Regex Match
 
-With Chupeta it's possible to use regular expression in path segments:
+With Mockintosh it's possible to use regular expression in path segments:
 
 ```yaml
 - path: "/match/{{regEx 'prefix-.*'}}/someval"

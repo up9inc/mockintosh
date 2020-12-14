@@ -12,7 +12,7 @@ import re
 import logging
 from contextlib import contextmanager
 
-from chupeta.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT
+from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT
 
 
 def _safe_path_split(path):

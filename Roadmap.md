@@ -183,5 +183,5 @@
 
 # Ideas
 
-- `chupeta --cli` to start interactive shell that would allow building the mock configuration interactively
-- `cat OpenAPI.json | chupeta > chupeta-config.yml`
+- `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
+- `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
