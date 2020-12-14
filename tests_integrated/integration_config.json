@@ -85,7 +85,7 @@
         {
           "path": "/status-template1",
           "response": {
-            "status": "{{lookup (lookup request.queryString 'rc') 0}}"
+            "status": "{{request.queryString.rc}}"
           }
         }
       ]

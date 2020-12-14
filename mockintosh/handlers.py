@@ -164,6 +164,8 @@ class GenericHandler(tornado.web.RequestHandler):
         custom_request.path = self.request.path
         for key, value in self.request.query_arguments.items():
             custom_request.queryString[key] = [x.decode('utf-8') for x in value]
+            if len(custom_request.queryString[key]) == 1:
+                custom_request.queryString[key] = custom_request.queryString[key][0]
         return custom_request
 
     def determine_status_code(self):
