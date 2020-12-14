@@ -6,7 +6,7 @@
     :synopsis: module that contains the constants.
 """
 
-PROGRAM = 'chupeta'
+PROGRAM = 'mockintosh'
 
 PYBARS = 'Handlebars'
 JINJA = 'Jinja2'

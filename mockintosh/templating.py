@@ -13,10 +13,10 @@ from jinja2 import Template
 from pybars import Compiler
 from faker import Faker
 
-from chupeta.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT
-from chupeta.exceptions import UnsupportedTemplateEngine
-from chupeta.methods import _to_camel_case
-from chupeta.hbs.methods import fake as hbs_fake
+from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT
+from mockintosh.exceptions import UnsupportedTemplateEngine
+from mockintosh.methods import _to_camel_case
+from mockintosh.hbs.methods import fake as hbs_fake
 
 compiler = Compiler()
 
