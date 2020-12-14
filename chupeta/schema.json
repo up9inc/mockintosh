@@ -29,7 +29,7 @@
     "endpoint_ref": {
       "type": "object",
       "properties": {
-        "path": {
+        "id": {
           "type": "string"
         },
         "comment": {
@@ -37,6 +37,33 @@
         },
         "method": {
           "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "queryString": {
+          "type": "object",
+          "patternProperties": {
+            ".+": {
+              "type": "string"
+            }
+          }
+        },
+        "headers": {
+          "type": "object",
+          "patternProperties": {
+            ".+": {
+              "type": "string"
+            }
+          }
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "schema": {
+              "$ref": "http://json-schema.org/draft-07/schema#"
+            }
+          }
         },
         "response": {
           "oneOf": [
@@ -46,6 +73,9 @@
             {
               "type": "object",
               "properties": {
+                "headers": {
+                  "$ref": "#/definitions/headers_ref"
+                },
                 "text": {
                   "type": "string"
                 }
@@ -59,12 +89,39 @@
         "response"
       ],
       "additionalProperties": false
+    },
+    "headers_ref": {
+      "oneOf": [
+        {
+          "type": "object",
+          "patternProperties": {
+            ".+": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   },
   "type": "object",
   "properties": {
     "templatingEngine": {
       "type": "string"
+    },
+    "globals": {
+      "headers": {
+        "$ref": "#/definitions/headers_ref"
+      }
     },
     "services": {
       "type": "array",
