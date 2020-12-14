@@ -78,6 +78,9 @@
                 },
                 "body": {
                   "type": "string"
+                },
+                "useTemplating": {
+                  "type": "boolean"
                 }
               },
               "additionalProperties": false
