@@ -34,7 +34,7 @@
             "param3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
-            "body": "qstr match 1: {{request.queryString.param1}} {{capturedVar}}",
+            "body": "qstr match 1: {{request.queryString.param1}} {{capturedVar}} {{anyValIntoVar}}",
             "headers": {
               "Content-Type": "application/x-my-own",
               "param2": "{{request.queryString.param2}} {{request.queryString.param3}}"
@@ -51,9 +51,9 @@
           "response": {
             "body": "headers match 1: {{request.headers.hdr1}} {{capturedVar}}",
             "headers": {
-              "multi-val": [
-                "{{request.headers.hdr2}}",
-                "{{request.headers.hdr3}}"
+              "Set-Cookie": [
+                "name1={{request.headers.hdr2}}",
+                "name2={{request.headers.hdr3}}"
               ]
             }
           }
@@ -81,6 +81,7 @@
       "hostname": "specified.host",
       "endpoints": [
         {
+          "id": "some-endpoint-id",
           "path": "/",
           "method": "get",
           "response": {}
