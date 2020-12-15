@@ -272,10 +272,10 @@ class TestCore():
 
 
 @pytest.mark.parametrize(('config'), [
-    'configs/json/hbs/core/status_code.json',
-    'configs/json/j2/core/status_code.json',
-    'configs/yaml/hbs/core/status_code.yaml',
-    'configs/yaml/j2/core/status_code.yaml',
+    'configs/json/hbs/status/status_code.json',
+    'configs/json/j2/status/status_code.json',
+    'configs/yaml/hbs/status/status_code.yaml',
+    'configs/yaml/j2/status/status_code.yaml',
 ])
 class TestStatus():
 
