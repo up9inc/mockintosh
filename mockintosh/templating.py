@@ -13,7 +13,7 @@ from jinja2 import Template
 from pybars import Compiler
 from faker import Faker
 
-from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT
+from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.methods import _to_camel_case
 from mockintosh.hbs.methods import fake as hbs_fake
@@ -58,10 +58,15 @@ class TemplateRenderer():
         template = Template(self.text)
         if JINJA_VARNAME_DICT in template.globals:
             template.globals[JINJA_VARNAME_DICT] = {}
+        if SPECIAL_CONTEXT in template.globals:
+            template.globals[SPECIAL_CONTEXT] = {}
         self.add_globals(template)
         if JINJA_VARNAME_DICT not in template.globals:
             template.globals[JINJA_VARNAME_DICT] = {}
-        return template.render(), copy.deepcopy(template.globals[JINJA_VARNAME_DICT])
+        compiled = template.render()
+        if SPECIAL_CONTEXT in template.globals:
+            template.globals[JINJA_VARNAME_DICT][SPECIAL_CONTEXT] = template.globals[SPECIAL_CONTEXT]
+        return compiled, copy.deepcopy(template.globals[JINJA_VARNAME_DICT])
 
     def add_globals(self, template, helpers=None):
         fake = None

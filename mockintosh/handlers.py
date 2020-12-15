@@ -6,6 +6,7 @@
     :synopsis: module that contains request handlers.
 """
 
+import re
 import os
 import logging
 import inspect
@@ -14,10 +15,10 @@ import yaml
 import tornado.web
 from tornado.web import HTTPError
 
-from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
-from mockintosh.params import PathParam
+from mockintosh.params import PathParam, HeaderParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
@@ -40,6 +41,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def super_verb(self, *args):
         self.populate_context(*args)
         self.determine_status_code()
+        self.determine_headers()
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
@@ -59,6 +61,7 @@ class GenericHandler(tornado.web.RequestHandler):
             else:
                 HTTPError(400)
         self.custom_context.update(self.default_context)
+        self.analyze_headers()
 
     def dynamic_unimplemented_method_guard(self):
         if self.custom_method != inspect.stack()[2][3]:
@@ -71,6 +74,8 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
                 context[key] = _safe_path_split(self.request.path)[param.index]
+            if isinstance(param, HeaderParam):
+                context[key] = self.request.headers.get(param.key.capitalize())
         return context
 
     def render_template(self):
@@ -94,6 +99,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     source_text = file.read()
                     logging.debug('Template file text: %s' % source_text)
             else:
+                is_response_str = True
                 source_text = body
         else:
             return ''
@@ -143,11 +149,24 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def build_custom_request(self):
         custom_request = Request()
+
+        # Method
+        custom_request.method = self.request.method
+
+        # Path
         custom_request.path = self.request.path
+
+        # Headers
+        for key, value in self.request.headers._dict.items():
+            custom_request.headers[key] = value
+            custom_request.headers[key.lower()] = value
+
+        # Query String
         for key, value in self.request.query_arguments.items():
             custom_request.queryString[key] = [x.decode('utf-8') for x in value]
             if len(custom_request.queryString[key]) == 1:
                 custom_request.queryString[key] = custom_request.queryString[key][0]
+
         return custom_request
 
     def determine_status_code(self):
@@ -169,9 +188,43 @@ class GenericHandler(tornado.web.RequestHandler):
             status_code = 200
         self.set_status(status_code)
 
+    def analyze_headers(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'headers' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for header_key, header in self.initial_context[SPECIAL_CONTEXT]['headers'].items():
+            if header_key.capitalize() in self.request.headers._dict:
+                if header['type'] == 'regex':
+                    match = re.match(header['regex'], self.request.headers.get(header_key))
+                    if match is not None:
+                        for i, key in enumerate(header['args']):
+                            self.custom_context[key] = match.group(i + 1)
+
+    def determine_headers(self):
+        if 'headers' not in self.custom_response:
+            return
+
+        for key, value in self.custom_response['headers'].items():
+            if isinstance(value, list):
+                value = '; '.join(value)
+
+            if isinstance(value, str):
+                renderer = TemplateRenderer(
+                    self.definition_engine,
+                    value,
+                    inject_objects=self.custom_context,
+                    inject_methods=[],
+                    add_params_callback=self.add_params
+                )
+                value, _ = renderer.render()
+
+            self.set_header(key, value)
+
 
 class Request():
 
     def __init__(self):
+        self.method = None
         self.path = None
+        self.headers = {}
         self.queryString = {}

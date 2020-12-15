@@ -11,13 +11,14 @@ import argparse
 import json
 import logging
 from os import path
+from collections import OrderedDict
 
 import yaml
 from jsonschema import validate
 
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh import configs
-from mockintosh.recognizers import PathRecognizer
+from mockintosh.recognizers import PathRecognizer, HeadersRecognizer
 from mockintosh.servers import HttpServer
 from mockintosh.methods import _detect_engine, _nostderr
 
@@ -64,13 +65,24 @@ class Definition():
         for service in self.data['services']:
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
+                endpoint['context'] = OrderedDict()
 
                 path_recognizer = PathRecognizer(
                     endpoint['path'],
                     endpoint['params'],
+                    endpoint['context'],
                     self.template_engine
                 )
-                endpoint['path'], endpoint['priority'], endpoint['context'] = path_recognizer.recognize()
+                endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+
+                if 'headers' in endpoint and endpoint['headers']:
+                    headers_recognizer = HeadersRecognizer(
+                        endpoint['headers'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        self.template_engine
+                    )
+                    endpoint['headers'] = headers_recognizer.recognize()
 
 
 def get_schema():
