@@ -6,20 +6,20 @@
     :synopsis: the top-level module of Mockintosh.
 """
 
-import sys
 import argparse
 import json
 import logging
+import sys
 from os import path
 
 import yaml
 from jsonschema import validate
 
-from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh import configs
+from mockintosh.exceptions import UnrecognizedConfigFileFormat
+from mockintosh.methods import _detect_engine, _nostderr
 from mockintosh.recognizers import PathRecognizer
 from mockintosh.servers import HttpServer
-from mockintosh.methods import _detect_engine, _nostderr
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -135,7 +135,3 @@ def initiate():
         logging.getLogger('').addHandler(handler)
 
     run(args['source'], debug=args['debug'])
-
-
-if __name__ == '__main__':
-    initiate()
