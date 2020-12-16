@@ -93,10 +93,6 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(404, resp.status_code)
 
         resp = requests.get(SRV1 + path,
-                            headers={"hdr1": "constant val", "hdr2": param2 + "0", "hdr3": "prefix-%s-suffix" % param3})
-        self.assertEqual(404, resp.status_code)
-
-        resp = requests.get(SRV1 + path,
                             headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefics-%s-suffix" % param3})
         self.assertEqual(404, resp.status_code)
 
