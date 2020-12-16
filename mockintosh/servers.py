@@ -68,6 +68,8 @@ class HttpServer():
                 if key in ('method', 'path', 'priority'):
                     continue
                 extracted_parts[key] = endpoint[key]
+                if 'id' not in extracted_parts:
+                  extracted_parts['id'] = None
             if identifier in new_endpoints:
                 new_endpoints[identifier]['alternatives'].append(extracted_parts)
             else:

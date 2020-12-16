@@ -16,7 +16,7 @@ import yaml
 import tornado.web
 from tornado.web import HTTPError
 
-from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
+from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam
@@ -38,7 +38,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
-        response, params, context = self.match_alternative()
+        _id, response, params, context = self.match_alternative()
+        self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params
         self.initial_context = context
@@ -205,6 +206,9 @@ class GenericHandler(tornado.web.RequestHandler):
                             self.custom_context[key] = match.group(i + 1)
 
     def determine_headers(self):
+        if self.custom_endpoint_id is not None:
+            self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
+
         if 'headers' not in self.custom_response:
             return
 
@@ -260,10 +264,11 @@ class GenericHandler(tornado.web.RequestHandler):
                 if fail:
                     continue
 
+            _id = alternative['id']
             response = alternative['response']
             params = alternative['params']
             context = alternative['context']
-            return response, params, context
+            return _id, response, params, context
 
         raise tornado.web.HTTPError(404)
 
