@@ -1,0 +1,63 @@
+{
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/service1",
+          "method": "GET",
+          "headers": {
+            "hdr1": "static val",
+            "hdr2": "{{anyValIntoVar}}",
+            "hdr3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
+          },
+          "response": {
+            "body": "headers match 1: {{request.headers.hdr1}} {{anyValIntoVar}} {{capturedVar}}",
+            "status": 201,
+            "headers": {
+              "Set-Cookie": [
+                "name1={{request.headers.hdr2}}",
+                "name2={{request.headers.hdr3}}"
+              ]
+            }
+          }
+        },
+        {
+          "path": "/service1",
+          "headers": {
+            "hdr4": "another header"
+          },
+          "response": "alternative header"
+        },
+        {
+          "path": "/service1/template-file",
+          "method": "GET",
+          "headers": {
+            "hdr1": "static val",
+            "hdr2": "{{anyValIntoVar}}",
+            "hdr3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
+          },
+          "response": {
+            "body": "@tests/configs/json/hbs/headers/template.json.hbs",
+            "status": 201,
+            "headers": {
+              "Set-Cookie": [
+                "name1={{request.headers.hdr2}}",
+                "name2={{request.headers.hdr3}}"
+              ]
+            }
+          }
+        },
+        {
+          "path": "/service1/template-file",
+          "headers": {
+            "hdr4": "another header"
+          },
+          "response": "alternative header"
+        }
+      ]
+    }
+  ]
+}

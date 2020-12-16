@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from jinja2.utils import contextfunction
 
-from mockintosh.methods import _jinja_add_varname
+from mockintosh.methods import _jinja_add_varname, _jinja_add_regex_context
 
 
 def fake():
@@ -29,6 +29,9 @@ def uuid():
 
 @contextfunction
 def reg_ex(context, regex, *args, **kwargs):
-    for arg in args:
-        _jinja_add_varname(context, arg)
+    if context['scope'] == 'path':
+        for arg in args:
+            _jinja_add_varname(context, arg)
+    else:
+        _jinja_add_regex_context(context, context['scope'], context['key'], regex, *args)
     return regex

@@ -272,10 +272,10 @@ class TestCore():
 
 
 @pytest.mark.parametrize(('config'), [
-    'configs/json/hbs/core/status_code.json',
-    'configs/json/j2/core/status_code.json',
-    'configs/yaml/hbs/core/status_code.yaml',
-    'configs/yaml/j2/core/status_code.yaml',
+    'configs/json/hbs/status/status_code.json',
+    'configs/json/j2/status/status_code.json',
+    'configs/yaml/hbs/status/status_code.yaml',
+    'configs/yaml/j2/status/status_code.yaml',
 ])
 class TestStatus():
 
@@ -301,6 +301,67 @@ class TestStatus():
         query = '?rc=303'
         resp = requests.get(SRV_8001 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
         assert 303 == resp.status_code
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/headers/config.json',
+    'configs/json/j2/headers/config.json',
+    'configs/yaml/hbs/headers/config.yaml',
+    'configs/yaml/j2/headers/config.yaml'
+])
+class TestHeaders():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_parameter(self, config):
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/service1', headers={"hdr2": param})
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'headers match 1:  %s ' % param
+
+        resp = requests.get(SRV_8001 + '/service1/template-file', headers={"hdr2": param})
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['anyValIntoVar'] == param
+
+    def test_static_value(self, config):
+        static_val = 'myValue'
+        resp = requests.get(SRV_8001 + '/service1', headers={"hdr1": static_val})
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        if 'j2' in config:
+            assert resp.text == 'headers match 1: %s None ' % static_val
+        else:
+            assert resp.text == 'headers match 1: %s  ' % static_val
+
+        resp = requests.get(SRV_8001 + '/service1/template-file', headers={"hdr1": static_val})
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['request.headers.hdr1'] == static_val
+
+    def test_regex_capture_group(self, config):
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/service1', headers={"hdr3": 'prefix-%s-suffix' % param})
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        if 'j2' in config:
+            assert resp.text == 'headers match 1:  None %s' % param
+        else:
+            assert resp.text == 'headers match 1:   %s' % param
+
+        resp = requests.get(SRV_8001 + '/service1/template-file', headers={"hdr3": 'prefix-%s-suffix' % param})
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['capturedVar'] == param
 
 
 @pytest.mark.parametrize(('config'), [

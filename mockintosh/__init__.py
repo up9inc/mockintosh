@@ -11,6 +11,7 @@ import json
 import logging
 import sys
 from os import path
+from collections import OrderedDict
 
 import yaml
 from jsonschema import validate
@@ -18,7 +19,7 @@ from jsonschema import validate
 from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr
-from mockintosh.recognizers import PathRecognizer
+from mockintosh.recognizers import PathRecognizer, HeadersRecognizer
 from mockintosh.servers import HttpServer
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -64,13 +65,24 @@ class Definition():
         for service in self.data['services']:
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
+                endpoint['context'] = OrderedDict()
 
                 path_recognizer = PathRecognizer(
                     endpoint['path'],
                     endpoint['params'],
+                    endpoint['context'],
                     self.template_engine
                 )
-                endpoint['path'], endpoint['priority'], endpoint['context'] = path_recognizer.recognize()
+                endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+
+                if 'headers' in endpoint and endpoint['headers']:
+                    headers_recognizer = HeadersRecognizer(
+                        endpoint['headers'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        self.template_engine
+                    )
+                    endpoint['headers'] = headers_recognizer.recognize()
 
 
 def get_schema():

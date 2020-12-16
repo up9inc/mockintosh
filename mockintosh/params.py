@@ -12,3 +12,10 @@ class PathParam():
     def __init__(self, name, index):
         self.name = name
         self.index = index
+
+
+class HeaderParam():
+
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
