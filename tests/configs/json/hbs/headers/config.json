@@ -25,6 +25,13 @@
           }
         },
         {
+          "path": "/service1",
+          "headers": {
+            "hdr4": "another header"
+          },
+          "response": "alternative header"
+        },
+        {
           "path": "/service1/template-file",
           "method": "GET",
           "headers": {
@@ -42,6 +49,13 @@
               ]
             }
           }
+        },
+        {
+          "path": "/service1/template-file",
+          "headers": {
+            "hdr4": "another header"
+          },
+          "response": "alternative header"
         }
       ]
     }

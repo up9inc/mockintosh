@@ -34,7 +34,8 @@ class HttpServer():
         for port, services in port_mapping.items():
             rules = []
             for service in services:
-                app = self.make_app(service['endpoints'], self.debug)
+                endpoints = self.merge_alternatives(service['endpoints'])
+                app = self.make_app(endpoints, self.debug)
                 if 'hostname' not in service:
                     app.listen(service['port'])
                     logging.info('Will listen port number: %d' % service['port'])
@@ -56,6 +57,27 @@ class HttpServer():
                 server.listen(services[0]['port'])
                 logging.info('Will listen port number: %d' % service['port'])
 
+    def merge_alternatives(self, endpoints):
+        new_endpoints = {}
+        for endpoint in endpoints:
+            if 'method' not in endpoint:
+                endpoint['method'] = 'GET'
+            identifier = '%s %s' % (endpoint['method'], endpoint['path'])
+            extracted_parts = {}
+            for key in endpoint:
+                if key in ('method', 'path', 'priority'):
+                    continue
+                extracted_parts[key] = endpoint[key]
+            if identifier in new_endpoints:
+                new_endpoints[identifier]['alternatives'].append(extracted_parts)
+            else:
+                new_endpoints[identifier] = {}
+                new_endpoints[identifier]['method'] = endpoint['method']
+                new_endpoints[identifier]['path'] = endpoint['path']
+                new_endpoints[identifier]['priority'] = endpoint['priority']
+                new_endpoints[identifier]['alternatives'] = [extracted_parts]
+        return new_endpoints.values()
+
     def run(self):
         if 'unittest' in sys.modules.keys():
             import os
@@ -71,22 +93,17 @@ class HttpServer():
         endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
         for endpoint in endpoints:
-            if 'method' not in endpoint:
-                endpoint['method'] = 'GET'
-
             endpoint_handlers.append(
                 (
                     endpoint['path'],
                     GenericHandler,
                     dict(
                         method=endpoint['method'],
-                        response=endpoint['response'],
-                        params=endpoint['params'],
-                        context=endpoint['context'],
+                        alternatives=endpoint['alternatives'],
                         definition_engine=self.definition.template_engine
                     )
                 )
             )
             logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
-            logging.debug('with response:\n%s' % endpoint['response'])
+            logging.debug('with alternatives:\n%s' % endpoint['alternatives'])
         return tornado.web.Application(endpoint_handlers, debug=debug)

@@ -25,7 +25,9 @@ from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, response, params, context, definition_engine):
+    def initialize(self, method, alternatives, definition_engine):
+        self.alternatives = alternatives
+        response, params, context = self.match_alternative()
         self.custom_response = response
         self.custom_method = method.lower()
         self.custom_params = params
@@ -219,6 +221,15 @@ class GenericHandler(tornado.web.RequestHandler):
                 value, _ = renderer.render()
 
             self.set_header(key, value)
+
+    def match_alternative(self):
+        response = None
+        params = None
+        context = None
+        response = self.alternatives[0]['response']
+        params = self.alternatives[0]['params']
+        context = self.alternatives[0]['context']
+        return response, params, context
 
 
 class Request():
