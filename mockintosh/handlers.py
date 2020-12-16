@@ -10,6 +10,7 @@ import re
 import os
 import logging
 import inspect
+import urllib
 
 import yaml
 import tornado.web
@@ -27,13 +28,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def initialize(self, method, alternatives, definition_engine):
         self.alternatives = alternatives
-        response, params, context = self.match_alternative()
-        self.custom_response = response
         self.custom_method = method.lower()
-        self.custom_params = params
         self.definition_engine = definition_engine
 
-        self.initial_context = context
         self.custom_request = self.build_custom_request()
         self.default_context = {
             'request': self.custom_request
@@ -41,6 +38,11 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
+        response, params, context = self.match_alternative()
+        self.custom_response = response
+        self.custom_params = params
+        self.initial_context = context
+
         self.populate_context(*args)
         self.determine_status_code()
         self.determine_headers()
@@ -77,7 +79,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if isinstance(param, PathParam):
                 context[key] = _safe_path_split(self.request.path)[param.index]
             if isinstance(param, HeaderParam):
-                context[key] = self.request.headers.get(param.key.capitalize())
+                context[key] = self.request.headers.get(param.key.title())
         return context
 
     def render_template(self):
@@ -195,7 +197,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return
 
         for header_key, header in self.initial_context[SPECIAL_CONTEXT]['headers'].items():
-            if header_key.capitalize() in self.request.headers._dict:
+            if header_key.title() in self.request.headers._dict:
                 if header['type'] == 'regex':
                     match = re.match(header['regex'], self.request.headers.get(header_key))
                     if match is not None:
@@ -207,10 +209,15 @@ class GenericHandler(tornado.web.RequestHandler):
             return
 
         for key, value in self.custom_response['headers'].items():
+            value_list = None
             if isinstance(value, list):
-                value = '; '.join(value)
+                value_list = value
 
             if isinstance(value, str):
+                value_list = [value]
+
+            new_value_list = []
+            for value in value_list:
                 renderer = TemplateRenderer(
                     self.definition_engine,
                     value,
@@ -218,18 +225,47 @@ class GenericHandler(tornado.web.RequestHandler):
                     inject_methods=[],
                     add_params_callback=self.add_params
                 )
-                value, _ = renderer.render()
+                new_value, _ = renderer.render()
+                new_value_list.append(new_value)
 
-            self.set_header(key, value)
+            for value in new_value_list:
+                if key.title() == 'Set-Cookie':
+                    value_splitted = value.split('=')
+                    value_splitted[1] = urllib.parse.quote_plus(value_splitted[1])
+                    self.set_cookie(value_splitted[0], value_splitted[1])
+                else:
+                    self.set_header(key, value)
 
     def match_alternative(self):
         response = None
         params = None
         context = None
-        response = self.alternatives[0]['response']
-        params = self.alternatives[0]['params']
-        context = self.alternatives[0]['context']
-        return response, params, context
+        for alternative in self.alternatives:
+            fail = False
+
+            # Headers
+            if 'headers' in alternative:
+                for key, value in alternative['headers'].items():
+                    request_header_val = self.request.headers.get(key.title())
+                    if key.title() not in self.request.headers._dict:
+                        fail = True
+                        break
+                    if value == request_header_val:
+                        continue
+                    value = '^%s$' % value
+                    match = re.match(value, request_header_val)
+                    if match is None:
+                        fail = True
+                        break
+                if fail:
+                    continue
+
+            response = alternative['response']
+            params = alternative['params']
+            context = alternative['context']
+            return response, params, context
+
+        raise tornado.web.HTTPError(404)
 
 
 class Request():

@@ -4,29 +4,85 @@ services:
 - comment: Mock for Service1
   port: 8001
   endpoints:
-  - path: "/service1"
+  - path: "/static-value"
     method: GET
     headers:
-      hdr1: static val
+      hdr1: myValue
+    response:
+      body: 'matched with static value: {{request.headers.hdr1}}'
+      status: 200
+  - path: "/static-value/template-file"
+    method: GET
+    headers:
+      hdr1: myValue
+    response:
+      body: "@tests/configs/yaml/j2/headers/templates/1.yaml.j2"
+      status: 200
+  - path: "/parameter"
+    method: GET
+    headers:
+      hdr1: "{{anyValIntoVar}}"
+    response:
+      body: 'matched with parameter: {{anyValIntoVar}}'
+      status: 200
+  - path: "/parameter/template-file"
+    method: GET
+    headers:
+      hdr1: "{{anyValIntoVar}}"
+    response:
+      body: "@tests/configs/yaml/j2/headers/templates/2.yaml.j2"
+      status: 200
+  - path: "/regex-capture-group"
+    method: GET
+    headers:
+      hdr1: "{{regEx('prefix-(.+)-suffix', 'capturedVar')}}"
+    response:
+      body: 'matched with regex capture group: {{capturedVar}}'
+      status: 200
+  - path: "/regex-capture-group/template-file"
+    method: GET
+    headers:
+      hdr1: "{{regEx('prefix-(.+)-suffix', 'capturedVar')}}"
+    response:
+      body: "@tests/configs/yaml/j2/headers/templates/3.yaml.j2"
+      status: 200
+  - path: "/alternative"
+    method: GET
+    headers:
+      hdr1: myValue
       hdr2: "{{anyValIntoVar}}"
       hdr3: "{{regEx('prefix-(.+)-suffix', 'capturedVar')}}"
     response:
-      body: 'headers match 1: {{request.headers.hdr1}} {{anyValIntoVar}} {{capturedVar}}'
+      body: 'headers match: {{request.headers.hdr1}} {{anyValIntoVar}} {{capturedVar}}'
       status: 201
       headers:
         Set-Cookie:
         - name1={{request.headers.hdr2}}
         - name2={{request.headers.hdr3}}
-  - path: "/service1/template-file"
+  - path: "/alternative"
+    headers:
+      hdr4: another header
+    response:
+      body: 'hdr4 request header: {{request.headers.hdr4}}'
+      headers:
+        hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
+  - path: "/alternative/template-file"
     method: GET
     headers:
-      hdr1: static val
+      hdr1: myValue
       hdr2: "{{anyValIntoVar}}"
       hdr3: "{{regEx('prefix-(.+)-suffix', 'capturedVar')}}"
     response:
-      body: "@tests/configs/yaml/j2/headers/template.yaml.j2"
+      body: "@tests/configs/yaml/j2/headers/templates/4.yaml.j2"
       status: 201
       headers:
         Set-Cookie:
         - name1={{request.headers.hdr2}}
         - name2={{request.headers.hdr3}}
+  - path: "/alternative/template-file"
+    headers:
+      hdr4: another header
+    response:
+      body: "@tests/configs/yaml/j2/headers/templates/5.yaml.j2"
+      headers:
+        hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
