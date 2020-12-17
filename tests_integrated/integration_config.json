@@ -1,5 +1,11 @@
 {
   "templatingEngine": "Handlebars",
+  "globals": {
+    "headers": {
+      "global-hdr1": "globalval1",
+      "global-hdr2": "globalval2"
+    }
+  },
   "services": [
     {
       "comment": "First basic service",
@@ -38,7 +44,8 @@
             "status": "202",
             "headers": {
               "Content-Type": "application/x-my-own",
-              "param2": "{{request.queryString.param2}} {{request.queryString.param3}}"
+              "param2": "{{request.queryString.param2}} {{request.queryString.param3}}",
+              "global-hdr1": "overridden"
             }
           }
         },

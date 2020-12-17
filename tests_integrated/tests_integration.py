@@ -65,6 +65,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("qstr match 1: constant val " + param2 + ' ' + param2, resp.text)
         self.assertEqual("application/x-my-own", resp.headers.get("content-type"))
         self.assertEqual("%s prefix-%s-suffix" % (param2, param3), resp.headers.get("param2"))
+        self.assertEqual("overridden", resp.headers.get("global-hdr1"))
+        self.assertEqual("globalval2", resp.headers.get("global-hdr2"))
 
         path = '/qstr-matching1?param1=constantval&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
         resp = requests.get(SRV1 + path)

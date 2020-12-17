@@ -50,7 +50,7 @@ response: # Response of the endpoint
   total: 10 # Total number of users
 ```
 
-## Request
+## Request Matching Logic
 
 ### Path
 
@@ -108,3 +108,5 @@ You can use as many path parameter and regex capture groups you want:
 - path: "/parameterized5/text/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
   response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
 ```
+
+## Response Contents
