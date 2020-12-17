@@ -1,5 +1,9 @@
 ---
 templatingEngine: Jinja2
+globals:
+  headers:
+    global-hdr1: globalval1
+    global-hdr2: globalval2
 services:
 - comment: Mock for Service1
   port: 8001
@@ -86,3 +90,12 @@ services:
       body: "@tests/configs/yaml/j2/headers/templates/5.yaml.j2"
       headers:
         hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
+  - path: "/global-headers"
+    method: GET
+    response: global-headers
+  - path: "/global-headers-modified"
+    method: GET
+    response:
+      body: global-headers-modified
+      headers:
+        global-hdr1: overridden

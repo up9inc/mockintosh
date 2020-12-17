@@ -490,6 +490,19 @@ class TestHeaders():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.headers['Hdr4'] == 'hdr4 request header: %s' % static_val
 
+    def test_global_headers(self, config):
+        resp = requests.get(SRV_8001 + '/global-headers')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['global-hdr1'] == 'globalval1'
+        assert resp.headers['global-hdr2'] == 'globalval2'
+
+        resp = requests.get(SRV_8001 + '/global-headers-modified')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['global-hdr1'] == 'overridden'
+        assert resp.headers['global-hdr2'] == 'globalval2'
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/path/config.json',

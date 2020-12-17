@@ -20,6 +20,7 @@ class HttpServer():
 
     def __init__(self, definition, debug=False):
         self.definition = definition
+        self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
         self.load()
 
@@ -35,7 +36,7 @@ class HttpServer():
             rules = []
             for service in services:
                 endpoints = self.merge_alternatives(service['endpoints'])
-                app = self.make_app(endpoints, self.debug)
+                app = self.make_app(endpoints, self.globals, self.debug)
                 if 'hostname' not in service:
                     app.listen(service['port'])
                     logging.info('Will listen port number: %d' % service['port'])
@@ -69,7 +70,7 @@ class HttpServer():
                     continue
                 extracted_parts[key] = endpoint[key]
                 if 'id' not in extracted_parts:
-                  extracted_parts['id'] = None
+                    extracted_parts['id'] = None
             if identifier in new_endpoints:
                 new_endpoints[identifier]['alternatives'].append(extracted_parts)
             else:
@@ -90,7 +91,7 @@ class HttpServer():
         logging.info('Mock server is ready!')
         tornado.ioloop.IOLoop.current().start()
 
-    def make_app(self, endpoints, debug=False):
+    def make_app(self, endpoints, _globals, debug=False):
         endpoint_handlers = []
         endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
@@ -102,6 +103,7 @@ class HttpServer():
                     dict(
                         method=endpoint['method'],
                         alternatives=endpoint['alternatives'],
+                        _globals=_globals,
                         definition_engine=self.definition.template_engine
                     )
                 )

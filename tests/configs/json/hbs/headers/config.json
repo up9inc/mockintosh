@@ -1,5 +1,11 @@
 {
   "templatingEngine": "Handlebars",
+  "globals": {
+    "headers": {
+      "global-hdr1": "globalval1",
+      "global-hdr2": "globalval2"
+    }
+  },
   "services": [
     {
       "comment": "Mock for Service1",
@@ -130,6 +136,21 @@
             "body": "@tests/configs/json/hbs/headers/templates/5.json.hbs",
             "headers": {
               "hdr4": "hdr4 request header: {{request.headers.hdr4}}"
+            }
+          }
+        },
+        {
+          "path": "/global-headers",
+          "method": "GET",
+          "response": "global-headers"
+        },
+        {
+          "path": "/global-headers-modified",
+          "method": "GET",
+          "response": {
+            "body": "global-headers-modified",
+            "headers": {
+              "global-hdr1": "overridden"
             }
           }
         }

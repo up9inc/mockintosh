@@ -26,8 +26,9 @@ from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, alternatives, definition_engine):
+    def initialize(self, method, alternatives, _globals, definition_engine):
         self.alternatives = alternatives
+        self.globals = _globals
         self.custom_method = method.lower()
         self.definition_engine = definition_engine
 
@@ -209,7 +210,11 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.custom_endpoint_id is not None:
             self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
 
-        if 'headers' not in self.custom_response:
+        if 'headers' in self.globals:
+            for key, value in self.globals['headers'].items():
+                self.set_header(key, value)
+
+        if not isinstance(self.custom_response, dict) or 'headers' not in self.custom_response:
             return
 
         for key, value in self.custom_response['headers'].items():
