@@ -651,3 +651,129 @@ class TestPath():
         assert data['var3'] == param3
         assert data['var4'] == param4
         assert data['var5'] == param5
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/query_string/config.json',
+    'configs/json/j2/query_string/config.json',
+    'configs/yaml/hbs/query_string/config.yaml',
+    'configs/yaml/j2/query_string/config.yaml'
+])
+class TestQueryString():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_parameter(self, config):
+        param = str(int(time.time()))
+        query = '?param1=%s' % param
+        resp = requests.get(SRV_8001 + '/parameter' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with parameter: %s' % param
+
+        resp = requests.get(SRV_8001 + '/parameter/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with parameter'] == param
+
+    def test_static_value(self, config):
+        static_val = 'my Value'
+        query = '?param1=%s' % static_val
+        resp = requests.get(SRV_8001 + '/static-value' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with static value: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with static value'] == static_val
+
+    def test_regex_capture_group(self, config):
+        param = str(int(time.time()))
+        query = '?param1=prefix-%s-suffix' % param
+        resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with regex capture group: %s' % param
+
+        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with regex capture group'] == param
+
+    def test_missing_query_param_should_404(self, config):
+        static_val = 'myValue'
+        query = '?paramX=%s' % static_val
+        resp = requests.get(SRV_8001 + '/static-value' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        assert 404 == resp.status_code
+
+    def test_wrong_static_value_should_404(self, config):
+        static_val = 'wrong Value'
+        query = '?param1=%s' % static_val
+        resp = requests.get(SRV_8001 + '/static-value' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        assert 404 == resp.status_code
+
+    def test_wrong_regex_pattern_should_404(self, config):
+        param = str(int(time.time()))
+        query = '?param1=idefix-%s-suffix' % param
+        resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
+        assert 404 == resp.status_code
+
+    def test_first_alternative(self, config):
+        static_val = 'my Value'
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        query = '?param1=%s&param2=%s&param3=prefix-%s-suffix' % (static_val, param2, param3)
+        resp = requests.get(SRV_8001 + '/alternative' + query)
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'query string match: %s %s %s' % (static_val, param2, param3)
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['request.queryString.param1'] == static_val
+        assert data['anyValIntoVar'] == param2
+        assert data['capturedVar'] == param3
+
+    def test_second_alternative(self, config):
+        static_val = 'another query string'
+        query = '?param4=%s' % static_val
+        resp = requests.get(SRV_8001 + '/alternative' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'param4 request query string: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['param4 request query string'] == static_val
+
+    def test_nonexisting_alternative_should_404(self, config):
+        static_val = 'another query string'
+        query = '?param5=%s' % static_val
+        resp = requests.get(SRV_8001 + '/alternative' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        assert 404 == resp.status_code

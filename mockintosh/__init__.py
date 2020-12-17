@@ -19,7 +19,7 @@ from jsonschema import validate
 from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr
-from mockintosh.recognizers import PathRecognizer, HeadersRecognizer
+from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
 from mockintosh.servers import HttpServer
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -83,6 +83,15 @@ class Definition():
                         self.template_engine
                     )
                     endpoint['headers'] = headers_recognizer.recognize()
+
+                if 'queryString' in endpoint and endpoint['queryString']:
+                    headers_recognizer = QueryStringRecognizer(
+                        endpoint['queryString'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        self.template_engine
+                    )
+                    endpoint['queryString'] = headers_recognizer.recognize()
 
 
 def get_schema():

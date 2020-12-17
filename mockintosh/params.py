@@ -19,3 +19,10 @@ class HeaderParam():
     def __init__(self, key, value):
         self.key = key
         self.value = value
+
+
+class QueryStringParam():
+
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value

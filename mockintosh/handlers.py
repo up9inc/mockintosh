@@ -19,7 +19,7 @@ from tornado.web import HTTPError
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
-from mockintosh.params import PathParam, HeaderParam
+from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
@@ -68,6 +68,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 HTTPError(400)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
+        self.analyze_query_string()
 
     def dynamic_unimplemented_method_guard(self):
         if self.custom_method != inspect.stack()[2][3]:
@@ -82,6 +83,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 context[key] = _safe_path_split(self.request.path)[param.index]
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
+            if isinstance(param, QueryStringParam):
+                context[key] = self.get_query_argument(param.key)
         return context
 
     def render_template(self):
@@ -206,6 +209,18 @@ class GenericHandler(tornado.web.RequestHandler):
                         for i, key in enumerate(header['args']):
                             self.custom_context[key] = match.group(i + 1)
 
+    def analyze_query_string(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'queryString' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for key, value in self.initial_context[SPECIAL_CONTEXT]['queryString'].items():
+            if key in self.request.query_arguments:
+                if value['type'] == 'regex':
+                    match = re.match(value['regex'], self.get_query_argument(key))
+                    if match is not None:
+                        for i, key in enumerate(value['args']):
+                            self.custom_context[key] = match.group(i + 1)
+
     def determine_headers(self):
         if self.custom_endpoint_id is not None:
             self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
@@ -263,6 +278,27 @@ class GenericHandler(tornado.web.RequestHandler):
                         continue
                     value = '^%s$' % value
                     match = re.match(value, request_header_val)
+                    if match is None:
+                        fail = True
+                        break
+                if fail:
+                    continue
+
+            # Query String
+            if 'queryString' in alternative:
+                for key, value in alternative['queryString'].items():
+                    # To prevent 400
+                    try:
+                        request_query_val = self.get_query_argument(key)
+                    except tornado.web.HTTPError:
+                        fail = True
+                    if key not in self.request.query_arguments:
+                        fail = True
+                        break
+                    if value == request_query_val:
+                        continue
+                    value = '^%s$' % value
+                    match = re.match(value, request_query_val)
                     if match is None:
                         fail = True
                         break
