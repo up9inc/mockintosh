@@ -57,7 +57,7 @@ response: # Response of the endpoint
 #### Path Parameters
 
 You can use `{{varname}}` syntax to specify a path parameter in any segment of your paths and they will be available for
-use in the response:
+using in the response:
 
 ```yaml
 endpoints:
@@ -77,18 +77,18 @@ endpoints:
     response: static path segments have a high priority
 ```
 
-so that a request like `GET /parameterized/staticval/someval` would return *`static path segments have a high priority`*
+so that a request like `curl -X GET http://localhost:8001/parameterized/staticval/someval` would return *`static path segments have a high priority`*
 
 #### Regex Match
 
-With Mockintosh it's possible to use regular expression in path segments:
+With Mockintosh it's possible to use regular expressions in path segments:
 
 ```yaml
 - path: "/match/{{regEx 'prefix-.*'}}/someval"
   response: 'regex match: {{request.path}}'
 ```
 
-so that a request like `GET /match/prefix-hello_world/someval` would
+so that a request like `curl -X GET http://localhost:8001/match/prefix-hello_world/someval` would
 return `regex match: /match/prefix-hello_world/someval`
 
 #### Regex Capture Group
@@ -100,7 +100,7 @@ It's also possible to use regular expression capture groups in path segments:
   response: 'regex capture group: {{myVar}}'
 ```
 
-so that a request like `GET /match/prefix-hello_world/someval` would return `regex capture group: hello_world`
+so that a request like `curl -X GET http://localhost:8001/match/prefix-hello_world/someval` would return `regex capture group: hello_world`
 
 You can use as many path parameter and regex capture groups you want:
 
@@ -109,4 +109,195 @@ You can use as many path parameter and regex capture groups you want:
   response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
 ```
 
+### Headers
+
+Any header specified in the endpoint description is required to be exist in the request headers. Otherwise the mock
+server will look for other alternatives of with the exact path and HTTP method combination. If not match is found
+a `404` response will be returned. Here is an example configuration which demonstrates the how endpoint alternatives
+recognized in terms of headers:
+
+```yaml
+services:
+- comment: Service1
+  port: 8001
+  endpoints:
+  - path: "/alternative"
+    method: GET
+    headers:
+      hdr1: myValue
+      hdr2: "{{myVar}}"
+      hdr3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+    response:
+      body: 'headers match: {{request.headers.hdr1}} {{myVar}} {{myCapturedVar}}'
+      status: 201
+      headers:
+        Set-Cookie:
+        - name1={{request.headers.hdr2}}
+        - name2={{request.headers.hdr3}}
+  - path: "/alternative"
+    headers:
+      hdr4: another header
+    response:
+      body: 'hdr4 request header: {{request.headers.hdr4}}'
+      headers:
+        hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
+```
+
+For the above configuration example here are some example requests and their responses:
+
+- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: wrongValue"` Response: `404`
+- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: myValue" -H "hdr2: someValue"` Response: `404`
+- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: myValue" -H "hdr2: someValue" -H "hdr3: prefix-invalidCapture"` Response: `404`
+- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: myValue" -H "hdr2: someValue" -H "hdr3: prefix-validCapture-suffix"` Response: `201` - `headers match: mvValue someValue validCapture` (also it sets the cookies `name1` to `someValue` and `name2` to `validCapture`)
+- Request: `curl -X GET http://localhost:8001/alternative -H "hdr4: another header"` Response: `200` - `hdr4 request header: another header`
+- Request: `curl -X GET http://localhost:8001/alternative -H "hdr5: another header"` Response: `404`
+
+As you can understand from these request and response examples; the workflow of static values, parameters,
+regex match and regex capture groups, is exactly the same with how they works in [path](###Path).
+
+### Query String
+
+The matching logic for query strings is quite similar to [headers](###Headers). So here is the same example but
+in terms of the query strings:
+
+```yaml
+services:
+- comment: Service1
+  port: 8001
+  - path: "/alternative"
+    method: GET
+    queryString:
+      param1: my Value
+      param2: "{{myVar}}"
+      param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+    response:
+      body: 'query string match: {{request.queryString.param1}} {{myVar}} {{myCapturedVar}}'
+      status: 201
+  - path: "/alternative"
+    queryString:
+      param4: another query string
+    response:
+      body: 'param4 request query string: {{request.queryString.param4}}'
+```
+
+and these are the example requests and corresponding responses for such a mock server configuration:
+
+- Request: `curl -X GET http://localhost:8001/alternative?param1=wrongValue"` Response: `404`
+- Request: `curl -X GET http://localhost:8001/alternative?param1=my%20Value&param2=someValue"` Response: `404`
+- Request: `curl -X GET http://localhost:8001/alternative?param1=my%20Value&param2=someValue&param3=prefix-invalidCapture"` Response: `404`
+- Request: `curl -X GET http://localhost:8001/alternative?param1=my%20Value&param2=someValue&param3=prefix-validCapture-suffix"` Response: `201` - `query string match: mvValue someValue validCapture`
+- Request: `curl -X GET http://localhost:8001/alternative?param4=another%20query%20string"` Response: `200` - `param4 request query string: another query string`
+- Request: `curl -X GET http://localhost:8001/alternative?param5=another%20query%20string"` Response: `404`
+
+### JSON Body Schema Validation
+
+The mock server supports [JSON Schema](https://json-schema.org/) specification as matching logic. Consider this example:
+
+```yaml
+---
+services:
+- comment: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/endpoint1"
+    method: POST
+    body:
+      schema:
+        type: object
+        properties:
+          somekey: {}
+        required:
+        - somekey
+    response: 'endpoint1: body JSON schema matched'
+```
+
+and here is a two request example that one matches the JSON schema while the other doesn't match:
+
+- Request:
+
+```bash
+curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
+     -H "Accept: application/json"
+     -d '{"somekey": "valid"}'
+```
+
+Response: `200` - `endpoint1: body JSON schema matched`
+
+- Request:
+
+```bash
+curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
+     -H "Accept: application/json"
+     -d '{"somekey2": "invalid"}'
+```
+
+Response: `404`
+
 ## Response Contents
+
+### Status Code
+
+The mock server supports both integer:
+
+```yaml
+response:
+  status: 202
+```
+
+and string values:
+
+```yaml
+response:
+  status: '403'
+```
+
+as the status code in the response definition.
+
+It's also possible to use templating in the `status` field like this:
+
+```yaml
+response:
+  status: "{{someVar}}"
+```
+
+### Headers
+
+#### Local
+
+One can define response headers specific to each individual endpoint like:
+
+```yaml
+response:
+  body: 'hello world'
+  status: 200
+  headers:
+    Cache-Control: no-cache
+```
+
+#### Local
+
+It's also possible to define response headers in global level. Such that each endpoint will include those headers into
+their responses:
+
+```yaml
+globals:
+  headers:
+    Content-Type: application/json
+...
+      response:
+        body: 'hello world'
+        status: 200
+        headers:
+          Cache-Control: no-cache
+```
+
+### Request Object
+
+The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
+
+```text
+request.method
+request.path
+request.headers.<key>
+request.queryString.<key>
+```
