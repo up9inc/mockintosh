@@ -8,12 +8,14 @@
 
 import re
 import os
+import json
 import logging
 import inspect
 import urllib
 
 import yaml
 import tornado.web
+import jsonschema
 from tornado.web import HTTPError
 
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
@@ -304,6 +306,23 @@ class GenericHandler(tornado.web.RequestHandler):
                         break
                 if fail:
                     continue
+
+            # Body
+            if 'body' in alternative:
+                if 'schema' in alternative['body']:
+                    json_schema = alternative['body']['schema']
+                    body = self.request.body.decode('utf-8')
+                    json_data = None
+
+                    try:
+                        json_data = json.loads(body)
+                    except json.decoder.JSONDecodeError:
+                        raise tornado.web.HTTPError(404)
+
+                    try:
+                        jsonschema.validate(instance=json_data, schema=json_schema)
+                    except jsonschema.exceptions.ValidationError:
+                        raise tornado.web.HTTPError(404)
 
             _id = alternative['id']
             response = alternative['response']
