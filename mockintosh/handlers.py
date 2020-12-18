@@ -289,11 +289,12 @@ class GenericHandler(tornado.web.RequestHandler):
             # Query String
             if 'queryString' in alternative:
                 for key, value in alternative['queryString'].items():
-                    # To prevent 400
-                    try:
-                        request_query_val = self.get_query_argument(key)
-                    except tornado.web.HTTPError:
+                    # To prevent 400, default=None
+                    default = None
+                    request_query_val = self.get_query_argument(key, default=default)
+                    if request_query_val is default:
                         fail = True
+                        break
                     if key not in self.request.query_arguments:
                         fail = True
                         break
