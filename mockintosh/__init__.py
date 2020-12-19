@@ -6,20 +6,21 @@
     :synopsis: the top-level module of Mockintosh.
 """
 
-import sys
 import argparse
 import json
 import logging
+import sys
 from os import path
+from collections import OrderedDict
 
 import yaml
 from jsonschema import validate
 
-from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh import configs
-from mockintosh.recognizers import PathRecognizer
-from mockintosh.servers import HttpServer
+from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr
+from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
+from mockintosh.servers import HttpServer
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -64,13 +65,33 @@ class Definition():
         for service in self.data['services']:
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
+                endpoint['context'] = OrderedDict()
 
                 path_recognizer = PathRecognizer(
                     endpoint['path'],
                     endpoint['params'],
+                    endpoint['context'],
                     self.template_engine
                 )
-                endpoint['path'], endpoint['priority'], endpoint['context'] = path_recognizer.recognize()
+                endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+
+                if 'headers' in endpoint and endpoint['headers']:
+                    headers_recognizer = HeadersRecognizer(
+                        endpoint['headers'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        self.template_engine
+                    )
+                    endpoint['headers'] = headers_recognizer.recognize()
+
+                if 'queryString' in endpoint and endpoint['queryString']:
+                    headers_recognizer = QueryStringRecognizer(
+                        endpoint['queryString'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        self.template_engine
+                    )
+                    endpoint['queryString'] = headers_recognizer.recognize()
 
 
 def get_schema():
@@ -135,7 +156,3 @@ def initiate():
         logging.getLogger('').addHandler(handler)
 
     run(args['source'], debug=args['debug'])
-
-
-if __name__ == '__main__':
-    initiate()

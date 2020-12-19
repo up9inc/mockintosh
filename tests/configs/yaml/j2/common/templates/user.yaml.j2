@@ -1,9 +1,8 @@
 ---
-body:
-  id: {{ id }}
-  firstName: '{{ fake.first_name() }}'
-  lastName: '{{ fake.last_name() }}'
-  friends:
-  {% for n in range(range(5) | random) %}
-  - id: '{{ uuid() }}'
-  {% endfor %}
+id: {{ id }}
+firstName: '{{ fake.first_name() }}'
+lastName: '{{ fake.last_name() }}'
+friends:
+{% for n in range(range(5) | random) %}
+- id: '{{ uuid() }}'
+{% endfor %}

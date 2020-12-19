@@ -1,0 +1,25 @@
+---
+templatingEngine: Handlebars
+services:
+- comment: Mock for Service1
+  hostname: service1.example.com
+  port: 8001
+  endpoints:
+  - path: "/service1"
+    method: GET
+    response:
+      status: 202
+      body: service1
+- comment: Mock for Service2
+  hostname: service2.example.com
+  port: 8001
+  endpoints:
+  - path: "/service2"
+    method: GET
+    response:
+      status: '403'
+      body: service2
+  - path: "/service2-endpoint2"
+    method: GET
+    response:
+      status: "{{request.queryString.rc}}"

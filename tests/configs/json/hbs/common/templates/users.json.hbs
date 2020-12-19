@@ -1,17 +1,15 @@
 {
-  "body": {
-    "users": [
-      {
-        "id": {{ randomInteger 10000 100000 }},
-        "firstName": "{{ fake "first_name" }}",
-        "lastName": "{{ fake "last_name" }}",
-        "friends": [
-          {
-            "id": "{{ uuid }}"
-          }
-        ]
-      }
-    ],
-    "total": 1
-  }
+  "users": [
+    {
+      "id": {{ randomInteger 10000 100000 }},
+      "firstName": "{{ fake "first_name" }}",
+      "lastName": "{{ fake "last_name" }}",
+      "friends": [
+        {
+          "id": "{{ uuid }}"
+        }
+      ]
+    }
+  ],
+  "total": 1
 }

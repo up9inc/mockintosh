@@ -11,7 +11,7 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
-            "fromFile": "tests/configs/json/j2/common/templates/users.json.j2"
+            "body": "@tests/configs/json/j2/common/templates/users.json.j2"
           }
         },
         {
@@ -19,7 +19,7 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
-            "fromFile": "tests/configs/json/j2/common/templates/user.json.j2"
+            "body": "@tests/configs/json/j2/common/templates/user.json.j2"
           }
         }
       ]
@@ -34,7 +34,7 @@
           "method": "POST",
           "response": {
             "useTemplating": true,
-            "fromFile": "tests/configs/json/j2/common/templates/companies.json.j2"
+            "body": "@tests/configs/json/j2/common/templates/companies.json.j2"
           }
         }
       ]

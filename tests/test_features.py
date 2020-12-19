@@ -13,6 +13,7 @@ import time
 import pytest
 import requests
 
+from mockintosh.constants import PROGRAM
 from utilities import tcping, run_mock_server, get_config_path, nostdout, nostderr
 
 configs = [
@@ -270,6 +271,255 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
+    def test_endpoint_id_header(self):
+        config = 'configs/json/hbs/core/endpoint_id_header.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-1'
+
+        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
+
+    def test_body_json_schema(self):
+        config = 'configs/json/hbs/core/body_json_schema.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey": "valid"})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'endpoint1: body json schema matched'
+
+        resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey2": "invalid"})
+        assert 404 == resp.status_code
+
+        resp = requests.post(SRV_8001 + '/endpoint2')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'endpoint2'
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/status/status_code.json',
+    'configs/json/j2/status/status_code.json',
+    'configs/yaml/hbs/status/status_code.yaml',
+    'configs/yaml/j2/status/status_code.yaml',
+])
+class TestStatus():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_status_code(self, config):
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 202 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 403 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
+    def test_status_code_templated(self, config):
+        query = '?rc=303'
+        resp = requests.get(SRV_8001 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        assert 303 == resp.status_code
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/headers/config.json',
+    'configs/json/j2/headers/config.json',
+    'configs/yaml/hbs/headers/config.yaml',
+    'configs/yaml/j2/headers/config.yaml'
+])
+class TestHeaders():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_parameter(self, config):
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/parameter', headers={"hdr1": param})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with parameter: %s' % param
+
+        resp = requests.get(SRV_8001 + '/parameter/template-file', headers={"hdr1": param})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with parameter'] == param
+
+    def test_static_value(self, config):
+        static_val = 'myValue'
+        resp = requests.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with static value: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with static value'] == static_val
+
+    def test_regex_capture_group(self, config):
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'prefix-%s-suffix' % param})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with regex capture group: %s' % param
+
+        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'prefix-%s-suffix' % param})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with regex capture group'] == param
+
+    def test_missing_header_should_404(self, config):
+        static_val = 'myValue'
+        resp = requests.get(SRV_8001 + '/static-value', headers={"hdrX": static_val})
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdrX": static_val})
+        assert 404 == resp.status_code
+
+    def test_wrong_static_value_should_404(self, config):
+        static_val = 'wrongValue'
+        resp = requests.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
+        assert 404 == resp.status_code
+
+    def test_wrong_regex_pattern_should_404(self, config):
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'idefix-%s-suffix' % param})
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'idefix-%s-suffix' % param})
+        assert 404 == resp.status_code
+
+    def test_first_alternative(self, config):
+        static_val = 'myValue'
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        resp = requests.get(SRV_8001 + '/alternative', headers={
+            "hdr1": static_val,
+            "hdr2": param2,
+            "hdr3": 'prefix-%s-suffix' % param3
+        })
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'headers match: %s %s %s' % (static_val, param2, param3)
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+            "hdr1": static_val,
+            "hdr2": param2,
+            "hdr3": 'prefix-%s-suffix' % param3
+        })
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['request.headers.hdr1'] == static_val
+        assert data['anyValIntoVar'] == param2
+        assert data['capturedVar'] == param3
+
+    def test_second_alternative(self, config):
+        static_val = 'another header'
+        resp = requests.get(SRV_8001 + '/alternative', headers={
+            "hdr4": static_val
+        })
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'hdr4 request header: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+            "hdr4": static_val
+        })
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['hdr4 request header'] == static_val
+
+    def test_nonexisting_alternative_should_404(self, config):
+        static_val = 'another header'
+        resp = requests.get(SRV_8001 + '/alternative', headers={
+            "hdr5": static_val
+        })
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+            "hdr5": static_val
+        })
+        assert 404 == resp.status_code
+
+    def test_response_headers_in_first_alternative(self, config):
+        static_val = 'myValue'
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        resp = requests.get(SRV_8001 + '/alternative', headers={
+            "hdr1": static_val,
+            "hdr2": param2,
+            "hdr3": 'prefix-%s-suffix' % param3
+        })
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.cookies['name1'] == param2
+        assert resp.cookies['name2'] == 'prefix-%s-suffix' % param3
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+            "hdr1": static_val,
+            "hdr2": param2,
+            "hdr3": 'prefix-%s-suffix' % param3
+        })
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.cookies['name1'] == param2
+        assert resp.cookies['name2'] == 'prefix-%s-suffix' % param3
+
+    def test_response_headers_in_second_alternative(self, config):
+        static_val = 'another header'
+        resp = requests.get(SRV_8001 + '/alternative', headers={
+            "hdr4": static_val
+        })
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['Hdr4'] == 'hdr4 request header: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+            "hdr4": static_val
+        })
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.headers['Hdr4'] == 'hdr4 request header: %s' % static_val
+
+    def test_global_headers(self, config):
+        resp = requests.get(SRV_8001 + '/global-headers')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['global-hdr1'] == 'globalval1'
+        assert resp.headers['global-hdr2'] == 'globalval2'
+
+        resp = requests.get(SRV_8001 + '/global-headers-modified')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['global-hdr1'] == 'overridden'
+        assert resp.headers['global-hdr2'] == 'globalval2'
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/path/config.json',
@@ -418,3 +668,129 @@ class TestPath():
         assert data['var3'] == param3
         assert data['var4'] == param4
         assert data['var5'] == param5
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/query_string/config.json',
+    'configs/json/j2/query_string/config.json',
+    'configs/yaml/hbs/query_string/config.yaml',
+    'configs/yaml/j2/query_string/config.yaml'
+])
+class TestQueryString():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_parameter(self, config):
+        param = str(int(time.time()))
+        query = '?param1=%s' % param
+        resp = requests.get(SRV_8001 + '/parameter' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with parameter: %s' % param
+
+        resp = requests.get(SRV_8001 + '/parameter/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with parameter'] == param
+
+    def test_static_value(self, config):
+        static_val = 'my Value'
+        query = '?param1=%s' % static_val
+        resp = requests.get(SRV_8001 + '/static-value' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with static value: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with static value'] == static_val
+
+    def test_regex_capture_group(self, config):
+        param = str(int(time.time()))
+        query = '?param1=prefix-%s-suffix' % param
+        resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'matched with regex capture group: %s' % param
+
+        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['matched with regex capture group'] == param
+
+    def test_missing_query_param_should_404(self, config):
+        static_val = 'myValue'
+        query = '?paramX=%s' % static_val
+        resp = requests.get(SRV_8001 + '/static-value' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        assert 404 == resp.status_code
+
+    def test_wrong_static_value_should_404(self, config):
+        static_val = 'wrong Value'
+        query = '?param1=%s' % static_val
+        resp = requests.get(SRV_8001 + '/static-value' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        assert 404 == resp.status_code
+
+    def test_wrong_regex_pattern_should_404(self, config):
+        param = str(int(time.time()))
+        query = '?param1=idefix-%s-suffix' % param
+        resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
+        assert 404 == resp.status_code
+
+    def test_first_alternative(self, config):
+        static_val = 'my Value'
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        query = '?param1=%s&param2=%s&param3=prefix-%s-suffix' % (static_val, param2, param3)
+        resp = requests.get(SRV_8001 + '/alternative' + query)
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'query string match: %s %s %s' % (static_val, param2, param3)
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['request.queryString.param1'] == static_val
+        assert data['anyValIntoVar'] == param2
+        assert data['capturedVar'] == param3
+
+    def test_second_alternative(self, config):
+        static_val = 'another query string'
+        query = '?param4=%s' % static_val
+        resp = requests.get(SRV_8001 + '/alternative' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'param4 request query string: %s' % static_val
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['param4 request query string'] == static_val
+
+    def test_nonexisting_alternative_should_404(self, config):
+        static_val = 'another query string'
+        query = '?param5=%s' % static_val
+        resp = requests.get(SRV_8001 + '/alternative' + query)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        assert 404 == resp.status_code

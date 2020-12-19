@@ -6,38 +6,50 @@
     :synopsis: module that contains request handlers.
 """
 
+import re
+import os
 import json
 import logging
 import inspect
+import urllib
 
 import yaml
 import tornado.web
+import jsonschema
 from tornado.web import HTTPError
 
-from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA
+from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
-from mockintosh.params import PathParam
+from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, response, params, context, definition_engine):
-        self.custom_response = response
+    def initialize(self, method, alternatives, _globals, definition_engine):
+        self.alternatives = alternatives
+        self.globals = _globals
         self.custom_method = method.lower()
-        self.custom_params = params
         self.definition_engine = definition_engine
 
-        self.initial_context = context
+        self.custom_request = self.build_custom_request()
         self.default_context = {
-            'request': self.request
+            'request': self.custom_request
         }
         self.custom_context = {}
 
     def super_verb(self, *args):
+        _id, response, params, context = self.match_alternative()
+        self.custom_endpoint_id = _id
+        self.custom_response = response
+        self.custom_params = params
+        self.initial_context = context
+
         self.populate_context(*args)
+        self.determine_status_code()
+        self.determine_headers()
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.write(self.render_template())
@@ -57,6 +69,8 @@ class GenericHandler(tornado.web.RequestHandler):
             else:
                 HTTPError(400)
         self.custom_context.update(self.default_context)
+        self.analyze_headers()
+        self.analyze_query_string()
 
     def dynamic_unimplemented_method_guard(self):
         if self.custom_method != inspect.stack()[2][3]:
@@ -69,6 +83,10 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
                 context[key] = _safe_path_split(self.request.path)[param.index]
+            if isinstance(param, HeaderParam):
+                context[key] = self.request.headers.get(param.key.title())
+            if isinstance(param, QueryStringParam):
+                context[key] = self.get_query_argument(param.key)
         return context
 
     def render_template(self):
@@ -83,14 +101,19 @@ class GenericHandler(tornado.web.RequestHandler):
         elif not self.custom_response:
             source_text = ''
             is_response_str = True
-        elif 'text' in self.custom_response:
-            source_text = self.custom_response['text']
+        elif 'body' in self.custom_response:
+            body = self.custom_response['body']
+            if body[0] == '@' and os.path.isfile(body[1:]):
+                template_path = body[1:]
+                with open(template_path, 'r') as file:
+                    logging.info('Reading template file from path: %s' % template_path)
+                    source_text = file.read()
+                    logging.debug('Template file text: %s' % source_text)
+            else:
+                is_response_str = True
+                source_text = body
         else:
-            template_path = self.custom_response['fromFile']
-            with open(template_path, 'r') as file:
-                logging.info('Reading template file from path: %s' % template_path)
-                source_text = file.read()
-                logging.debug('Template file text: %s' % source_text)
+            return ''
 
         compiled = None
         if not is_response_str and (
@@ -120,34 +143,201 @@ class GenericHandler(tornado.web.RequestHandler):
 
         logging.debug('Render output: %s' % compiled)
 
-        valid_json = False
-        valid_yaml = False
-
         if is_response_str:
             return compiled
         else:
             try:
-                response = json.loads(compiled)
-                valid_json = True
-                logging.info('Template is a valid JSON.')
-            except json.decoder.JSONDecodeError as e:
-                logging.debug('Template is not recognized as a JSON.')
-                invalid_json_error_msg = str(e)
-
-            try:
                 response = yaml.safe_load(compiled)
-                valid_yaml = True
                 logging.info('Template is a valid YAML.')
-            except yaml.scanner.ScannerError as e:
-                logging.debug('Template is not recognized as a YAML.')
-                invalid_yaml_error_msg = str(e)
-
-            if not valid_json and not valid_yaml:
+            except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
                 raise UnrecognizedConfigFileFormat(
                     'Template is neither a JSON nor a YAML!',
                     compiled,
-                    invalid_json_error_msg,
-                    invalid_yaml_error_msg
+                    str(e)
                 )
 
-        return response['body']
+        return response
+
+    def build_custom_request(self):
+        custom_request = Request()
+
+        # Method
+        custom_request.method = self.request.method
+
+        # Path
+        custom_request.path = self.request.path
+
+        # Headers
+        for key, value in self.request.headers._dict.items():
+            custom_request.headers[key] = value
+            custom_request.headers[key.lower()] = value
+
+        # Query String
+        for key, value in self.request.query_arguments.items():
+            custom_request.queryString[key] = [x.decode('utf-8') for x in value]
+            if len(custom_request.queryString[key]) == 1:
+                custom_request.queryString[key] = custom_request.queryString[key][0]
+
+        return custom_request
+
+    def determine_status_code(self):
+        status_code = None
+        if 'status' in self.custom_response:
+            if isinstance(self.custom_response['status'], str):
+                renderer = TemplateRenderer(
+                    self.definition_engine,
+                    self.custom_response['status'],
+                    inject_objects=self.custom_context,
+                    inject_methods=[],
+                    add_params_callback=self.add_params
+                )
+                compiled, _ = renderer.render()
+                status_code = int(compiled)
+            else:
+                status_code = self.custom_response['status']
+        else:
+            status_code = 200
+        self.set_status(status_code)
+
+    def analyze_headers(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'headers' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for header_key, header in self.initial_context[SPECIAL_CONTEXT]['headers'].items():
+            if header_key.title() in self.request.headers._dict:
+                if header['type'] == 'regex':
+                    match = re.match(header['regex'], self.request.headers.get(header_key))
+                    if match is not None:
+                        for i, key in enumerate(header['args']):
+                            self.custom_context[key] = match.group(i + 1)
+
+    def analyze_query_string(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'queryString' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for key, value in self.initial_context[SPECIAL_CONTEXT]['queryString'].items():
+            if key in self.request.query_arguments:
+                if value['type'] == 'regex':
+                    match = re.match(value['regex'], self.get_query_argument(key))
+                    if match is not None:
+                        for i, key in enumerate(value['args']):
+                            self.custom_context[key] = match.group(i + 1)
+
+    def determine_headers(self):
+        if self.custom_endpoint_id is not None:
+            self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
+
+        if 'headers' in self.globals:
+            for key, value in self.globals['headers'].items():
+                self.set_header(key, value)
+
+        if not isinstance(self.custom_response, dict) or 'headers' not in self.custom_response:
+            return
+
+        for key, value in self.custom_response['headers'].items():
+            value_list = None
+            if isinstance(value, list):
+                value_list = value
+
+            if isinstance(value, str):
+                value_list = [value]
+
+            new_value_list = []
+            for value in value_list:
+                renderer = TemplateRenderer(
+                    self.definition_engine,
+                    value,
+                    inject_objects=self.custom_context,
+                    inject_methods=[],
+                    add_params_callback=self.add_params
+                )
+                new_value, _ = renderer.render()
+                new_value_list.append(new_value)
+
+            for value in new_value_list:
+                if key.title() == 'Set-Cookie':
+                    value_splitted = value.split('=')
+                    value_splitted[1] = urllib.parse.quote_plus(value_splitted[1])
+                    self.set_cookie(value_splitted[0], value_splitted[1])
+                else:
+                    self.set_header(key, value)
+
+    def match_alternative(self):
+        response = None
+        params = None
+        context = None
+        for alternative in self.alternatives:
+            fail = False
+
+            # Headers
+            if 'headers' in alternative:
+                for key, value in alternative['headers'].items():
+                    request_header_val = self.request.headers.get(key.title())
+                    if key.title() not in self.request.headers._dict:
+                        fail = True
+                        break
+                    if value == request_header_val:
+                        continue
+                    value = '^%s$' % value
+                    match = re.match(value, request_header_val)
+                    if match is None:
+                        fail = True
+                        break
+                if fail:
+                    continue
+
+            # Query String
+            if 'queryString' in alternative:
+                for key, value in alternative['queryString'].items():
+                    # To prevent 400, default=None
+                    default = None
+                    request_query_val = self.get_query_argument(key, default=default)
+                    if request_query_val is default:
+                        fail = True
+                        break
+                    if key not in self.request.query_arguments:
+                        fail = True
+                        break
+                    if value == request_query_val:
+                        continue
+                    value = '^%s$' % value
+                    match = re.match(value, request_query_val)
+                    if match is None:
+                        fail = True
+                        break
+                if fail:
+                    continue
+
+            # Body
+            if 'body' in alternative:
+                if 'schema' in alternative['body']:
+                    json_schema = alternative['body']['schema']
+                    body = self.request.body.decode('utf-8')
+                    json_data = None
+
+                    try:
+                        json_data = json.loads(body)
+                    except json.decoder.JSONDecodeError:
+                        raise tornado.web.HTTPError(404)
+
+                    try:
+                        jsonschema.validate(instance=json_data, schema=json_schema)
+                    except jsonschema.exceptions.ValidationError:
+                        raise tornado.web.HTTPError(404)
+
+            _id = alternative['id']
+            response = alternative['response']
+            params = alternative['params']
+            context = alternative['context']
+            return _id, response, params, context
+
+        raise tornado.web.HTTPError(404)
+
+
+class Request():
+
+    def __init__(self):
+        self.method = None
+        self.path = None
+        self.headers = {}
+        self.queryString = {}

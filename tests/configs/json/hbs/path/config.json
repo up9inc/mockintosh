@@ -12,7 +12,7 @@
         {
           "path": "/parameterized1/template-file/{{intoVar}}/subval",
           "response": {
-            "fromFile": "tests/configs/json/hbs/path/templates/1.json.hbs"
+            "body": "@tests/configs/json/hbs/path/templates/1.json.hbs"
           }
         },
         {
@@ -26,7 +26,7 @@
         {
           "path": "/parameterized2/template-file/{{regEx 'prefix-.*'}}/subval",
           "response": {
-            "fromFile": "tests/configs/json/hbs/path/templates/2.json.hbs"
+            "body": "@tests/configs/json/hbs/path/templates/2.json.hbs"
           }
         },
         {
@@ -36,7 +36,7 @@
         {
           "path": "/parameterized1/template-file/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2",
           "response": {
-            "fromFile": "tests/configs/json/hbs/path/templates/3.json.hbs"
+            "body": "@tests/configs/json/hbs/path/templates/3.json.hbs"
           }
         },
         {
@@ -46,7 +46,7 @@
         {
           "path": "/parameterized3/template-file/{{var1}}/{{var2}}/{{var3}}",
           "response": {
-            "fromFile": "tests/configs/json/hbs/path/templates/4.json.hbs"
+            "body": "@tests/configs/json/hbs/path/templates/4.json.hbs"
           }
         },
         {
@@ -56,7 +56,7 @@
         {
           "path": "/parameterized4/template-file/{{regEx 'prefix-(.*)-(.*)-(.*)-suffix' 'var1' 'var2' 'var3'}}/{{regEx '(.*)_(.*)' 'var4' 'var5'}}",
           "response": {
-            "fromFile": "tests/configs/json/hbs/path/templates/5.json.hbs"
+            "body": "@tests/configs/json/hbs/path/templates/5.json.hbs"
           }
         },
         {
@@ -66,7 +66,7 @@
         {
           "path": "/parameterized5/template-file/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}",
           "response": {
-            "fromFile": "tests/configs/json/hbs/path/templates/5.json.hbs"
+            "body": "@tests/configs/json/hbs/path/templates/5.json.hbs"
           }
         }
       ]

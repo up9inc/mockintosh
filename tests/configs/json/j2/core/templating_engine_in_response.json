@@ -10,7 +10,7 @@
           "method": "GET",
           "response": {
             "templatingEngine": "Jinja2",
-            "fromFile": "tests/configs/json/j2/core/templates/hello.json.j2"
+            "body": "@tests/configs/json/j2/core/templates/hello.json.j2"
           }
         }
       ]

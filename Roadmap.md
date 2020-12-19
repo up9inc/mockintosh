@@ -22,14 +22,12 @@
 2. Response with templating
 4. Log exception if loading server failed
 
-## Milestone 3
+## Milestone 3 - Complete
 
-1. Request headers and query string
-2. JSON body schema validation
-3. urlencoded and multipart request bodies?
-4. response headers
-3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things
-   (Accept etc)
+1. Request headers and query string matching
+2. Request JSON body schema validation as part of matching
+3. Response status code   
+4. response headers - global and local
 
 ## Milestone 4
 
@@ -54,6 +52,8 @@
 ## Milestone N
 
 - template helpers: random numbers, strings, dates, names, addresses etc
+- jsonSchema extraction from body
+- referencing multipart/urlencoded fields in matchers and templates
 
 ## Milestone N
 
@@ -67,6 +67,11 @@
 1. Performance Profiles
     - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
       ratio” of fuzziness
+
+## Milestone N
+
+3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
+   Accept etc)
 
 ## Milestone N
 

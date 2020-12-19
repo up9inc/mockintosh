@@ -9,6 +9,8 @@
 import random
 from uuid import uuid4
 
+from mockintosh.methods import _handlebars_add_regex_context
+
 
 def fake(this, fake, attr):
     return getattr(fake, attr)()
@@ -23,6 +25,9 @@ def uuid(this):
 
 
 def reg_ex(this, regex, *args, **kwargs):
-    for arg in args:
-        this.context[arg] = None
+    if this.context['scope'] == 'path':
+        for arg in args:
+            this.context[arg] = None
+    else:
+        _handlebars_add_regex_context(this.context, this.context['scope'], this.context['key'], regex, *args)
     return regex

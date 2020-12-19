@@ -1,5 +1,11 @@
 {
   "templatingEngine": "Handlebars",
+  "globals": {
+    "headers": {
+      "global-hdr1": "globalval1",
+      "global-hdr2": "globalval2"
+    }
+  },
   "services": [
     {
       "comment": "First basic service",
@@ -19,12 +25,76 @@
           "response": "static path components have priority"
         },
         {
-          "path": "/parameterized2/{{regEx 'prefix-.*'}}/subval",
+          "path": "/parameterized2/{{regEx 'prefix-.+'}}/subval",
           "response": "regex capture: {{request.path}}"
         },
         {
           "path": "/parameterized1/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2",
           "response": "tricky regex capture: {{varname}}"
+        },
+        {
+          "path": "/qstr-matching1",
+          "queryString": {
+            "param1": "constant val",
+            "param2": "{{anyValIntoVar}}",
+            "param3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
+          },
+          "response": {
+            "body": "qstr match 1: {{request.queryString.param1}} {{capturedVar}} {{anyValIntoVar}}",
+            "status": "202",
+            "headers": {
+              "Content-Type": "application/x-my-own",
+              "param2": "{{request.queryString.param2}} {{request.queryString.param3}}",
+              "global-hdr1": "overridden"
+            }
+          }
+        },
+        {
+          "path": "/header-matching1",
+          "headers": {
+            "hdr1": "constant val",
+            "hdr2": "{{anyValIntoVar}}",
+            "hdr3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
+          },
+          "response": {
+            "body": "headers match 1: {{request.headers.hdr1}} {{capturedVar}}",
+            "status": 201,
+            "headers": {
+              "Set-Cookie": [
+                "name1={{request.headers.hdr2}}",
+                "name2={{request.headers.hdr3}}"
+              ]
+            }
+          }
+        },
+        {
+          "path": "/header-matching1",
+          "headers": {
+            "hdr4": "another header"
+          },
+          "response": "alternative header"
+        },
+        {
+          "path": "/body-jsonschema1",
+          "method": "POST",
+          "body": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "somekey": {}
+              },
+              "required": [
+                "somekey"
+              ]
+            }
+          },
+          "response": "body json schema matched"
+        },
+        {
+          "path": "/status-template1",
+          "response": {
+            "status": "{{request.queryString.rc}}"
+          }
         }
       ]
     },
@@ -34,6 +104,7 @@
       "hostname": "specified.host",
       "endpoints": [
         {
+          "id": "some-endpoint-id",
           "path": "/",
           "method": "get",
           "response": {}

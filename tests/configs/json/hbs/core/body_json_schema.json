@@ -1,0 +1,32 @@
+{
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/endpoint1",
+          "method": "POST",
+          "body": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "somekey": {}
+              },
+              "required": [
+                "somekey"
+              ]
+            }
+          },
+          "response": "endpoint1: body json schema matched"
+        },
+        {
+          "path": "/endpoint2",
+          "method": "POST",
+          "response": "endpoint2"
+        }
+      ]
+    }
+  ]
+}
