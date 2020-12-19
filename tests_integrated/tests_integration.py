@@ -116,3 +116,12 @@ class IntegrationTests(unittest.TestCase):
         path = '/status-template1'
         resp = requests.get(SRV1 + path + "?rc=303")
         self.assertEqual(303, resp.status_code)
+
+    def test_interceptor(self):
+        path = '/interceptor-modified'
+        resp = requests.get(SRV1 + path)
+        self.assertEqual(204, resp.status_code)
+
+        with open("tests_integrated/server.log") as fp:
+            self.assertTrue(any('Processed intercepted request' in line for line in fp))
+
