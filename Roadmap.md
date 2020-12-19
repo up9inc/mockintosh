@@ -22,7 +22,7 @@
 2. Response with templating
 4. Log exception if loading server failed
 
-## Milestone 3 - WIP
+## Milestone 3 - Complete
 
 1. Request headers and query string matching
 2. Request JSON body schema validation as part of matching

@@ -5,6 +5,8 @@ Mockintosh supports both JSON and YAML formats as the mock server configuration 
 templating engines. Any of the standards provides access
 to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for generating dynamic data.
 
+There is a [JSONSchema of configuration syntax](https://github.com/up9inc/mockintosh/blob/main/mockintosh/schema.json) that is used to validate all configuration files. You can use that as a formal source of configuration syntax.
+
 You can specifiy the templating engine on top of the file like `templatingEngine: "Jinja2"` or inside the response.
 
 The configuration file should contain the list of definitions of your microservices like shown below:
