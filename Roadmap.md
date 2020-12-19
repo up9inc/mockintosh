@@ -29,7 +29,18 @@
 3. Response status code   
 4. response headers - global and local
 
-## Milestone 4
+## Milestone 4 - WIP
+
+1. Integration of custom "interceptor" 
+   - Object model for request and response
+   - Ability to provide python function/object to alter response
+   - Both successful and failed responses intercepted
+
+## Milestone N
+
+1. base64-encoded body strings, for binary responses
+
+## Milestone N
 
 1. Multi-response functionality
 1. Configuration-by-request
@@ -55,12 +66,6 @@
 - jsonSchema extraction from body
 - referencing multipart/urlencoded fields in matchers and templates
 
-## Milestone N
-
-1. Extensibility/integrations
-    - Object model for request and response
-    - Ability to provide python function/object to alter response
-    - Ability to provide python function/object to access the request/response notifications
 
 ## Milestone N
 
