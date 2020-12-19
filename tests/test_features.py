@@ -285,6 +285,23 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
 
+    def test_body_json_schema(self):
+        config = 'configs/json/hbs/core/body_json_schema.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey": "valid"})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'endpoint1: body json schema matched'
+
+        resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey2": "invalid"})
+        assert 404 == resp.status_code
+
+        resp = requests.post(SRV_8001 + '/endpoint2')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'endpoint2'
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',

@@ -76,6 +76,7 @@
         },
         {
           "path": "/body-jsonschema1",
+          "method": "POST",
           "body": {
             "schema": {
               "type": "object",
