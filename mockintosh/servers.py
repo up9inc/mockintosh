@@ -18,10 +18,11 @@ from mockintosh.handlers import GenericHandler
 
 class HttpServer():
 
-    def __init__(self, definition, debug=False):
+    def __init__(self, definition, debug=False, interceptors=None):
         self.definition = definition
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
+        self.interceptors = interceptors
         self.load()
 
     def load(self):
@@ -104,7 +105,8 @@ class HttpServer():
                         method=endpoint['method'],
                         alternatives=endpoint['alternatives'],
                         _globals=_globals,
-                        definition_engine=self.definition.template_engine
+                        definition_engine=self.definition.template_engine,
+                        interceptors=self.interceptors
                     )
                 )
             )

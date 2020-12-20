@@ -28,11 +28,12 @@ from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, alternatives, _globals, definition_engine):
+    def initialize(self, method, alternatives, _globals, definition_engine, interceptors):
         self.alternatives = alternatives
         self.globals = _globals
         self.custom_method = method.lower()
         self.definition_engine = definition_engine
+        self.interceptors = interceptors
 
         self.custom_request = self.build_custom_request()
         self.default_context = {
@@ -52,7 +53,9 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_headers()
         self.log_request()
         self.dynamic_unimplemented_method_guard()
-        self.write(self.render_template())
+        self.rendered_response = self.render_template()
+        self.trigger_interceptors()
+        self.write(self.rendered_response)
 
     def get(self, *args):
         self.super_verb(*args)
@@ -332,6 +335,10 @@ class GenericHandler(tornado.web.RequestHandler):
             return _id, response, params, context
 
         raise tornado.web.HTTPError(404)
+
+    def trigger_interceptors(self):
+        for interceptor in self.interceptors:
+            interceptor(self)
 
 
 class Request():
