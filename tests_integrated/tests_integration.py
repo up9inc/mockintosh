@@ -7,6 +7,7 @@ import requests
 
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
+SRV3 = os.environ.get('SRV2', 'http://localhost:8003')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -119,7 +120,7 @@ class IntegrationTests(unittest.TestCase):
 
     def test_interceptor(self):
         path = '/interceptor-modified'
-        resp = requests.get(SRV1 + path)
+        resp = requests.get(SRV3 + path)
         self.assertEqual(204, resp.status_code)
         self.assertEqual("intercepted", resp.text)
         self.assertEqual("someheader", resp.headers.get("some-i-val"))
