@@ -14,4 +14,3 @@ def intercept_for_modifying(req: Request, resp: Response):
         resp.status = 204
         resp.headers.add("someheader", "some-i-val")
         resp.body = "intercepted"
-

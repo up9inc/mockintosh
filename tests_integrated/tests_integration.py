@@ -127,4 +127,3 @@ class IntegrationTests(unittest.TestCase):
 
         with open("tests_integrated/server.log") as fp:
             self.assertTrue(any('Processed intercepted request' in line for line in fp))
-
