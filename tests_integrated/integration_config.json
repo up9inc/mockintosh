@@ -1,5 +1,4 @@
 {
-  "templatingEngine": "Handlebars",
   "globals": {
     "headers": {
       "global-hdr1": "globalval1",
