@@ -18,7 +18,7 @@ from jsonschema import validate
 
 from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
-from mockintosh.methods import _detect_engine, _nostderr
+from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
 from mockintosh.servers import HttpServer
 
@@ -104,7 +104,16 @@ def get_schema():
     return schema
 
 
-def run(source, is_file=True, debug=False):
+def import_interceptors(interceptors):
+    imported_interceptors = []
+    if interceptors is not None:
+        for interceptor in interceptors:
+            module, name = interceptor[0].rsplit('.', 1)
+            imported_interceptors.append(_import_from(module, name))
+    return imported_interceptors
+
+
+def run(source, is_file=True, debug=False, interceptors=None):
     schema = get_schema()
 
     if 'unittest' in sys.modules.keys():
@@ -117,7 +126,7 @@ def run(source, is_file=True, debug=False):
 
     try:
         definition = Definition(source, schema, is_file=is_file)
-        http_server = HttpServer(definition, debug=debug)
+        http_server = HttpServer(definition, debug=debug, interceptors=interceptors)
     except Exception:
         logging.exception('Mock server loading error:')
         with _nostderr():
@@ -139,8 +148,11 @@ def initiate():
     ap.add_argument('-d', '--debug', help='Enable Tornado Web Server\'s debug mode', action='store_true')
     ap.add_argument('-q', '--quiet', help='Less logging messages, only warnings and errors', action='store_true')
     ap.add_argument('-v', '--verbose', help='More logging messages, including debug', action='store_true')
+    ap.add_argument('-i', '--interceptor', help='A list of interceptors to be called in <package>.<module>.<function> format.', action='append', nargs='+')
     ap.add_argument('-l', '--logfile', help='Also write log into a file', action='store')
     args = vars(ap.parse_args())
+
+    interceptors = import_interceptors(args['interceptor'])
 
     fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
     if args['quiet']:
@@ -155,4 +167,4 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    run(args['source'], debug=args['debug'])
+    run(args['source'], debug=args['debug'], interceptors=interceptors)

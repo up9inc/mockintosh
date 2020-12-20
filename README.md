@@ -100,3 +100,19 @@ cat tests/configs/json/hbs/common/config.json | mockintosh
 
 Using `--quiet` and `--verbose` options the logging level can be changed.
 
+#### Interceptors
+
+One can also specify a list of interceptors to be called in `<package>.<module>.<function>` format using
+the `--interceptor` option. The interceptor function get a [`tornado.web.RequestHandler`](https://www.tornadoweb.org/en/stable/web.html#tornado-web-requesthandler-and-application-classes) instance. Here is an example interceptor that sets
+every reponse's status to `403`:
+
+```python
+def forbid(request_handler):
+    request_handler.set_status(403)
+```
+
+and you would specify such interceptor with a command like below:
+
+```bash
+$ mockintosh some_config.json --interceptor=mypackage.mymodule.forbid
+```
