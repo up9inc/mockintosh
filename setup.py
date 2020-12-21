@@ -52,21 +52,10 @@ setup(
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        # How mature is this project? Common values are
-        #   3 - Alpha
-        #   4 - Beta
-        #   5 - Production/Stable
-        'Development Status :: 2 - Pre-Alpha',
-
-        # Indicate who your project is intended for
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'Topic :: Internet :: WWW/HTTP :: Server',
-
-        # Intended language
+        'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
         'Natural Language :: English',
-
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 3 :: Only',
     ],
 
