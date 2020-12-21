@@ -11,6 +11,7 @@ def intercept_for_modifying(req: Request, resp: Response):
     # should have access to request path, query string, headers, body
     if req.path == '/interceptor-modified':
         # should allow reading and modifying response status code, headers, body
-        resp.status = 204
-        resp.headers.add("someheader", "some-i-val")
-        resp.body = "intercepted"
+        resp.force_update = True
+        resp.status_code = 201
+        resp.headers['someheader'] = 'some-i-val'
+        resp.body = 'intercepted'
