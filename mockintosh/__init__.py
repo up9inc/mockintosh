@@ -10,8 +10,8 @@ import argparse
 import json
 import logging
 import sys
-from os import path
 from collections import OrderedDict
+from os import path
 
 import yaml
 from jsonschema import validate
@@ -22,6 +22,7 @@ from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
 from mockintosh.servers import HttpServer
 
+__version__ = "0.0"
 __location__ = path.abspath(path.dirname(__file__))
 
 
