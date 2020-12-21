@@ -39,6 +39,7 @@
 ## Milestone N
 
 1. base64-encoded body strings, for binary responses
+1. SSL support
 
 ## Milestone N
 
@@ -84,7 +85,13 @@
 
 # Backlog
 
-## Config Example
+## Ideas
+
+- `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
+- `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+- mocks for gRPC servers
+
+## Config Ideas
 
 ```json5
 {
@@ -186,7 +193,3 @@
 }
 ```
 
-# Ideas
-
-- `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
-- `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
