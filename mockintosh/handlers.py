@@ -35,9 +35,9 @@ class GenericHandler(tornado.web.RequestHandler):
         self.definition_engine = definition_engine
         self.interceptors = interceptors
 
-        self.custom_request = self.build_custom_request()
+        self.special_request = self.build_special_request()
         self.default_context = {
-            'request': self.custom_request
+            'request': self.special_request
         }
         self.custom_context = {}
 
@@ -53,9 +53,11 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_headers()
         self.log_request()
         self.dynamic_unimplemented_method_guard()
-        self.rendered_response = self.render_template()
+        self.rendered_body = self.render_template()
+        self.special_response = self.build_special_response()
         self.trigger_interceptors()
-        self.write(self.rendered_response)
+        self.update_response()
+        self.write(self.rendered_body)
 
     def get(self, *args):
         self.super_verb(*args)
@@ -161,27 +163,41 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return response
 
-    def build_custom_request(self):
-        custom_request = Request()
+    def build_special_request(self):
+        request = Request()
 
         # Method
-        custom_request.method = self.request.method
+        request.method = self.request.method
 
         # Path
-        custom_request.path = self.request.path
+        request.path = self.request.path
 
         # Headers
         for key, value in self.request.headers._dict.items():
-            custom_request.headers[key] = value
-            custom_request.headers[key.lower()] = value
+            request.headers[key] = value
+            request.headers[key.lower()] = value
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            custom_request.queryString[key] = [x.decode('utf-8') for x in value]
-            if len(custom_request.queryString[key]) == 1:
-                custom_request.queryString[key] = custom_request.queryString[key][0]
+            request.queryString[key] = [x.decode('utf-8') for x in value]
+            if len(request.queryString[key]) == 1:
+                request.queryString[key] = request.queryString[key][0]
 
-        return custom_request
+        return request
+
+    def build_special_response(self):
+        response = Response()
+
+        response.status_code = self._status_code
+        response.headers = self._headers
+        response.body = self.rendered_body
+
+        return response
+
+    def update_response(self):
+        self._status_code = self.special_response.status_code
+        self._headers = self.special_response.headers
+        self.rendered_body = self.special_response.body
 
     def determine_status_code(self):
         status_code = None
@@ -338,7 +354,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def trigger_interceptors(self):
         for interceptor in self.interceptors:
-            interceptor(self)
+            interceptor(self.special_request, self.special_response)
 
 
 class Request():
@@ -348,3 +364,11 @@ class Request():
         self.path = None
         self.headers = {}
         self.queryString = {}
+
+
+class Response():
+
+    def __init__(self):
+        self.status_code = None
+        self.headers = {}
+        self.body = None

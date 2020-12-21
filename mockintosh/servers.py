@@ -18,7 +18,7 @@ from mockintosh.handlers import GenericHandler
 
 class HttpServer():
 
-    def __init__(self, definition, debug=False, interceptors=None):
+    def __init__(self, definition, debug=False, interceptors=()):
         self.definition = definition
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
@@ -36,7 +36,9 @@ class HttpServer():
         for port, services in port_mapping.items():
             rules = []
             for service in services:
-                endpoints = self.merge_alternatives(service['endpoints'])
+                endpoints = []
+                if 'endpoints' in service:
+                    endpoints = self.merge_alternatives(service['endpoints'])
                 app = self.make_app(endpoints, self.globals, self.debug)
                 if 'hostname' not in service:
                     app.listen(service['port'])

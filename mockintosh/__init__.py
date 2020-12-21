@@ -21,6 +21,7 @@ from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
 from mockintosh.servers import HttpServer
+from mockintosh.handlers import Request, Response  # noqa: F401
 
 __version__ = "0.0"
 __location__ = path.abspath(path.dirname(__file__))
@@ -64,6 +65,8 @@ class Definition():
 
     def analyze(self):
         for service in self.data['services']:
+            if 'endpoints' not in service:
+                continue
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
                 endpoint['context'] = OrderedDict()
@@ -108,13 +111,16 @@ def get_schema():
 def import_interceptors(interceptors):
     imported_interceptors = []
     if interceptors is not None:
+        if 'unittest' in sys.modules.keys():
+            tests_dir = path.join(__location__, '../tests')
+            sys.path.append(tests_dir)
         for interceptor in interceptors:
             module, name = interceptor[0].rsplit('.', 1)
             imported_interceptors.append(_import_from(module, name))
     return imported_interceptors
 
 
-def run(source, is_file=True, debug=False, interceptors=None):
+def run(source, is_file=True, debug=False, interceptors=()):
     schema = get_schema()
 
     if 'unittest' in sys.modules.keys():
