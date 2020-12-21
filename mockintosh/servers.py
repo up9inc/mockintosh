@@ -36,9 +36,9 @@ class HttpServer():
         for port, services in port_mapping.items():
             rules = []
             for service in services:
-                if 'endpoints' not in service:
-                    continue
-                endpoints = self.merge_alternatives(service['endpoints'])
+                endpoints = []
+                if 'endpoints' in service:
+                    endpoints = self.merge_alternatives(service['endpoints'])
                 app = self.make_app(endpoints, self.globals, self.debug)
                 if 'hostname' not in service:
                     app.listen(service['port'])
