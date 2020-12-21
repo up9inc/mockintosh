@@ -9,12 +9,16 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-from setuptools import setup, find_packages
+import os
 # To use a consistent encoding
 from codecs import open
 from os import path
 
+from setuptools import setup, find_packages
+
 __location__ = path.abspath(path.dirname(__file__))
+
+import mockintosh
 
 
 def read_requirements():
@@ -37,13 +41,10 @@ def read_requirements():
 with open(path.join(__location__, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+assert not os.getenv("TRAVIS_TAG") or os.getenv("TRAVIS_TAG") == mockintosh.__version__, "Git tag/version mismatch"
+
 setup(
     name='mockintosh',
-
-    # Versions should comply with PEP440.  For a discussion on single-sourcing
-    # the version across setup.py and the project code, see
-    # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.0-alpha.1',
     description='The API mocking server for microservice environments',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -52,7 +53,7 @@ setup(
     url='https://github.com/up9inc/mockintosh',
 
     # Choose your license
-    license='GPL-3.0+',
+    license='MIT',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -64,16 +65,10 @@ setup(
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
-        'Topic :: Internet :: WWW/HTTP :: WSGI :: Server',
-
-        # Pick your license as you wish (should match "license" above)
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Topic :: Internet :: WWW/HTTP :: Server',
 
         # Intended language
         'Natural Language :: English',
-
-        # Target Operating System
-        'Operating System :: POSIX :: Linux',
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
