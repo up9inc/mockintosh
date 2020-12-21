@@ -2,6 +2,7 @@ language: python
 branches:
   only:
     - main
+    - /(\d+\.?)+/
 services:
   - docker
 install:
@@ -16,4 +17,10 @@ script:
 after_success:
   - codecov
 after_failure:
-  -  travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
+  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
+deploy:
+  edge: true  # use latest v2 deploy
+  provider: pypi
+  #  skip_cleanup: true
+  on:
+    tags: true
