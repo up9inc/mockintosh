@@ -107,6 +107,9 @@ def get_schema():
 def import_interceptors(interceptors):
     imported_interceptors = []
     if interceptors is not None:
+        if 'unittest' in sys.modules.keys():
+            tests_dir = path.join(__location__, '../tests')
+            sys.path.append(tests_dir)
         for interceptor in interceptors:
             module, name = interceptor[0].rsplit('.', 1)
             imported_interceptors.append(_import_from(module, name))

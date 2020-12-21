@@ -131,7 +131,7 @@ class TestCommandLineArguments():
         config = 'configs/json/hbs/common/config.json'
         self.mock_server_process = run_mock_server(
             get_config_path(config),
-            '--interceptor=mockintosh.interceptors.dummy1'
+            '--interceptor=interceptingpackage.interceptors.dummy1'
         )
         resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 414 == resp.status_code
@@ -140,8 +140,8 @@ class TestCommandLineArguments():
         config = 'configs/json/hbs/common/config.json'
         self.mock_server_process = run_mock_server(
             get_config_path(config),
-            '--interceptor=mockintosh.interceptors.dummy1',
-            '--interceptor=mockintosh.interceptors.dummy2'
+            '--interceptor=interceptingpackage.interceptors.dummy1',
+            '--interceptor=interceptingpackage.interceptors.dummy2'
         )
         resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 417 == resp.status_code
