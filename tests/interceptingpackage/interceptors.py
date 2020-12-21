@@ -6,10 +6,12 @@
     :synopsis: module that contains dummy interceptors for testing.
 """
 
-
-def dummy1(request_handler):
-    request_handler.set_status(414)
+from mockintosh import Request, Response
 
 
-def dummy2(request_handler):
-    request_handler.set_status(417)
+def dummy1(req: Request, resp: Response):
+    resp.status_code = 414
+
+
+def dummy2(req: Request, resp: Response):
+    resp.status_code = 417

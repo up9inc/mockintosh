@@ -21,6 +21,7 @@ from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
 from mockintosh.servers import HttpServer
+from mockintosh.handlers import Request, Response  # noqa: F401
 
 __location__ = path.abspath(path.dirname(__file__))
 
