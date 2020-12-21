@@ -59,6 +59,7 @@ class ErrorHandler(GenericHandler):
     """Generates an error response with ``status_code`` for all requests."""
 
     def initialize(self, status_code: int, interceptors: list) -> None:
+        self.alternatives = ()
         self.interceptors = interceptors
         self.special_request = self.build_special_request()
         self.special_response = self.build_special_response()
@@ -66,10 +67,7 @@ class ErrorHandler(GenericHandler):
         self.set_status(status_code)
 
     def prepare(self) -> None:
-        raise tornado.web.HTTPError(self._status_code)
+        pass
 
     def check_xsrf_cookie(self) -> None:
-        # POSTs to an ErrorHandler don't actually have side effects,
-        # so we don't need to check the xsrf token.  This allows POSTs
-        # to the wrong url to return a 404 instead of 403.
         pass

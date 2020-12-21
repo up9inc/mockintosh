@@ -47,7 +47,10 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
-        _id, response, params, context = self.match_alternative()
+        try:
+            _id, response, params, context = self.match_alternative()
+        except TypeError:
+            return
         self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params
@@ -194,7 +197,7 @@ class GenericHandler(tornado.web.RequestHandler):
         response.status_code = self._status_code
         response.headers = self._headers
         if not hasattr(self, 'rendered_body'):
-            self.rendered_body = ''
+            self.rendered_body = None
         response.body = self.rendered_body
 
         return response
@@ -204,6 +207,10 @@ class GenericHandler(tornado.web.RequestHandler):
             self._status_code = self.special_response.status_code
         self._headers = self.special_response.headers
         self.rendered_body = self.special_response.body
+        self._write_buffer = []
+        if self.rendered_body is None:
+            self.rendered_body = ''
+        self.write(self.rendered_body)
 
     def determine_status_code(self):
         status_code = None
@@ -343,12 +350,14 @@ class GenericHandler(tornado.web.RequestHandler):
                     try:
                         json_data = json.loads(body)
                     except json.decoder.JSONDecodeError:
-                        raise tornado.web.HTTPError(404)
+                        self.set_status(404)
+                        self.finish()
 
                     try:
                         jsonschema.validate(instance=json_data, schema=json_schema)
                     except jsonschema.exceptions.ValidationError:
-                        raise tornado.web.HTTPError(404)
+                        self.set_status(404)
+                        self.finish()
 
             _id = alternative['id']
             response = alternative['response']
@@ -356,14 +365,12 @@ class GenericHandler(tornado.web.RequestHandler):
             context = alternative['context']
             return _id, response, params, context
 
-        raise tornado.web.HTTPError(404)
+        self.set_status(404)
+        self.finish()
 
     def trigger_interceptors(self):
-        try:
-            for interceptor in self.interceptors:
-                interceptor(self.special_request, self.special_response)
-        except:  # noqa: E722
-            raise HTTPError(500)
+        for interceptor in self.interceptors:
+            interceptor(self.special_request, self.special_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
         if not self._status_code == 500:

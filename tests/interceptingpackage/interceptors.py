@@ -24,7 +24,7 @@ def not_existing_path(req: Request, resp: Response):
         # should allow reading and modifying response status code, headers, body
         resp.force_update = True
         resp.status_code = 201
-        resp.header['someheader'] = 'some-i-val'
+        resp.headers['someheader'] = 'some-i-val'
         resp.body = 'intercepted'
 
 
