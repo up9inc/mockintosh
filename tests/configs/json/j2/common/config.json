@@ -38,6 +38,10 @@
           }
         }
       ]
+    },
+    {
+      "comment": "Service with no endpoints, for bare interceptors",
+      "port": 8003
     }
   ]
 }

@@ -25,6 +25,7 @@ configs = [
 
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
+SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
@@ -127,8 +128,8 @@ class TestCommandLineArguments():
         self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
 
-    def test_interceptor_single(self):
-        config = 'configs/json/hbs/common/config.json'
+    @pytest.mark.parametrize(('config'), configs)
+    def test_interceptor_single(self, config):
         self.mock_server_process = run_mock_server(
             get_config_path(config),
             '--interceptor=interceptingpackage.interceptors.dummy1'
@@ -136,8 +137,8 @@ class TestCommandLineArguments():
         resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 414 == resp.status_code
 
-    def test_interceptor_multiple(self):
-        config = 'configs/json/hbs/common/config.json'
+    @pytest.mark.parametrize(('config'), configs)
+    def test_interceptor_multiple(self, config):
         self.mock_server_process = run_mock_server(
             get_config_path(config),
             '--interceptor=interceptingpackage.interceptors.dummy1',
@@ -157,6 +158,41 @@ class TestCommandLineArguments():
         with open(logfile_name, 'r') as file:
             error_log = file.read()
             assert 'Mock server loading error' in error_log and 'No such file or directory' in error_log
+
+
+# class TestInterceptors():
+
+#     def setup_method(self):
+#         self.mock_server_process = None
+
+#     def teardown_method(self):
+#         if self.mock_server_process is not None:
+#             self.mock_server_process.terminate()
+
+#     @pytest.mark.parametrize(('config'), configs)
+#     def test_not_existing_path(self, config):
+#         self.mock_server_process = run_mock_server(
+#             get_config_path(config),
+#             '--interceptor=interceptingpackage.interceptors.not_existing_path'
+#         )
+#         resp = requests.get(SRV_8003 + '/interceptor-modified')
+#         assert 204 == resp.status_code
+#         assert 'intercepted' == resp.text
+#         assert resp.headers['someheader'] == 'some-i-val'
+
+#     @pytest.mark.parametrize(('config'), configs)
+#     def test_intercept_logging(self, config):
+#         self.mock_server_process = run_mock_server(
+#             get_config_path(config),
+#             '--interceptor=interceptingpackage.interceptors.intercept_logging'
+#         )
+#         resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+#         assert 200 == resp.status_code
+#         logfile_name = 'server.log'
+#         if os.path.isfile(logfile_name):
+#             os.remove(logfile_name)
+#         with open(logfile_name) as fp:
+#             assert any('Processed intercepted request' in line for line in fp)
 
 
 class TestCore():

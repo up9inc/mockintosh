@@ -12,11 +12,16 @@ import json
 import logging
 import inspect
 import urllib
+from typing import (
+    Union,
+    Optional
+)
 
 import yaml
 import tornado.web
 import jsonschema
 from tornado.web import HTTPError
+from tornado.concurrent import Future
 
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
@@ -55,8 +60,6 @@ class GenericHandler(tornado.web.RequestHandler):
         self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
         self.special_response = self.build_special_response()
-        self.trigger_interceptors()
-        self.update_response()
         self.write(self.rendered_body)
 
     def get(self, *args):
@@ -190,12 +193,15 @@ class GenericHandler(tornado.web.RequestHandler):
 
         response.status_code = self._status_code
         response.headers = self._headers
+        if not hasattr(self, 'rendered_body'):
+            self.rendered_body = ''
         response.body = self.rendered_body
 
         return response
 
     def update_response(self):
-        self._status_code = self.special_response.status_code
+        if not self.special_response.is_error or self.special_response.force_update:
+            self._status_code = self.special_response.status_code
         self._headers = self.special_response.headers
         self.rendered_body = self.special_response.body
 
@@ -353,8 +359,19 @@ class GenericHandler(tornado.web.RequestHandler):
         raise tornado.web.HTTPError(404)
 
     def trigger_interceptors(self):
-        for interceptor in self.interceptors:
-            interceptor(self.special_request, self.special_response)
+        try:
+            for interceptor in self.interceptors:
+                interceptor(self.special_request, self.special_response)
+        except:  # noqa: E722
+            raise HTTPError(500)
+
+    def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
+        if not self._status_code == 500:
+            if not hasattr(self, 'special_response'):
+                self.special_response = self.build_special_response()
+            self.trigger_interceptors()
+            self.update_response()
+        super().finish(chunk)
 
 
 class Request():
@@ -369,6 +386,8 @@ class Request():
 class Response():
 
     def __init__(self):
+        self.is_error = False
+        self.force_update = False
         self.status_code = None
         self.headers = {}
         self.body = None

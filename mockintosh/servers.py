@@ -14,6 +14,7 @@ import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.handlers import GenericHandler
+from mockintosh.overrides import Application
 
 
 class HttpServer():
@@ -114,4 +115,4 @@ class HttpServer():
             )
             logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
             logging.debug('with alternatives:\n%s' % endpoint['alternatives'])
-        return tornado.web.Application(endpoint_handlers, debug=debug)
+        return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)

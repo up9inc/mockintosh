@@ -24,3 +24,5 @@ services:
     response:
       useTemplating: true
       body: "@tests/configs/yaml/j2/common/templates/companies.yaml.j2"
+- comment: Service with no endpoints, for bare interceptors
+  port: 8003
