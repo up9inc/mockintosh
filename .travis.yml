@@ -2,6 +2,7 @@ language: python
 branches:
   only:
     - main
+    - /(\d+\.?)+/
 services:
   - docker
 install:
