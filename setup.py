@@ -9,7 +9,6 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-import os
 # To use a consistent encoding
 from codecs import open
 from os import path
@@ -17,8 +16,6 @@ from os import path
 from setuptools import setup, find_packages
 
 __location__ = path.abspath(path.dirname(__file__))
-
-import mockintosh
 
 
 def read_requirements():
@@ -40,7 +37,6 @@ def read_requirements():
 # Get the long description from the README file
 with open(path.join(__location__, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
-
 
 setup(
     name='mockintosh',

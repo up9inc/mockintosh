@@ -17,8 +17,10 @@ class IntegrationTests(unittest.TestCase):
         super().setUpClass()
         logging.basicConfig(level=logging.DEBUG)
         # test for release version consistency
-        assert not os.getenv("TRAVIS_TAG") or os.getenv("TRAVIS_TAG") == mockintosh.__version__, \
-            "Git tag/version mismatch"
+        ttag = os.getenv("TRAVIS_TAG")
+        ver = mockintosh.__version__
+        logging.info("Travis tag: %s, src version: %s", ttag, ver)
+        assert not ttag or ttag == ver, "Git tag/version mismatch"
 
     def test_basic_connect(self):
         resp = requests.get(SRV1 + '/')
