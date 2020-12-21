@@ -63,6 +63,8 @@ class Definition():
 
     def analyze(self):
         for service in self.data['services']:
+            if 'endpoints' not in service:
+                continue
             for endpoint in service['endpoints']:
                 endpoint['params'] = {}
                 endpoint['context'] = OrderedDict()
