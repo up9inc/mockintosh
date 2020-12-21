@@ -113,7 +113,7 @@ def import_interceptors(interceptors):
     return imported_interceptors
 
 
-def run(source, is_file=True, debug=False, interceptors=None):
+def run(source, is_file=True, debug=False, interceptors=()):
     schema = get_schema()
 
     if 'unittest' in sys.modules.keys():

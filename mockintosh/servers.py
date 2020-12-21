@@ -18,7 +18,7 @@ from mockintosh.handlers import GenericHandler
 
 class HttpServer():
 
-    def __init__(self, definition, debug=False, interceptors=None):
+    def __init__(self, definition, debug=False, interceptors=()):
         self.definition = definition
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
