@@ -41,7 +41,6 @@ def read_requirements():
 with open(path.join(__location__, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-assert not os.getenv("TRAVIS_TAG") or os.getenv("TRAVIS_TAG") == mockintosh.__version__, "Git tag/version mismatch"
 
 setup(
     name='mockintosh',

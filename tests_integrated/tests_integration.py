@@ -5,6 +5,8 @@ import unittest
 
 import requests
 
+import mockintosh
+
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
 
@@ -14,6 +16,9 @@ class IntegrationTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         logging.basicConfig(level=logging.DEBUG)
+        # test for release version consistency
+        assert not os.getenv("TRAVIS_TAG") or os.getenv("TRAVIS_TAG") == mockintosh.__version__, \
+            "Git tag/version mismatch"
 
     def test_basic_connect(self):
         resp = requests.get(SRV1 + '/')
