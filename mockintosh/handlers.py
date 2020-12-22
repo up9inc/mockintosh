@@ -142,9 +142,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return ''
 
         compiled = None
-        if not is_response_str and (
-            'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False
-        ):
+        if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
             compiled = source_text
         else:
             if template_engine == PYBARS:
