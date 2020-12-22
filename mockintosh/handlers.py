@@ -129,7 +129,7 @@ class GenericHandler(tornado.web.RequestHandler):
             is_response_str = True
         elif 'body' in self.custom_response:
             body = self.custom_response['body']
-            if body[0] == '@' and os.path.isfile(body[1:]):
+            if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
                 template_path = body[1:]
                 with open(template_path, 'r') as file:
                     logging.info('Reading template file from path: %s' % template_path)

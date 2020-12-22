@@ -19,6 +19,7 @@ from mockintosh.methods import _to_camel_case
 from mockintosh.hbs.methods import fake as hbs_fake
 
 compiler = Compiler()
+faker = Faker()
 
 
 class TemplateRenderer():
@@ -48,7 +49,6 @@ class TemplateRenderer():
             pass
 
     def render_handlebars(self):
-        compiler = Compiler()
         context, helpers = self.add_globals(compiler._compiler, helpers={})
         template = compiler.compile(self.text)
         compiled = template(context, helpers=helpers)
@@ -72,7 +72,7 @@ class TemplateRenderer():
         fake = None
         # Create the faker object if `fake` is in the `inject_methods`
         if 'fake' in self.inject_methods_name_list:
-            fake = Faker()
+            fake = faker
 
         # To provide the support of both PYBARS and JINJA
         context = {}
