@@ -103,7 +103,8 @@ Using `--quiet` and `--verbose` options the logging level can be changed.
 ### Interceptors
 
 One can also specify a list of interceptors to be called in `<package>.<module>.<function>` format using
-the `--interceptor` option. The interceptor function get a [`tornado.web.RequestHandler`](https://www.tornadoweb.org/en/stable/web.html#tornado-web-requesthandler-and-application-classes) instance. Here is an example interceptor that for
+the `--interceptor` option. The interceptor function get a [`mockintosh.Request`](#request-object) and
+a [`mockintosh.Response`](#response-object) instance. Here is an example interceptor that for
 every requests to a path starts with `/admin`, sets the reponse status code to `403`:
 
 ```python
