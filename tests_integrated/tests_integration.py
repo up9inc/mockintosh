@@ -128,7 +128,7 @@ class IntegrationTests(unittest.TestCase):
     def test_interceptor(self):
         path = '/interceptor-modified'
         resp = requests.get(SRV3 + path)
-        self.assertEqual(204, resp.status_code)
+        self.assertEqual(202, resp.status_code)
         self.assertEqual("intercepted", resp.text)
         self.assertEqual("some-i-val", resp.headers.get("someheader"))
 
