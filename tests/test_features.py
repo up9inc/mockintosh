@@ -25,6 +25,7 @@ configs = [
 
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
+SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
@@ -127,6 +128,25 @@ class TestCommandLineArguments():
         self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
         TestCommon.test_users(TestCommon, config)
 
+    @pytest.mark.parametrize(('config'), configs)
+    def test_interceptor_single(self, config):
+        self.mock_server_process = run_mock_server(
+            get_config_path(config),
+            '--interceptor=interceptingpackage.interceptors.dummy1'
+        )
+        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        assert 414 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_interceptor_multiple(self, config):
+        self.mock_server_process = run_mock_server(
+            get_config_path(config),
+            '--interceptor=interceptingpackage.interceptors.dummy1',
+            '--interceptor=interceptingpackage.interceptors.dummy2'
+        )
+        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        assert 417 == resp.status_code
+
     def test_logfile(self):
         config = 'configs/not_existing_file'
         logfile_name = 'error.log'
@@ -138,6 +158,63 @@ class TestCommandLineArguments():
         with open(logfile_name, 'r') as file:
             error_log = file.read()
             assert 'Mock server loading error' in error_log and 'No such file or directory' in error_log
+
+
+class TestInterceptors():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_not_existing_path(self, config):
+        self.mock_server_process = run_mock_server(
+            get_config_path(config),
+            '--interceptor=interceptingpackage.interceptors.not_existing_path'
+        )
+        resp = requests.get(SRV_8003 + '/interceptor-modified')
+        assert 201 == resp.status_code
+        assert 'intercepted' == resp.text
+        assert resp.headers['someheader'] == 'some-i-val'
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_intercept_logging(self, config):
+        logfile_name = 'server.log'
+        if os.path.isfile(logfile_name):
+            os.remove(logfile_name)
+        self.mock_server_process = run_mock_server(
+            get_config_path(config),
+            '--interceptor=interceptingpackage.interceptors.intercept_logging',
+            '--logfile',
+            logfile_name
+        )
+        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as fp:
+            assert any('Processed intercepted request' in line for line in fp)
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_request_object(self, config):
+        self.mock_server_process = run_mock_server(
+            get_config_path(config),
+            '--interceptor=interceptingpackage.interceptors.request_object'
+        )
+        resp = requests.get(
+            SRV_8003 + '/request1?a=hello%20world&b=3',
+            headers={'Cache-Control': 'no-cache'},
+            data='hello world'
+        )
+        assert 200 == resp.status_code
+
+        resp = requests.post(
+            SRV_8003 + '/request2',
+            data={'param1': 'value1', 'param2': 'value2'}
+        )
+        assert 200 == resp.status_code
 
 
 class TestCore():
@@ -301,6 +378,75 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'endpoint2'
+
+    def test_http_verbs(self):
+        config = 'configs/json/hbs/core/http_verbs.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/get')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'GET request'
+
+        resp = requests.get(SRV_8001 + '/get-lower')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'GET request'
+
+        resp = requests.post(SRV_8001 + '/post')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'POST request'
+
+        resp = requests.head(SRV_8001 + '/head')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == ''
+
+        resp = requests.delete(SRV_8001 + '/delete')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'DELETE request'
+
+        resp = requests.patch(SRV_8001 + '/patch')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'PATCH request'
+
+        resp = requests.put(SRV_8001 + '/put')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'PUT request'
+
+        resp = requests.options(SRV_8001 + '/options')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'OPTIONS request'
+
+    def test_http_verb_not_allowed(self):
+        config = 'configs/json/hbs/core/http_verbs.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/method-not-allowed-unless-post')
+        assert 405 == resp.status_code
+
+        resp = requests.post(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.head(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.delete(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.patch(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.put(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
 
 
 @pytest.mark.parametrize(('config'), [

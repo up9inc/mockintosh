@@ -9,6 +9,7 @@ import mockintosh
 
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
+SRV3 = os.environ.get('SRV2', 'http://localhost:8003')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -123,3 +124,13 @@ class IntegrationTests(unittest.TestCase):
         path = '/status-template1'
         resp = requests.get(SRV1 + path + "?rc=303")
         self.assertEqual(303, resp.status_code)
+
+    def test_interceptor(self):
+        path = '/interceptor-modified'
+        resp = requests.get(SRV3 + path)
+        self.assertEqual(202, resp.status_code)
+        self.assertEqual("intercepted", resp.text)
+        self.assertEqual("some-i-val", resp.headers.get("someheader"))
+
+        with open("tests_integrated/server.log") as fp:
+            self.assertTrue(any('Processed intercepted request' in line for line in fp))

@@ -24,3 +24,5 @@ services:
     response:
       useTemplating: true
       body: "@tests/configs/yaml/hbs/common/templates/companies.yaml.hbs"
+- comment: Service with no endpoints, for bare interceptors
+  port: 8003

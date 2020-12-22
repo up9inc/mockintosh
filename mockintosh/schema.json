@@ -22,8 +22,7 @@
       },
       "additionalProperties": false,
       "required": [
-        "port",
-        "endpoints"
+        "port"
       ]
     },
     "endpoint_ref": {

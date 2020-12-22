@@ -12,11 +12,16 @@ import json
 import logging
 import inspect
 import urllib
+from typing import (
+    Union,
+    Optional
+)
 
 import yaml
 import tornado.web
 import jsonschema
 from tornado.web import HTTPError
+from tornado.concurrent import Future
 
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
@@ -28,20 +33,24 @@ from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, alternatives, _globals, definition_engine):
+    def initialize(self, method, alternatives, _globals, definition_engine, interceptors):
         self.alternatives = alternatives
         self.globals = _globals
         self.custom_method = method.lower()
         self.definition_engine = definition_engine
+        self.interceptors = interceptors
 
-        self.custom_request = self.build_custom_request()
+        self.special_request = self.build_special_request()
         self.default_context = {
-            'request': self.custom_request
+            'request': self.special_request
         }
         self.custom_context = {}
 
     def super_verb(self, *args):
-        _id, response, params, context = self.match_alternative()
+        try:
+            _id, response, params, context = self.match_alternative()
+        except TypeError:
+            return
         self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params
@@ -52,12 +61,29 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_headers()
         self.log_request()
         self.dynamic_unimplemented_method_guard()
-        self.write(self.render_template())
+        self.rendered_body = self.render_template()
+        self.special_response = self.build_special_response()
+        self.write(self.rendered_body)
 
     def get(self, *args):
         self.super_verb(*args)
 
     def post(self, *args):
+        self.super_verb(*args)
+
+    def head(self, *args):
+        self.super_verb(*args)
+
+    def delete(self, *args):
+        self.super_verb(*args)
+
+    def patch(self, *args):
+        self.super_verb(*args)
+
+    def put(self, *args):
+        self.super_verb(*args)
+
+    def options(self, *args):
         self.super_verb(*args)
 
     def populate_context(self, *args):
@@ -103,7 +129,7 @@ class GenericHandler(tornado.web.RequestHandler):
             is_response_str = True
         elif 'body' in self.custom_response:
             body = self.custom_response['body']
-            if body[0] == '@' and os.path.isfile(body[1:]):
+            if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
                 template_path = body[1:]
                 with open(template_path, 'r') as file:
                     logging.info('Reading template file from path: %s' % template_path)
@@ -116,9 +142,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return ''
 
         compiled = None
-        if not is_response_str and (
-            'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False
-        ):
+        if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
             compiled = source_text
         else:
             if template_engine == PYBARS:
@@ -158,27 +182,65 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return response
 
-    def build_custom_request(self):
-        custom_request = Request()
+    def build_special_request(self):
+        request = Request()
+
+        # Details
+        request.version = self.request.version
+        request.remoteIp = self.request.remote_ip
+        request.protocol = self.request.protocol
+        request.host = self.request.host
+        request.hostName = self.request.host_name
+        request.uri = self.request.uri
 
         # Method
-        custom_request.method = self.request.method
+        request.method = self.request.method
 
         # Path
-        custom_request.path = self.request.path
+        request.path = self.request.path
 
         # Headers
         for key, value in self.request.headers._dict.items():
-            custom_request.headers[key] = value
-            custom_request.headers[key.lower()] = value
+            request.headers[key] = value
+            request.headers[key.lower()] = value
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            custom_request.queryString[key] = [x.decode('utf-8') for x in value]
-            if len(custom_request.queryString[key]) == 1:
-                custom_request.queryString[key] = custom_request.queryString[key][0]
+            request.queryString[key] = [x.decode('utf-8') for x in value]
+            if len(request.queryString[key]) == 1:
+                request.queryString[key] = request.queryString[key][0]
 
-        return custom_request
+        # Body
+        request.body = self.request.body.decode('utf-8')
+        request.files = self.request.files
+
+        # Form Data
+        for key, value in self.request.body_arguments.items():
+            request.formData[key] = [x.decode('utf-8') for x in value]
+            if len(request.formData[key]) == 1:
+                request.formData[key] = request.formData[key][0]
+
+        return request
+
+    def build_special_response(self):
+        response = Response()
+
+        response.status = self._status_code
+        response.headers = self._headers
+        if not hasattr(self, 'rendered_body'):
+            self.rendered_body = None
+        response.body = self.rendered_body
+
+        return response
+
+    def update_response(self):
+        self._status_code = self.special_response.status
+        self._headers = self.special_response.headers
+        self.rendered_body = self.special_response.body
+        self._write_buffer = []
+        if self.rendered_body is None:
+            self.rendered_body = ''
+        self.write(self.rendered_body)
 
     def determine_status_code(self):
         status_code = None
@@ -318,12 +380,14 @@ class GenericHandler(tornado.web.RequestHandler):
                     try:
                         json_data = json.loads(body)
                     except json.decoder.JSONDecodeError:
-                        raise tornado.web.HTTPError(404)
+                        self.set_status(404)
+                        self.finish()
 
                     try:
                         jsonschema.validate(instance=json_data, schema=json_schema)
                     except jsonschema.exceptions.ValidationError:
-                        raise tornado.web.HTTPError(404)
+                        self.set_status(404)
+                        self.finish()
 
             _id = alternative['id']
             response = alternative['response']
@@ -331,13 +395,43 @@ class GenericHandler(tornado.web.RequestHandler):
             context = alternative['context']
             return _id, response, params, context
 
-        raise tornado.web.HTTPError(404)
+        self.set_status(404)
+        self.finish()
+
+    def trigger_interceptors(self):
+        for interceptor in self.interceptors:
+            interceptor(self.special_request, self.special_response)
+
+    def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
+        if not self._status_code == 500:
+            if not hasattr(self, 'special_response'):
+                self.special_response = self.build_special_response()
+            self.trigger_interceptors()
+            self.update_response()
+        super().finish(chunk)
 
 
 class Request():
 
     def __init__(self):
+        self.version = None
+        self.remoteIp = None
+        self.protocol = None
+        self.host = None
+        self.hostName = None
+        self.uri = None
         self.method = None
         self.path = None
         self.headers = {}
         self.queryString = {}
+        self.body = None
+        self.files = {}
+        self.formData = {}
+
+
+class Response():
+
+    def __init__(self):
+        self.status = None
+        self.headers = {}
+        self.body = None

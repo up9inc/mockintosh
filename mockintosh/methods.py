@@ -74,3 +74,8 @@ def _nostderr():
     sys.stderr = io.StringIO()
     yield
     sys.stderr = save_stderr
+
+
+def _import_from(module, name):
+    module = __import__(module, fromlist=[name])
+    return getattr(module, name)

@@ -14,14 +14,16 @@ import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.handlers import GenericHandler
+from mockintosh.overrides import Application
 
 
 class HttpServer():
 
-    def __init__(self, definition, debug=False):
+    def __init__(self, definition, debug=False, interceptors=()):
         self.definition = definition
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
+        self.interceptors = interceptors
         self.load()
 
     def load(self):
@@ -35,7 +37,9 @@ class HttpServer():
         for port, services in port_mapping.items():
             rules = []
             for service in services:
-                endpoints = self.merge_alternatives(service['endpoints'])
+                endpoints = []
+                if 'endpoints' in service:
+                    endpoints = self.merge_alternatives(service['endpoints'])
                 app = self.make_app(endpoints, self.globals, self.debug)
                 if 'hostname' not in service:
                     app.listen(service['port'])
@@ -104,10 +108,11 @@ class HttpServer():
                         method=endpoint['method'],
                         alternatives=endpoint['alternatives'],
                         _globals=_globals,
-                        definition_engine=self.definition.template_engine
+                        definition_engine=self.definition.template_engine,
+                        interceptors=self.interceptors
                     )
                 )
             )
             logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
             logging.debug('with alternatives:\n%s' % endpoint['alternatives'])
-        return tornado.web.Application(endpoint_handlers, debug=debug)
+        return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
