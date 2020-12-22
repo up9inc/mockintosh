@@ -194,7 +194,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def build_special_response(self):
         response = Response()
 
-        response.status_code = self._status_code
+        response.status = self._status_code
         response.headers = self._headers
         if not hasattr(self, 'rendered_body'):
             self.rendered_body = None
@@ -203,8 +203,7 @@ class GenericHandler(tornado.web.RequestHandler):
         return response
 
     def update_response(self):
-        if not self.special_response.is_error or self.special_response.force_update:
-            self._status_code = self.special_response.status_code
+        self._status_code = self.special_response.status
         self._headers = self.special_response.headers
         self.rendered_body = self.special_response.body
         self._write_buffer = []
@@ -393,8 +392,6 @@ class Request():
 class Response():
 
     def __init__(self):
-        self.is_error = False
-        self.force_update = False
-        self.status_code = None
+        self.status = None
         self.headers = {}
         self.body = None
