@@ -172,6 +172,14 @@ class GenericHandler(tornado.web.RequestHandler):
     def build_special_request(self):
         request = Request()
 
+        # Details
+        request.version = self.request.version
+        request.remoteIp = self.request.remote_ip
+        request.protocol = self.request.protocol
+        request.host = self.request.host
+        request.hostName = self.request.host_name
+        request.uri = self.request.uri
+
         # Method
         request.method = self.request.method
 
@@ -188,6 +196,16 @@ class GenericHandler(tornado.web.RequestHandler):
             request.queryString[key] = [x.decode('utf-8') for x in value]
             if len(request.queryString[key]) == 1:
                 request.queryString[key] = request.queryString[key][0]
+
+        # Body
+        request.body = self.request.body.decode('utf-8')
+        request.files = self.request.files
+
+        # Form Data
+        for key, value in self.request.body_arguments.items():
+            request.formData[key] = [x.decode('utf-8') for x in value]
+            if len(request.formData[key]) == 1:
+                request.formData[key] = request.formData[key][0]
 
         return request
 
@@ -383,10 +401,19 @@ class GenericHandler(tornado.web.RequestHandler):
 class Request():
 
     def __init__(self):
+        self.version = None
+        self.remoteIp = None
+        self.protocol = None
+        self.host = None
+        self.hostName = None
+        self.uri = None
         self.method = None
         self.path = None
         self.headers = {}
         self.queryString = {}
+        self.body = None
+        self.files = {}
+        self.formData = {}
 
 
 class Response():

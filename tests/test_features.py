@@ -197,6 +197,25 @@ class TestInterceptors():
         with open(logfile_name, 'r') as fp:
             assert any('Processed intercepted request' in line for line in fp)
 
+    @pytest.mark.parametrize(('config'), configs)
+    def test_request_object(self, config):
+        self.mock_server_process = run_mock_server(
+            get_config_path(config),
+            '--interceptor=interceptingpackage.interceptors.request_object'
+        )
+        resp = requests.get(
+            SRV_8003 + '/request1?a=hello%20world&b=3',
+            headers={'Cache-Control': 'no-cache'},
+            data='hello world'
+        )
+        assert 200 == resp.status_code
+
+        resp = requests.post(
+            SRV_8003 + '/request2',
+            data={'param1': 'value1', 'param2': 'value2'}
+        )
+        assert 200 == resp.status_code
+
 
 class TestCore():
 
