@@ -29,7 +29,7 @@
 3. Response status code   
 4. response headers - global and local
 
-## Milestone 4 - WIP
+## Milestone 4 - Complete
 
 1. Integration of custom "interceptor" 
    - Object model for request and response
