@@ -379,6 +379,75 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'endpoint2'
 
+    def test_http_verbs(self):
+        config = 'configs/json/hbs/core/http_verbs.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/get')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'GET request'
+
+        resp = requests.get(SRV_8001 + '/get-lower')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'GET request'
+
+        resp = requests.post(SRV_8001 + '/post')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'POST request'
+
+        resp = requests.head(SRV_8001 + '/head')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == ''
+
+        resp = requests.delete(SRV_8001 + '/delete')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'DELETE request'
+
+        resp = requests.patch(SRV_8001 + '/patch')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'PATCH request'
+
+        resp = requests.put(SRV_8001 + '/put')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'PUT request'
+
+        resp = requests.options(SRV_8001 + '/options')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'OPTIONS request'
+
+    def test_http_verb_not_allowed(self):
+        config = 'configs/json/hbs/core/http_verbs.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/method-not-allowed-unless-post')
+        assert 405 == resp.status_code
+
+        resp = requests.post(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.head(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.delete(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.patch(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.put(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
+        resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',

@@ -71,6 +71,21 @@ class GenericHandler(tornado.web.RequestHandler):
     def post(self, *args):
         self.super_verb(*args)
 
+    def head(self, *args):
+        self.super_verb(*args)
+
+    def delete(self, *args):
+        self.super_verb(*args)
+
+    def patch(self, *args):
+        self.super_verb(*args)
+
+    def put(self, *args):
+        self.super_verb(*args)
+
+    def options(self, *args):
+        self.super_verb(*args)
+
     def populate_context(self, *args):
         self.custom_context = {}
         if args:
