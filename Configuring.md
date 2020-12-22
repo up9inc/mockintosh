@@ -313,55 +313,55 @@ response:
 
 The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
 
-### `request.version`
+#### `request.version`
 
 HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
 
-### `request.remoteIp`
+#### `request.remoteIp`
 
 The IP address of the client e.g. `127.0.0.1`.
 
-### `request.request.protocol`
+#### `request.request.protocol`
 
 The HTTP protocol e.g. `http` or `https`.
 
-### `request.host`
+#### `request.host`
 
 Full address of host e.g. `localhost:8001`.
 
-### `request.hostName`
+#### `request.hostName`
 
 Only the hostname e.g. `localhost`.
 
-### `request.uri
+#### `request.uri`
 
 URI, full path segments including the query string e.g. `/some/path?a=hello%20world&b=3`.
 
-### `request.method`
+#### `request.method`
 
 [HTTP methods](https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html). Supported verbs are:
 `HEAD`, `GET`, `POST`, `DELETE`, `PATCH`, `PUT` and `OPTIONS`.
 
-### `request.path`
+#### `request.path`
 
 The path part of the URI e.g. `/some/path`.
 
-### `request.headers.<key>`
+#### `request.headers.<key>`
 
 A request header e.g. `request.headers.accept` is `*/*`.
 
-### `request.queryString.<key>`
+#### `request.queryString.<key>`
 
 A query parameter e.g. `request.queryString.a` is `hello world`.
 
-### `request.body`
+#### `request.body`
 
 The raw request body as a whole. Can be `str`, `bytes` or `dict`.
 
-### `request.formData.<key>`
+#### `request.formData.<key>`
 
 The `POST` parameters sent in a `application/x-www-form-urlencoded` request e.g. `request.formData.param1` is `value1`.
 
-### `request.files.<key>`
+#### `request.files.<key>`
 
 The fields in a `multipart/form-data` request.
