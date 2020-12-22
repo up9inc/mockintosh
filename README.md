@@ -129,7 +129,7 @@ PYTHONPATH=/some/dir mockintosh some_config.json --interceptor=mymodule.forbid_a
 
 #### Request Object
 
-The `Request` object is exactly the same object defined in [here](Configuring.md#Request-Object)
+The `Request` object is exactly the same object defined in [here](Configuring.md#request-object)
 with a minor difference: Instead of accesing the dictonary elements using `.<key>`,
 you access them using `['<key>']` e.g. `request.queryString['a']`.
 
