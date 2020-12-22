@@ -103,16 +103,51 @@ Using `--quiet` and `--verbose` options the logging level can be changed.
 #### Interceptors
 
 One can also specify a list of interceptors to be called in `<package>.<module>.<function>` format using
-the `--interceptor` option. The interceptor function get a [`tornado.web.RequestHandler`](https://www.tornadoweb.org/en/stable/web.html#tornado-web-requesthandler-and-application-classes) instance. Here is an example interceptor that sets
-every reponse's status to `403`:
+the `--interceptor` option. The interceptor function get a [`tornado.web.RequestHandler`](https://www.tornadoweb.org/en/stable/web.html#tornado-web-requesthandler-and-application-classes) instance. Here is an example interceptor that for
+every requests to a path starts with `/admin`, sets the reponse status code to `403`:
 
 ```python
-def forbid(request_handler):
-    request_handler.set_status(403)
+import re
+
+def forbid_admin(req: Request, resp: Response):
+    if re.match(r'^\/admin.*$', req.path):
+        resp.status = 403
 ```
 
 and you would specify such interceptor with a command like below:
 
 ```bash
-$ mockintosh some_config.json --interceptor=mypackage.mymodule.forbid
+mockintosh some_config.json --interceptor=mypackage.mymodule.forbid_admin
 ```
+
+Instead of specifying a package name, you can alternatively set the `PYTHONPATH` environment variable
+to a directory that contains your interceptor modules like this:
+
+```bash
+PYTHONPATH=/some/dir mockintosh some_config.json --interceptor=mymodule.forbid_admin
+```
+
+#### Request Object
+
+The `Request` object is exactly the same object defined in [here](Configuring.md#Request-Object)
+with a minor difference: Instead of accesing the dictonary elements using `.<key>`,
+you access them using `['<key>']` e.g. `request.queryString['a']`.
+
+#### Response Object
+
+The `Response` object consists of three fields:
+
+##### Status
+
+`resp.status` holds the [HTTP status codes](https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html)
+e.g. `200`, `201`, `302`, `404`, etc.
+
+##### Headers
+
+`resp.headers` is a Python dictionary that you access and/or modify the response headers.
+e.g. `resp.headers['Cache-Control'] == 'no-cache'`
+
+##### Body
+
+The body can be anything that supported by [`tornado.web.RequestHandler.write`](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write)
+Which means the body can be `str`, `bytes` or `dict` e.g. `resp.body = 'hello world'` or `resp.body = {'hello': 'world'}`

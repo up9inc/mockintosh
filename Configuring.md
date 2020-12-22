@@ -253,7 +253,7 @@ response:
   status: '403'
 ```
 
-as the status code in the response definition.
+as the status code in the response definition. If the status code is not specified it defaults to `200`.
 
 It's also possible to use templating in the `status` field like this:
 
@@ -293,13 +293,75 @@ globals:
           Cache-Control: no-cache
 ```
 
-### Request Object
+### Body
+
+The body can be direct response string:
+
+```yaml
+response:
+  body: 'hello world'
+```
+
+or a string that starts with `@` sign to indicate a separete template file:
+
+```yaml
+response:
+  body: '@some/path/my_template.json.hbs'
+```
+
+## Request Object
 
 The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
 
-```text
-request.method
-request.path
-request.headers.<key>
-request.queryString.<key>
-```
+### `request.version`
+
+HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
+
+### `request.remoteIp`
+
+The IP address of the client e.g. `127.0.0.1`.
+
+### `request.request.protocol`
+
+The HTTP protocol e.g. `http` or `https`.
+
+### `request.host`
+
+Full address of host e.g. `localhost:8001`.
+
+### `request.hostName`
+
+Only the hostname e.g. `localhost`.
+
+### `request.uri
+
+URI, full path segments including the query string e.g. `/some/path?a=hello%20world&b=3`.
+
+### `request.method`
+
+[HTTP methods](https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html). Supported verbs are:
+`HEAD`, `GET`, `POST`, `DELETE`, `PATCH`, `PUT` and `OPTIONS`.
+
+### `request.path`
+
+The path part of the URI e.g. `/some/path`.
+
+### `request.headers.<key>`
+
+A request header e.g. `request.headers.accept` is `*/*`.
+
+### `request.queryString.<key>`
+
+A query parameter e.g. `request.queryString.a` is `hello world`.
+
+### `request.body`
+
+The raw request body as a whole. Can be `str`, `bytes` or `dict`.
+
+### `request.formData.<key>`
+
+The `POST` parameters sent in a `application/x-www-form-urlencoded` request e.g. `request.formData.param1` is `value1`.
+
+### `request.files.<key>`
+
+The fields in a `multipart/form-data` request.
