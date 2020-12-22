@@ -63,7 +63,7 @@ class ErrorHandler(GenericHandler):
         self.interceptors = interceptors
         self.special_request = self.build_special_request()
         self.special_response = self.build_special_response()
-        self.special_response.is_error = True
+        self.special_response.status = status_code
         self.set_status(status_code)
 
     def prepare(self) -> None:

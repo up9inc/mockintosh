@@ -12,18 +12,17 @@ from mockintosh import Request, Response
 
 
 def dummy1(req: Request, resp: Response):
-    resp.status_code = 414
+    resp.status = 414
 
 
 def dummy2(req: Request, resp: Response):
-    resp.status_code = 417
+    resp.status = 417
 
 
 def not_existing_path(req: Request, resp: Response):
     if req.path == '/interceptor-modified':
         # should allow reading and modifying response status code, headers, body
-        resp.force_update = True
-        resp.status_code = 201
+        resp.status = 201
         resp.headers['someheader'] = 'some-i-val'
         resp.body = 'intercepted'
 
