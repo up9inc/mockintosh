@@ -409,7 +409,8 @@ class GenericHandler(tornado.web.RequestHandler):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
             self.trigger_interceptors()
-            self.update_response()
+            if self.interceptors:
+                self.update_response()
         super().finish(chunk)
 
 
