@@ -207,17 +207,17 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            request.queryString[key] = [x.decode('utf-8') for x in value]
+            request.queryString[key] = [self.decoder(x) for x in value]
             if len(request.queryString[key]) == 1:
                 request.queryString[key] = request.queryString[key][0]
 
         # Body
-        request.body = self.request.body.decode('utf-8')
+        request.body = self.decoder(self.request.body)
         request.files = self.request.files
 
         # Form Data
         for key, value in self.request.body_arguments.items():
-            request.formData[key] = [x.decode('utf-8') for x in value]
+            request.formData[key] = [self.decoder(x) for x in value]
             if len(request.formData[key]) == 1:
                 request.formData[key] = request.formData[key][0]
 
@@ -417,6 +417,12 @@ class GenericHandler(tornado.web.RequestHandler):
         return not hasattr(self, 'custom_response') or (
             'body' in self.custom_response or isinstance(self.custom_response, str)
         )
+
+    def decoder(self, string):
+        try:
+            return string.decode('utf-8')
+        except UnicodeDecodeError:
+            return string.decode('latin-1')
 
 
 class Request():

@@ -321,7 +321,7 @@ HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
 
 The IP address of the client e.g. `127.0.0.1`.
 
-#### `request.request.protocol`
+#### `request.protocol`
 
 The HTTP protocol e.g. `http` or `https`.
 
