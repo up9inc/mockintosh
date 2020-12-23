@@ -63,7 +63,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
         self.special_response = self.build_special_response()
-        self.write(self.rendered_body)
+        if self.should_write():
+            self.write(self.rendered_body)
 
     def get(self, *args):
         self.super_verb(*args)
@@ -240,7 +241,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self._write_buffer = []
         if self.rendered_body is None:
             self.rendered_body = ''
-        self.write(self.rendered_body)
+        if self.should_write():
+            self.write(self.rendered_body)
 
     def determine_status_code(self):
         status_code = None
@@ -407,8 +409,14 @@ class GenericHandler(tornado.web.RequestHandler):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
             self.trigger_interceptors()
-            self.update_response()
+            if self.interceptors:
+                self.update_response()
         super().finish(chunk)
+
+    def should_write(self):
+        return not hasattr(self, 'custom_response') or (
+            'body' in self.custom_response or isinstance(self.custom_response, str)
+        )
 
 
 class Request():
