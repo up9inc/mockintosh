@@ -1,5 +1,5 @@
 ---
-templatingEngine: Handlebars
+templatingEngine: Jinja2
 services:
 - comment: Mock for Service1
   port: 8001
@@ -9,7 +9,7 @@ services:
     response:
       body:
         hello: world
-  - path: "/endpoint2/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}"
+  - path: "/endpoint2/{{var1}}/{{regEx('prefix-(.*)-(.*)-suffix', 'var2', 'var3')}}"
     method: GET
     response:
       body:

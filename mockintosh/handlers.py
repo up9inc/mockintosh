@@ -119,9 +119,20 @@ class GenericHandler(tornado.web.RequestHandler):
     def render_template(self):
         source_text = None
         response = None
+        use_templating = True
+        template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
+
+        if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
+            use_templating = False
+        else:
+            if template_engine == PYBARS:
+                from mockintosh.hbs.methods import uuid, fake, random_integer
+            elif template_engine == JINJA:
+                from mockintosh.j2.methods import uuid, fake, random_integer
+            else:
+                raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 
         is_response_str = isinstance(self.custom_response, str)
-        template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
 
         if is_response_str:
             source_text = self.custom_response
@@ -131,6 +142,32 @@ class GenericHandler(tornado.web.RequestHandler):
         elif 'body' in self.custom_response:
             body = self.custom_response['body']
             if isinstance(body, dict):
+                if use_templating:
+                    # Dynamic programming to prevent stack overflow
+                    key_stack = []
+                    key_stack.extend(body.keys())
+                    ref_stack = [body]
+                    while key_stack:
+                        k = key_stack.pop()
+                        v = ref_stack[-1][k]
+                        if isinstance(v, dict):
+                            ref_stack.append(v)
+                            key_stack.extend(v.keys())
+                        else:
+                            renderer = TemplateRenderer(
+                                template_engine,
+                                v,
+                                inject_objects=self.custom_context,
+                                inject_methods=[
+                                    uuid,
+                                    fake,
+                                    random_integer
+                                ],
+                                add_params_callback=self.add_params
+                            )
+                            new_v, _ = renderer.render()
+                            ref_stack[-1][k] = new_v
+                            ref_stack.pop()
                 return body
             elif isinstance(body, str):
                 if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
@@ -146,16 +183,9 @@ class GenericHandler(tornado.web.RequestHandler):
             return ''
 
         compiled = None
-        if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
+        if not use_templating:
             compiled = source_text
         else:
-            if template_engine == PYBARS:
-                from mockintosh.hbs.methods import uuid, fake, random_integer
-            elif template_engine == JINJA:
-                from mockintosh.j2.methods import uuid, fake, random_integer
-            else:
-                raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
-
             renderer = TemplateRenderer(
                 template_engine,
                 source_text,

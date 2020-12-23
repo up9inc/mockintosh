@@ -465,7 +465,9 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/response_body_json_object.json',
-        'configs/yaml/hbs/core/response_body_json_object.yaml'
+        'configs/json/j2/core/response_body_json_object.json',
+        'configs/yaml/hbs/core/response_body_json_object.yaml',
+        'configs/yaml/j2/core/response_body_json_object.yaml'
     ])
     def test_response_body_json_object(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -475,6 +477,26 @@ class TestCore():
 
         data = resp.json()
         assert data['hello'] == "world"
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/response_body_json_object.json',
+        'configs/json/j2/core/response_body_json_object.json',
+        'configs/yaml/hbs/core/response_body_json_object.yaml',
+        'configs/yaml/j2/core/response_body_json_object.yaml'
+    ])
+    def test_response_body_json_object_with_templating(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        var1 = str(int(time.time()))
+        var2 = str(int(time.time()))
+        var3 = str(int(time.time()))
+        resp = requests.get(SRV_8001 + '/endpoint2/%s/prefix-%s-%s-suffix' % (var1, var2, var3))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert data['var1'] == var1
+        assert data['nested']['var2'] == var2
+        assert data['nested']['nested2']['var3'] == var3
 
 
 @pytest.mark.parametrize(('config'), [
