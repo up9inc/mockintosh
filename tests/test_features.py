@@ -448,6 +448,13 @@ class TestCore():
         resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
 
+    def test_no_body_204(self):
+        config = 'configs/json/hbs/core/no_body_204.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/endpoint1')
+        assert 204 == resp.status_code
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
