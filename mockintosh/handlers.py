@@ -414,10 +414,8 @@ class GenericHandler(tornado.web.RequestHandler):
         super().finish(chunk)
 
     def should_write(self):
-        return self._status_code not in (101, 204) and (
-            not hasattr(self, 'custom_response') or (
-                'body' in self.custom_response or isinstance(self.custom_response, str)
-            )
+        return not hasattr(self, 'custom_response') or (
+            'body' in self.custom_response or isinstance(self.custom_response, str)
         )
 
 
