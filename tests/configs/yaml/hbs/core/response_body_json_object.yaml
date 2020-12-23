@@ -1,0 +1,11 @@
+---
+templatingEngine: Handlebars
+services:
+- comment: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/endpoint1"
+    method: GET
+    response:
+      body:
+        hello: world

@@ -130,15 +130,18 @@ class GenericHandler(tornado.web.RequestHandler):
             is_response_str = True
         elif 'body' in self.custom_response:
             body = self.custom_response['body']
-            if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
-                template_path = body[1:]
-                with open(template_path, 'r') as file:
-                    logging.info('Reading template file from path: %s' % template_path)
-                    source_text = file.read()
-                    logging.debug('Template file text: %s' % source_text)
-            else:
-                is_response_str = True
-                source_text = body
+            if isinstance(body, dict):
+                return body
+            elif isinstance(body, str):
+                if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
+                    template_path = body[1:]
+                    with open(template_path, 'r') as file:
+                        logging.info('Reading template file from path: %s' % template_path)
+                        source_text = file.read()
+                        logging.debug('Template file text: %s' % source_text)
+                else:
+                    is_response_str = True
+                    source_text = body
         else:
             return ''
 

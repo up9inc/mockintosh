@@ -82,7 +82,14 @@
                   ]
                 },
                 "body": {
-                  "type": "string"
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object"
+                    }
+                  ]
                 },
                 "useTemplating": {
                   "type": "boolean"

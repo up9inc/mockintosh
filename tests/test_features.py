@@ -463,6 +463,19 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.text == ''
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/response_body_json_object.json',
+        'configs/yaml/hbs/core/response_body_json_object.yaml'
+    ])
+    def test_response_body_json_object(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/endpoint1')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert data['hello'] == "world"
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
