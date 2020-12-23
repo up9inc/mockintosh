@@ -455,6 +455,14 @@ class TestCore():
         resp = requests.get(SRV_8001 + '/endpoint1')
         assert 204 == resp.status_code
 
+    def test_empty_body(self):
+        config = 'configs/json/hbs/core/empty_body.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/endpoint1')
+        assert 200 == resp.status_code
+        assert resp.text == ''
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
