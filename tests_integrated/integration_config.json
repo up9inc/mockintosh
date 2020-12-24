@@ -107,7 +107,7 @@
           "path": "/cors-request",
           "method": "post",
           "body": {
-            "schema": "@empty_schema.json"
+            "schema": "@subdir/empty_schema.json"
           },
           "response": {
             "status": 201
