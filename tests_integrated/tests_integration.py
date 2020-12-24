@@ -148,7 +148,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/insecure-configuration1')
         self.assertEqual(403, resp.status_code)
 
-        resp = requests.get(SRV2 + '/insecure-configuration2')
+        resp = requests.get(SRV1 + '/insecure-configuration2')
         self.assertEqual(403, resp.status_code)
 
     def test_cors(self):

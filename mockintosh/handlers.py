@@ -28,12 +28,12 @@ from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 from mockintosh.methods import _safe_path_split, _detect_engine
-from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, alternatives, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, method, alternatives, _globals, definition_engine, interceptors):
+        self.config_dir = config_dir
         self.alternatives = alternatives
         self.globals = _globals
         self.custom_method = method.lower()
@@ -129,18 +129,18 @@ class GenericHandler(tornado.web.RequestHandler):
             source_text = ''
             is_response_str = True
         elif 'body' in self.custom_response:
-            body = self.custom_response['body']
-            if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
-                template_path = body[1:]
-                with open(template_path, 'r') as file:
-                    logging.info('Reading template file from path: %s' % template_path)
-                    source_text = file.read()
-                    logging.debug('Template file text: %s' % source_text)
-            else:
-                is_response_str = True
-                source_text = body
+            source_text = self.custom_response['body']
+            is_response_str = True
         else:
             return ''
+
+        if len(source_text) > 1 and source_text[0] == '@':
+            template_path = self.resolve_template_path(source_text)
+            with open(template_path, 'r') as file:
+                logging.info('Reading template file from path: %s' % template_path)
+                source_text = file.read()
+                logging.debug('Template file text: %s' % source_text)
+            is_response_str = False
 
         compiled = None
         if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
@@ -174,12 +174,8 @@ class GenericHandler(tornado.web.RequestHandler):
             try:
                 response = yaml.safe_load(compiled)
                 logging.info('Template is a valid YAML.')
-            except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
-                raise UnrecognizedConfigFileFormat(
-                    'Template is neither a JSON nor a YAML!',
-                    compiled,
-                    str(e)
-                )
+            except (yaml.scanner.ScannerError, yaml.parser.ParserError):
+                return compiled
 
         return response
 
@@ -423,6 +419,27 @@ class GenericHandler(tornado.web.RequestHandler):
             return string.decode('utf-8')
         except UnicodeDecodeError:
             return string.decode('latin-1')
+
+    def resolve_template_path(self, source_text):
+        template_path = None
+        orig_template_path = source_text[1:]
+        cwd = os.getcwd()
+        if orig_template_path[0] == '/':
+            orig_template_path = orig_template_path[1:]
+        template_path = os.path.join(cwd, orig_template_path)
+        if not os.path.isfile(template_path):
+            if self.config_dir is None:
+                raise HTTPError(403)
+            template_path = os.path.join(self.config_dir, orig_template_path)
+            if not os.path.isfile(template_path):
+                template_path = os.path.join(os.path.join(self.config_dir, os.pardir), orig_template_path)
+                if not os.path.isfile(template_path):
+                    raise HTTPError(403)
+        template_path = os.path.abspath(template_path)
+        if not template_path.startswith(cwd):
+            raise HTTPError(403)
+
+        return template_path
 
 
 class Request():

@@ -32,6 +32,7 @@ class Definition():
     def __init__(self, source, schema, is_file=True):
         self.source = source
         self.source_text = None if is_file else source
+        self.source_dir = path.dirname(path.abspath(source)) if source is not None and is_file else None
         self.data = None
         self.schema = schema
         if self.source is None:

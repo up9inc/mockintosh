@@ -298,10 +298,11 @@ class TestCore():
     def test_use_templating_false_should_not_render(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+
+        assert 200 == resp.status_code
         if 'json' in config and 'hbs' in config:
-            assert 500 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         else:
-            assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
             data = resp.json()
