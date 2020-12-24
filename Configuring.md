@@ -309,6 +309,14 @@ response:
   body: '@some/path/my_template.json.hbs'
 ```
 
+Template file path is a relative path and it's search in this order:
+
+1. As relative to the parent directory of the config file
+2. As relative to the parent directory of the parent directory of the config file
+
+For example; if the config file is on path `/a/b/c/myconfig.json` and your templates are under `/a/b/c/templates/`
+directory then the relative path specification can either be `templates/file1.json.hbs` or `d/templates/file1.json.hbs`.
+
 ## Request Object
 
 The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
