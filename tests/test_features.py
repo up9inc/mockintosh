@@ -107,12 +107,6 @@ class TestCommandLineArguments():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'hello world'
 
-    def test_pipe_stdin(self):
-        config = 'configs/json/hbs/common/config.json'
-        with open(get_config_path(config), 'r') as file:
-            self.mock_server_process = run_mock_server(stdin=file)
-            TestCommon.test_users(TestCommon, config)
-
     @pytest.mark.parametrize(('config'), configs)
     def test_debug(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--debug')

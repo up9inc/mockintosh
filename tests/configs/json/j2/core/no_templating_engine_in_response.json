@@ -10,7 +10,7 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
-            "body": "@tests/configs/json/j2/core/templates/hello.json.j2"
+            "body": "@templates/hello.json.j2"
           }
         }
       ]

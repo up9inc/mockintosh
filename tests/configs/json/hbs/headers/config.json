@@ -29,7 +29,7 @@
             "hdr1": "myValue"
           },
           "response": {
-            "body": "@tests/configs/json/hbs/headers/templates/1.json.hbs",
+            "body": "@templates/1.json.hbs",
             "status": 200
           }
         },
@@ -51,7 +51,7 @@
             "hdr1": "{{anyValIntoVar}}"
           },
           "response": {
-            "body": "@tests/configs/json/hbs/headers/templates/2.json.hbs",
+            "body": "@templates/2.json.hbs",
             "status": 200
           }
         },
@@ -73,7 +73,7 @@
             "hdr1": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
-            "body": "@tests/configs/json/hbs/headers/templates/3.json.hbs",
+            "body": "@templates/3.json.hbs",
             "status": 200
           }
         },
@@ -117,7 +117,7 @@
             "hdr3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
-            "body": "@tests/configs/json/hbs/headers/templates/4.json.hbs",
+            "body": "@templates/4.json.hbs",
             "status": 201,
             "headers": {
               "Set-Cookie": [
@@ -133,7 +133,7 @@
             "hdr4": "another header"
           },
           "response": {
-            "body": "@tests/configs/json/hbs/headers/templates/5.json.hbs",
+            "body": "@templates/5.json.hbs",
             "headers": {
               "hdr4": "hdr4 request header: {{request.headers.hdr4}}"
             }

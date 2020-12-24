@@ -20,7 +20,7 @@ services:
     headers:
       hdr1: myValue
     response:
-      body: "@tests/configs/yaml/j2/headers/templates/1.yaml.j2"
+      body: "@templates/1.yaml.j2"
       status: 200
   - path: "/parameter"
     method: GET
@@ -34,7 +34,7 @@ services:
     headers:
       hdr1: "{{anyValIntoVar}}"
     response:
-      body: "@tests/configs/yaml/j2/headers/templates/2.yaml.j2"
+      body: "@templates/2.yaml.j2"
       status: 200
   - path: "/regex-capture-group"
     method: GET
@@ -48,7 +48,7 @@ services:
     headers:
       hdr1: "{{regEx('prefix-(.+)-suffix', 'capturedVar')}}"
     response:
-      body: "@tests/configs/yaml/j2/headers/templates/3.yaml.j2"
+      body: "@templates/3.yaml.j2"
       status: 200
   - path: "/alternative"
     method: GET
@@ -77,7 +77,7 @@ services:
       hdr2: "{{anyValIntoVar}}"
       hdr3: "{{regEx('prefix-(.+)-suffix', 'capturedVar')}}"
     response:
-      body: "@tests/configs/yaml/j2/headers/templates/4.yaml.j2"
+      body: "@templates/4.yaml.j2"
       status: 201
       headers:
         Set-Cookie:
@@ -87,7 +87,7 @@ services:
     headers:
       hdr4: another header
     response:
-      body: "@tests/configs/yaml/j2/headers/templates/5.yaml.j2"
+      body: "@templates/5.yaml.j2"
       headers:
         hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
   - path: "/global-headers"

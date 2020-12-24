@@ -8,4 +8,4 @@ services:
     method: GET
     response:
       useTemplating: false
-      body: "@tests/configs/yaml/hbs/core/templates/hello.yaml.hbs"
+      body: "@templates/hello.yaml.hbs"
