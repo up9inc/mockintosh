@@ -145,7 +145,7 @@
       "endpoints": [
         {
           "path": "/cors2",
-          "response": "@tests_integrated/cors.html"
+          "response": "@cors.html"
         }
       ]
     }
