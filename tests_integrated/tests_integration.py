@@ -137,10 +137,6 @@ class IntegrationTests(unittest.TestCase):
             self.assertTrue(any('Processed intercepted request' in line for line in fp))
 
     def test_files_locating(self):
-        resp = requests.get(SRV4 + '/cors1')
-        self.assertEqual(200, resp.status_code)
-        self.assertIn("<title>CORS Example</title>", resp.text)
-
         resp = requests.get(SRV4 + '/cors2')
         self.assertEqual(200, resp.status_code)
         self.assertIn("<title>CORS Example</title>", resp.text)

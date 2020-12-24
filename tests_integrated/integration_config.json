@@ -137,10 +137,6 @@
       "port": 8004,
       "endpoints": [
         {
-          "path": "/cors1",
-          "response": "@cors.html"
-        },
-        {
           "path": "/cors2",
           "response": "@tests_integrated/cors.html"
         }
