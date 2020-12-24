@@ -9,12 +9,12 @@ services:
     method: GET
     response:
       useTemplating: true
-      body: "@tests/configs/yaml/j2/common/templates/users.yaml.j2"
+      body: "@templates/users.yaml.j2"
   - path: "/users/{{ id }}"
     method: GET
     response:
       useTemplating: true
-      body: "@tests/configs/yaml/j2/common/templates/user.yaml.j2"
+      body: "@templates/user.yaml.j2"
 - comment: Mock for Service2
   hostname: service2.example.com
   port: 8002
@@ -23,6 +23,6 @@ services:
     method: POST
     response:
       useTemplating: true
-      body: "@tests/configs/yaml/j2/common/templates/companies.yaml.j2"
+      body: "@templates/companies.yaml.j2"
 - comment: Service with no endpoints, for bare interceptors
   port: 8003

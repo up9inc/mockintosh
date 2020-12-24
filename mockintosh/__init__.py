@@ -124,14 +124,6 @@ def import_interceptors(interceptors):
 def run(source, is_file=True, debug=False, interceptors=()):
     schema = get_schema()
 
-    if 'unittest' in sys.modules.keys():
-        sys.stdin = sys.__stdin__
-    if source is None and sys.stdin is not None and not sys.stdin.isatty():
-        stdin_text = sys.stdin.read()
-        if stdin_text:
-            source = stdin_text
-            is_file = False
-
     try:
         definition = Definition(source, schema, is_file=is_file)
         http_server = HttpServer(definition, debug=debug, interceptors=interceptors)

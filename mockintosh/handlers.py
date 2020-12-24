@@ -422,26 +422,18 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def resolve_template_path(self, source_text):
         template_path = None
+        config_dir_parent = os.path.abspath(os.path.join(self.config_dir, os.pardir))
         orig_template_path = source_text[1:]
-        cwd = os.getcwd()
         if orig_template_path[0] == '/':
             orig_template_path = orig_template_path[1:]
-        template_path = os.path.join(cwd, orig_template_path)
+        template_path = os.path.join(self.config_dir, orig_template_path)
         if not os.path.isfile(template_path):
-            if self.config_dir is None:
-                raise HTTPError(403)
-            template_path = os.path.join(self.config_dir, orig_template_path)
+            template_path = os.path.join(config_dir_parent, orig_template_path)
             if not os.path.isfile(template_path):
-                template_path = os.path.join(os.path.join(self.config_dir, os.pardir), orig_template_path)
-                if not os.path.isfile(template_path):
-                    raise HTTPError(403)
-            template_path = os.path.abspath(template_path)
-            if not template_path.startswith(self.config_dir):
                 raise HTTPError(403)
-        else:
-            template_path = os.path.abspath(template_path)
-            if not template_path.startswith(cwd):
-                raise HTTPError(403)
+        template_path = os.path.abspath(template_path)
+        if not template_path.startswith(config_dir_parent):
+            raise HTTPError(403)
 
         return template_path
 

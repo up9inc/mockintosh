@@ -8,31 +8,31 @@ services:
     response: 'intoVar capture: {{intoVar}}'
   - path: "/parameterized1/template-file/{{intoVar}}/subval"
     response:
-      body: "@tests/configs/yaml/hbs/path/templates/1.yaml.hbs"
+      body: "@templates/1.yaml.hbs"
   - path: "/parameterized1/text/staticVal/subval"
     response: static path components have priority
   - path: "/parameterized2/text/{{regEx 'prefix-.*'}}/subval"
     response: 'regex match: {{request.path}}'
   - path: "/parameterized2/template-file/{{regEx 'prefix-.*'}}/subval"
     response:
-      body: "@tests/configs/yaml/hbs/path/templates/2.yaml.hbs"
+      body: "@templates/2.yaml.hbs"
   - path: "/parameterized1/text/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2"
     response: 'regex capture group: {{varname}}'
   - path: "/parameterized1/template-file/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2"
     response:
-      body: "@tests/configs/yaml/hbs/path/templates/3.yaml.hbs"
+      body: "@templates/3.yaml.hbs"
   - path: "/parameterized3/text/{{var1}}/{{var2}}/{{var3}}"
     response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}'
   - path: "/parameterized3/template-file/{{var1}}/{{var2}}/{{var3}}"
     response:
-      body: "@tests/configs/yaml/hbs/path/templates/4.yaml.hbs"
+      body: "@templates/4.yaml.hbs"
   - path: "/parameterized4/text/{{regEx 'prefix-(.*)-(.*)-(.*)-suffix' 'var1' 'var2' 'var3'}}/{{regEx '(.*)_(.*)' 'var4' 'var5'}}"
     response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
   - path: "/parameterized4/template-file/{{regEx 'prefix-(.*)-(.*)-(.*)-suffix' 'var1' 'var2' 'var3'}}/{{regEx '(.*)_(.*)' 'var4' 'var5'}}"
     response:
-      body: "@tests/configs/yaml/hbs/path/templates/5.yaml.hbs"
+      body: "@templates/5.yaml.hbs"
   - path: "/parameterized5/text/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
     response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
   - path: "/parameterized5/template-file/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
     response:
-      body: "@tests/configs/yaml/hbs/path/templates/5.yaml.hbs"
+      body: "@templates/5.yaml.hbs"

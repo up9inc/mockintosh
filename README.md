@@ -90,12 +90,6 @@ If no configuration file is provided `mockintosh` starts with the default config
 }
 ```
 
-Mockintosh also supports piping config text into its `stdin` like:
-
-```bash
-cat tests/configs/json/hbs/common/config.json | mockintosh
-```
-
 `--debug` option enables Tornado Web Server's debug mode.
 
 Using `--quiet` and `--verbose` options the logging level can be changed.

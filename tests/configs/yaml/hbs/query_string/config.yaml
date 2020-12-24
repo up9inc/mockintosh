@@ -16,7 +16,7 @@ services:
     queryString:
       param1: my Value
     response:
-      body: "@tests/configs/yaml/hbs/query_string/templates/1.yaml.hbs"
+      body: "@templates/1.yaml.hbs"
       status: 200
   - path: "/parameter"
     method: GET
@@ -30,7 +30,7 @@ services:
     queryString:
       param1: "{{anyValIntoVar}}"
     response:
-      body: "@tests/configs/yaml/hbs/query_string/templates/2.yaml.hbs"
+      body: "@templates/2.yaml.hbs"
       status: 200
   - path: "/regex-capture-group"
     method: GET
@@ -44,7 +44,7 @@ services:
     queryString:
       param1: "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
     response:
-      body: "@tests/configs/yaml/hbs/query_string/templates/3.yaml.hbs"
+      body: "@templates/3.yaml.hbs"
       status: 200
   - path: "/alternative"
     method: GET
@@ -68,10 +68,10 @@ services:
       param2: "{{anyValIntoVar}}"
       param3: "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
     response:
-      body: "@tests/configs/yaml/hbs/query_string/templates/4.yaml.hbs"
+      body: "@templates/4.yaml.hbs"
       status: 201
   - path: "/alternative/template-file"
     queryString:
       param4: another query string
     response:
-      body: "@tests/configs/yaml/hbs/query_string/templates/5.yaml.hbs"
+      body: "@templates/5.yaml.hbs"

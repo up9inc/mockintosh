@@ -8,4 +8,4 @@ services:
     method: GET
     response:
       useTemplating: false
-      body: "@tests/configs/yaml/j2/core/templates/hello.yaml.j2"
+      body: "@templates/hello.yaml.j2"
