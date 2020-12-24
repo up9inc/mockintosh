@@ -163,5 +163,8 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.post(SRV1 + '/cors-request', json={}, headers=hdr)
         self.assertEqual(201, resp.status_code)
 
+        resp = requests.options(SRV1 + '/cors-request-overridden', headers=hdr)
+        self.assertEqual(401, resp.status_code)
+
         resp = requests.options(SRV1 + '/nonexistent', headers=hdr)
         self.assertEqual(404, resp.status_code)

@@ -112,6 +112,13 @@
           "response": {
             "status": 201
           }
+        },
+        {
+          "path": "/cors-request-overridden",
+          "method": "options",
+          "response": {
+            "status": 401
+          }
         }
       ]
     },
