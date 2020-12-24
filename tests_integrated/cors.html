@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CORS Example</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+<body>
+
+</body>
+<script>
+    $.ajax({
+        url: "http://localhost:8001/",
+        type: "POST",
+        crossDomain: true,
+        data: JSON.stringify({}),
+        dataType: "json",
+        "headers": {
+            "X-PINGOTHER": "pingpong" // https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
+        },
+        success: function (response) {
+            $("body").append("Case 1 worked. ")
+        },
+        error: function (xhr, status) {
+            alert("error");
+        }
+    });
+</script>
+</html>

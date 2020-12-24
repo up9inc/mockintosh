@@ -42,11 +42,14 @@
 1. Dataset support
 1. Automatic CORS
 1. Ability to refer to external files containing request _and_ response bodies
+      - make it secure by disallowing files outside mock config hierarchy
+1. Clear status in log on which service addresses are listened to
 
 ## Milestone N
 
 1. base64-encoded body strings, for binary responses
 1. SSL support
+1. Ability to match request body by regexp 
 
 ## Milestone N
 
