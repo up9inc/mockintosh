@@ -62,6 +62,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
+        if self.rendered_body is None:
+            return
         self.special_response = self.build_special_response()
         if self.should_write():
             self.write(self.rendered_body)
@@ -136,6 +138,8 @@ class GenericHandler(tornado.web.RequestHandler):
 
         if len(source_text) > 1 and source_text[0] == '@':
             template_path = self.resolve_template_path(source_text)
+            if template_path is None:
+                return None
             with open(template_path, 'r') as file:
                 logging.info('Reading template file from path: %s' % template_path)
                 source_text = file.read()
@@ -429,7 +433,11 @@ class GenericHandler(tornado.web.RequestHandler):
         template_path = os.path.join(self.config_dir, orig_template_path)
         if not os.path.isfile(template_path):
             self.send_error(403, message=error_msg)
+            return None
         template_path = os.path.abspath(template_path)
+        if not template_path.startswith(self.config_dir):
+            self.send_error(403, message=error_msg)
+            return None
 
         return template_path
 
