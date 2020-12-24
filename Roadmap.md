@@ -36,6 +36,13 @@
    - Ability to provide python function/object to alter response
    - Both successful and failed responses intercepted
 
+## Milestone 5 - WIP
+
+1. Multi-response functionality
+1. Dataset support
+1. Automatic CORS
+1. Ability to refer to external files containing request _and_ response bodies
+
 ## Milestone N
 
 1. base64-encoded body strings, for binary responses
@@ -43,12 +50,9 @@
 
 ## Milestone N
 
-1. Multi-response functionality
 1. Configuration-by-request
     - Ability to control a lot of response via request headers - for quick experimentation and code-level configuration
       in any language
-1. Dataset support
-1. Ability to refer to external files containing request _and_ response bodies
 
 ## Milestone N
 
