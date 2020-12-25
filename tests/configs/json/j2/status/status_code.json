@@ -33,7 +33,8 @@
           "path": "/service2-endpoint2",
           "method": "GET",
           "response": {
-            "status": "{{request.queryString['rc']}}"
+            "status": "{{request.queryString['rc']}}",
+            "body": "service2-endpoint2"
           }
         }
       ]
