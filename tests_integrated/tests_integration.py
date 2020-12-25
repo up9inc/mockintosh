@@ -148,7 +148,6 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(403, resp.status_code)
 
     def test_cors(self):
-        self.skipTest("Skipped for separate PR")
         hdr = {
             "origin": "http://someorigin",
             "Access-Control-Request-Headers": "authorization, x-api-key"
