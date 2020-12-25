@@ -160,6 +160,10 @@ class IntegrationTests(unittest.TestCase):
                          resp.headers.get("access-control-allow-methods"))
 
         resp = requests.post(SRV1 + '/cors-request', json={}, headers=hdr)
+        self.assertEqual(hdr['origin'], resp.headers.get("access-control-allow-origin"))
+        self.assertEqual(hdr['Access-Control-Request-Headers'], resp.headers.get("Access-Control-Allow-Headers"))
+        self.assertEqual("DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+                         resp.headers.get("access-control-allow-methods"))
         self.assertEqual(201, resp.status_code)
 
         resp = requests.options(SRV1 + '/cors-request-overridden', headers=hdr)
