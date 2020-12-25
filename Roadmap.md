@@ -44,6 +44,7 @@
 1. Ability to refer to external files containing request _and_ response bodies
     - make it secure by disallowing files outside mock config hierarchy
 1. Clear status in log on which service addresses are listened to
+1. have own server signature
 
 ## Milestone N
 
