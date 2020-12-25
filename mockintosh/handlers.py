@@ -63,7 +63,6 @@ class GenericHandler(tornado.web.RequestHandler):
         self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
         if self.rendered_body is None:
-            self.set_status(204)
             return
         self.special_response = self.build_special_response()
         if self.should_write():
@@ -423,12 +422,9 @@ class GenericHandler(tornado.web.RequestHandler):
         super().finish(chunk)
 
     def should_write(self):
-        result = not hasattr(self, 'custom_response') or (
+        return not hasattr(self, 'custom_response') or (
             'body' in self.custom_response or isinstance(self.custom_response, str)
         )
-        if not result:
-            self.set_status(204)
-        return result
 
     def decoder(self, string):
         try:
