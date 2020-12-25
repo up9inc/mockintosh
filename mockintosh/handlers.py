@@ -32,7 +32,6 @@ from mockintosh.methods import _safe_path_split, _detect_engine
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
-CORS_HEADERS = [ORIGIN, AC_REQUEST_HEADERS]
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -410,6 +409,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
             if self.is_options and self.custom_method not in (OPTIONS):
                 self.respond_cors()
+            else:
+                self.set_cors_headers()
+
             _id = alternative['id']
             response = alternative['response']
             params = alternative['params']
@@ -467,19 +469,24 @@ class GenericHandler(tornado.web.RequestHandler):
             self.finish()
 
     def respond_cors(self):
-        if not all(header in self.request.headers._dict for header in CORS_HEADERS):
+        if ORIGIN not in self.request.headers._dict:
             # Invalid CORS preflight request
             self.set_status(404)
             self.finish()
 
-        origin = self.request.headers.get(ORIGIN)
-        ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
-        self.set_header('access-control-allow-origin', origin)
-        self.set_header('access-control-allow-headers', ac_request_headers)
-
-        self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
+        self.set_cors_headers()
         self.set_status(204)
         self.finish()
+
+    def set_cors_headers(self):
+        if ORIGIN in self.request.headers._dict:
+            self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
+            origin = self.request.headers.get(ORIGIN)
+            self.set_header('access-control-allow-origin', origin)
+
+            if AC_REQUEST_HEADERS in self.request.headers._dict:
+                ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
+                self.set_header('access-control-allow-headers', ac_request_headers)
 
 
 class Request():
