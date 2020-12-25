@@ -12,6 +12,7 @@ import json
 import logging
 import inspect
 import urllib
+import platform
 from typing import (
     Union,
     Optional
@@ -23,6 +24,7 @@ import jsonschema
 from tornado.web import HTTPError
 from tornado.concurrent import Future
 
+import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
@@ -52,6 +54,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
+        self.set_default_headers()
+
         if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
             self.dynamic_unimplemented_method_guard()
 
@@ -487,6 +491,13 @@ class GenericHandler(tornado.web.RequestHandler):
             if AC_REQUEST_HEADERS in self.request.headers._dict:
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
                 self.set_header('access-control-allow-headers', ac_request_headers)
+
+    def set_default_headers(self):
+        self.set_header('Server', '%s/%s (%s)' % (
+            PROGRAM.capitalize(),
+            mockintosh.__version__,
+            platform.system()
+        ))
 
 
 class Request():
