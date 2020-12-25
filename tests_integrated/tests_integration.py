@@ -167,3 +167,6 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.options(SRV1 + '/nonexistent', headers=hdr)
         self.assertEqual(404, resp.status_code)
+
+        resp = requests.options(SRV1 + '/cors-request')
+        self.assertEqual(404, resp.status_code)  # maybe it should be 400
