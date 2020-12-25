@@ -63,6 +63,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
         if self.rendered_body is None:
+            self.set_status(204)
             return
         self.special_response = self.build_special_response()
         if self.should_write():
@@ -137,7 +138,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return ''
 
         if len(source_text) > 1 and source_text[0] == '@':
-            template_path = self.resolve_template_path(source_text)
+            template_path = self.resolve_relative_path(source_text)
             if template_path is None:
                 return None
             with open(template_path, 'r') as file:
@@ -376,20 +377,28 @@ class GenericHandler(tornado.web.RequestHandler):
             if 'body' in alternative:
                 if 'schema' in alternative['body']:
                     json_schema = alternative['body']['schema']
+                    if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+                        json_schema_path = self.resolve_relative_path(json_schema)
+                        with open(json_schema_path, 'r') as file:
+                            logging.info('Reading JSON schema file from path: %s' % json_schema_path)
+                            json_schema = json.load(file)
+                            logging.debug('JSON schema: %s' % json_schema)
                     body = self.request.body.decode('utf-8')
                     json_data = None
 
-                    try:
-                        json_data = json.loads(body)
-                    except json.decoder.JSONDecodeError:
-                        self.set_status(404)
-                        self.finish()
+                    if body and json_schema:
+                        try:
+                            json_data = json.loads(body)
+                        except json.decoder.JSONDecodeError:
+                            fail = True
+                            break
 
-                    try:
-                        jsonschema.validate(instance=json_data, schema=json_schema)
-                    except jsonschema.exceptions.ValidationError:
-                        self.set_status(404)
-                        self.finish()
+                    if json_schema:
+                        try:
+                            jsonschema.validate(instance=json_data, schema=json_schema)
+                        except jsonschema.exceptions.ValidationError:
+                            fail = True
+                            break
 
             _id = alternative['id']
             response = alternative['response']
@@ -414,9 +423,12 @@ class GenericHandler(tornado.web.RequestHandler):
         super().finish(chunk)
 
     def should_write(self):
-        return not hasattr(self, 'custom_response') or (
+        result = not hasattr(self, 'custom_response') or (
             'body' in self.custom_response or isinstance(self.custom_response, str)
         )
+        if not result:
+            self.set_status(204)
+        return result
 
     def decoder(self, string):
         try:
@@ -424,26 +436,26 @@ class GenericHandler(tornado.web.RequestHandler):
         except UnicodeDecodeError:
             return string.decode('latin-1')
 
-    def resolve_template_path(self, source_text):
-        template_path = None
-        orig_template_path = source_text[1:]
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_template_path
-        if orig_template_path[0] == '/':
-            orig_template_path = orig_template_path[1:]
-        template_path = os.path.join(self.config_dir, orig_template_path)
-        if not os.path.isfile(template_path):
+    def resolve_relative_path(self, source_text):
+        relative_path = None
+        orig_relative_path = source_text[1:]
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        relative_path = os.path.join(self.config_dir, orig_relative_path)
+        if not os.path.isfile(relative_path):
             self.send_error(403, message=error_msg)
             return None
-        template_path = os.path.abspath(template_path)
-        if not template_path.startswith(self.config_dir):
+        relative_path = os.path.abspath(relative_path)
+        if not relative_path.startswith(self.config_dir):
             self.send_error(403, message=error_msg)
             return None
 
-        return template_path
+        return relative_path
 
-    def write_error(self, status_code: int, message=None) -> None:
-        if message:
-            self.finish(message)
+    def write_error(self, status_code: int, **kwargs) -> None:
+        if 'message' in kwargs and kwargs['message']:
+            self.finish(kwargs['message'])
         else:
             self.finish()
 
