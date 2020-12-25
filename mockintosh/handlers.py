@@ -29,6 +29,11 @@ from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 
+OPTIONS = 'options'
+ORIGIN = 'Origin'
+AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
+CORS_HEADERS = [ORIGIN, AC_REQUEST_HEADERS]
+
 
 class GenericHandler(tornado.web.RequestHandler):
 
@@ -39,6 +44,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_method = method.lower()
         self.definition_engine = definition_engine
         self.interceptors = interceptors
+        self.is_options = False
 
         self.special_request = self.build_special_request()
         self.default_context = {
@@ -47,6 +53,9 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
+        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
+            self.dynamic_unimplemented_method_guard()
+
         try:
             _id, response, params, context = self.match_alternative()
         except TypeError:
@@ -60,7 +69,6 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_status_code()
         self.determine_headers()
         self.log_request()
-        self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
         if self.rendered_body is None:
             return
@@ -87,6 +95,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.super_verb(*args)
 
     def options(self, *args):
+        self.is_options = True
         self.super_verb(*args)
 
     def populate_context(self, *args):
@@ -399,6 +408,8 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             break
 
+            if self.is_options and self.custom_method not in (OPTIONS):
+                self.respond_cors()
             _id = alternative['id']
             response = alternative['response']
             params = alternative['params']
@@ -413,7 +424,7 @@ class GenericHandler(tornado.web.RequestHandler):
             interceptor(self.special_request, self.special_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
-        if not self._status_code == 500:
+        if self._status_code not in (204, 500):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
             self.trigger_interceptors()
@@ -454,6 +465,21 @@ class GenericHandler(tornado.web.RequestHandler):
             self.finish(kwargs['message'])
         else:
             self.finish()
+
+    def respond_cors(self):
+        if not all(header in self.request.headers._dict for header in CORS_HEADERS):
+            # Invalid CORS preflight request
+            self.set_status(404)
+            self.finish()
+
+        origin = self.request.headers.get(ORIGIN)
+        ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
+        self.set_header('access-control-allow-origin', origin)
+        self.set_header('access-control-allow-headers', ac_request_headers)
+
+        self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
+        self.set_status(204)
+        self.finish()
 
 
 class Request():
