@@ -7,4 +7,4 @@ services:
   - path: "/"
     method: GET
     response:
-      body: "@tests/configs/yaml/hbs/core/templates/hello.yaml.hbs"
+      body: "@templates/hello.yaml.hbs"

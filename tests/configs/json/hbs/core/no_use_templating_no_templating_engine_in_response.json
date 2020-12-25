@@ -9,7 +9,7 @@
           "path": "/",
           "method": "GET",
           "response": {
-            "body": "@tests/configs/json/hbs/core/templates/hello.json.hbs"
+            "body": "@templates/hello.json.hbs"
           }
         }
       ]

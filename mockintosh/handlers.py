@@ -28,12 +28,12 @@ from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 from mockintosh.methods import _safe_path_split, _detect_engine
-from mockintosh.exceptions import UnrecognizedConfigFileFormat
 
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, method, alternatives, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, method, alternatives, _globals, definition_engine, interceptors):
+        self.config_dir = config_dir
         self.alternatives = alternatives
         self.globals = _globals
         self.custom_method = method.lower()
@@ -62,6 +62,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.log_request()
         self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
+        if self.rendered_body is None:
+            return
         self.special_response = self.build_special_response()
         if self.should_write():
             self.write(self.rendered_body)
@@ -129,18 +131,20 @@ class GenericHandler(tornado.web.RequestHandler):
             source_text = ''
             is_response_str = True
         elif 'body' in self.custom_response:
-            body = self.custom_response['body']
-            if len(body) > 1 and body[0] == '@' and os.path.isfile(body[1:]):
-                template_path = body[1:]
-                with open(template_path, 'r') as file:
-                    logging.info('Reading template file from path: %s' % template_path)
-                    source_text = file.read()
-                    logging.debug('Template file text: %s' % source_text)
-            else:
-                is_response_str = True
-                source_text = body
+            source_text = self.custom_response['body']
+            is_response_str = True
         else:
             return ''
+
+        if len(source_text) > 1 and source_text[0] == '@':
+            template_path = self.resolve_template_path(source_text)
+            if template_path is None:
+                return None
+            with open(template_path, 'r') as file:
+                logging.info('Reading template file from path: %s' % template_path)
+                source_text = file.read()
+                logging.debug('Template file text: %s' % source_text)
+            is_response_str = False
 
         compiled = None
         if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
@@ -174,12 +178,8 @@ class GenericHandler(tornado.web.RequestHandler):
             try:
                 response = yaml.safe_load(compiled)
                 logging.info('Template is a valid YAML.')
-            except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
-                raise UnrecognizedConfigFileFormat(
-                    'Template is neither a JSON nor a YAML!',
-                    compiled,
-                    str(e)
-                )
+            except (yaml.scanner.ScannerError, yaml.parser.ParserError):
+                return compiled
 
         return response
 
@@ -423,6 +423,29 @@ class GenericHandler(tornado.web.RequestHandler):
             return string.decode('utf-8')
         except UnicodeDecodeError:
             return string.decode('latin-1')
+
+    def resolve_template_path(self, source_text):
+        template_path = None
+        orig_template_path = source_text[1:]
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_template_path
+        if orig_template_path[0] == '/':
+            orig_template_path = orig_template_path[1:]
+        template_path = os.path.join(self.config_dir, orig_template_path)
+        if not os.path.isfile(template_path):
+            self.send_error(403, message=error_msg)
+            return None
+        template_path = os.path.abspath(template_path)
+        if not template_path.startswith(self.config_dir):
+            self.send_error(403, message=error_msg)
+            return None
+
+        return template_path
+
+    def write_error(self, status_code: int, message=None) -> None:
+        if message:
+            self.finish(message)
+        else:
+            self.finish()
 
 
 class Request():

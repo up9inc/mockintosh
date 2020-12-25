@@ -26,15 +26,15 @@
 
 1. Request headers and query string matching
 2. Request JSON body schema validation as part of matching
-3. Response status code   
+3. Response status code
 4. response headers - global and local
 
 ## Milestone 4 - Complete
 
-1. Integration of custom "interceptor" 
-   - Object model for request and response
-   - Ability to provide python function/object to alter response
-   - Both successful and failed responses intercepted
+1. Integration of custom "interceptor"
+    - Object model for request and response
+    - Ability to provide python function/object to alter response
+    - Both successful and failed responses intercepted
 
 ## Milestone 5 - WIP
 
@@ -42,20 +42,26 @@
 1. Dataset support
 1. Automatic CORS
 1. Ability to refer to external files containing request _and_ response bodies
+    - make it secure by disallowing files outside mock config hierarchy
+1. Clear status in log on which service addresses are listened to
 
 ## Milestone N
 
 1. base64-encoded body strings, for binary responses
 1. SSL support
+1. Ability to match request body by regexp
+1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
+   Accept etc)
+1. Import from OpenAPI and Postman collections
+1. template helpers: random numbers, strings, dates, names, addresses etc
+1. jsonSchema extraction from body
+1. referencing multipart/urlencoded fields in matchers and templates
 
 ## Milestone N
 
 1. Configuration-by-request
     - Ability to control a lot of response via request headers - for quick experimentation and code-level configuration
-      in any language
-
-## Milestone N
-
+      in any language / maybe it falls into management API area
 1. Management API
     - Ability to catch unhandled requests and turn those into configuration templates
     - Ability to get stats on mock items covered
@@ -67,25 +73,11 @@
 
 ## Milestone N
 
-- template helpers: random numbers, strings, dates, names, addresses etc
-- jsonSchema extraction from body
-- referencing multipart/urlencoded fields in matchers and templates
-
-
 ## Milestone N
 
 1. Performance Profiles
     - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
       ratio” of fuzziness
-
-## Milestone N
-
-3. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
-   Accept etc)
-
-## Milestone N
-
-1. Import from OpenAPI and Postman collections
 
 # Backlog
 

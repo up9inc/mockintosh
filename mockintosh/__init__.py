@@ -32,6 +32,7 @@ class Definition():
     def __init__(self, source, schema, is_file=True):
         self.source = source
         self.source_text = None if is_file else source
+        self.source_dir = path.dirname(path.abspath(source)) if source is not None and is_file else None
         self.data = None
         self.schema = schema
         if self.source is None:
@@ -122,14 +123,6 @@ def import_interceptors(interceptors):
 
 def run(source, is_file=True, debug=False, interceptors=()):
     schema = get_schema()
-
-    if 'unittest' in sys.modules.keys():
-        sys.stdin = sys.__stdin__
-    if source is None and sys.stdin is not None and not sys.stdin.isatty():
-        stdin_text = sys.stdin.read()
-        if stdin_text:
-            source = stdin_text
-            is_file = False
 
     try:
         definition = Definition(source, schema, is_file=is_file)

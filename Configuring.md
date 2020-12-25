@@ -309,6 +309,8 @@ response:
   body: '@some/path/my_template.json.hbs'
 ```
 
+The template file path is a relative path to the parent directory of the config file.
+
 ## Request Object
 
 The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:

@@ -9,7 +9,8 @@ import mockintosh
 
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
-SRV3 = os.environ.get('SRV2', 'http://localhost:8003')
+SRV3 = os.environ.get('SRV3', 'http://localhost:8003')
+SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -134,3 +135,36 @@ class IntegrationTests(unittest.TestCase):
 
         with open("tests_integrated/server.log") as fp:
             self.assertTrue(any('Processed intercepted request' in line for line in fp))
+
+    def test_files_locating(self):
+        resp = requests.get(SRV4 + '/cors2')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("<title>CORS Example</title>", resp.text)
+
+        resp = requests.get(SRV1 + '/insecure-configuration1')
+        self.assertEqual(403, resp.status_code)
+
+        resp = requests.get(SRV1 + '/insecure-configuration2')
+        self.assertEqual(403, resp.status_code)
+
+    def test_cors(self):
+        self.skipTest("Skipped for separate PR")
+        hdr = {
+            "origin": "http://someorigin",
+            "Access-Control-Request-Headers": "authorization, x-api-key"
+        }
+        resp = requests.options(SRV1 + '/cors-request', headers=hdr)
+        self.assertEqual(204, resp.status_code)
+        self.assertEqual(hdr['origin'], resp.headers.get("access-control-allow-origin"))
+        self.assertEqual(hdr['Access-Control-Request-Headers'], resp.headers.get("Access-Control-Allow-Headers"))
+        self.assertEqual("DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+                         resp.headers.get("access-control-allow-methods"))
+
+        resp = requests.post(SRV1 + '/cors-request', json={}, headers=hdr)
+        self.assertEqual(201, resp.status_code)
+
+        resp = requests.options(SRV1 + '/cors-request-overridden', headers=hdr)
+        self.assertEqual(401, resp.status_code)
+
+        resp = requests.options(SRV1 + '/nonexistent', headers=hdr)
+        self.assertEqual(404, resp.status_code)

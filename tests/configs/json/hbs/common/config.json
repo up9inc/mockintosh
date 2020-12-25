@@ -11,7 +11,7 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
-            "body": "@tests/configs/json/hbs/common/templates/users.json.hbs"
+            "body": "@templates/users.json.hbs"
           }
         },
         {
@@ -19,7 +19,7 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
-            "body": "@tests/configs/json/hbs/common/templates/user.json.hbs"
+            "body": "@templates/user.json.hbs"
           }
         }
       ]
@@ -34,7 +34,7 @@
           "method": "POST",
           "response": {
             "useTemplating": true,
-            "body": "@tests/configs/json/hbs/common/templates/companies.json.hbs"
+            "body": "@templates/companies.json.hbs"
           }
         }
       ]

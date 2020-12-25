@@ -94,6 +94,31 @@
           "response": {
             "status": "{{request.queryString.rc}}"
           }
+        },
+        {
+          "path": "/insecure-configuration1",
+          "response": "@/etc/hosts"
+        },
+        {
+          "path": "/insecure-configuration2",
+          "response": "@../../etc/hosts"
+        },
+        {
+          "path": "/cors-request",
+          "method": "post",
+          "body": {
+            "schema": "@subdir/empty_schema.json"
+          },
+          "response": {
+            "status": 201
+          }
+        },
+        {
+          "path": "/cors-request-overridden",
+          "method": "options",
+          "response": {
+            "status": 401
+          }
         }
       ]
     },
@@ -113,6 +138,16 @@
     {
       "comment": "Service with no endpoints, for bare interceptors",
       "port": 8003
+    },
+    {
+      "comment": "Service for CORS",
+      "port": 8004,
+      "endpoints": [
+        {
+          "path": "/cors2",
+          "response": "@cors.html"
+        }
+      ]
     }
   ]
 }

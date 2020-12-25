@@ -105,6 +105,7 @@ class HttpServer():
                     endpoint['path'],
                     GenericHandler,
                     dict(
+                        config_dir=self.definition.source_dir,
                         method=endpoint['method'],
                         alternatives=endpoint['alternatives'],
                         _globals=_globals,
