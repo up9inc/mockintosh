@@ -367,3 +367,13 @@ The `POST` parameters sent in a `application/x-www-form-urlencoded` request e.g.
 #### `request.files.<key>`
 
 The fields in a `multipart/form-data` request.
+
+## Cross-origin Resource Sharing (CORS)
+
+`OPTIONS` method has a special behavior in the mock server. Unless there is an endpoint with `method: options`
+specified and matched according to the request matching rules, any endpoint (no matter what HTTP method it is) also
+accepts `OPTIONS` requests if the `Origin` header is supplied. The mock server will respond such requests with `204`.
+
+For any request that has `Origin` header provided, the mock server will set `Origin` and `Access-Control-Allow-Headers`
+headers in the response according to the `Origin` and `Access-Control-Request-Headers` in the request headers.
+It will also set `Access-Control-Allow-Methods` header to `DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT`.
