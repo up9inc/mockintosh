@@ -37,19 +37,22 @@ endpoints: # List of the endpoints in your microservice
 
 A response example that leverages Jinja2 templating and Faker is shown below:
 
-```yaml
-response: # Response of the endpoint
-  users: # A list of mocked user data
-  { % for n in range(5) % } # 0-5 random length of users will be mocked
-  - id: { { range(10000, 100000) | random } } # Random integer
-    firstName: '{{ fake.first_name() }}' # Fake first name
-    lastName: '{{ fake.last_name() }}' # Fake last name
-    friends: # List of user's friends
-    { % for n in range(range(5) | random) % } # 0-5 random length of user ids will be mocked
-    - id: '{{ uuid() }}' # Random UUID
-    { % endfor % }
-  { % endfor % }
-  total: 10 # Total number of users
+```json
+{
+  "users": [{% for n in range(request.queryString.total) %}
+    {
+      "id": {{ randomInteger(10000, 100000) }},
+      "firstName": "{{ fake.first_name() }}",
+      "lastName": "{{ fake.last_name() }}",
+      "friends": [{% for n in range(range(5) | random) %}
+        {
+          "id": "{{ uuid() }}"
+        }{% if not loop.last %},{% endif %}
+      {% endfor %}]
+    }{% if not loop.last %},{% endif %}
+  {% endfor %}],
+  "total": {{ request.queryString.total }}
+}
 ```
 
 ## Request Matching Logic

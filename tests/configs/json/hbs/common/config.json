@@ -10,6 +10,9 @@
           "path": "/users",
           "method": "GET",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "useTemplating": true,
             "body": "@templates/users.json.hbs"
           }
@@ -18,6 +21,9 @@
           "path": "/users/{{ id }}",
           "method": "GET",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "useTemplating": true,
             "body": "@templates/user.json.hbs"
           }
@@ -33,6 +39,9 @@
           "path": "/companies",
           "method": "POST",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "useTemplating": true,
             "body": "@templates/companies.json.hbs"
           }
