@@ -441,7 +441,7 @@ class TestCore():
         assert 405 == resp.status_code
 
         resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
-        assert 405 == resp.status_code
+        assert 404 == resp.status_code
 
     def test_no_response_body_204(self):
         config = 'configs/json/hbs/core/no_response_body_204.json'

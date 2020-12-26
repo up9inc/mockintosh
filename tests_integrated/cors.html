@@ -10,11 +10,11 @@
 </body>
 <script>
     $.ajax({
-        url: "http://localhost:8001/",
+        url: "http://localhost:8001/cors-request",
         type: "POST",
         crossDomain: true,
         data: JSON.stringify({}),
-        dataType: "json",
+        //dataType: "json",
         "headers": {
             "X-PINGOTHER": "pingpong" // https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
         },
@@ -22,7 +22,7 @@
             $("body").append("Case 1 worked. ")
         },
         error: function (xhr, status) {
-            alert("error");
+            alert("error " + status);
         }
     });
 </script>

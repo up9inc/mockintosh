@@ -44,6 +44,9 @@
 1. Ability to refer to external files containing request _and_ response bodies
     - make it secure by disallowing files outside mock config hierarchy
 1. Clear status in log on which service addresses are listened to
+   - right before `Mock server is ready!` have series of log lines
+   - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
+1. have own server signature like `Mockintosh/<version>`
 
 ## Milestone N
 

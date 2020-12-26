@@ -29,6 +29,10 @@ from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 
+OPTIONS = 'options'
+ORIGIN = 'Origin'
+AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
+
 
 class GenericHandler(tornado.web.RequestHandler):
 
@@ -39,6 +43,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_method = method.lower()
         self.definition_engine = definition_engine
         self.interceptors = interceptors
+        self.is_options = False
 
         self.special_request = self.build_special_request()
         self.default_context = {
@@ -47,6 +52,9 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context = {}
 
     def super_verb(self, *args):
+        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
+            self.dynamic_unimplemented_method_guard()
+
         try:
             _id, response, params, context = self.match_alternative()
         except TypeError:
@@ -60,7 +68,6 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_status_code()
         self.determine_headers()
         self.log_request()
-        self.dynamic_unimplemented_method_guard()
         self.rendered_body = self.render_template()
         if self.rendered_body is None:
             return
@@ -87,6 +94,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.super_verb(*args)
 
     def options(self, *args):
+        self.is_options = True
         self.super_verb(*args)
 
     def populate_context(self, *args):
@@ -137,7 +145,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return ''
 
         if len(source_text) > 1 and source_text[0] == '@':
-            template_path = self.resolve_template_path(source_text)
+            template_path = self.resolve_relative_path(source_text)
             if template_path is None:
                 return None
             with open(template_path, 'r') as file:
@@ -376,20 +384,33 @@ class GenericHandler(tornado.web.RequestHandler):
             if 'body' in alternative:
                 if 'schema' in alternative['body']:
                     json_schema = alternative['body']['schema']
+                    if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+                        json_schema_path = self.resolve_relative_path(json_schema)
+                        with open(json_schema_path, 'r') as file:
+                            logging.info('Reading JSON schema file from path: %s' % json_schema_path)
+                            json_schema = json.load(file)
+                            logging.debug('JSON schema: %s' % json_schema)
                     body = self.request.body.decode('utf-8')
                     json_data = None
 
-                    try:
-                        json_data = json.loads(body)
-                    except json.decoder.JSONDecodeError:
-                        self.set_status(404)
-                        self.finish()
+                    if body and json_schema:
+                        try:
+                            json_data = json.loads(body)
+                        except json.decoder.JSONDecodeError:
+                            fail = True
+                            break
 
-                    try:
-                        jsonschema.validate(instance=json_data, schema=json_schema)
-                    except jsonschema.exceptions.ValidationError:
-                        self.set_status(404)
-                        self.finish()
+                    if json_schema:
+                        try:
+                            jsonschema.validate(instance=json_data, schema=json_schema)
+                        except jsonschema.exceptions.ValidationError:
+                            fail = True
+                            break
+
+            if self.is_options and self.custom_method not in (OPTIONS):
+                self.respond_cors()
+            else:
+                self.set_cors_headers()
 
             _id = alternative['id']
             response = alternative['response']
@@ -405,7 +426,7 @@ class GenericHandler(tornado.web.RequestHandler):
             interceptor(self.special_request, self.special_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
-        if not self._status_code == 500:
+        if self._status_code not in (204, 500):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
             self.trigger_interceptors()
@@ -424,28 +445,48 @@ class GenericHandler(tornado.web.RequestHandler):
         except UnicodeDecodeError:
             return string.decode('latin-1')
 
-    def resolve_template_path(self, source_text):
-        template_path = None
-        orig_template_path = source_text[1:]
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_template_path
-        if orig_template_path[0] == '/':
-            orig_template_path = orig_template_path[1:]
-        template_path = os.path.join(self.config_dir, orig_template_path)
-        if not os.path.isfile(template_path):
+    def resolve_relative_path(self, source_text):
+        relative_path = None
+        orig_relative_path = source_text[1:]
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        relative_path = os.path.join(self.config_dir, orig_relative_path)
+        if not os.path.isfile(relative_path):
             self.send_error(403, message=error_msg)
             return None
-        template_path = os.path.abspath(template_path)
-        if not template_path.startswith(self.config_dir):
+        relative_path = os.path.abspath(relative_path)
+        if not relative_path.startswith(self.config_dir):
             self.send_error(403, message=error_msg)
             return None
 
-        return template_path
+        return relative_path
 
-    def write_error(self, status_code: int, message=None) -> None:
-        if message:
-            self.finish(message)
+    def write_error(self, status_code: int, **kwargs) -> None:
+        if 'message' in kwargs and kwargs['message']:
+            self.finish(kwargs['message'])
         else:
             self.finish()
+
+    def respond_cors(self):
+        if ORIGIN not in self.request.headers._dict:
+            # Invalid CORS preflight request
+            self.set_status(404)
+            self.finish()
+
+        self.set_cors_headers()
+        self.set_status(204)
+        self.finish()
+
+    def set_cors_headers(self):
+        if ORIGIN in self.request.headers._dict:
+            self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
+            origin = self.request.headers.get(ORIGIN)
+            self.set_header('access-control-allow-origin', origin)
+
+            if AC_REQUEST_HEADERS in self.request.headers._dict:
+                ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
+                self.set_header('access-control-allow-headers', ac_request_headers)
 
 
 class Request():

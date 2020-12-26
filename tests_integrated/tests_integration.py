@@ -148,7 +148,6 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(403, resp.status_code)
 
     def test_cors(self):
-        self.skipTest("Skipped for separate PR")
         hdr = {
             "origin": "http://someorigin",
             "Access-Control-Request-Headers": "authorization, x-api-key"
@@ -161,6 +160,10 @@ class IntegrationTests(unittest.TestCase):
                          resp.headers.get("access-control-allow-methods"))
 
         resp = requests.post(SRV1 + '/cors-request', json={}, headers=hdr)
+        self.assertEqual(hdr['origin'], resp.headers.get("access-control-allow-origin"))
+        self.assertEqual(hdr['Access-Control-Request-Headers'], resp.headers.get("Access-Control-Allow-Headers"))
+        self.assertEqual("DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+                         resp.headers.get("access-control-allow-methods"))
         self.assertEqual(201, resp.status_code)
 
         resp = requests.options(SRV1 + '/cors-request-overridden', headers=hdr)
@@ -168,3 +171,6 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.options(SRV1 + '/nonexistent', headers=hdr)
         self.assertEqual(404, resp.status_code)
+
+        resp = requests.options(SRV1 + '/cors-request')
+        self.assertEqual(404, resp.status_code)  # maybe it should be 400
