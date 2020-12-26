@@ -141,6 +141,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertIn("<title>CORS Example</title>", resp.text)
 
+        resp = requests.get(SRV1 + '/parameterized3/cors.html')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("<title>CORS Example</title>", resp.text)
+
         resp = requests.get(SRV1 + '/insecure-configuration1')
         self.assertEqual(403, resp.status_code)
 

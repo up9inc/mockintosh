@@ -28,6 +28,10 @@
           "response": "regex capture: {{request.path}}"
         },
         {
+          "path": "/parameterized3/{{regEx '(.+\\.html)' 'fname'}}",
+          "response": "@{{fname}}"
+        },
+        {
           "path": "/parameterized1/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2",
           "response": "tricky regex capture: {{varname}}"
         },
