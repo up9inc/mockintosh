@@ -76,7 +76,10 @@ class GenericHandler(tornado.web.RequestHandler):
             return
         self.special_response = self.build_special_response()
         if self.should_write():
-            self.write(self.rendered_body)
+            try:
+                self.write(self.rendered_body)
+            except TypeError:
+                self.write(json.dumps(self.rendered_body))
 
     def get(self, *args):
         self.super_verb(*args)
@@ -253,7 +256,10 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.rendered_body is None:
             self.rendered_body = ''
         if self.should_write():
-            self.write(self.rendered_body)
+            try:
+                self.write(self.rendered_body)
+            except TypeError:
+                self.write(json.dumps(self.rendered_body))
 
     def determine_status_code(self):
         status_code = None
