@@ -12,7 +12,6 @@ import json
 import logging
 import inspect
 import urllib
-import platform
 from typing import (
     Union,
     Optional
@@ -493,10 +492,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 self.set_header('access-control-allow-headers', ac_request_headers)
 
     def set_default_headers(self):
-        self.set_header('Server', '%s/%s (%s)' % (
+        self.set_header('Server', '%s/%s' % (
             PROGRAM.capitalize(),
-            mockintosh.__version__,
-            platform.system()
+            mockintosh.__version__
         ))
 
 
