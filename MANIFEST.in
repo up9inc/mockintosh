@@ -1,5 +1,8 @@
 # Include the license file
 include LICENSE
 
+# Include the requirements.txt
+include requirements.txt
+
 # Include the JSON schema
 include mockintosh/schema.json
