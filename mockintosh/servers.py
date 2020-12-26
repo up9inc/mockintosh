@@ -45,6 +45,11 @@ class HttpServer():
                 if 'hostname' not in service:
                     app.listen(service['port'])
                     logging.info('Will listen port number: %d' % service['port'])
+                    self.services_log.append('Serving at http://%s:%s%s' % (
+                        'localhost',
+                        service['port'],
+                        ' the mock for %s' % service['comment'] if 'comment' in service else ''
+                    ))
                 else:
                     rules.append(
                         Rule(HostMatches(service['hostname']), app)
@@ -55,12 +60,13 @@ class HttpServer():
                         service['hostname'],
                         service['port']
                     ))
-                    self.services_log.append('Serving at http://%s:%s the mock for %s' % (
+                    self.services_log.append('Serving at http://%s:%s%s' % (
                         service['hostname'],
                         service['port'],
-                        service['comment']
+                        ' the mock for %s' % service['comment'] if 'comment' in service else ''
                     ))
-                logging.info('Finished registering: %s' % service['comment'])
+                if 'comment' in service:
+                    logging.info('Finished registering: %s' % service['comment'])
 
             if rules:
                 router = RuleRouter(rules)
