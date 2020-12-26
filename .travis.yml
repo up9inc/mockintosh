@@ -7,6 +7,7 @@ services:
   - docker
 install:
   - ls -al
+  - python setup.py sdist
   - pip3 install flake8
   - travis_fold start "Install.Pip.Package" && pip3 install -e .[dev] && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && docker build . -t mockintosh && docker image ls mockintosh && travis_fold end "Build.Image"
