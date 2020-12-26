@@ -378,42 +378,42 @@ class TestCore():
         config = 'configs/json/hbs/core/http_verbs.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/get')
+        resp = requests.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'GET request'
 
-        resp = requests.get(SRV_8001 + '/get-lower')
+        resp = requests.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'GET request'
 
-        resp = requests.post(SRV_8001 + '/post')
+        resp = requests.post(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'POST request'
 
-        resp = requests.head(SRV_8001 + '/head')
+        resp = requests.head(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == ''
 
-        resp = requests.delete(SRV_8001 + '/delete')
+        resp = requests.delete(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'DELETE request'
 
-        resp = requests.patch(SRV_8001 + '/patch')
+        resp = requests.patch(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'PATCH request'
 
-        resp = requests.put(SRV_8001 + '/put')
+        resp = requests.put(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'PUT request'
 
-        resp = requests.options(SRV_8001 + '/options')
+        resp = requests.options(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'OPTIONS request'

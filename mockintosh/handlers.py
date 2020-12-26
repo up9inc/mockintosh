@@ -10,7 +10,6 @@ import re
 import os
 import json
 import logging
-import inspect
 import urllib
 from typing import (
     Union,
@@ -33,15 +32,16 @@ from mockintosh.methods import _safe_path_split, _detect_engine
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
+NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
 
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, method, alternatives, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, methods, _globals, definition_engine, interceptors):
         self.config_dir = config_dir
-        self.alternatives = alternatives
+        self.methods = {k.lower(): v for k, v in methods.items()}
+        self.alternatives = None
         self.globals = _globals
-        self.custom_method = method.lower()
         self.definition_engine = definition_engine
         self.interceptors = interceptors
         self.is_options = False
@@ -116,7 +116,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_query_string()
 
     def dynamic_unimplemented_method_guard(self):
-        if self.custom_method != inspect.stack()[2][3]:
+        if self.request.method.lower() not in self.methods:
             self._unimplemented_method()
 
     def log_request(self):
@@ -344,6 +344,13 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.set_header(key, value)
 
     def match_alternative(self):
+        if self.should_cors():
+            self.respond_cors()
+            return
+
+        if not self.__class__.__name__ == 'ErrorHandler':
+            self.alternatives = self.methods[self.request.method.lower()]
+
         response = None
         params = None
         context = None
@@ -416,7 +423,7 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             break
 
-            if self.is_options and self.custom_method not in (OPTIONS):
+            if self.should_cors():
                 self.respond_cors()
             else:
                 self.set_cors_headers()
@@ -502,6 +509,11 @@ class GenericHandler(tornado.web.RequestHandler):
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
+
+    def should_cors(self):
+        return not self.__class__.__name__ == 'ErrorHandler' and (
+            self.is_options and self.request.method.lower() not in self.methods.keys()
+        )
 
 
 class Request():

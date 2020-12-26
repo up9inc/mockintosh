@@ -6,42 +6,42 @@
       "port": 8001,
       "endpoints": [
         {
-          "path": "/get",
+          "path": "/hello",
           "method": "GET",
           "response": "GET request"
         },
         {
-          "path": "/get-lower",
+          "path": "/hello-lower",
           "method": "get",
           "response": "GET request"
         },
         {
-          "path": "/post",
+          "path": "/hello",
           "method": "POST",
           "response": "POST request"
         },
         {
-          "path": "/head",
+          "path": "/hello",
           "method": "HEAD",
           "response": "HEAD request"
         },
         {
-          "path": "/delete",
+          "path": "/hello",
           "method": "DELETE",
           "response": "DELETE request"
         },
         {
-          "path": "/patch",
+          "path": "/hello",
           "method": "PATCH",
           "response": "PATCH request"
         },
         {
-          "path": "/put",
+          "path": "/hello",
           "method": "PUT",
           "response": "PUT request"
         },
         {
-          "path": "/options",
+          "path": "/hello",
           "method": "OPTIONS",
           "response": "OPTIONS request"
         },
