@@ -7,5 +7,7 @@ services:
   - path: "/"
     method: GET
     response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
       templatingEngine: "Jinja2"
-      body: "@templates/hello.yaml.j2"
+      body: "@templates/hello.json.j2"

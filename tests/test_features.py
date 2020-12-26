@@ -294,16 +294,7 @@ class TestCore():
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
 
         assert 200 == resp.status_code
-        if 'json' in config and 'hbs' in config:
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        else:
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-
-            data = resp.json()
-            if 'j2' in config:
-                assert data['hello'] == "{{ fake.first_name() }}"
-            else:
-                assert data['hello'] == "{{ fake \"first_name\" }}"
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
     def test_multiple_services_on_same_port(self):
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'

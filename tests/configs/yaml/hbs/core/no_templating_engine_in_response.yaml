@@ -7,5 +7,7 @@ services:
   - path: "/"
     method: GET
     response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
       useTemplating: true
-      body: "@templates/hello.yaml.hbs"
+      body: "@templates/hello.json.hbs"

@@ -16,7 +16,6 @@ from typing import (
     Optional
 )
 
-import yaml
 import tornado.web
 import jsonschema
 from tornado.web import HTTPError
@@ -76,10 +75,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return
         self.special_response = self.build_special_response()
         if self.should_write():
-            try:
-                self.write(self.rendered_body)
-            except TypeError:
-                self.write(json.dumps(self.rendered_body))
+            self.write(self.rendered_body)
 
     def get(self, *args):
         self.super_verb(*args)
@@ -134,7 +130,6 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def render_template(self):
         source_text = None
-        response = None
 
         is_response_str = isinstance(self.custom_response, str)
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
@@ -186,16 +181,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         logging.debug('Render output: %s' % compiled)
 
-        if is_response_str:
-            return compiled
-        else:
-            try:
-                response = yaml.safe_load(compiled)
-                logging.info('Template is a valid YAML.')
-            except (yaml.scanner.ScannerError, yaml.parser.ParserError):
-                return compiled
-
-        return response
+        return compiled
 
     def build_special_request(self):
         request = Request()
@@ -256,10 +242,7 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.rendered_body is None:
             self.rendered_body = ''
         if self.should_write():
-            try:
-                self.write(self.rendered_body)
-            except TypeError:
-                self.write(json.dumps(self.rendered_body))
+            self.write(self.rendered_body)
 
     def determine_status_code(self):
         status_code = None
