@@ -6,6 +6,8 @@ branches:
 services:
   - docker
 install:
+  - python --version
+  - pip --version
   - ls -al
   - python setup.py sdist
   - pip3 install flake8
