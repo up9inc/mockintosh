@@ -38,15 +38,18 @@
 
 ## Milestone 5 - WIP
 
-1. Multi-response functionality
-1. Dataset support
 1. Automatic CORS
 1. Ability to refer to external files containing request _and_ response bodies
-    - make it secure by disallowing files outside mock config hierarchy
+   - make it secure by disallowing files outside mock config hierarchy
+
 1. Clear status in log on which service addresses are listened to
    - right before `Mock server is ready!` have series of log lines
    - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
 1. have own server signature like `Mockintosh/<version>`
+
+1. Multi-response functionality
+1. Dataset support
+1. fix pip install
 
 ## Milestone N
 

@@ -24,6 +24,7 @@ class HttpServer():
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
         self.interceptors = interceptors
+        self.services_log = []
         self.load()
 
     def load(self):
@@ -44,6 +45,11 @@ class HttpServer():
                 if 'hostname' not in service:
                     app.listen(service['port'])
                     logging.info('Will listen port number: %d' % service['port'])
+                    self.services_log.append('Serving at http://%s:%s%s' % (
+                        'localhost',
+                        service['port'],
+                        ' the mock for %s' % service['comment'] if 'comment' in service else ''
+                    ))
                 else:
                     rules.append(
                         Rule(HostMatches(service['hostname']), app)
@@ -54,7 +60,13 @@ class HttpServer():
                         service['hostname'],
                         service['port']
                     ))
-                logging.info('Finished registering: %s' % service['comment'])
+                    self.services_log.append('Serving at http://%s:%s%s' % (
+                        service['hostname'],
+                        service['port'],
+                        ' the mock for %s' % service['comment'] if 'comment' in service else ''
+                    ))
+                if 'comment' in service:
+                    logging.info('Finished registering: %s' % service['comment'])
 
             if rules:
                 router = RuleRouter(rules)
@@ -91,6 +103,9 @@ class HttpServer():
             import signal
             parent_pid = os.getppid()
             os.kill(parent_pid, signal.SIGALRM)
+
+        for service_log in list(set(self.services_log)):
+            logging.info(service_log)
 
         logging.info('Mock server is ready!')
         tornado.ioloop.IOLoop.current().start()
