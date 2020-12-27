@@ -1,0 +1,31 @@
+{
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/image",
+          "method": "GET",
+          "response": {
+            "body": "@image.png",
+            "headers": {
+              "Content-Type": "image/png"
+            }
+          }
+        },
+        {
+          "path": "/hello",
+          "method": "GET",
+          "response": {
+            "body": "@templates/hello.json.hbs",
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

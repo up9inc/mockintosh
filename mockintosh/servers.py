@@ -79,7 +79,7 @@ class HttpServer():
         for endpoint in endpoints:
             if 'method' not in endpoint:
                 endpoint['method'] = 'GET'
-            identifier = '%s %s' % (endpoint['method'], endpoint['path'])
+            identifier = endpoint['path']
             extracted_parts = {}
             for key in endpoint:
                 if key in ('method', 'path', 'priority'):
@@ -87,14 +87,15 @@ class HttpServer():
                 extracted_parts[key] = endpoint[key]
                 if 'id' not in extracted_parts:
                     extracted_parts['id'] = None
-            if identifier in new_endpoints:
-                new_endpoints[identifier]['alternatives'].append(extracted_parts)
-            else:
+            if identifier not in new_endpoints:
                 new_endpoints[identifier] = {}
-                new_endpoints[identifier]['method'] = endpoint['method']
                 new_endpoints[identifier]['path'] = endpoint['path']
                 new_endpoints[identifier]['priority'] = endpoint['priority']
-                new_endpoints[identifier]['alternatives'] = [extracted_parts]
+                new_endpoints[identifier]['methods'] = {}
+            if endpoint['method'] not in new_endpoints[identifier]['methods']:
+                new_endpoints[identifier]['methods'][endpoint['method']] = [extracted_parts]
+            else:
+                new_endpoints[identifier]['methods'][endpoint['method']].append(extracted_parts)
         return new_endpoints.values()
 
     def run(self):
@@ -121,14 +122,14 @@ class HttpServer():
                     GenericHandler,
                     dict(
                         config_dir=self.definition.source_dir,
-                        method=endpoint['method'],
-                        alternatives=endpoint['alternatives'],
+                        methods=endpoint['methods'],
                         _globals=_globals,
                         definition_engine=self.definition.template_engine,
                         interceptors=self.interceptors
                     )
                 )
             )
-            logging.info('Registered endpoint: %s %s' % (endpoint['method'].upper(), endpoint['path']))
-            logging.debug('with alternatives:\n%s' % endpoint['alternatives'])
+            for method, alternatives in endpoint['methods'].items():
+                logging.info('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
+                logging.debug('with alternatives:\n%s' % alternatives)
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)

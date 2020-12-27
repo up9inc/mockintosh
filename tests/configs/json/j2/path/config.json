@@ -12,6 +12,9 @@
         {
           "path": "/parameterized1/template-file/{{intoVar}}/subval",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/1.json.j2"
           }
         },
@@ -26,6 +29,9 @@
         {
           "path": "/parameterized2/template-file/{{regEx('prefix-.*')}}/subval",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/2.json.j2"
           }
         },
@@ -36,6 +42,9 @@
         {
           "path": "/parameterized1/template-file/{{regEx('prefix2-([^/]+)', 'varname')}}/subval2",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/3.json.j2"
           }
         },
@@ -46,6 +55,9 @@
         {
           "path": "/parameterized3/template-file/{{var1}}/{{var2}}/{{var3}}",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/4.json.j2"
           }
         },
@@ -56,6 +68,9 @@
         {
           "path": "/parameterized4/template-file/{{regEx('prefix-(.*)-(.*)-(.*)-suffix', 'var1', 'var2', 'var3')}}/{{regEx('(.*)_(.*)', 'var4', 'var5')}}",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/5.json.j2"
           }
         },
@@ -66,6 +81,9 @@
         {
           "path": "/parameterized5/template-file/{{var1}}/{{regEx('prefix-(.*)-(.*)-suffix', 'var2', 'var3')}}/{{var4}}/{{regEx('prefix2-(.*)', 'var5')}}",
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/5.json.j2"
           }
         }

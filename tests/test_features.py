@@ -294,16 +294,7 @@ class TestCore():
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
 
         assert 200 == resp.status_code
-        if 'json' in config and 'hbs' in config:
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        else:
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-
-            data = resp.json()
-            if 'j2' in config:
-                assert data['hello'] == "{{ fake.first_name() }}"
-            else:
-                assert data['hello'] == "{{ fake \"first_name\" }}"
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
     def test_multiple_services_on_same_port(self):
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
@@ -378,42 +369,42 @@ class TestCore():
         config = 'configs/json/hbs/core/http_verbs.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/get')
+        resp = requests.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'GET request'
 
-        resp = requests.get(SRV_8001 + '/get-lower')
+        resp = requests.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'GET request'
 
-        resp = requests.post(SRV_8001 + '/post')
+        resp = requests.post(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'POST request'
 
-        resp = requests.head(SRV_8001 + '/head')
+        resp = requests.head(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == ''
 
-        resp = requests.delete(SRV_8001 + '/delete')
+        resp = requests.delete(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'DELETE request'
 
-        resp = requests.patch(SRV_8001 + '/patch')
+        resp = requests.patch(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'PATCH request'
 
-        resp = requests.put(SRV_8001 + '/put')
+        resp = requests.put(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'PUT request'
 
-        resp = requests.options(SRV_8001 + '/options')
+        resp = requests.options(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'OPTIONS request'
@@ -457,6 +448,23 @@ class TestCore():
         resp = requests.get(SRV_8001 + '/endpoint1')
         assert 200 == resp.status_code
         assert resp.text == ''
+
+    def test_binary_response(self):
+        config = 'configs/json/hbs/core/binary_response.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/hello')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert isinstance(data['hello'], str)
+
+        resp = requests.get(SRV_8001 + '/image')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'image/png'
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            assert resp.content == file.read()
 
 
 @pytest.mark.parametrize(('config'), [

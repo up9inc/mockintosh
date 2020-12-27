@@ -10,14 +10,12 @@ import re
 import os
 import json
 import logging
-import inspect
 import urllib
 from typing import (
     Union,
     Optional
 )
 
-import yaml
 import tornado.web
 import jsonschema
 from tornado.web import HTTPError
@@ -33,15 +31,16 @@ from mockintosh.methods import _safe_path_split, _detect_engine
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
+NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
 
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, method, alternatives, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, methods, _globals, definition_engine, interceptors):
         self.config_dir = config_dir
-        self.alternatives = alternatives
+        self.methods = {k.lower(): v for k, v in methods.items()}
+        self.alternatives = None
         self.globals = _globals
-        self.custom_method = method.lower()
         self.definition_engine = definition_engine
         self.interceptors = interceptors
         self.is_options = False
@@ -113,7 +112,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_query_string()
 
     def dynamic_unimplemented_method_guard(self):
-        if self.custom_method != inspect.stack()[2][3]:
+        if self.request.method.lower() not in self.methods:
             self._unimplemented_method()
 
     def log_request(self):
@@ -131,7 +130,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def render_template(self):
         source_text = None
-        response = None
+        is_binary = False
 
         is_response_str = isinstance(self.custom_response, str)
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
@@ -151,14 +150,19 @@ class GenericHandler(tornado.web.RequestHandler):
             template_path = self.resolve_relative_path(source_text)
             if template_path is None:
                 return None
-            with open(template_path, 'r') as file:
+            with open(template_path, 'rb') as file:
                 logging.info('Reading template file from path: %s' % template_path)
                 source_text = file.read()
-                logging.debug('Template file text: %s' % source_text)
+                try:
+                    source_text = source_text.decode('utf-8')
+                    logging.debug('Template file text: %s' % source_text)
+                except UnicodeDecodeError:
+                    is_binary = True
+                    logging.debug('Template file is binary. Templating disabled.')
             is_response_str = False
 
         compiled = None
-        if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
+        if is_binary or ('useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False):
             compiled = source_text
         else:
             if template_engine == PYBARS:
@@ -183,16 +187,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         logging.debug('Render output: %s' % compiled)
 
-        if is_response_str:
-            return compiled
-        else:
-            try:
-                response = yaml.safe_load(compiled)
-                logging.info('Template is a valid YAML.')
-            except (yaml.scanner.ScannerError, yaml.parser.ParserError):
-                return compiled
-
-        return response
+        return compiled
 
     def build_special_request(self):
         request = Request()
@@ -338,6 +333,13 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.set_header(key, value)
 
     def match_alternative(self):
+        if self.should_cors():
+            self.respond_cors()
+            return
+
+        if not self.__class__.__name__ == 'ErrorHandler':
+            self.alternatives = self.methods[self.request.method.lower()]
+
         response = None
         params = None
         context = None
@@ -410,7 +412,7 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             break
 
-            if self.is_options and self.custom_method not in (OPTIONS):
+            if self.should_cors():
                 self.respond_cors()
             else:
                 self.set_cors_headers()
@@ -496,6 +498,11 @@ class GenericHandler(tornado.web.RequestHandler):
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
+
+    def should_cors(self):
+        return not self.__class__.__name__ == 'ErrorHandler' and (
+            self.is_options and self.request.method.lower() not in self.methods.keys()
+        )
 
 
 class Request():

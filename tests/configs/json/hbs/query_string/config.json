@@ -23,6 +23,9 @@
             "param1": "my Value"
           },
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/1.json.hbs",
             "status": 200
           }
@@ -45,6 +48,9 @@
             "param1": "{{anyValIntoVar}}"
           },
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/2.json.hbs",
             "status": 200
           }
@@ -67,6 +73,9 @@
             "param1": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/3.json.hbs",
             "status": 200
           }
@@ -102,6 +111,9 @@
             "param3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
           },
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/4.json.hbs",
             "status": 201
           }
@@ -112,6 +124,9 @@
             "param4": "another query string"
           },
           "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/5.json.hbs"
           }
         }

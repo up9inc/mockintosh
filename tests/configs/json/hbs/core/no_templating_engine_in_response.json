@@ -10,6 +10,9 @@
           "method": "GET",
           "response": {
             "useTemplating": true,
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
             "body": "@templates/hello.json.hbs"
           }
         }
