@@ -188,7 +188,7 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/multi-response-looped')
         self.assertEqual(200, resp.status_code)
-        self.assertEqual("image/png", resp.headers.get("access-control-allow-methods"))
+        self.assertEqual("image/png", resp.headers.get("content-type"))
 
         resp = requests.get(SRV1 + '/multi-response-looped')
         self.assertEqual(200, resp.status_code)
