@@ -153,7 +153,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     logging.debug('Template file is binary. Templating disabled.')
 
         compiled = None
-        if is_binary or 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
+        if is_binary or not self.custom_response.get('useTemplating', True):
             compiled = source_text
         else:
             if template_engine == PYBARS:
@@ -408,9 +408,14 @@ class GenericHandler(tornado.web.RequestHandler):
                 self.respond_cors()
 
             _id = alternative['id']
-            response = alternative['response'] if isinstance(alternative['response'], dict) else {
-                'body': alternative['response']
-            }
+            if 'response' in alternative:
+                response = alternative['response'] if isinstance(alternative['response'], dict) else {
+                    'body': alternative['response']
+                }
+            else:
+                response = {
+                    'body': None
+                }
             params = alternative['params']
             context = alternative['context']
             return _id, response, params, context
@@ -477,7 +482,7 @@ class GenericHandler(tornado.web.RequestHandler):
         if ORIGIN not in self.request.headers._dict:
             # Invalid CORS preflight request
             self.set_status(404)
-            self.finish()
+            return
 
         self.set_status(204)
         self.finish()
