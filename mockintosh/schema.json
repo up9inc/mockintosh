@@ -74,40 +74,55 @@
         "response": {
           "oneOf": [
             {
-              "type": "string"
+              "$ref": "#/definitions/response_ref"
             },
             {
-              "type": "object",
-              "properties": {
-                "headers": {
-                  "$ref": "#/definitions/headers_ref"
-                },
-                "status": {
-                  "type": [
-                    "string",
-                    "integer"
-                  ]
-                },
-                "body": {
-                  "type": "string"
-                },
-                "useTemplating": {
-                  "type": "boolean"
-                },
-                "templatingEngine": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/response_ref"
+              }
             }
           ]
+        },
+        "multiResponsesLooped": {
+          "type": "boolean"
         }
       },
       "required": [
-        "path",
-        "response"
+        "path"
       ],
       "additionalProperties": false
+    },
+    "response_ref": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "headers": {
+              "$ref": "#/definitions/headers_ref"
+            },
+            "status": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "body": {
+              "type": "string"
+            },
+            "useTemplating": {
+              "type": "boolean"
+            },
+            "templatingEngine": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "headers_ref": {
       "oneOf": [
