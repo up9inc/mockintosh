@@ -50,6 +50,7 @@
 1. Multi-response functionality
 1. Dataset support
 1. fix pip install
+1. Automatic image placeholders?
 
 ## Milestone N
 

@@ -23,7 +23,7 @@ from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStrin
 from mockintosh.servers import HttpServer
 from mockintosh.handlers import Request, Response  # noqa: F401
 
-__version__ = "0.2"
+__version__ = "0.3"
 __location__ = path.abspath(path.dirname(__file__))
 
 
