@@ -133,6 +133,7 @@ class GenericHandler(tornado.web.RequestHandler):
         is_binary = False
 
         is_response_str = isinstance(self.custom_response, str)
+        is_response_dict = isinstance(self.custom_response, dict)
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
 
         if is_response_str:
@@ -140,7 +141,7 @@ class GenericHandler(tornado.web.RequestHandler):
         elif not self.custom_response:
             source_text = ''
             is_response_str = True
-        elif 'body' in self.custom_response:
+        elif is_response_dict and 'body' in self.custom_response:
             source_text = self.custom_response['body']
             is_response_str = True
         else:
@@ -162,7 +163,9 @@ class GenericHandler(tornado.web.RequestHandler):
             is_response_str = False
 
         compiled = None
-        if is_binary or ('useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False):
+        if is_binary or (is_response_dict and (
+            'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False
+        )):
             compiled = source_text
         else:
             if template_engine == PYBARS:
@@ -252,7 +255,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def determine_status_code(self):
         status_code = None
-        if 'status' in self.custom_response:
+        if isinstance(self.custom_response, dict) and 'status' in self.custom_response:
             if isinstance(self.custom_response['status'], str):
                 renderer = TemplateRenderer(
                     self.definition_engine,
@@ -441,7 +444,11 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def should_write(self):
         return not hasattr(self, 'custom_response') or (
-            'body' in self.custom_response or isinstance(self.custom_response, str)
+            (
+                isinstance(self.custom_response, dict) and 'body' in self.custom_response
+            ) or (
+                isinstance(self.custom_response, str)
+            )
         )
 
     def decoder(self, string):
