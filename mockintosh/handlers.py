@@ -119,6 +119,8 @@ class GenericHandler(tornado.web.RequestHandler):
         logging.debug('Received request:\n%s' % self.request.__dict__)
 
     def add_params(self, context):
+        if not hasattr(self, 'custom_params'):
+            return context
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
                 context[key] = _safe_path_split(self.request.path)[param.index]
@@ -151,7 +153,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if template_path is None:
                 return None
             with open(template_path, 'rb') as file:
-                logging.info('Reading template file from path: %s' % template_path)
+                logging.info('Reading external file from path: %s' % template_path)
                 source_text = file.read()
                 try:
                     source_text = source_text.decode('utf-8')
@@ -185,7 +187,8 @@ class GenericHandler(tornado.web.RequestHandler):
             )
             compiled, _ = renderer.render()
 
-        logging.debug('Render output: %s' % compiled)
+        if not is_binary:
+            logging.debug('Render output: %s' % compiled)
 
         return compiled
 
@@ -414,8 +417,6 @@ class GenericHandler(tornado.web.RequestHandler):
 
             if self.should_cors():
                 self.respond_cors()
-            else:
-                self.set_cors_headers()
 
             _id = alternative['id']
             response = alternative['response']
@@ -453,6 +454,16 @@ class GenericHandler(tornado.web.RequestHandler):
     def resolve_relative_path(self, source_text):
         relative_path = None
         orig_relative_path = source_text[1:]
+
+        renderer = TemplateRenderer(
+            self.definition_engine,
+            orig_relative_path,
+            inject_objects=self.custom_context,
+            inject_methods=[],
+            add_params_callback=self.add_params
+        )
+        orig_relative_path, _ = renderer.render()
+
         error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
@@ -479,7 +490,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.set_status(404)
             self.finish()
 
-        self.set_cors_headers()
         self.set_status(204)
         self.finish()
 
@@ -498,6 +508,7 @@ class GenericHandler(tornado.web.RequestHandler):
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
+        self.set_cors_headers()
 
     def should_cors(self):
         return not self.__class__.__name__ == 'ErrorHandler' and (
