@@ -151,7 +151,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if template_path is None:
                 return None
             with open(template_path, 'rb') as file:
-                logging.info('Reading template file from path: %s' % template_path)
+                logging.info('Reading external file from path: %s' % template_path)
                 source_text = file.read()
                 try:
                     source_text = source_text.decode('utf-8')
@@ -185,7 +185,8 @@ class GenericHandler(tornado.web.RequestHandler):
             )
             compiled, _ = renderer.render()
 
-        logging.debug('Render output: %s' % compiled)
+        if not is_binary:
+            logging.debug('Render output: %s' % compiled)
 
         return compiled
 
@@ -453,6 +454,16 @@ class GenericHandler(tornado.web.RequestHandler):
     def resolve_relative_path(self, source_text):
         relative_path = None
         orig_relative_path = source_text[1:]
+
+        renderer = TemplateRenderer(
+            self.definition_engine,
+            orig_relative_path,
+            inject_objects=self.custom_context,
+            inject_methods=[],
+            add_params_callback=self.add_params
+        )
+        orig_relative_path, _ = renderer.render()
+
         error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
