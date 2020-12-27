@@ -46,10 +46,10 @@
    - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
 1. have own server signature like `Mockintosh/<version>`
 1. fix pip install
-
 1. Multi-response functionality
-1. Dataset support
 1. Automatic image placeholders?
+
+1. Dataset support
 
 ## Milestone N
 
