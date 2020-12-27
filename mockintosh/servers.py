@@ -8,6 +8,7 @@
 
 import sys
 import logging
+from collections import OrderedDict
 
 import tornado.ioloop
 import tornado.web
@@ -28,7 +29,7 @@ class HttpServer():
         self.load()
 
     def load(self):
-        port_mapping = {}
+        port_mapping = OrderedDict()
         for service in self.definition.data['services']:
             port = str(service['port'])
             if port not in port_mapping:
@@ -105,7 +106,7 @@ class HttpServer():
             parent_pid = os.getppid()
             os.kill(parent_pid, signal.SIGALRM)
 
-        for service_log in list(set(self.services_log)):
+        for service_log in self.services_log:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
