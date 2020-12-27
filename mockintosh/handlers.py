@@ -130,6 +130,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def render_template(self):
         source_text = None
+        is_binary = False
 
         is_response_str = isinstance(self.custom_response, str)
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
@@ -149,14 +150,19 @@ class GenericHandler(tornado.web.RequestHandler):
             template_path = self.resolve_relative_path(source_text)
             if template_path is None:
                 return None
-            with open(template_path, 'r') as file:
+            with open(template_path, 'rb') as file:
                 logging.info('Reading template file from path: %s' % template_path)
                 source_text = file.read()
-                logging.debug('Template file text: %s' % source_text)
+                try:
+                    source_text = source_text.decode('utf-8')
+                    logging.debug('Template file text: %s' % source_text)
+                except UnicodeDecodeError:
+                    is_binary = True
+                    logging.debug('Template file is binary. Templating disabled.')
             is_response_str = False
 
         compiled = None
-        if 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
+        if is_binary or ('useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False):
             compiled = source_text
         else:
             if template_engine == PYBARS:

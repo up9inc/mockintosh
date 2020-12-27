@@ -449,6 +449,23 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.text == ''
 
+    def test_binary_response(self):
+        config = 'configs/json/hbs/core/binary_response.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/hello')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert isinstance(data['hello'], str)
+
+        resp = requests.get(SRV_8001 + '/image')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'image/png'
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            assert resp.content == file.read()
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
