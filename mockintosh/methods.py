@@ -26,7 +26,7 @@ def _to_camel_case(snake_case):
 
 def _detect_engine(data, context='config', default=PYBARS):
     template_engine = default
-    if isinstance(data, dict) and 'templatingEngine' in data and (
+    if 'templatingEngine' in data and (
         data['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
     ):
         template_engine = JINJA
