@@ -131,22 +131,12 @@ class GenericHandler(tornado.web.RequestHandler):
         return context
 
     def render_template(self):
-        source_text = None
         is_binary = False
-
-        is_response_str = isinstance(self.custom_response, str)
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
+        source_text = self.custom_response['body'] if 'body' in self.custom_response else None
 
-        if is_response_str:
-            source_text = self.custom_response
-        elif not self.custom_response:
-            source_text = ''
-            is_response_str = True
-        elif 'body' in self.custom_response:
-            source_text = self.custom_response['body']
-            is_response_str = True
-        else:
-            return ''
+        if source_text is None:
+            return source_text
 
         if len(source_text) > 1 and source_text[0] == '@':
             template_path = self.resolve_relative_path(source_text)
@@ -161,10 +151,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 except UnicodeDecodeError:
                     is_binary = True
                     logging.debug('Template file is binary. Templating disabled.')
-            is_response_str = False
 
         compiled = None
-        if is_binary or ('useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False):
+        if is_binary or 'useTemplating' in self.custom_response and self.custom_response['useTemplating'] is False:
             compiled = source_text
         else:
             if template_engine == PYBARS:
@@ -304,7 +293,7 @@ class GenericHandler(tornado.web.RequestHandler):
             for key, value in self.globals['headers'].items():
                 self.set_header(key, value)
 
-        if not isinstance(self.custom_response, dict) or 'headers' not in self.custom_response:
+        if 'headers' not in self.custom_response:
             return
 
         for key, value in self.custom_response['headers'].items():
@@ -419,7 +408,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 self.respond_cors()
 
             _id = alternative['id']
-            response = alternative['response']
+            response = alternative['response'] if isinstance(alternative['response'], dict) else {
+                'body': alternative['response']
+            }
             params = alternative['params']
             context = alternative['context']
             return _id, response, params, context
@@ -441,9 +432,7 @@ class GenericHandler(tornado.web.RequestHandler):
         super().finish(chunk)
 
     def should_write(self):
-        return not hasattr(self, 'custom_response') or (
-            'body' in self.custom_response or isinstance(self.custom_response, str)
-        )
+        return not hasattr(self, 'custom_response') or 'body' in self.custom_response
 
     def decoder(self, string):
         try:
