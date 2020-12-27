@@ -119,6 +119,8 @@ class GenericHandler(tornado.web.RequestHandler):
         logging.debug('Received request:\n%s' % self.request.__dict__)
 
     def add_params(self, context):
+        if not hasattr(self, 'custom_params'):
+            return context
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
                 context[key] = _safe_path_split(self.request.path)[param.index]
@@ -415,8 +417,6 @@ class GenericHandler(tornado.web.RequestHandler):
 
             if self.should_cors():
                 self.respond_cors()
-            else:
-                self.set_cors_headers()
 
             _id = alternative['id']
             response = alternative['response']
@@ -490,7 +490,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.set_status(404)
             self.finish()
 
-        self.set_cors_headers()
         self.set_status(204)
         self.finish()
 
@@ -509,6 +508,7 @@ class GenericHandler(tornado.web.RequestHandler):
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
+        self.set_cors_headers()
 
     def should_cors(self):
         return not self.__class__.__name__ == 'ErrorHandler' and (
