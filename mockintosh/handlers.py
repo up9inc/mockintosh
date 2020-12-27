@@ -335,7 +335,7 @@ class GenericHandler(tornado.web.RequestHandler):
         response = None
         params = None
         context = None
-        for alternative in self.alternatives:
+        for i, alternative in enumerate(self.alternatives):
             fail = False
 
             # Headers
@@ -409,8 +409,29 @@ class GenericHandler(tornado.web.RequestHandler):
 
             _id = alternative['id']
             if 'response' in alternative:
-                response = alternative['response'] if isinstance(alternative['response'], dict) else {
-                    'body': alternative['response']
+                response = alternative['response']
+                if isinstance(alternative['response'], list):
+                    if not len(alternative['response']) > 0:
+                        response = {
+                            'body': None
+                        }
+                    else:
+                        if 'multiResponsesIndex' not in alternative:
+                            self.alternatives[i]['multiResponsesIndex'] = 0
+                        else:
+                            self.alternatives[i]['multiResponsesIndex'] += 1
+
+                        if self.alternatives[i]['multiResponsesIndex'] > len(alternative['response']) - 1:
+                            if alternative.get('multiResponsesLooped', True):
+                                self.alternatives[i]['multiResponsesIndex'] = 0
+                            else:
+                                self.set_status(410)
+                                self.finish()
+                                return
+                        response = alternative['response'][self.alternatives[i]['multiResponsesIndex']]
+
+                response = response if isinstance(response, dict) else {
+                    'body': response
                 }
             else:
                 response = {
