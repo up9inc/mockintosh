@@ -8,13 +8,17 @@ services:
   - path: "/users"
     method: GET
     response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
       useTemplating: true
-      body: "@templates/users.yaml.hbs"
+      body: "@templates/users.json.hbs"
   - path: "/users/{{ id }}"
     method: GET
     response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
       useTemplating: true
-      body: "@templates/user.yaml.hbs"
+      body: "@templates/user.json.hbs"
 - comment: Mock for Service2
   hostname: service2.example.com
   port: 8002
@@ -22,7 +26,9 @@ services:
   - path: "/companies"
     method: POST
     response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
       useTemplating: true
-      body: "@templates/companies.yaml.hbs"
+      body: "@templates/companies.json.hbs"
 - comment: Service with no endpoints, for bare interceptors
   port: 8003

@@ -7,4 +7,6 @@ services:
   - path: "/"
     method: GET
     response:
-      body: "@templates/hello.yaml.j2"
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
+      body: "@templates/hello.json.j2"
