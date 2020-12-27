@@ -123,6 +123,30 @@
           "response": {
             "status": 401
           }
+        },
+        {
+          "path": "/multi-response-looped",
+          "response": [
+            "@cors.html",
+            {
+              "headers": {
+                "content-type": "image/png"
+              },
+              "body": "@subdir/image.png"
+            },
+            "just some text"
+          ]
+        },
+        {
+          "path": "/multi-response-nonlooped",
+          "multiResponsesLooped": false,
+          "response": [
+            "resp1",
+            "resp2"
+          ]
+        },
+        {
+          "path": "/response-not-required"
         }
       ]
     },

@@ -28,6 +28,9 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/')
         self.assertEqual(200, resp.status_code)
 
+        resp = requests.get(SRV1 + '/response-not-required')
+        self.assertEqual(200, resp.status_code)
+
         # since service :8001 does not specify hostname, it should accept any
         resp = requests.get(SRV1 + '/', headers={'Host': 'someservice.domain'})
         self.assertEqual(200, resp.status_code)
@@ -177,3 +180,32 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.options(SRV1 + '/cors-request')
         self.assertEqual(404, resp.status_code)  # maybe it should be 400
+
+    def test_multiresponse(self):
+        resp = requests.options(SRV1 + '/multi-response-looped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("<title>CORS Example</title>", resp.text)
+
+        resp = requests.options(SRV1 + '/multi-response-looped')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("image/png", resp.headers.get("access-control-allow-methods"))
+
+        resp = requests.options(SRV1 + '/multi-response-looped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("just some text", resp.text)
+
+        resp = requests.options(SRV1 + '/multi-response-looped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("<title>CORS Example</title>", resp.text)
+
+    def test_multiresponse_noloop(self):
+        resp = requests.options(SRV1 + '/multi-response-nonlooped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("resp1", resp.text)
+
+        resp = requests.options(SRV1 + '/multi-response-nonlooped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("resp2", resp.text)
+
+        resp = requests.options(SRV1 + '/multi-response-nonlooped')
+        self.assertEqual(410, resp.status_code)
