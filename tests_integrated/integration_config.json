@@ -28,8 +28,8 @@
           "response": "regex capture: {{request.path}}"
         },
         {
-          "path": "/parameterized3/{{regEx '(.+\\.html)' 'fname'}}",
-          "response": "@{{fname}}"
+          "path": "/parameterized3/{{regEx '(.+\\.png)' 'fname'}}",
+          "response": "@subdir/{{fname}}"
         },
         {
           "path": "/parameterized1/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2",
