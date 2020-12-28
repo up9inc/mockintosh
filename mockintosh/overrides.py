@@ -92,8 +92,8 @@ class ErrorHandler(GenericHandler):
         self.alternatives = ()
         self.interceptors = interceptors
         self.special_request = self.build_special_request()
-        self.handle_404_image()
         self.set_status(status_code)
+        self.handle_404_image()
         self.special_response = self.build_special_response()
 
     def prepare(self) -> None:
@@ -103,6 +103,9 @@ class ErrorHandler(GenericHandler):
         pass
 
     def handle_404_image(self):
+        if self.get_status() != 404:
+            return
+
         ext = path.splitext(self.request.path)[1]
         parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
         client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
