@@ -38,6 +38,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/404-img.png')
         self.assertEqual(404, resp.status_code)
         self.assertEqual(b"\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", resp.content[:8])
+        self.assertEqual("image/png", resp.headers.get("content-type"))
 
     def test_host_header(self):
         resp = requests.get(SRV2 + '/')
