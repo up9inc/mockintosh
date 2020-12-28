@@ -25,11 +25,36 @@ from tornado.web import (
     _HandlerDelegate,
 )
 
-from accept_types import AcceptableType
+from accept_types import parse_header
 
 from mockintosh.handlers import GenericHandler
 
 __location__ = path.abspath(path.dirname(__file__))
+
+IMAGE_MIME_TYPES = [
+    'image/apng',
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/svg+xml',
+    'image/webp',
+    'image/*'
+]
+
+IMAGE_EXTENSIONS = [
+    '.apng',
+    '.avif',
+    '.gif',
+    '.jpg',
+    '.jpeg',
+    '.jfif',
+    '.pjpeg',
+    '.pjp',
+    '.png',
+    '.svg',
+    '.webp'
+]
 
 
 class Application(tornado.web.Application):
@@ -78,21 +103,12 @@ class ErrorHandler(GenericHandler):
         pass
 
     def handle_404_image(self):
-        accept_header = self.request.headers.get('Accept', 'text/html')
-        for mime in accept_header.split(','):
-            _type = AcceptableType(mime)
-            if _type.matches('text/*'):
-                break
-            elif _type.matches('application/*'):
-                break
-            elif _type.matches('image/png'):
-                with open(path.join(__location__, 'res/mock.png'), 'rb') as file:
-                    image = file.read()
-                    self.set_header('content-type', 'image/png')
-                    self.write(image)
-                    self.rendered_body = image
-            elif _type.matches('image/jpeg'):
-                with open(path.join(__location__, 'res/mock.jpg'), 'rb') as file:
-                    self.set_header('content-type', 'image/jpeg')
-                    self.write(image)
-                    self.rendered_body = image
+        ext = path.splitext(self.request.path)[1]
+        parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+        client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+        if set(client_mime_types).issubset(IMAGE_MIME_TYPES) or ext in IMAGE_EXTENSIONS:
+            with open(path.join(__location__, 'res/mock.png'), 'rb') as file:
+                image = file.read()
+                self.set_header('content-type', 'image/png')
+                self.write(image)
+                self.rendered_body = image
