@@ -13,6 +13,7 @@ from typing import (
     List,
     Type,
 )
+from os import path
 
 import tornado.web
 from tornado import httputil
@@ -24,7 +25,11 @@ from tornado.web import (
     _HandlerDelegate,
 )
 
+from accept_types import AcceptableType
+
 from mockintosh.handlers import GenericHandler
+
+__location__ = path.abspath(path.dirname(__file__))
 
 
 class Application(tornado.web.Application):
@@ -62,12 +67,32 @@ class ErrorHandler(GenericHandler):
         self.alternatives = ()
         self.interceptors = interceptors
         self.special_request = self.build_special_request()
-        self.special_response = self.build_special_response()
-        self.special_response.status = status_code
+        self.handle_404_image()
         self.set_status(status_code)
+        self.special_response = self.build_special_response()
 
     def prepare(self) -> None:
         pass
 
     def check_xsrf_cookie(self) -> None:
         pass
+
+    def handle_404_image(self):
+        accept_header = self.request.headers.get('Accept', 'text/html')
+        for mime in accept_header.split(','):
+            _type = AcceptableType(mime)
+            if _type.matches('text/*'):
+                break
+            elif _type.matches('application/*'):
+                break
+            elif _type.matches('image/png'):
+                with open(path.join(__location__, 'res/mock.png'), 'rb') as file:
+                    image = file.read()
+                    self.set_header('content-type', 'image/png')
+                    self.write(image)
+                    self.rendered_body = image
+            elif _type.matches('image/jpeg'):
+                with open(path.join(__location__, 'res/mock.jpg'), 'rb') as file:
+                    self.set_header('content-type', 'image/jpeg')
+                    self.write(image)
+                    self.rendered_body = image
