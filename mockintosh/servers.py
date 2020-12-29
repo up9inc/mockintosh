@@ -49,7 +49,7 @@ class HttpServer():
                     self.services_log.append('Serving at http://%s:%s%s' % (
                         'localhost',
                         service['port'],
-                        ' the mock for %s' % service['comment'] if 'comment' in service else ''
+                        ' the mock for %r' % service['comment'] if 'comment' in service else ''
                     ))
                 else:
                     rules.append(
@@ -64,7 +64,7 @@ class HttpServer():
                     self.services_log.append('Serving at http://%s:%s%s' % (
                         service['hostname'],
                         service['port'],
-                        ' the mock for %s' % service['comment'] if 'comment' in service else ''
+                        ' the mock for %r' % service['comment'] if 'comment' in service else ''
                     ))
                 if 'comment' in service:
                     logging.info('Finished registering: %s' % service['comment'])

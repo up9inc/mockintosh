@@ -95,7 +95,7 @@ setup(
     # have to be included in MANIFEST.in as well.
     package_data={
         # If any package contains data files, include them:
-        'mockintosh': ['schema.json']
+        'mockintosh': ['schema.json', 'res/*']
     },
 
     # Although 'package_data' is the preferred approach, in some case you may
