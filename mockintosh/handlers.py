@@ -465,7 +465,6 @@ class GenericHandler(tornado.web.RequestHandler):
             _id = alternative['id']
             params = alternative['params']
             context = alternative['context']
-            dataset = dataset
             return _id, response, params, context, dataset
 
         self.set_status(404)
