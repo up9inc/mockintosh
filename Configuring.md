@@ -37,7 +37,7 @@ endpoints: # List of the endpoints in your microservice
 
 A response example that leverages Jinja2 templating and Faker is shown below:
 
-```json
+```j2
 {
   "users": [{% for n in range(request.queryString.total) %}
     {
@@ -199,7 +199,6 @@ and these are the example requests and corresponding responses for such a mock s
 The mock server supports [JSON Schema](https://json-schema.org/) specification as matching logic. Consider this example:
 
 ```yaml
----
 services:
 - comment: Mock for Service1
   port: 8001
@@ -380,3 +379,70 @@ accepts `OPTIONS` requests if the `Origin` header is supplied. The mock server w
 For any request that has `Origin` header provided, the mock server will set `Origin` and `Access-Control-Allow-Headers`
 headers in the response according to the `Origin` and `Access-Control-Request-Headers` in the request headers.
 It will also set `Access-Control-Allow-Methods` header to `DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT`.
+
+## Looping Logic
+
+### Multiple Responses
+
+The `response` field under `endpoint` can be an array too. If this field is an array then
+this is looped for each request. For example, considering the configuration below:
+
+```yaml
+response:
+- "@index.html"
+- headers:
+    content-type: image/png
+  body: "@subdir/image.png"
+- just some text
+```
+
+1. request: `index.html` file is returned with `Content-Type: text/html` header.
+2. request: `subdir/image.png` image is returned with `Content-Type: image/png` header.
+3. request: `just some text` is returned with `Content-Type: text/html` header.
+4. request: `index.html` again and so on...
+
+The looping can be disabled with setting `multiResponsesLooped` to `false`:
+
+```yaml
+multiResponsesLooped: false
+response:
+- "@index.html"
+- headers:
+    content-type: image/png
+  body: "@subdir/image.png"
+- just some text
+```
+
+In this case, on 4th request, the endpoint returns `410` status code with an empty response body.
+
+### Dataset
+
+One can specify a `dataset` field under `endpoint` to directly inject variables into response templating.
+
+This field can be string that starts with `@` to indicate a path that points to
+an external JSON file like `@subdir/dataset.json` or an array:
+
+```yaml
+dataset:
+- var1: val1
+- var1: val2
+response: 'dataset: {{var1}}'
+```
+
+This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
+
+1. request: `dataset: val1` is returned.
+2. request: `dataset: val2` is returned.
+3. request: `dataset: val1` is returned.
+
+The looping can be disabled with setting `datasetLooped` to `false`:
+
+```yaml
+datasetLooped: false
+dataset:
+- var1: val1
+- var1: val2
+response: 'dataset: {{var1}}'
+```
+
+In this case, on 3rd request, the endpoint returns `410` status code with an empty response body.
