@@ -164,7 +164,7 @@
           "path": "/dataset-fromfile",
           "datasetLooped": false,
           "dataset": "@subdir/dataset.json",
-          "response": "dset: {{val1}}"
+          "response": "dset: {{var1}}"
         }
       ]
     },
