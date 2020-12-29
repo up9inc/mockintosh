@@ -20,8 +20,9 @@ from mockintosh.overrides import Application
 
 class HttpServer():
 
-    def __init__(self, definition, debug=False, interceptors=()):
+    def __init__(self, definition, debug=False, interceptors=(), address=''):
         self.definition = definition
+        self.address = address
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
         self.interceptors = interceptors
@@ -44,7 +45,7 @@ class HttpServer():
                     endpoints = self.merge_alternatives(service['endpoints'])
                 app = self.make_app(endpoints, self.globals, self.debug)
                 if 'hostname' not in service:
-                    app.listen(service['port'])
+                    app.listen(service['port'], address=self.address)
                     logging.info('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at http://%s:%s%s' % (
                         'localhost',
@@ -72,7 +73,7 @@ class HttpServer():
             if rules:
                 router = RuleRouter(rules)
                 server = tornado.web.HTTPServer(router)
-                server.listen(services[0]['port'])
+                server.listen(services[0]['port'], address=self.address)
                 logging.info('Will listen port number: %d' % service['port'])
 
     def merge_alternatives(self, endpoints):
