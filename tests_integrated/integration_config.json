@@ -158,7 +158,7 @@
               "var1": "val2"
             }
           ],
-          "response": "dset: {{val1}}"
+          "response": "dset: {{var1}}"
         },
         {
           "path": "/dataset-fromfile",
