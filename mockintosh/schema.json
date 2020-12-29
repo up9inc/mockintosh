@@ -13,6 +13,9 @@
         "port": {
           "type": "integer"
         },
+        "ssl": {
+          "type": "boolean"
+        },
         "endpoints": {
           "type": "array",
           "items": {

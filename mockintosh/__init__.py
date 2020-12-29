@@ -122,7 +122,8 @@ def import_interceptors(interceptors):
 
 
 def run(source, is_file=True, debug=False, interceptors=(), address=''):
-    logging.info('Bind address: %s' % address)
+    if address:
+        logging.info('Bind address: %s' % address)
     schema = get_schema()
 
     try:

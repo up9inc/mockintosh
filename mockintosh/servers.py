@@ -8,6 +8,7 @@
 
 import sys
 import logging
+from os import path
 from collections import OrderedDict
 
 import tornado.ioloop
@@ -16,6 +17,7 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.handlers import GenericHandler
 from mockintosh.overrides import Application
+from mockintosh.methods import _cert_gen
 
 
 class HttpServer():
@@ -39,6 +41,15 @@ class HttpServer():
 
         for port, services in port_mapping.items():
             rules = []
+            ssl = False
+            for service in services:
+                if ssl:
+                    break
+                ssl = service.get('ssl', False)
+
+            protocol = 'https' if ssl else 'http'
+            hostname = None
+
             for service in services:
                 endpoints = []
                 if 'endpoints' in service:
@@ -47,22 +58,25 @@ class HttpServer():
                 if 'hostname' not in service:
                     app.listen(service['port'], address=self.address)
                     logging.info('Will listen port number: %d' % service['port'])
-                    self.services_log.append('Serving at http://%s:%s%s' % (
+                    self.services_log.append('Serving at %s://%s:%s%s' % (
+                        'http',
                         'localhost',
                         service['port'],
                         ' the mock for %r' % service['comment'] if 'comment' in service else ''
                     ))
                 else:
+                    hostname = service['hostname']
                     rules.append(
                         Rule(HostMatches(service['hostname']), app)
                     )
 
                     logging.info('Registered hostname and port: %s://%s:%d' % (
-                        'http',
+                        protocol,
                         service['hostname'],
                         service['port']
                     ))
-                    self.services_log.append('Serving at http://%s:%s%s' % (
+                    self.services_log.append('Serving at %s://%s:%s%s' % (
+                        protocol,
                         service['hostname'],
                         service['port'],
                         ' the mock for %r' % service['comment'] if 'comment' in service else ''
@@ -72,7 +86,15 @@ class HttpServer():
 
             if rules:
                 router = RuleRouter(rules)
-                server = tornado.web.HTTPServer(router)
+                if ssl:
+                    cert_file, key_file = _cert_gen(hostname=hostname)
+                    ssl_options = {
+                        "certfile": path.join(cert_file),
+                        "keyfile": path.join(key_file),
+                    }
+                    server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
+                else:
+                    server = tornado.web.HTTPServer(router)
                 server.listen(services[0]['port'], address=self.address)
                 logging.info('Will listen port number: %d' % service['port'])
 

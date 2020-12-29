@@ -1,0 +1,43 @@
+{
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "ssl": true,
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/service1",
+          "method": "GET",
+          "response": "service1"
+        }
+      ]
+    },
+    {
+      "comment": "Mock for Service2",
+      "hostname": "service2.example.com",
+      "port": 8002,
+      "endpoints": [
+        {
+          "path": "/service2",
+          "method": "GET",
+          "response": "service2"
+        }
+      ]
+    },
+    {
+      "comment": "Mock for Service3",
+      "hostname": "service3.example.com",
+      "ssl": true,
+      "port": 8003,
+      "endpoints": [
+        {
+          "path": "/service3",
+          "method": "GET",
+          "response": "service3"
+        }
+      ]
+    }
+  ]
+}
