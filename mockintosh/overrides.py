@@ -13,6 +13,7 @@ from typing import (
     List,
     Type,
 )
+from os import path
 
 import tornado.web
 from tornado import httputil
@@ -24,7 +25,36 @@ from tornado.web import (
     _HandlerDelegate,
 )
 
+from accept_types import parse_header
+
 from mockintosh.handlers import GenericHandler
+
+__location__ = path.abspath(path.dirname(__file__))
+
+IMAGE_MIME_TYPES = [
+    'image/apng',
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/svg+xml',
+    'image/webp',
+    'image/*'
+]
+
+IMAGE_EXTENSIONS = [
+    '.apng',
+    '.avif',
+    '.gif',
+    '.jpg',
+    '.jpeg',
+    '.jfif',
+    '.pjpeg',
+    '.pjp',
+    '.png',
+    '.svg',
+    '.webp'
+]
 
 
 class Application(tornado.web.Application):
@@ -62,12 +92,26 @@ class ErrorHandler(GenericHandler):
         self.alternatives = ()
         self.interceptors = interceptors
         self.special_request = self.build_special_request()
-        self.special_response = self.build_special_response()
-        self.special_response.status = status_code
         self.set_status(status_code)
+        self.handle_404_image()
+        self.special_response = self.build_special_response()
 
     def prepare(self) -> None:
         pass
 
     def check_xsrf_cookie(self) -> None:
         pass
+
+    def handle_404_image(self):
+        if self.get_status() != 404:
+            return
+
+        ext = path.splitext(self.request.path)[1]
+        parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+        client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+        if set(client_mime_types).issubset(IMAGE_MIME_TYPES) or ext in IMAGE_EXTENSIONS:
+            with open(path.join(__location__, 'res/mock.png'), 'rb') as file:
+                image = file.read()
+                self.set_header('content-type', 'image/png')
+                self.write(image)
+                self.rendered_body = image
