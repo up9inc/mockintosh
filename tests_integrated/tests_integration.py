@@ -214,3 +214,28 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/multi-response-nonlooped')
         self.assertEqual(410, resp.status_code)
+
+    def test_dataset(self):
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val1", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val2", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val1", resp.text)
+
+    def test_dataset_fromfile(self):
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val3", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val4", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(410, resp.status_code)

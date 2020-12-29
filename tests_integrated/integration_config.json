@@ -147,6 +147,24 @@
         },
         {
           "path": "/response-not-required"
+        },
+        {
+          "path": "/dataset-inline",
+          "dataset": [
+            {
+              "var1": "val1"
+            },
+            {
+              "var1": "val2"
+            }
+          ],
+          "response": "dset: {{val1}}"
+        },
+        {
+          "path": "/dataset-fromfile",
+          "datasetLooped": false,
+          "dataset": "@subdir/dataset.json",
+          "response": "dset: {{val1}}"
         }
       ]
     },
