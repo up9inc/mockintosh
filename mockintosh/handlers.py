@@ -420,19 +420,7 @@ class GenericHandler(tornado.web.RequestHandler):
                             'body': None
                         }
                     else:
-                        if 'multiResponsesIndex' not in alternative:
-                            alternative['multiResponsesIndex'] = 0
-                        else:
-                            alternative['multiResponsesIndex'] += 1
-
-                        if alternative['multiResponsesIndex'] > len(alternative['response']) - 1:
-                            if alternative.get('multiResponsesLooped', True):
-                                alternative['multiResponsesIndex'] = 0
-                            else:
-                                self.set_status(410)
-                                self.finish()
-                                return
-                        response = alternative['response'][alternative['multiResponsesIndex']]
+                        response = self.loop_alternative(alternative, 'response', 'multiResponses')
 
                 response = response if isinstance(response, dict) else {
                     'body': response
@@ -447,20 +435,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if 'dataset' in alternative:
                 alternative['dataset'] = self.load_dataset(alternative['dataset'])
                 if alternative['dataset']:
-                    if 'datasetIndex' not in alternative:
-                        alternative['datasetIndex'] = 0
-                    else:
-                        alternative['datasetIndex'] += 1
-
-                    if alternative['datasetIndex'] > len(alternative['dataset']) - 1:
-                        if alternative.get('datasetLooped', True):
-                            alternative['datasetIndex'] = 0
-                        else:
-                            self.set_status(410)
-                            self.finish()
-                            return
-
-                    dataset = alternative['dataset'][alternative['datasetIndex']]
+                    dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
 
             _id = alternative['id']
             params = alternative['params']
@@ -566,6 +541,23 @@ class GenericHandler(tornado.web.RequestHandler):
                 data = json.load(file)
                 logging.debug('Dataset: %s' % data)
                 return data
+
+    def loop_alternative(self, alternative, key, subkey):
+        index_key = '%sIndex' % subkey
+        loop_key = '%sLooped' % subkey
+        if index_key not in alternative:
+            alternative[index_key] = 0
+        else:
+            alternative[index_key] += 1
+
+        if alternative[index_key] > len(alternative[key]) - 1:
+            if alternative.get(loop_key, True):
+                alternative[index_key] = 0
+            else:
+                self.set_status(410)
+                self.finish()
+                return
+        return alternative[key][alternative[index_key]]
 
 
 class Request():
