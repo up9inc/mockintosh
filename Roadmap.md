@@ -47,8 +47,9 @@
 1. have own server signature like `Mockintosh/<version>`
 1. fix pip install
 1. Multi-response functionality
-1. Automatic image placeholders?
-
+1. Automatic image placeholders
+1. allow specifying bind address via CLI option
+   
 1. Dataset support
 
 ## Milestone N
@@ -62,7 +63,7 @@
 1. template helpers: random numbers, strings, dates, names, addresses etc
 1. jsonSchema extraction from body
 1. referencing multipart/urlencoded fields in matchers and templates
-1. allow specifying bind address via CLI option
+
 
 ## Milestone N
 
