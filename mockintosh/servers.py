@@ -50,8 +50,8 @@ class HttpServer():
 
             protocol = 'https' if ssl else 'http'
             ssl_options = {
-                "certfile": path.join(__location__, 'ssl/cert.pem'),
-                "keyfile": path.join(__location__, 'ssl/key.pem'),
+                "certfile": path.join(__location__, 'ssl', 'cert.pem'),
+                "keyfile": path.join(__location__, 'ssl', 'key.pem'),
             }
 
             for service in services:

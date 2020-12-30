@@ -5,6 +5,6 @@ cert:
 		-days 3650 \
 		-nodes \
 		-x509 \
-		-subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" \
-		-keyout mockintosh/res/ssl/key.pem \
-		-out mockintosh/res/ssl/cert.pem
+		-subj "/C=US/ST=California/L=San Francisco/O=UP9.com/CN=Mockintosh" \
+		-keyout mockintosh/ssl/key.pem \
+		-out mockintosh/ssl/cert.pem
