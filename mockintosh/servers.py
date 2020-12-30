@@ -17,6 +17,7 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.handlers import GenericHandler
 from mockintosh.overrides import Application
+from mockintosh.exceptions import CertificateLoadingError
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -43,15 +44,21 @@ class HttpServer():
         for port, services in port_mapping.items():
             rules = []
             ssl = False
+            cert_file = path.join(__location__, 'ssl', 'cert.pem')
+            key_file = path.join(__location__, 'ssl', 'key.pem')
             for service in services:
-                if ssl:
-                    break
                 ssl = service.get('ssl', False)
+                if ssl:
+                    if 'sslCertFile' in service:
+                        cert_file = self.resolve_cert_path(service['sslCertFile'])
+                    if 'sslKeyFile' in service:
+                        key_file = self.resolve_cert_path(service['sslKeyFile'])
+                    break
 
             protocol = 'https' if ssl else 'http'
             ssl_options = {
-                "certfile": path.join(__location__, 'ssl', 'cert.pem'),
-                "keyfile": path.join(__location__, 'ssl', 'key.pem'),
+                "certfile": cert_file,
+                "keyfile": key_file,
             }
 
             for service in services:
@@ -159,3 +166,13 @@ class HttpServer():
                 logging.info('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
                 logging.debug('with alternatives:\n%s' % alternatives)
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
+
+    def resolve_cert_path(self, cert_path):
+        relative_path = path.join(self.definition.source_dir, cert_path)
+        if not path.isfile(relative_path):
+            raise CertificateLoadingError('File not found on path `%s`' % cert_path)
+        relative_path = path.abspath(relative_path)
+        if not relative_path.startswith(self.definition.source_dir):
+            raise CertificateLoadingError('Path `%s` is inaccessible!' % cert_path)
+
+        return relative_path
