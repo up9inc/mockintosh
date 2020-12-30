@@ -80,6 +80,19 @@
             }
           }
         },
+        "dataset": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
         "response": {
           "oneOf": [
             {
@@ -94,6 +107,9 @@
           ]
         },
         "multiResponsesLooped": {
+          "type": "boolean"
+        },
+        "datasetLooped": {
           "type": "boolean"
         }
       },
