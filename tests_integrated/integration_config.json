@@ -200,8 +200,8 @@
       "comment": "SSL with certfile",
       "port": 8005,
       "ssl": true,
-      "sslCertFile": "subdir/server.crt",
-      "sslKeyFile": "subdir/server.key",
+      "sslCertFile": "subdir/cert.pem",
+      "sslKeyFile": "subdir/key.pem",
       "endpoints": [
         {
           "path": "/"
