@@ -44,6 +44,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.definition_engine = definition_engine
         self.interceptors = interceptors
         self.is_options = False
+        self.custom_dataset = {}
 
         self.special_request = self.build_special_request()
         self.default_context = {
@@ -58,13 +59,14 @@ class GenericHandler(tornado.web.RequestHandler):
             self.dynamic_unimplemented_method_guard()
 
         try:
-            _id, response, params, context = self.match_alternative()
+            _id, response, params, context, dataset = self.match_alternative()
         except TypeError:
             return
         self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params
         self.initial_context = context
+        self.custom_dataset = dataset
 
         self.populate_context(*args)
         self.determine_status_code()
@@ -101,6 +103,8 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def populate_context(self, *args):
         self.custom_context = {}
+        for key, value in self.custom_dataset.items():
+            self.custom_context[key] = value
         if args:
             if len(args) >= len(self.initial_context):
                 for i, key in enumerate(self.initial_context):
@@ -407,7 +411,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.should_cors():
                 self.respond_cors()
 
-            _id = alternative['id']
+            # Multiple responses
             if 'response' in alternative:
                 response = alternative['response']
                 if isinstance(alternative['response'], list):
@@ -416,19 +420,7 @@ class GenericHandler(tornado.web.RequestHandler):
                             'body': None
                         }
                     else:
-                        if 'multiResponsesIndex' not in alternative:
-                            alternative['multiResponsesIndex'] = 0
-                        else:
-                            alternative['multiResponsesIndex'] += 1
-
-                        if alternative['multiResponsesIndex'] > len(alternative['response']) - 1:
-                            if alternative.get('multiResponsesLooped', True):
-                                alternative['multiResponsesIndex'] = 0
-                            else:
-                                self.set_status(410)
-                                self.finish()
-                                return
-                        response = alternative['response'][alternative['multiResponsesIndex']]
+                        response = self.loop_alternative(alternative, 'response', 'multiResponses')
 
                 response = response if isinstance(response, dict) else {
                     'body': response
@@ -437,9 +429,18 @@ class GenericHandler(tornado.web.RequestHandler):
                 response = {
                     'body': None
                 }
+
+            # Dataset
+            dataset = {}
+            if 'dataset' in alternative:
+                alternative['dataset'] = self.load_dataset(alternative['dataset'])
+                if alternative['dataset']:
+                    dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
+
+            _id = alternative['id']
             params = alternative['params']
             context = alternative['context']
-            return _id, response, params, context
+            return _id, response, params, context, dataset
 
         self.set_status(404)
         self.finish()
@@ -529,6 +530,34 @@ class GenericHandler(tornado.web.RequestHandler):
         return not self.__class__.__name__ == 'ErrorHandler' and (
             self.is_options and self.request.method.lower() not in self.methods.keys()
         )
+
+    def load_dataset(self, dataset):
+        if isinstance(dataset, list):
+            return dataset
+        else:
+            dataset_path = self.resolve_relative_path(dataset)
+            with open(dataset_path, 'r') as file:
+                logging.info('Reading dataset file from path: %s' % dataset_path)
+                data = json.load(file)
+                logging.debug('Dataset: %s' % data)
+                return data
+
+    def loop_alternative(self, alternative, key, subkey):
+        index_key = '%sIndex' % subkey
+        loop_key = '%sLooped' % subkey
+        if index_key not in alternative:
+            alternative[index_key] = 0
+        else:
+            alternative[index_key] += 1
+
+        if alternative[index_key] > len(alternative[key]) - 1:
+            if alternative.get(loop_key, True):
+                alternative[index_key] = 0
+            else:
+                self.set_status(410)
+                self.finish()
+                return
+        return alternative[key][alternative[index_key]]
 
 
 class Request():
