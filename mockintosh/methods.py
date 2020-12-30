@@ -10,12 +10,9 @@ import sys
 import io
 import re
 import logging
-import tempfile
 from contextlib import contextmanager
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
-
-from OpenSSL import crypto
 
 
 def _safe_path_split(path):
@@ -82,45 +79,3 @@ def _nostderr():
 def _import_from(module, name):
     module = __import__(module, fromlist=[name])
     return getattr(module, name)
-
-
-def _cert_gen(
-    email_address="info@example.com",
-    hostname="example.com",
-    country_name="US",
-    locality_name="Example",
-    state_or_province_name="Example",
-    organization_name="Example",
-    organization_unit_name="Example",
-    serial_number=0,
-    validity_start_in_seconds=0,
-    validity_end_in_seconds=10 * 365 * 24 * 60 * 60,
-    key_file=None,
-    cert_file=None
-):
-    key_file = tempfile.mktemp() if key_file is None else key_file
-    cert_file = tempfile.mktemp() if cert_file is None else cert_file
-
-    k = crypto.PKey()
-    k.generate_key(crypto.TYPE_RSA, 4096)
-    cert = crypto.X509()
-    cert.get_subject().C = country_name
-    cert.get_subject().ST = state_or_province_name
-    cert.get_subject().L = locality_name
-    cert.get_subject().organizationName = organization_name
-    cert.get_subject().OU = organization_unit_name
-    cert.get_subject().CN = hostname
-    cert.get_subject().emailAddress = email_address
-    cert.set_serial_number(serial_number)
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(validity_end_in_seconds)
-    cert.set_issuer(cert.get_subject())
-    cert.set_pubkey(k)
-    cert.sign(k, 'sha512')
-
-    with open(cert_file, "w") as f:
-        f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode("utf-8"))
-    with open(key_file, "w") as f:
-        f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, k).decode("utf-8"))
-
-    return cert_file, key_file

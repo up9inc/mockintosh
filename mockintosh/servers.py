@@ -17,7 +17,8 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.handlers import GenericHandler
 from mockintosh.overrides import Application
-from mockintosh.methods import _cert_gen
+
+__location__ = path.abspath(path.dirname(__file__))
 
 
 class HttpServer():
@@ -48,7 +49,6 @@ class HttpServer():
                 ssl = service.get('ssl', False)
 
             protocol = 'https' if ssl else 'http'
-            hostname = None
 
             for service in services:
                 endpoints = []
@@ -65,7 +65,6 @@ class HttpServer():
                         ' the mock for %r' % service['comment'] if 'comment' in service else ''
                     ))
                 else:
-                    hostname = service['hostname']
                     rules.append(
                         Rule(HostMatches(service['hostname']), app)
                     )
@@ -87,10 +86,9 @@ class HttpServer():
             if rules:
                 router = RuleRouter(rules)
                 if ssl:
-                    cert_file, key_file = _cert_gen(hostname=hostname)
                     ssl_options = {
-                        "certfile": path.join(cert_file),
-                        "keyfile": path.join(key_file),
+                        "certfile": path.join(__location__, 'ssl/cert.pem'),
+                        "keyfile": path.join(__location__, 'ssl/key.pem'),
                     }
                     server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
                 else:

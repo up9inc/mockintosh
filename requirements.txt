@@ -5,4 +5,3 @@ PyYAML==5.3.1
 jsonschema==3.2.0
 pybars3==0.9.7
 accept-types==0.4.1
-pyOpenSSL==19.1.0

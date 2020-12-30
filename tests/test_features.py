@@ -29,9 +29,11 @@ SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
+SRV_8003_HOST = 'service3.example.com'
 
 SRV_8001_SSL = 'https://service1.example.com:8001'
-SRV_8003_SSL = 'https://service3.example.com:8001'
+SRV_8002_SSL = 'https://service1.example.com:8002'
+SRV_8003_SSL = 'https://service3.example.com:8003'
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -469,12 +471,11 @@ class TestCore():
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             assert resp.content == file.read()
 
-    @pytest.mark.skip(reason="Not fully implemented")
     def test_ssl_true(self):
         config = 'configs/json/hbs/core/ssl_true.json'
         self.mock_server_process = run_mock_server(get_config_path(config), wait=20)
 
-        resp = requests.get(SRV_8001_SSL + '/service1')
+        resp = requests.get(SRV_8001_SSL + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
@@ -484,7 +485,7 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
-        resp = requests.get(SRV_8003_SSL + '/service3')
+        resp = requests.get(SRV_8003_SSL + '/service3', headers={'Host': SRV_8003_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service3'
