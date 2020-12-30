@@ -242,5 +242,5 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(410, resp.status_code)
 
     def test_ssl(self):
-        resp = requests.get(SRV3 + '/', verify=False)
+        resp = requests.get(SRV5 + '/', verify=False)
         self.assertEqual(200, resp.status_code)
