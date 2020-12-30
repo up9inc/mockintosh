@@ -6,5 +6,5 @@ cert:
 		-nodes \
 		-x509 \
 		-subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" \
-		-keyout mockintosh/ssl/key.pem \
-		-out mockintosh/ssl/cert.pem
+		-keyout mockintosh/res/ssl/key.pem \
+		-out mockintosh/res/ssl/cert.pem

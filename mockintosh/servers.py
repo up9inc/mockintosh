@@ -49,17 +49,25 @@ class HttpServer():
                 ssl = service.get('ssl', False)
 
             protocol = 'https' if ssl else 'http'
+            ssl_options = {
+                "certfile": path.join(__location__, 'ssl/cert.pem'),
+                "keyfile": path.join(__location__, 'ssl/key.pem'),
+            }
 
             for service in services:
                 endpoints = []
                 if 'endpoints' in service:
                     endpoints = self.merge_alternatives(service['endpoints'])
-                app = self.make_app(endpoints, self.globals, self.debug)
+                app = self.make_app(endpoints, self.globals, debug=self.debug)
                 if 'hostname' not in service:
-                    app.listen(service['port'], address=self.address)
+                    if ssl:
+                        server = tornado.web.HTTPServer(app, ssl_options=ssl_options)
+                    else:
+                        server = tornado.web.HTTPServer(app)
+                    server.listen(service['port'], address=self.address)
                     logging.info('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
-                        'http',
+                        protocol,
                         'localhost',
                         service['port'],
                         ' the mock for %r' % service['comment'] if 'comment' in service else ''
@@ -86,10 +94,6 @@ class HttpServer():
             if rules:
                 router = RuleRouter(rules)
                 if ssl:
-                    ssl_options = {
-                        "certfile": path.join(__location__, 'ssl/cert.pem'),
-                        "keyfile": path.join(__location__, 'ssl/key.pem'),
-                    }
                     server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
                 else:
                     server = tornado.web.HTTPServer(router)
