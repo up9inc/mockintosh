@@ -183,7 +183,8 @@
     },
     {
       "comment": "Service with no endpoints, for bare interceptors",
-      "port": 8003
+      "port": 8003,
+      "ssl": true
     },
     {
       "comment": "Service for CORS",
@@ -192,6 +193,18 @@
         {
           "path": "/cors2",
           "response": "@cors.html"
+        }
+      ]
+    },
+    {
+      "comment": "SSL with certfile",
+      "port": 8005,
+      "ssl": true,
+      "sslCertFile": "subdir/cert.pem",
+      "sslKeyFile": "subdir/key.pem",
+      "endpoints": [
+        {
+          "path": "/"
         }
       ]
     }

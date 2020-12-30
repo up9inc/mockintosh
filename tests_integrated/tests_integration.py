@@ -9,8 +9,9 @@ import mockintosh
 
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
-SRV3 = os.environ.get('SRV3', 'http://localhost:8003')
+SRV3 = os.environ.get('SRV3', 'https://localhost:8003')
 SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
+SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -136,7 +137,7 @@ class IntegrationTests(unittest.TestCase):
 
     def test_interceptor(self):
         path = '/interceptor-modified'
-        resp = requests.get(SRV3 + path)
+        resp = requests.get(SRV3 + path, verify=False)
         self.assertEqual(202, resp.status_code)
         self.assertEqual("intercepted", resp.text)
         self.assertEqual("some-i-val", resp.headers.get("someheader"))
@@ -239,3 +240,7 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/dataset-fromfile')
         self.assertEqual(410, resp.status_code)
+
+    def test_ssl(self):
+        resp = requests.get(SRV5 + '/', verify=False)
+        self.assertEqual(200, resp.status_code)

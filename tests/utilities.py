@@ -37,7 +37,7 @@ def tcping(host, port=65533, timeout=2):
     return result, round(ms, 2)
 
 
-def run_mock_server(*args):
+def run_mock_server(*args, wait=5):
     mock_server_process = None
 
     testargs = [PROGRAM, *args]
@@ -46,7 +46,7 @@ def run_mock_server(*args):
         mock_server_process.start()
 
     signal.signal(signal.SIGALRM, signal_handler)
-    signal.sigtimedwait([signal.SIGALRM], 5)
+    signal.sigtimedwait([signal.SIGALRM], wait)
 
     return mock_server_process
 

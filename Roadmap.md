@@ -36,34 +36,35 @@
     - Ability to provide python function/object to alter response
     - Both successful and failed responses intercepted
 
-## Milestone 5 - WIP
+## Milestone 5 - Complete v0.4
 
 1. Automatic CORS
 1. Ability to refer to external files containing request _and_ response bodies
-   - make it secure by disallowing files outside mock config hierarchy
+    - make it secure by disallowing files outside mock config hierarchy
 1. Clear status in log on which service addresses are listened to
-   - right before `Mock server is ready!` have series of log lines
-   - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
+    - right before `Mock server is ready!` have series of log lines
+    - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
 1. have own server signature like `Mockintosh/<version>`
 1. fix pip install
 1. Multi-response functionality
 1. Automatic image placeholders
 1. allow specifying bind address via CLI option
-   
+
+## Milestone 6
+
 1. Dataset support
+1. SSL support
 
 ## Milestone N
 
-1. base64-encoded body strings, for binary responses
-1. SSL support
 1. Ability to match request body by regexp
-1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
-   Accept etc)
 1. Import from OpenAPI and Postman collections
 1. template helpers: random numbers, strings, dates, names, addresses etc
 1. jsonSchema extraction from body
 1. referencing multipart/urlencoded fields in matchers and templates
-
+1. base64-encoded body strings, for binary responses
+1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
+   Accept etc)
 
 ## Milestone N
 
@@ -81,8 +82,6 @@
 
 ## Milestone N
 
-## Milestone N
-
 1. Performance Profiles
     - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
       ratio” of fuzziness
@@ -94,6 +93,7 @@
 - `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
 - `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - mocks for gRPC servers
+- mocks for Kafka
 
 ## Config Ideas
 
