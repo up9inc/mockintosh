@@ -17,7 +17,9 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.handlers import GenericHandler
 from mockintosh.overrides import Application
-from mockintosh.methods import _cert_gen
+from mockintosh.exceptions import CertificateLoadingError
+
+__location__ = path.abspath(path.dirname(__file__))
 
 
 class HttpServer():
@@ -42,30 +44,42 @@ class HttpServer():
         for port, services in port_mapping.items():
             rules = []
             ssl = False
+            cert_file = path.join(__location__, 'ssl', 'cert.pem')
+            key_file = path.join(__location__, 'ssl', 'key.pem')
             for service in services:
-                if ssl:
-                    break
                 ssl = service.get('ssl', False)
+                if ssl:
+                    if 'sslCertFile' in service:
+                        cert_file = self.resolve_cert_path(service['sslCertFile'])
+                    if 'sslKeyFile' in service:
+                        key_file = self.resolve_cert_path(service['sslKeyFile'])
+                    break
 
             protocol = 'https' if ssl else 'http'
-            hostname = None
+            ssl_options = {
+                "certfile": cert_file,
+                "keyfile": key_file,
+            }
 
             for service in services:
                 endpoints = []
                 if 'endpoints' in service:
                     endpoints = self.merge_alternatives(service['endpoints'])
-                app = self.make_app(endpoints, self.globals, self.debug)
+                app = self.make_app(endpoints, self.globals, debug=self.debug)
                 if 'hostname' not in service:
-                    app.listen(service['port'], address=self.address)
+                    if ssl:
+                        server = tornado.web.HTTPServer(app, ssl_options=ssl_options)
+                    else:
+                        server = tornado.web.HTTPServer(app)
+                    server.listen(service['port'], address=self.address)
                     logging.info('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
-                        'http',
+                        protocol,
                         'localhost',
                         service['port'],
                         ' the mock for %r' % service['comment'] if 'comment' in service else ''
                     ))
                 else:
-                    hostname = service['hostname']
                     rules.append(
                         Rule(HostMatches(service['hostname']), app)
                     )
@@ -87,11 +101,6 @@ class HttpServer():
             if rules:
                 router = RuleRouter(rules)
                 if ssl:
-                    cert_file, key_file = _cert_gen(hostname=hostname)
-                    ssl_options = {
-                        "certfile": path.join(cert_file),
-                        "keyfile": path.join(key_file),
-                    }
                     server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
                 else:
                     server = tornado.web.HTTPServer(router)
@@ -157,3 +166,13 @@ class HttpServer():
                 logging.info('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
                 logging.debug('with alternatives:\n%s' % alternatives)
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
+
+    def resolve_cert_path(self, cert_path):
+        relative_path = path.join(self.definition.source_dir, cert_path)
+        if not path.isfile(relative_path):
+            raise CertificateLoadingError('File not found on path `%s`' % cert_path)
+        relative_path = path.abspath(relative_path)
+        if not relative_path.startswith(self.definition.source_dir):
+            raise CertificateLoadingError('Path `%s` is inaccessible!' % cert_path)
+
+        return relative_path

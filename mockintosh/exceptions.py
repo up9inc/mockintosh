@@ -29,3 +29,11 @@ class UnsupportedTemplateEngine(Exception):
                 ', '.join(supported_engines)
             )
         )
+
+
+class CertificateLoadingError(Exception):
+    """Raised in case of a certificate file is not found or in a forbidden path.
+    """
+
+    def __init__(self, reason):
+        super().__init__('\nCertificate loading error: %s' % reason)
