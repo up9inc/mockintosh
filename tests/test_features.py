@@ -31,9 +31,9 @@ SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
 SRV_8003_HOST = 'service3.example.com'
 
-SRV_8001_SSL = 'https://service1.example.com:8001'
-SRV_8002_SSL = 'https://service1.example.com:8002'
-SRV_8003_SSL = 'https://service3.example.com:8003'
+SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
+SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
+SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
 
 
 @pytest.mark.parametrize(('config'), configs)
