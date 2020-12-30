@@ -16,6 +16,12 @@
         "ssl": {
           "type": "boolean"
         },
+        "sslCertFile": {
+          "type": "string"
+        },
+        "sslKeyFile": {
+          "type": "string"
+        },
         "endpoints": {
           "type": "array",
           "items": {

@@ -9,8 +9,9 @@ import mockintosh
 
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
-SRV3 = os.environ.get('SRV3', 'http://localhost:8003')
+SRV3 = os.environ.get('SRV3', 'https://localhost:8003')
 SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
+SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -214,3 +215,31 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/multi-response-nonlooped')
         self.assertEqual(410, resp.status_code)
+
+    def test_dataset(self):
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val1", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val2", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val1", resp.text)
+
+    def test_dataset_fromfile(self):
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val3", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val4", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(410, resp.status_code)
+
+    def test_ssl(self):
+        pass
