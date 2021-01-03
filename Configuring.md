@@ -156,10 +156,11 @@ response after all items in response list are exhausted.
 
 ### Datasets
 
-One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response templating.
+One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response
+templating.
 
-This field can be a string that starts with `@` to indicate a path to an external JSON file
-like `@subdir/dataset.json` or an array:
+This field can be a string that starts with `@` to indicate a path to an external JSON file like `@subdir/dataset.json`
+or an array:
 
 ```yaml
 dataset:
@@ -174,15 +175,25 @@ This `dataset` is looped just like how [Multiple responses](#multiple-responses)
 2. request: `dataset: val2` is returned.
 3. request: `dataset: val1` is returned.
 
-The looping can be disabled with setting `datasetLooped` to `false`. In this case, on 3rd request, the endpoint returns `410` status code with an empty response body.
+The looping can be disabled with setting `datasetLooped` to `false`. In this case, on 3rd request, the endpoint
+returns `410` status code with an empty response body.
 
 ## Global Settings
 
+Under the `globals` section of config, you can specify `headers` that will be set for each response:
+
+```yaml
+globals:
+  headers:
+    X-Tenant-Id: "test-tenant"
+    Content-Type: application/json
+```
+
 ## Automatic CORS (Cross-Origin Resource Sharing)
 
-`OPTIONS` method has a special behavior in the mock server. Unless there is an endpoint with `method: options`
-specified and matched according to the request matching rules, any endpoint (no matter what HTTP method it is) also
-accepts `OPTIONS` requests if the `Origin` header is supplied. The mock server will respond such requests with `204`.
+Mockintosh serves CORS pre-flight requests automatically for all defined endpoints, unless there is existing `OPTIONS`
+method endpoint in service configuration. The mock server will respond to such pre-flight requests with `204` status
+code.
 
 For any request that has `Origin` header provided, the mock server will set `Origin` and `Access-Control-Allow-Headers`
 headers in the response according to the `Origin` and `Access-Control-Request-Headers` in the request headers. It will
