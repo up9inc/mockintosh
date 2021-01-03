@@ -101,7 +101,7 @@ Here is the full list of properties for endpoint configuration:
 - `response` is used to hold response specification, can be simple string, file reference or detailed response
   specification
 - `multiResponsesLooped` is used to control looping of multiple variants of `response`,
-  see [dedicated section below](#varying-responses--scenario-support)
+  see [dedicated section below](#multiple-responses)
 - `dataset` and `datasetLooped` are used to configure [datasets for dynamic responses](#datasets)
 
 The `response` fields are described in detail in [templating page](Templating.md), below is the quick list:
@@ -111,7 +111,7 @@ The `response` fields are described in detail in [templating page](Templating.md
 - `body` as string or file reference
 - `useTemplating` for the ability to disable template evaluating on response pieces
 
-Here is config example with illustrations of several variants to define endpoint:
+Here is config example with illustrations of several variants of endpoint definition:
 
 ```yaml
 services:
@@ -132,10 +132,10 @@ services:
 
 ```
 
-### Varying Responses / Scenario Support
+### Multiple Responses
 
-The `response` field under `endpoint` can be an array too. If this field is an array then this is looped for each
-request. For example, considering the configuration below:
+The `response` field under `endpoint` can be an array, too. If this field is an array then for each request the next
+item is taken for response. For example, considering the configuration below:
 
 ```yaml
 response:
@@ -146,30 +146,19 @@ response:
   - just some text
 ```
 
-1. request: `index.html` file is returned with `Content-Type: text/html` header.
-2. request: `subdir/image.png` image is returned with `Content-Type: image/png` header.
-3. request: `just some text` is returned with `Content-Type: text/html` header.
-4. request: `index.html` again and so on...
+- For request #1: `index.html` file is returned with `Content-Type: text/html` header.
+- For request #2: `subdir/image.png` image is returned with `Content-Type: image/png` header.
+- For request #3: `just some text` is returned with `Content-Type: text/html` header.
+- For request #4: `index.html` again and so on...
 
-The looping can be disabled with setting `multiResponsesLooped` to `false`:
-
-```yaml
-multiResponsesLooped: false
-response:
-  - "@index.html"
-  - headers:
-      content-type: image/png
-    body: "@subdir/image.png"
-  - just some text
-```
-
-In this case, on 4th request, the endpoint returns `410` status code with an empty response body.
+The looping can be disabled with setting `multiResponsesLooped` to `false`, in this case you will start getting HTTP 410
+response after all items in response list are exhausted.
 
 ### Datasets
 
-One can specify a `dataset` field under `endpoint` to directly inject variables into response templating.
+One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response templating.
 
-This field can be string that starts with `@` to indicate a path that points to an external JSON file
+This field can be a string that starts with `@` to indicate a path to an external JSON file
 like `@subdir/dataset.json` or an array:
 
 ```yaml
@@ -185,17 +174,7 @@ This `dataset` is looped just like how [Multiple responses](#multiple-responses)
 2. request: `dataset: val2` is returned.
 3. request: `dataset: val1` is returned.
 
-The looping can be disabled with setting `datasetLooped` to `false`:
-
-```yaml
-datasetLooped: false
-dataset:
-  - var1: val1
-  - var1: val2
-response: 'dataset: {{var1}}'
-```
-
-In this case, on 3rd request, the endpoint returns `410` status code with an empty response body.
+The looping can be disabled with setting `datasetLooped` to `false`. In this case, on 3rd request, the endpoint returns `410` status code with an empty response body.
 
 ## Global Settings
 
