@@ -12,7 +12,7 @@ Key features:
 
 - multiple services mocked by a single instance of Mockintosh
 - lenient [configuration syntax](Configuring.md)
-- request scenarios support with [multi-response endpoints](Configuring.md#)  
+- request scenarios support with [multi-response endpoints](Configuring.md#)
 - performance testing supported (with [Datasets](Configuring.md#datasets) and low resource footprint)
 - [interceptors](#interceptors) support for unlimited customization
 
@@ -96,12 +96,12 @@ that contains your interceptor modules like this:
 PYTHONPATH=/some/dir mockintosh some_config.json --interceptor=mymodule.forbid_admin
 ```
 
-
-_Note: With interceptors, you can even omit `endpoints` section from the service config. You will still get all requests for the service into your interceptor_
+_Note: With interceptors, you can even omit `endpoints` section from the service config. You will still get all requests
+to the service into your interceptor._
 
 ### Request Object
 
-The `Request` object is exactly the same object defined in [here](Configuring.md#request-object)
+The `Request` object is exactly the same object defined in [here](Templating.md#request-object)
 with a minor difference: Instead of accesing the dictonary elements using `.<key>`, you access them using `['<key>']`
 e.g. `request.queryString['a']`.
 
@@ -109,22 +109,14 @@ e.g. `request.queryString['a']`.
 
 The `Response` object consists of three fields:
 
-### Status
-
-`resp.status` holds the [HTTP status codes](https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html)
-e.g. `200`, `201`, `302`, `404`, etc.
-
-### Headers
-
-`resp.headers` is a Python dictionary that you access and/or modify the response headers.
-e.g. `resp.headers['Cache-Control'] == 'no-cache'`
-
-### Body
-
-The body can be anything that supported
-by [`tornado.web.RequestHandler.write`](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write)
-Which means the body can be `str`, `bytes` or `dict` e.g. `resp.body = 'hello world'`
-or `resp.body = {'hello': 'world'}`
+- `resp.status` holds the [HTTP status codes](https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html)
+  e.g. `200`, `201`, `302`, `404`, etc.
+- `resp.headers` is a Python dictionary that you access and/or modify the response headers.
+  e.g. `resp.headers['Cache-Control'] == 'no-cache'`
+- `resp.body` is usually either `str` or `bytes`, but can be anything that is supported
+  by [`tornado.web.RequestHandler.write`](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write)
+  : `str`, `bytes` or `dict` e.g. `resp.body = 'hello world'`
+  or `resp.body = {'hello': 'world'}`
 
 ---
 

@@ -1,37 +1,93 @@
 # Configuration Syntax
 
-Mockintosh supports JSON and YAML formats for the mock server configuration file. 
+Mockintosh supports JSON and YAML formats for the mock server configuration file.
 
 The most important entities in the config file are: Service, Endpoint, Response:
 
 ![Config](MockintoshConfig.png)
 
-There are two main aspects of endpoint configuration: matching and templating. [Matching](Matching.md) defines how to recognize request and pick the corresponding response template. [Templating](Templating.md) gives capabilities to configure different response fields, and also make responses to be dynamic.
+There are two main aspects of endpoint configuration: matching and templating. [Matching](Matching.md) defines how to
+recognize request and pick the corresponding response template. [Templating](Templating.md) gives capabilities to
+configure different response fields, and also make responses to be dynamic.
 
-_Note: There is a [JSONSchema of configuration syntax](https://github.com/up9inc/mockintosh/blob/main/mockintosh/schema.json)
+_Note: There is
+a [JSONSchema of configuration syntax](https://github.com/up9inc/mockintosh/blob/main/mockintosh/schema.json)
 that is used to validate all configuration files. You can use that as a formal source of configuration syntax._
 
 ## Defining Services
 
-Mockintosh allows specifying multiple services
-
-
-The configuration file should contain the list of definitions of your microservices like shown below:
+When defining services, the key property is `port`, which defines on which port the server will be available to
+requests. It is also a good practice to specify `comment` property. You can configure one or multiple services at once.
+Here's a minimalistic working example:
 
 ```yaml
-services: # List of your microservices
-  - comment: "Mock for http://example1.com" # Comment related to the service that will be logged
-    hostname: "service1.example.com" # Hostname of the service (defaults to "localhost")
-    port: 8001 # The port of the service
-    endpoints: ... # Endpoints
-  - comment: "Mock for http://example2.com"
-    hostname: "service2.example.com"
+services:
+  - comment: Catalogue API
+    port: 8001
+    endpoints:
+      - path: /
+  - comment: Cart API
     port: 8002
-    endpoints: ...
+    endpoints:
+      - path: /
 ```
 
-*Note: It's also possible to not define the `hostname`. In that case the service occupies the whole port*
-*alternatively, one can define two service with different hostnames on the same port number.*
+You can additionally specify `hostname` property to make service _only_ respond to requests that contain specific `Host`
+HTTP header:
+
+```yaml
+services:
+  - comment: I'm like Google
+    port: 8001
+    hostname: www.google.com
+    endpoints:
+      - path: /
+```
+
+### SSL Support
+
+Enabling SSL for service is as easy as specifying `ssl: true` for it:
+
+```yaml
+services:
+  - comment: This requires 'https://' to be used by a client
+    port: 443
+    ssl: true
+```
+
+If you want to use SSL-enabled mock inside browser (or other client), you would need to
+add [Mockintosh's self-signed certificate](https://github.com/up9inc/mockintosh/tree/main/mockintosh/ssl) into trusted
+store.
+
+In case you want Mockintosh to use your SSL certificate and key, just provide it as below:
+
+```yaml
+services:
+  - comment: This requires 'https://' to be used by a client
+    port: 443
+    ssl: true
+    sslCertFile: path/to/cert.crt
+    sslKeyFile: path/to/cert.key
+```
+
+### Multiple Services on Same Port (Virtual Hosts)
+
+You can also serve multiple services from the same port number, if you provide them with different hostnames. This is
+handy when you serve multiple microservice mocks from single container:
+
+```yaml
+services:
+  - comment: "First service"
+    hostname: "service1.example.com"
+    port: 80
+  - comment: "Second service"
+    hostname: "service2.example.com"
+    port: 80
+```
+
+_Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
+
+## Defining Endpoints
 
 The fields of an endpoint are shown below:
 
@@ -41,8 +97,6 @@ endpoints: # List of the endpoints in your microservice
     method: GET # The HTTP verb
     response: .. # Response
 ```
-
-## Defining Endpoints
 
 ### Varying Responses / Scenario Support
 

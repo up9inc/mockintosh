@@ -72,7 +72,7 @@ class HttpServer():
                     else:
                         server = tornado.web.HTTPServer(app)
                     server.listen(service['port'], address=self.address)
-                    logging.info('Will listen port number: %d' % service['port'])
+                    logging.debug('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
                         'localhost',
@@ -84,7 +84,7 @@ class HttpServer():
                         Rule(HostMatches(service['hostname']), app)
                     )
 
-                    logging.info('Registered hostname and port: %s://%s:%d' % (
+                    logging.debug('Registered hostname and port: %s://%s:%d' % (
                         protocol,
                         service['hostname'],
                         service['port']
@@ -96,7 +96,7 @@ class HttpServer():
                         ' the mock for %r' % service['comment'] if 'comment' in service else ''
                     ))
                 if 'comment' in service:
-                    logging.info('Finished registering: %s' % service['comment'])
+                    logging.debug('Finished registering: %s' % service['comment'])
 
             if rules:
                 router = RuleRouter(rules)
@@ -105,7 +105,7 @@ class HttpServer():
                 else:
                     server = tornado.web.HTTPServer(router)
                 server.listen(services[0]['port'], address=self.address)
-                logging.info('Will listen port number: %d' % service['port'])
+                logging.debug('Will listen port number: %d' % service['port'])
 
     def merge_alternatives(self, endpoints):
         new_endpoints = {}
@@ -163,7 +163,7 @@ class HttpServer():
                 )
             )
             for method, alternatives in endpoint['methods'].items():
-                logging.info('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
+                logging.debug('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
                 logging.debug('with alternatives:\n%s' % alternatives)
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
