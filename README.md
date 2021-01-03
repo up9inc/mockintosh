@@ -33,9 +33,9 @@ Alternatively, you can run Mockintosh as Docker container:
 docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp mockintosh:latest /tmp/config.json
 ```
 
-Please note the `-p` flag used to publish container ports and `-v` to mount directory with config into container.
+Please note the `-p` flag used to publish container's ports and `-v` to mount directory with config into container.
 
-### Command-line Arguments
+## Command-line Arguments
 
 The list of command-line arguments can be seen by running `mockintosh --help`.
 
@@ -66,7 +66,7 @@ Using `--quiet` and `--verbose` options the logging level can be changed.
 
 Using `--bind` option the bind address for the mock server can be specified, e.g. `mockintosh --bind 0.0.0.0`
 
-### Interceptors
+## Interceptors
 
 One can also specify a list of interceptors to be called in `<package>.<module>.<function>` format using
 the `--interceptor` option. The interceptor function get a [`mockintosh.Request`](#request-object) and
@@ -96,27 +96,30 @@ that contains your interceptor modules like this:
 PYTHONPATH=/some/dir mockintosh some_config.json --interceptor=mymodule.forbid_admin
 ```
 
-#### Request Object
+
+_Note: With interceptors, you can even omit `endpoints` section from the service config. You will still get all requests for the service into your interceptor_
+
+### Request Object
 
 The `Request` object is exactly the same object defined in [here](Configuring.md#request-object)
 with a minor difference: Instead of accesing the dictonary elements using `.<key>`, you access them using `['<key>']`
 e.g. `request.queryString['a']`.
 
-#### Response Object
+### Response Object
 
 The `Response` object consists of three fields:
 
-##### Status
+### Status
 
 `resp.status` holds the [HTTP status codes](https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html)
 e.g. `200`, `201`, `302`, `404`, etc.
 
-##### Headers
+### Headers
 
 `resp.headers` is a Python dictionary that you access and/or modify the response headers.
 e.g. `resp.headers['Cache-Control'] == 'no-cache'`
 
-##### Body
+### Body
 
 The body can be anything that supported
 by [`tornado.web.RequestHandler.write`](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write)

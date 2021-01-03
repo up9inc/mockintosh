@@ -6,12 +6,15 @@ The most important entities in the config file are: Service, Endpoint, Response:
 
 ![Config](MockintoshConfig.png)
 
-There are two main aspects of endpoint configuration: matching and templating. [Matching](Matching.md) defines how to recognize request and pick the corresponding response template. [Templating](Templating.md) gives capabilities to configure different response fields, and making responses to be dynamic.
+There are two main aspects of endpoint configuration: matching and templating. [Matching](Matching.md) defines how to recognize request and pick the corresponding response template. [Templating](Templating.md) gives capabilities to configure different response fields, and also make responses to be dynamic.
 
 _Note: There is a [JSONSchema of configuration syntax](https://github.com/up9inc/mockintosh/blob/main/mockintosh/schema.json)
 that is used to validate all configuration files. You can use that as a formal source of configuration syntax._
 
 ## Defining Services
+
+Mockintosh allows specifying multiple services
+
 
 The configuration file should contain the list of definitions of your microservices like shown below:
 
