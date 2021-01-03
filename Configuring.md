@@ -98,16 +98,38 @@ Here is the full list of properties for endpoint configuration:
   header
 - `path`, `method`, `queryString`, `headers` and `body` are fields used for matching, see [dedicated page](Matching.md)
   for more details on that
-- `response` is used to hold response specification
+- `response` is used to hold response specification, can be simple string, file reference or detailed response
+  specification
 - `multiResponsesLooped` is used to control looping of multiple variants of `response`,
   see [dedicated section below](#varying-responses--scenario-support)
 - `dataset` and `datasetLooped` are used to configure [datasets for dynamic responses](#datasets)
 
+The `response` fields are described in detail in [templating page](Templating.md), below is the quick list:
+
+- `status` to control HTTP response code
+- `headers` to specify headers as key-value pairs
+- `body` as string or file reference
+- `useTemplating` for the ability to disable template evaluating on response pieces
+
+Here is config example with illustrations of several variants to define endpoint:
+
 ```yaml
-endpoints: # List of the endpoints in your microservice
-  - path: "/users" # Path of the endpoint
-    method: GET # The HTTP verb
-    response: .. # Response
+services:
+  - port: 8000
+    endpoints:
+      - path: /  # by default, method is GET, response is HTTP 200 with empty body
+
+      - path: /api/action1
+        method: "POST"
+        response: "Simple string response" # can be just response content string
+
+      - path: /api/action2
+        response: # detailed specification allows controling status code and headers
+          status: 201
+          body: @subdir/response.json
+          headers:
+            Content-Type: application/json
+
 ```
 
 ### Varying Responses / Scenario Support
