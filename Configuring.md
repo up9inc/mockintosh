@@ -89,7 +89,19 @@ _Note: You may want to play with your client's `/etc/hosts` file contents when u
 
 ## Defining Endpoints
 
-The fields of an endpoint are shown below:
+Endpoint is the main configuration entity of Mockintosh. Each service holds a list of endpoints, and uses that list
+for [matching](Matching.md) to requests. Once request is matched, the corresponding response is evaluated and returned.
+
+Here is the full list of properties for endpoint configuration:
+
+- `id` and `comment` are just contextual metadata, though `id` is added to each response as `x-mockintosh-endpoint-id`
+  header
+- `path`, `method`, `queryString`, `headers` and `body` are fields used for matching, see [dedicated page](Matching.md)
+  for more details on that
+- `response` is used to hold response specification
+- `multiResponsesLooped` is used to control looping of multiple variants of `response`,
+  see [dedicated section below](#varying-responses--scenario-support)
+- `dataset` and `datasetLooped` are used to configure [datasets for dynamic responses](#datasets)
 
 ```yaml
 endpoints: # List of the endpoints in your microservice
