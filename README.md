@@ -12,7 +12,7 @@ Key features:
 
 - multiple services mocked by a single instance of Mockintosh
 - lenient [configuration syntax](Configuring.md)
-- request scenarios support with [multi-response endpoints](Configuring.md#)
+- request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
 - performance testing supported (with [Datasets](Configuring.md#datasets) and low resource footprint)
 - [interceptors](#interceptors) support for unlimited customization
 
