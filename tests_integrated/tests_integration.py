@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 import unittest
 
@@ -244,3 +245,28 @@ class IntegrationTests(unittest.TestCase):
     def test_ssl(self):
         resp = requests.get(SRV5 + '/', verify=False)
         self.assertEqual(200, resp.status_code)
+
+    def test_templating_random(self):
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(200, resp.status_code)
+        resp = resp.text
+
+        rint, resp = resp.split("\n", 1)
+        self.assertTrue(10 <= int(rint) <= 20)
+
+        rfloat, resp = resp.split("\n", 1)
+        self.assertTrue(-0.5 <= float(rfloat) <= 20)
+        self.assertTrue(1 <= len(rfloat.split('.')[1]) <= 3)
+
+        alphanum, resp = resp.split("\n", 1)
+        self.assertEqual(5, len(alphanum))
+        self.assertTrue(alphanum.isalnum())
+
+        fhex, resp = resp.split("\n", 1)
+        self.assertEqual(16, len(fhex))
+        self.assertTrue(re.match("[0-9a-f]+", fhex))
+
+        fuuid, resp = resp.split("\n", 1)
+        self.assertTrue(re.match(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', fuuid))
+
+        self.assertEqual(5, len(resp))  # random ascii
