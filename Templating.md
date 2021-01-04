@@ -1,28 +1,35 @@
+Faker, random, request, counter
+
 # Response Templating
 
-Mockintosh [templating](Templating.md) is using syntax of [Handlebars](https://handlebarsjs.com/guide/) (default)
-and [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) templating engines. Any of the engine variants provides
-access to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for generating dynamic data.
+Mockintosh uses syntax of [Handlebars](https://handlebarsjs.com/guide/) (default)
+and [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) templating engines. To switch into Jinja2, use
+the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2).
+
+Any of the engine variants provides access to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for
+generating dynamic data.
+
+## Response Fields
+
+In response
 
 ### Status Code
 
-The mock server supports both integer:
+The mock server supports both integer and string values for status code:
 
 ```yaml
-response:
-  status: 202
+endpoints:
+  - path: /1
+    response:
+      status: 202
+  - path: /2
+    response:
+      status: "404"
 ```
 
-and string values:
+If the status code is not specified it defaults to `200`.
 
-```yaml
-response:
-  status: '403'
-```
-
-as the status code in the response definition. If the status code is not specified it defaults to `200`.
-
-It's also possible to use templating in the `status` field like this:
+It is also possible to use templating in the `status` field like this:
 
 ```yaml
 response:
@@ -30,8 +37,6 @@ response:
 ```
 
 ### Headers
-
-#### Local
 
 One can define response headers specific to each individual endpoint like:
 
@@ -43,22 +48,7 @@ response:
     Cache-Control: no-cache
 ```
 
-#### Local
-
-It's also possible to define response headers in global level. Such that each endpoint will include those headers into
-their responses:
-
-```yaml
-globals:
-  headers:
-    Content-Type: application/json
-...
-response:
-  body: 'hello world'
-  status: 200
-  headers:
-    Cache-Control: no-cache
-```
+_Note: mind the [global headers](Configuring.md#global-settings) feature._
 
 ### Body
 
@@ -78,7 +68,9 @@ response:
 
 The template file path is a relative path to the parent directory of the config file.
 
-## Request Object
+## Dynamic Values
+
+### Request Object
 
 The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
 
