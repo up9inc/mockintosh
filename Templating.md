@@ -67,7 +67,7 @@ Below is the reference of available dynamic value generators.
 ### Random
 
 - `random.int 10 20` - random integer between 10 and 20 (inclusive)
-- `random.float -0.5 20.7 3` - random float (between `-0.5` and `20.7` , inclusive) with 3 digit precision
+- `random.float '-0.5' '20.7' 3` - random float (between `-0.5` and `20.7` , inclusive) with 3 digit precision, you have to keep range values in quotes
 - `random.ascii 5` - sequence of ASCII characters, length 5
 - `random.alphanum 5` - sequence of alphanumeric characters, length 5
 - `random.hex 16` - sequence of hexadecimal characters, length 16
