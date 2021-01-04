@@ -20,7 +20,7 @@ from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer, BodyRecognizer
-from mockintosh.servers import HttpServer
+from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.handlers import Request, Response  # noqa: F401
 
 __version__ = "0.4"
@@ -137,7 +137,7 @@ def run(source, is_file=True, debug=False, interceptors=(), address=''):
 
     try:
         definition = Definition(source, schema, is_file=is_file)
-        http_server = HttpServer(definition, debug=debug, interceptors=interceptors, address=address)
+        http_server = HttpServer(definition, TornadoImpl(), debug=debug, interceptors=interceptors, address=address)
     except Exception:
         logging.exception('Mock server loading error:')
         with _nostderr():
