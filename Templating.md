@@ -1,5 +1,3 @@
-Faker, random, request, counter
-
 # Response Templating
 
 Mockintosh uses syntax of [Handlebars](https://handlebarsjs.com/guide/) (default)
@@ -11,118 +9,105 @@ generating dynamic data.
 
 ## Response Fields
 
-In response
-
-### Status Code
-
-The mock server supports both integer and string values for status code:
+In response template, one can specify `status`, `headers` and `body` of HTTP message. Here's quick example:
 
 ```yaml
-endpoints:
-  - path: /1
-    response:
-      status: 202
-  - path: /2
-    response:
-      status: "404"
+services:
+  - port: 8080
+    endpoints:
+      - path: /api-call
+        response:
+          status: 201
+          headers:
+            content-type: application/json
+            x-custom-id: 12345
+          body: '{"result": "created"}'            
 ```
 
-If the status code is not specified it defaults to `200`.
-
-It is also possible to use templating in the `status` field like this:
+Any of those fields allows using dynamic template that will be evaluated for each request. Like this:
 
 ```yaml
-response:
-  status: "{{someVar}}"
+services:
+  - port: 8080
+    endpoints:
+      - path: /api-call
+        response:
+          status: "{{request.queryString.rc}}"
+          headers:
+            content-type: '{{request.headers.accept}}'
+            x-custom-id: '{{random.int 0 1000}}'
+          body: '{"result": "created", "name": "{{fake.lastname}}" }'            
 ```
 
-### Headers
+_Note: for `headers`, only the value part is subject for templating. Mind
+the [global headers](Configuring.md#global-settings) feature, too._
 
-One can define response headers specific to each individual endpoint like:
-
-```yaml
-response:
-  body: 'hello world'
-  status: 200
-  headers:
-    Cache-Control: no-cache
-```
-
-_Note: mind the [global headers](Configuring.md#global-settings) feature._
-
-### Body
-
-The body can be direct response string:
+The `body` can be direct response string:
 
 ```yaml
 response:
   body: 'hello world'
 ```
 
-or a string that starts with `@` sign to indicate a separete template file:
+or a string that starts with `@` sign to indicate a file on disk:
 
 ```yaml
 response:
   body: '@some/path/my_template.json.hbs'
 ```
 
-The template file path is a relative path to the parent directory of the config file.
+_Note: The template file path has to be relative to the directory of the config file._
 
 ## Dynamic Values
 
+By default, dynamic templates use Handlebars syntax and look like this: `{{namedVal}}` or `{{request.path}}` or `{{fake.address}}` etc. 
+
+TODO: Can I use nested expressions?
+
+Below are 
+
+### Random
+
+- uuid4
+- integers with range
+- float 0..1 with desired precision
+- string of desired len
+
+For random names, addresses etc, please refer to [Faker's](#faker) functionality.
+
+### Faker
+
+_reference of available_
+
+### Counters
+
+Named counters
+
 ### Request Object
 
-The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
+The `request` object is exposed and can be used in places where the templating is possible. These are the most useful
+attributes:
 
-#### `request.version`
+- `request.path` - The path part of the URI e.g. `/some/path`.
+- `request.path.<n>` - The specific component part of the URI
+- `request.headers.<key>` - A request header e.g. `request.headers.accept`.
+- `request.queryString.<key>` - A query parameter e.g. `request.queryString.a` is `hello world`.
+- `request.body` - The raw request body as a whole. Can be `str`, `bytes` or `dict`.
+- `request.formData.<key>` - The `POST` parameters sent in a `application/x-www-form-urlencoded` request
+  e.g. `request.formData.param1` is `value1`.
+- `request.files.<key>` - The fields in a `multipart/form-data` request.
 
-HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
+Less frequently used:
 
-#### `request.remoteIp`
+- `request.method` - [HTTP method](https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html)
+- `request.uri` - URI, full path segments including the query string e.g. `/some/path?a=hello%20world&b=3`.
+- `request.host` - Full address of host e.g. `localhost:8001`.
+- `request.hostName` - Only the hostname e.g. `localhost`.
+- `request.protocol` - The HTTP protocol e.g. `http` or `https`.
+- `request.remoteIp` - The IP address of the client e.g. `127.0.0.1`.
+- `request.version` - HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
 
-The IP address of the client e.g. `127.0.0.1`.
 
-#### `request.protocol`
 
-The HTTP protocol e.g. `http` or `https`.
 
-#### `request.host`
 
-Full address of host e.g. `localhost:8001`.
-
-#### `request.hostName`
-
-Only the hostname e.g. `localhost`.
-
-#### `request.uri`
-
-URI, full path segments including the query string e.g. `/some/path?a=hello%20world&b=3`.
-
-#### `request.method`
-
-[HTTP methods](https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html). Supported verbs are:
-`HEAD`, `GET`, `POST`, `DELETE`, `PATCH`, `PUT` and `OPTIONS`.
-
-#### `request.path`
-
-The path part of the URI e.g. `/some/path`.
-
-#### `request.headers.<key>`
-
-A request header e.g. `request.headers.accept` is `*/*`.
-
-#### `request.queryString.<key>`
-
-A query parameter e.g. `request.queryString.a` is `hello world`.
-
-#### `request.body`
-
-The raw request body as a whole. Can be `str`, `bytes` or `dict`.
-
-#### `request.formData.<key>`
-
-The `POST` parameters sent in a `application/x-www-form-urlencoded` request e.g. `request.formData.param1` is `value1`.
-
-#### `request.files.<key>`
-
-The fields in a `multipart/form-data` request.
