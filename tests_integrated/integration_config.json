@@ -94,6 +94,14 @@
           "response": "body json schema matched"
         },
         {
+          "path": "/body-regex",
+          "method": "POST",
+          "body": {
+            "text": "{{regEx '\\d-required-\\d'}}"
+          },
+          "response": "body regex matched"
+        },
+        {
           "path": "/status-template1",
           "response": {
             "status": "{{request.queryString.rc}}"
