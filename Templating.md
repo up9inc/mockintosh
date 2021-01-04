@@ -76,13 +76,15 @@ For random names, addresses etc, please refer to [Faker's](#faker) functionality
 
 ### Faker
 
-_reference of available_
-Any of the engine variants provides access to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for
-generating dynamic data.
+[Faker](https://faker.readthedocs.io/en/master/providers.html) library is provided for generating some dynamic data. 
+It is available as `fake` object. Refer to the [official docs](https://faker.readthedocs.io/en/master/providers.html) for all capabilities. Below are some examples:
+
+- `fake.first_name`
+- `fake.last_name`
 
 ### Counters
 
-Named counters
+Named counters like `counter 'counterName'`
 
 ### Request Object
 
@@ -97,6 +99,7 @@ useful attributes:
 - `request.formData.<key>` - The `POST` parameters sent in a `application/x-www-form-urlencoded` request
   e.g. `request.formData.param1` is `value1`.
 - `request.files.<key>` - The fields in a `multipart/form-data` request.
+
 
 And some less frequently used:
 
