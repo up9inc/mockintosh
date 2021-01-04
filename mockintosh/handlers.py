@@ -275,7 +275,7 @@ class GenericHandler(tornado.web.RequestHandler):
         for header_key, header in self.initial_context[SPECIAL_CONTEXT]['headers'].items():
             if header_key.title() in self.request.headers._dict:
                 if header['type'] == 'regex':
-                    match = re.match(header['regex'], self.request.headers.get(header_key))
+                    match = re.search(header['regex'], self.request.headers.get(header_key))
                     if match is not None:
                         for i, key in enumerate(header['args']):
                             self.custom_context[key] = match.group(i + 1)
@@ -287,7 +287,7 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, value in self.initial_context[SPECIAL_CONTEXT]['queryString'].items():
             if key in self.request.query_arguments:
                 if value['type'] == 'regex':
-                    match = re.match(value['regex'], self.get_query_argument(key))
+                    match = re.search(value['regex'], self.get_query_argument(key))
                     if match is not None:
                         for i, key in enumerate(value['args']):
                             self.custom_context[key] = match.group(i + 1)
@@ -367,7 +367,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     if value == request_header_val:
                         continue
                     value = '^%s$' % value
-                    match = re.match(value, request_header_val)
+                    match = re.search(value, request_header_val)
                     if match is None:
                         fail = True
                         break
@@ -389,7 +389,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     if value == request_query_val:
                         continue
                     value = '^%s$' % value
-                    match = re.match(value, request_query_val)
+                    match = re.search(value, request_query_val)
                     if match is None:
                         fail = True
                         break
@@ -429,8 +429,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 if 'text' in alternative['body']:
                     value = alternative['body']['text']
                     if not body == value:
-                        match = re.findall(value, body)
-                        if not match:
+                        match = re.search(value, body)
+                        if match is None:
                             fail = True
                             break
 

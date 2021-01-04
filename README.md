@@ -79,7 +79,7 @@ from mockintosh import Request, Response
 
 
 def forbid_admin(req: Request, resp: Response):
-    if re.match(r'^\/admin.*$', req.path):
+    if re.search(r'^\/admin.*$', req.path):
         resp.status = 403
 ```
 
