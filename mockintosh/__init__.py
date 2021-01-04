@@ -19,7 +19,7 @@ from jsonschema import validate
 from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
-from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer
+from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer, BodyRecognizer
 from mockintosh.servers import HttpServer
 from mockintosh.handlers import Request, Response  # noqa: F401
 
@@ -97,6 +97,15 @@ class Definition():
                         self.template_engine
                     )
                     endpoint['queryString'] = headers_recognizer.recognize()
+
+                if 'body' in endpoint and 'text' in endpoint['body'] and endpoint['body']['text']:
+                    body_recognizer = BodyRecognizer(
+                        endpoint['body']['text'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        self.template_engine
+                    )
+                    endpoint['body']['text'] = body_recognizer.recognize()
 
 
 def get_schema():

@@ -77,8 +77,12 @@
                   "type": "string"
                 }
               ]
+            },
+            "text": {
+              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         },
         "dataset": {
           "oneOf": [

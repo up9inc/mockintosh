@@ -26,3 +26,10 @@ class QueryStringParam():
     def __init__(self, key, value):
         self.key = key
         self.value = value
+
+
+class BodyParam():
+
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
