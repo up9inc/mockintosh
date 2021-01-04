@@ -10,8 +10,10 @@ import argparse
 import json
 import logging
 import sys
+import atexit
+import signal
 from collections import OrderedDict
-from os import path
+from os import path, environ
 
 import yaml
 from jsonschema import validate
@@ -25,6 +27,8 @@ from mockintosh.handlers import Request, Response  # noqa: F401
 
 __version__ = "0.4"
 __location__ = path.abspath(path.dirname(__file__))
+
+should_cov = environ.get('COVERAGE_PROCESS_START', False)
 
 
 class Definition():
@@ -145,7 +149,30 @@ def run(source, is_file=True, debug=False, interceptors=(), address=''):
     http_server.run()
 
 
+def gracefully_exit(num, frame):
+    atexit._run_exitfuncs()
+    if should_cov:
+        sys.exit()
+
+
+def cov_exit(cov):
+    if should_cov:
+        logging.debug('Stopping coverage')
+        cov.stop()
+        cov.save()
+
+
 def initiate():
+    if should_cov:
+        signal.signal(signal.SIGTERM, gracefully_exit)
+        logging.debug('Starting coverage')
+        from coverage import Coverage
+        cov = Coverage(data_suffix=True, config_file='.coveragerc')
+        cov._warn_no_data = True
+        cov._warn_unimported_source = True
+        cov.start()
+        atexit.register(cov_exit, cov)
+
     """The top-level method to serve as the entry point of Mockintosh.
 
     This method is the entry point defined in `setup.py` for the `mockintosh` executable that
