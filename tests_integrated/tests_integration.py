@@ -247,7 +247,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
 
     def test_templating_random(self):
-        resp = requests.get(SRV1 + '/dataset-fromfile')
+        resp = requests.get(SRV1 + '/templating-random')
         self.assertEqual(200, resp.status_code)
         resp = resp.text
 
