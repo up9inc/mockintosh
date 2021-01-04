@@ -25,7 +25,7 @@ import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
-from mockintosh.params import PathParam, HeaderParam, QueryStringParam
+from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 
 OPTIONS = 'options'
@@ -132,6 +132,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
                 context[key] = self.get_query_argument(param.key)
+            if isinstance(param, BodyParam):
+                context[key] = self.decoder(self.request.body)
         return context
 
     def render_template(self):
@@ -383,6 +385,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
             # Body
             if 'body' in alternative:
+                body = self.decoder(self.request.body)
+
+                # Schema
                 if 'schema' in alternative['body']:
                     json_schema = alternative['body']['schema']
                     if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
@@ -391,7 +396,6 @@ class GenericHandler(tornado.web.RequestHandler):
                             logging.info('Reading JSON schema file from path: %s' % json_schema_path)
                             json_schema = json.load(file)
                             logging.debug('JSON schema: %s' % json_schema)
-                    body = self.request.body.decode('utf-8')
                     json_data = None
 
                     if body and json_schema:
@@ -405,6 +409,15 @@ class GenericHandler(tornado.web.RequestHandler):
                         try:
                             jsonschema.validate(instance=json_data, schema=json_schema)
                         except jsonschema.exceptions.ValidationError:
+                            fail = True
+                            break
+
+                # Text
+                if 'text' in alternative['body']:
+                    value = alternative['body']['text']
+                    if not body == value:
+                        match = re.findall(value, body)
+                        if not match:
                             fail = True
                             break
 
