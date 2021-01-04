@@ -1,39 +1,207 @@
-# The Mock Server Config
+# Configuration Syntax
 
-Mockintosh supports both JSON and YAML formats as the mock server configuration file. Templating is also possible using
-[Handlebars](https://handlebarsjs.com/guide/) (default) and [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/)
-templating engines. Any of the standards provides access
-to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for generating dynamic data.
+Mockintosh supports JSON and YAML formats for the mock server configuration file.
 
-There is a [JSONSchema of configuration syntax](https://github.com/up9inc/mockintosh/blob/main/mockintosh/schema.json) that is used to validate all configuration files. You can use that as a formal source of configuration syntax.
+The most important entities in the config file are: Service, Endpoint, Response:
+
+![Config](MockintoshConfig.png)
+
+There are two main aspects of endpoint configuration: matching and templating. [Matching](Matching.md) defines how to
+recognize request and pick the corresponding response template. [Templating](Templating.md) gives capabilities to
+configure different response fields, and also make responses to be dynamic.
+
+_Note: There is
+a [JSONSchema of configuration syntax](https://github.com/up9inc/mockintosh/blob/main/mockintosh/schema.json)
+that is used to validate all configuration files. You can use that as a formal source of configuration syntax._
+
+## Defining Services
+
+When defining services, the key property is `port`, which defines on which port the server will be available to
+requests. It is also a good practice to specify `comment` property. You can configure one or multiple services at once.
+Here's a minimalistic working example:
+
+```yaml
+services:
+  - comment: Catalogue API
+    port: 8001
+    endpoints:
+      - path: /
+  - comment: Cart API
+    port: 8002
+    endpoints:
+      - path: /
+```
+
+You can additionally specify `hostname` property to make service _only_ respond to requests that contain specific `Host`
+HTTP header:
+
+```yaml
+services:
+  - comment: I'm like Google
+    port: 8001
+    hostname: www.google.com
+    endpoints:
+      - path: /
+```
+
+### SSL Support
+
+Enabling SSL for service is as easy as specifying `ssl: true` for it:
+
+```yaml
+services:
+  - comment: This requires 'https://' to be used by a client
+    port: 443
+    ssl: true
+```
+
+If you want to use SSL-enabled mock inside browser (or other client), you would need to
+add [Mockintosh's self-signed certificate](https://github.com/up9inc/mockintosh/tree/main/mockintosh/ssl) into trusted
+store.
+
+In case you want Mockintosh to use your SSL certificate and key, just provide it as below:
+
+```yaml
+services:
+  - comment: This requires 'https://' to be used by a client
+    port: 443
+    ssl: true
+    sslCertFile: path/to/cert.crt
+    sslKeyFile: path/to/cert.key
+```
+
+### Multiple Services on Same Port (Virtual Hosts)
+
+You can also serve multiple services from the same port number, if you provide them with different hostnames. This is
+handy when you serve multiple microservice mocks from single container:
+
+```yaml
+services:
+  - comment: "First service"
+    hostname: "service1.example.com"
+    port: 80
+  - comment: "Second service"
+    hostname: "service2.example.com"
+    port: 80
+```
+
+_Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
+
+## Defining Endpoints
+
+Endpoint is the main configuration entity of Mockintosh. Each service holds a list of endpoints, and uses that list
+for [matching](Matching.md) to requests. Once request is matched, the corresponding response is evaluated and returned.
+
+Here is the full list of properties for endpoint configuration:
+
+- `id` and `comment` are just contextual metadata, though `id` is added to each response as `x-mockintosh-endpoint-id`
+  header
+- `path`, `method`, `queryString`, `headers` and `body` are fields used for matching, see [dedicated page](Matching.md)
+  for more details on that
+- `response` is used to hold response specification, can be simple string, file reference or detailed response
+  specification
+- `multiResponsesLooped` is used to control looping of multiple variants of `response`,
+  see [dedicated section below](#multiple-responses)
+- `dataset` and `datasetLooped` are used to configure [datasets for dynamic responses](#datasets)
+
+The `response` fields are described in detail in [templating page](Templating.md), below is the quick list:
+
+- `status` to control HTTP response code
+- `headers` to specify headers as key-value pairs
+- `body` as string or file reference
+- `useTemplating` for the ability to disable template evaluating on response pieces
+
+Here is config example with illustrations of several variants of endpoint definition:
+
+```yaml
+services:
+  - port: 8000
+    endpoints:
+      - path: /  # by default, method is GET, response is HTTP 200 with empty body
+
+      - path: /api/action1
+        method: "POST"
+        response: "Simple string response" # can be just response content string
+
+      - path: /api/action2
+        response: # detailed specification allows controling status code and headers
+          status: 201
+          body: @subdir/response.json
+          headers:
+            Content-Type: application/json
+
+```
+
+### Multiple Responses
+
+The `response` field under `endpoint` can be an array, too. If this field is an array then for each request the next
+item is taken for response. For example, considering the configuration below:
+
+```yaml
+response:
+  - "@index.html"
+  - headers:
+      content-type: image/png
+    body: "@subdir/image.png"
+  - just some text
+```
+
+- For request #1: `index.html` file is returned with `Content-Type: text/html` header.
+- For request #2: `subdir/image.png` image is returned with `Content-Type: image/png` header.
+- For request #3: `just some text` is returned with `Content-Type: text/html` header.
+- For request #4: `index.html` again and so on...
+
+The looping can be disabled with setting `multiResponsesLooped` to `false`, in this case you will start getting HTTP 410
+response after all items in response list are exhausted.
+
+### Datasets
+
+One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response
+templating.
+
+This field can be a string that starts with `@` to indicate a path to an external JSON file like `@subdir/dataset.json`
+or an array:
+
+```yaml
+dataset:
+  - var1: val1
+  - var1: val2
+response: 'dataset: {{var1}}'
+```
+
+This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
+
+1. request: `dataset: val1` is returned.
+2. request: `dataset: val2` is returned.
+3. request: `dataset: val1` is returned.
+
+The looping can be disabled with setting `datasetLooped` to `false`. In this case, on 3rd request, the endpoint
+returns `410` status code with an empty response body.
+
+## Global Settings
+
+Under the `globals` section of config, you can specify `headers` that will be set for each response:
+
+```yaml
+globals:
+  headers:
+    X-Tenant-Id: "test-tenant"
+    Content-Type: application/json
+```
+
+## Automatic CORS (Cross-Origin Resource Sharing)
+
+Mockintosh serves CORS pre-flight requests automatically for all defined endpoints, unless there is existing `OPTIONS`
+method endpoint in service configuration. The mock server will respond to such pre-flight requests with `204` status
+code.
+
+For any request that has `Origin` header provided, the mock server will set `Origin` and `Access-Control-Allow-Headers`
+headers in the response according to the `Origin` and `Access-Control-Request-Headers` in the request headers. It will
+also set `Access-Control-Allow-Methods` header to `DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT`.
+
+## Advanced Templating with Jinja2
 
 You can specifiy the templating engine on top of the file like `templatingEngine: "Jinja2"` or inside the response.
-
-The configuration file should contain the list of definitions of your microservices like shown below:
-
-```yaml
-services: # List of your microservices
-  - comment: "Mock for http://example1.com" # Comment related to the service that will be logged
-    hostname: "service1.example.com" # Hostname of the service (defaults to "localhost")
-    port: 8001 # The port of the service
-    endpoints: ... # Endpoints
-  - comment: "Mock for http://example2.com"
-    hostname: "service2.example.com"
-    port: 8002
-    endpoints: ...
-```
-
-*Note: It's also possible to not define the `hostname`. In that case the service occupies the whole port*
-*alternatively, one can define two service with different hostnames on the same port number.*
-
-The fields of an endpoint is shown below:
-
-```yaml
-endpoints: # List of the endpoints in your microservice
-  - path: "/users" # Path of the endpoint
-    method: GET # The HTTP verb
-    response: .. # Response
-```
 
 A response example that leverages Jinja2 templating and Faker is shown below:
 
@@ -54,395 +222,3 @@ A response example that leverages Jinja2 templating and Faker is shown below:
   "total": {{ request.queryString.total }}
 }
 ```
-
-## Request Matching Logic
-
-### Path
-
-#### Path Parameters
-
-You can use `{{varname}}` syntax to specify a path parameter in any segment of your paths and they will be available for
-using in the response:
-
-```yaml
-endpoints:
-  - path: "/parameterized/{{myVar}}/someval"
-    response: 'Here is: {{myVar}}'
-```
-
-#### Static Value Priority
-
-Even if you specified a path parameter for a certain path segment, static values have a high priority:
-
-```yaml
-endpoints:
-  - path: "/parameterized/{{myVar}}/someval"
-    response: 'Here is: {{myVar}}'
-  - path: "/parameterized/staticval/someval"
-    response: static path segments have a high priority
-```
-
-so that a request like `curl -X GET http://localhost:8001/parameterized/staticval/someval` would return *`static path segments have a high priority`*
-
-#### Regex Match
-
-With Mockintosh it's possible to use regular expressions in path segments:
-
-```yaml
-- path: "/match/{{regEx 'prefix-.*'}}/someval"
-  response: 'regex match: {{request.path}}'
-```
-
-so that a request like `curl -X GET http://localhost:8001/match/prefix-hello_world/someval` would
-return `regex match: /match/prefix-hello_world/someval`
-
-#### Regex Capture Group
-
-It's also possible to use regular expression capture groups in path segments:
-
-```yaml
-- path: "/match/{{regEx 'prefix-(.*)' 'myVar'}}/someval"
-  response: 'regex capture group: {{myVar}}'
-```
-
-so that a request like `curl -X GET http://localhost:8001/match/prefix-hello_world/someval` would return `regex capture group: hello_world`
-
-You can use as many path parameter and regex capture groups you want:
-
-```yaml
-- path: "/parameterized5/text/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
-  response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
-```
-
-### Headers
-
-Any header specified in the endpoint description is required to be exist in the request headers. Otherwise the mock
-server will look for other alternatives of with the exact path and HTTP method combination. If not match is found
-a `404` response will be returned. Here is an example configuration which demonstrates the how endpoint alternatives
-recognized in terms of headers:
-
-```yaml
-services:
-- comment: Service1
-  port: 8001
-  endpoints:
-  - path: "/alternative"
-    method: GET
-    headers:
-      hdr1: myValue
-      hdr2: "{{myVar}}"
-      hdr3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
-    response:
-      body: 'headers match: {{request.headers.hdr1}} {{myVar}} {{myCapturedVar}}'
-      status: 201
-      headers:
-        Set-Cookie:
-        - name1={{request.headers.hdr2}}
-        - name2={{request.headers.hdr3}}
-  - path: "/alternative"
-    headers:
-      hdr4: another header
-    response:
-      body: 'hdr4 request header: {{request.headers.hdr4}}'
-      headers:
-        hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
-```
-
-For the above configuration example here are some example requests and their responses:
-
-- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: wrongValue"` Response: `404`
-- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: myValue" -H "hdr2: someValue"` Response: `404`
-- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: myValue" -H "hdr2: someValue" -H "hdr3: prefix-invalidCapture"` Response: `404`
-- Request: `curl -X GET http://localhost:8001/alternative -H "hdr1: myValue" -H "hdr2: someValue" -H "hdr3: prefix-validCapture-suffix"` Response: `201` - `headers match: mvValue someValue validCapture` (also it sets the cookies `name1` to `someValue` and `name2` to `validCapture`)
-- Request: `curl -X GET http://localhost:8001/alternative -H "hdr4: another header"` Response: `200` - `hdr4 request header: another header`
-- Request: `curl -X GET http://localhost:8001/alternative -H "hdr5: another header"` Response: `404`
-
-As you can understand from these request and response examples; the workflow of static values, parameters,
-regex match and regex capture groups, is exactly the same with how they works in [path](###Path).
-
-### Query String
-
-The matching logic for query strings is quite similar to [headers](###Headers). So here is the same example but
-in terms of the query strings:
-
-```yaml
-services:
-- comment: Service1
-  port: 8001
-  - path: "/alternative"
-    method: GET
-    queryString:
-      param1: my Value
-      param2: "{{myVar}}"
-      param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
-    response:
-      body: 'query string match: {{request.queryString.param1}} {{myVar}} {{myCapturedVar}}'
-      status: 201
-  - path: "/alternative"
-    queryString:
-      param4: another query string
-    response:
-      body: 'param4 request query string: {{request.queryString.param4}}'
-```
-
-and these are the example requests and corresponding responses for such a mock server configuration:
-
-- Request: `curl -X GET http://localhost:8001/alternative?param1=wrongValue"` Response: `404`
-- Request: `curl -X GET http://localhost:8001/alternative?param1=my%20Value&param2=someValue"` Response: `404`
-- Request: `curl -X GET http://localhost:8001/alternative?param1=my%20Value&param2=someValue&param3=prefix-invalidCapture"` Response: `404`
-- Request: `curl -X GET http://localhost:8001/alternative?param1=my%20Value&param2=someValue&param3=prefix-validCapture-suffix"` Response: `201` - `query string match: mvValue someValue validCapture`
-- Request: `curl -X GET http://localhost:8001/alternative?param4=another%20query%20string"` Response: `200` - `param4 request query string: another query string`
-- Request: `curl -X GET http://localhost:8001/alternative?param5=another%20query%20string"` Response: `404`
-
-### JSON Body Schema Validation
-
-The mock server supports [JSON Schema](https://json-schema.org/) specification as matching logic. Consider this example:
-
-```yaml
-services:
-- comment: Mock for Service1
-  port: 8001
-  endpoints:
-  - path: "/endpoint1"
-    method: POST
-    body:
-      schema:
-        type: object
-        properties:
-          somekey: {}
-        required:
-        - somekey
-    response: 'endpoint1: body JSON schema matched'
-```
-
-and here is a two request example that one matches the JSON schema while the other doesn't match:
-
-- Request:
-
-```bash
-curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
-     -H "Accept: application/json"
-     -d '{"somekey": "valid"}'
-```
-
-Response: `200` - `endpoint1: body JSON schema matched`
-
-- Request:
-
-```bash
-curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
-     -H "Accept: application/json"
-     -d '{"somekey2": "invalid"}'
-```
-
-Response: `404`
-
-## Response Contents
-
-### Status Code
-
-The mock server supports both integer:
-
-```yaml
-response:
-  status: 202
-```
-
-and string values:
-
-```yaml
-response:
-  status: '403'
-```
-
-as the status code in the response definition. If the status code is not specified it defaults to `200`.
-
-It's also possible to use templating in the `status` field like this:
-
-```yaml
-response:
-  status: "{{someVar}}"
-```
-
-### Headers
-
-#### Local
-
-One can define response headers specific to each individual endpoint like:
-
-```yaml
-response:
-  body: 'hello world'
-  status: 200
-  headers:
-    Cache-Control: no-cache
-```
-
-#### Local
-
-It's also possible to define response headers in global level. Such that each endpoint will include those headers into
-their responses:
-
-```yaml
-globals:
-  headers:
-    Content-Type: application/json
-...
-      response:
-        body: 'hello world'
-        status: 200
-        headers:
-          Cache-Control: no-cache
-```
-
-### Body
-
-The body can be direct response string:
-
-```yaml
-response:
-  body: 'hello world'
-```
-
-or a string that starts with `@` sign to indicate a separete template file:
-
-```yaml
-response:
-  body: '@some/path/my_template.json.hbs'
-```
-
-The template file path is a relative path to the parent directory of the config file.
-
-## Request Object
-
-The `request` object is exposed and can be used in places where the templating is possible. These are its attributes:
-
-#### `request.version`
-
-HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
-
-#### `request.remoteIp`
-
-The IP address of the client e.g. `127.0.0.1`.
-
-#### `request.protocol`
-
-The HTTP protocol e.g. `http` or `https`.
-
-#### `request.host`
-
-Full address of host e.g. `localhost:8001`.
-
-#### `request.hostName`
-
-Only the hostname e.g. `localhost`.
-
-#### `request.uri`
-
-URI, full path segments including the query string e.g. `/some/path?a=hello%20world&b=3`.
-
-#### `request.method`
-
-[HTTP methods](https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html). Supported verbs are:
-`HEAD`, `GET`, `POST`, `DELETE`, `PATCH`, `PUT` and `OPTIONS`.
-
-#### `request.path`
-
-The path part of the URI e.g. `/some/path`.
-
-#### `request.headers.<key>`
-
-A request header e.g. `request.headers.accept` is `*/*`.
-
-#### `request.queryString.<key>`
-
-A query parameter e.g. `request.queryString.a` is `hello world`.
-
-#### `request.body`
-
-The raw request body as a whole. Can be `str`, `bytes` or `dict`.
-
-#### `request.formData.<key>`
-
-The `POST` parameters sent in a `application/x-www-form-urlencoded` request e.g. `request.formData.param1` is `value1`.
-
-#### `request.files.<key>`
-
-The fields in a `multipart/form-data` request.
-
-## Looping Logic
-
-### Multiple Responses
-
-The `response` field under `endpoint` can be an array too. If this field is an array then
-this is looped for each request. For example, considering the configuration below:
-
-```yaml
-response:
-- "@index.html"
-- headers:
-    content-type: image/png
-  body: "@subdir/image.png"
-- just some text
-```
-
-1. request: `index.html` file is returned with `Content-Type: text/html` header.
-2. request: `subdir/image.png` image is returned with `Content-Type: image/png` header.
-3. request: `just some text` is returned with `Content-Type: text/html` header.
-4. request: `index.html` again and so on...
-
-The looping can be disabled with setting `multiResponsesLooped` to `false`:
-
-```yaml
-multiResponsesLooped: false
-response:
-- "@index.html"
-- headers:
-    content-type: image/png
-  body: "@subdir/image.png"
-- just some text
-```
-
-In this case, on 4th request, the endpoint returns `410` status code with an empty response body.
-
-### Dataset
-
-One can specify a `dataset` field under `endpoint` to directly inject variables into response templating.
-
-This field can be string that starts with `@` to indicate a path that points to
-an external JSON file like `@subdir/dataset.json` or an array:
-
-```yaml
-dataset:
-- var1: val1
-- var1: val2
-response: 'dataset: {{var1}}'
-```
-
-This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
-
-1. request: `dataset: val1` is returned.
-2. request: `dataset: val2` is returned.
-3. request: `dataset: val1` is returned.
-
-The looping can be disabled with setting `datasetLooped` to `false`:
-
-```yaml
-datasetLooped: false
-dataset:
-- var1: val1
-- var1: val2
-response: 'dataset: {{var1}}'
-```
-
-In this case, on 3rd request, the endpoint returns `410` status code with an empty response body.
-
-## Cross-origin Resource Sharing (CORS)
-
-`OPTIONS` method has a special behavior in the mock server. Unless there is an endpoint with `method: options`
-specified and matched according to the request matching rules, any endpoint (no matter what HTTP method it is) also
-accepts `OPTIONS` requests if the `Origin` header is supplied. The mock server will respond such requests with `204`.
-
-For any request that has `Origin` header provided, the mock server will set `Origin` and `Access-Control-Allow-Headers`
-headers in the response according to the `Origin` and `Access-Control-Request-Headers` in the request headers.
-It will also set `Access-Control-Allow-Methods` header to `DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT`.

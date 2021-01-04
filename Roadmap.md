@@ -50,7 +50,7 @@
 1. Automatic image placeholders
 1. allow specifying bind address via CLI option
 
-## Milestone 6
+## Milestone 6 - WIP
 
 1. Dataset support
 1. SSL support
@@ -58,11 +58,12 @@
 ## Milestone N
 
 1. Ability to match request body by regexp
-1. Import from OpenAPI and Postman collections
 1. template helpers: random numbers, strings, dates, names, addresses etc
+1. Counter functions
 1. jsonSchema extraction from body
 1. referencing multipart/urlencoded fields in matchers and templates
 1. base64-encoded body strings, for binary responses
+1. Import from OpenAPI and Postman collections
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
