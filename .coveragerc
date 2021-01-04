@@ -1,0 +1,3 @@
+[run]
+concurrency = multiprocessing
+omit = tests/*,tests_integrated/*
