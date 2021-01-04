@@ -1,12 +1,5 @@
 # Response Templating
 
-Mockintosh uses syntax of [Handlebars](https://handlebarsjs.com/guide/) (default)
-and [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) templating engines. To switch into Jinja2, use
-the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2).
-
-Any of the engine variants provides access to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for
-generating dynamic data.
-
 ## Response Fields
 
 In response template, one can specify `status`, `headers` and `body` of HTTP message. Here's quick example:
@@ -60,24 +53,32 @@ _Note: The template file path has to be relative to the directory of the config 
 
 ## Dynamic Values
 
-By default, dynamic templates use Handlebars syntax and look like this: `{{namedVal}}` or `{{request.path}}` or `{{fake.address}}` etc. 
+By default, dynamic templates use [Handlebars](https://handlebarsjs.com/guide/) syntax that looks like
+this: `{{namedValue}}` or `{{request.path}}` or `{{fake.address}}` etc.
 
-TODO: Can I use nested expressions?
+TODO: Can I use nested Handlebars expressions?
 
-Below are 
+_Note: To switch into [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) as templating engine, use
+the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2)._
+
+Below is the reference of available dynamic value generators.
 
 ### Random
 
-- uuid4
-- integers with range
-- float 0..1 with desired precision
-- string of desired len
+- `random.int 10 20` - random integer between 10 and 20 (inclusive)
+- `random.float 3` - random float (between 0 and 1 , inclusive) with 3 digit precision
+- `random.ascii 5` - sequence of ASCII characters, length 5
+- `random.alphanum 5` - sequence of alphanumeric characters, length 5
+- `random.hex 16` - sequence of hexadecimal characters, length 16
+- `random.uuid4` - UUID4 generator
 
 For random names, addresses etc, please refer to [Faker's](#faker) functionality.
 
 ### Faker
 
 _reference of available_
+Any of the engine variants provides access to [Faker](https://faker.readthedocs.io/en/master/providers.html) library for
+generating dynamic data.
 
 ### Counters
 
@@ -85,8 +86,8 @@ Named counters
 
 ### Request Object
 
-The `request` object is exposed and can be used in places where the templating is possible. These are the most useful
-attributes:
+You can reference parts of HTTP request in response templates. It is available as `request` object. These are the most
+useful attributes:
 
 - `request.path` - The path part of the URI e.g. `/some/path`.
 - `request.path.<n>` - The specific component part of the URI
@@ -97,7 +98,7 @@ attributes:
   e.g. `request.formData.param1` is `value1`.
 - `request.files.<key>` - The fields in a `multipart/form-data` request.
 
-Less frequently used:
+And some less frequently used:
 
 - `request.method` - [HTTP method](https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html)
 - `request.uri` - URI, full path segments including the query string e.g. `/some/path?a=hello%20world&b=3`.
@@ -106,8 +107,3 @@ Less frequently used:
 - `request.protocol` - The HTTP protocol e.g. `http` or `https`.
 - `request.remoteIp` - The IP address of the client e.g. `127.0.0.1`.
 - `request.version` - HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
-
-
-
-
-
