@@ -160,7 +160,22 @@ Response: `201`  with `query string match: mvValue someValue validCapture`
 
 ## Body
 
-The mock server supports [JSON Schema](https://json-schema.org/) specification as matching logic. Consider this example:
+There are several ways of matching request body: with `regEx` on `text` or with JSON Schema.
+
+To match request body text using `regEx`, just do it like this:
+```yaml
+services:
+  - comment: Mock for Service1
+    port: 8001
+    endpoints:
+      - path: "/endpoint1"
+        method: POST
+        body:
+          text: {{regEx '"jsonkey": "expectedval-(.+)"' 'namedValue'}}
+```
+_Note: you can use familiar `regEx` named value capturing for body, as usual._
+
+To do the match against [JSON Schema](https://json-schema.org/), please consider this example:
 
 ```yaml
 services:
