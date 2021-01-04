@@ -97,9 +97,9 @@
           "path": "/body-regex",
           "method": "POST",
           "body": {
-            "text": "{{regEx '\\d-required-\\d'}}"
+            "text": "{{regEx '(\\d)-required-(\\d)' 'val1' 'val2'}}"
           },
-          "response": "body regex matched"
+          "response": "body regex matched: {{val1}} {{val2}}"
         },
         {
           "path": "/status-template1",

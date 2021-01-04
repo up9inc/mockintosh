@@ -248,7 +248,7 @@ class IntegrationTests(unittest.TestCase):
     def test_body_regex(self):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")
         self.assertEqual(200, resp.status_code)
-        self.assertEqual("body regex matched", resp.text)
+        self.assertEqual("body regex matched: 1 2", resp.text)
 
         resp = requests.post(SRV1 + '/body-regex', data="somewhere a-required-b is not present")
         self.assertEqual(404, resp.status_code)
