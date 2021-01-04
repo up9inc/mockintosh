@@ -114,6 +114,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
+        self.analyze_body_text()
 
     def dynamic_unimplemented_method_guard(self):
         if self.request.method.lower() not in self.methods:
@@ -290,6 +291,18 @@ class GenericHandler(tornado.web.RequestHandler):
                     if match is not None:
                         for i, key in enumerate(value['args']):
                             self.custom_context[key] = match.group(i + 1)
+
+    def analyze_body_text(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'bodyText' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        body = self.decoder(self.request.body)
+        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyText'].items():
+            if value['type'] == 'regex':
+                match = re.search(value['regex'], body)
+                if match is not None:
+                    for i, key in enumerate(value['args']):
+                        self.custom_context[key] = match.group(i + 1)
 
     def determine_headers(self):
         if self.custom_endpoint_id is not None:
