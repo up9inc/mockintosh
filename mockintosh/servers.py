@@ -6,26 +6,51 @@
     :synopsis: module that server classes.
 """
 
-import sys
 import logging
-from os import path
+import sys
+from abc import abstractmethod
 from collections import OrderedDict
+from os import path
 
 import tornado.ioloop
 import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
+from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
 from mockintosh.overrides import Application
-from mockintosh.exceptions import CertificateLoadingError
 
 __location__ = path.abspath(path.dirname(__file__))
 
 
-class HttpServer():
+class Impl:
+    @abstractmethod
+    def get_server(self, app, is_ssl, ssl_options):
+        pass
 
-    def __init__(self, definition, debug=False, interceptors=(), address=''):
+    @abstractmethod
+    def serve(self):
+        pass
+
+
+class TornadoImpl(Impl):
+    def get_server(self, router, is_ssl, ssl_options):
+        if is_ssl:
+            server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
+        else:
+            server = tornado.web.HTTPServer(router)
+
+        return server
+
+    def serve(self):
+        tornado.ioloop.IOLoop.current().start()
+
+
+class HttpServer:
+
+    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address=''):
         self.definition = definition
+        self.impl = impl
         self.address = address
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
@@ -67,10 +92,7 @@ class HttpServer():
                     endpoints = self.merge_alternatives(service['endpoints'])
                 app = self.make_app(endpoints, self.globals, debug=self.debug)
                 if 'hostname' not in service:
-                    if ssl:
-                        server = tornado.web.HTTPServer(app, ssl_options=ssl_options)
-                    else:
-                        server = tornado.web.HTTPServer(app)
+                    server = self.impl.get_server(app, ssl, ssl_options)
                     server.listen(service['port'], address=self.address)
                     logging.debug('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
@@ -100,10 +122,7 @@ class HttpServer():
 
             if rules:
                 router = RuleRouter(rules)
-                if ssl:
-                    server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
-                else:
-                    server = tornado.web.HTTPServer(router)
+                server = self.impl.get_server(router, ssl, ssl_options)
                 server.listen(services[0]['port'], address=self.address)
                 logging.debug('Will listen port number: %d' % service['port'])
 
@@ -142,7 +161,7 @@ class HttpServer():
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
-        tornado.ioloop.IOLoop.current().start()
+        self.impl.serve()
 
     def make_app(self, endpoints, _globals, debug=False):
         endpoint_handlers = []

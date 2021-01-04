@@ -270,3 +270,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(re.match(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', fuuid))
 
         self.assertEqual(5, len(resp))  # random ascii
+    def test_body_regex(self):
+        resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("body regex matched: 1 2", resp.text)
+
+        resp = requests.post(SRV1 + '/body-regex', data="somewhere a-required-b is not present")
+        self.assertEqual(404, resp.status_code)
