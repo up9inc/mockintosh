@@ -44,13 +44,13 @@ class Random():
         return random.randint(minimum, maximum)
 
     def _float(self, minimum, maximum, precision):
-        return round(random.uniform(minimum, maximum), precision)
+        return round(random.uniform(float(minimum), float(maximum)), precision)
 
     def alphanum(self, length):
         return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
     def _hex(self, length):
-        return binascii.b2a_hex(os.urandom(length))
+        return binascii.b2a_hex(os.urandom(int(length / 2))).decode('utf-8')
 
     def uuid4(self):
         return uuid4()
