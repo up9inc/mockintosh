@@ -490,6 +490,15 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service3'
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/j2/core/undefined.json'
+    ])
+    def test_undefined_var(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/undefined')
+        assert 200 == resp.status_code
+        assert resp.text == 'Hello {{undefined}} world'
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',

@@ -179,7 +179,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     fake,
                     random_integer
                 ],
-                add_params_callback=self.add_params
+                add_params_callback=self.add_params,
+                fill_undefineds=True
             )
             compiled, _ = renderer.render()
 
@@ -258,7 +259,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.custom_response['status'],
                     inject_objects=self.custom_context,
                     inject_methods=[],
-                    add_params_callback=self.add_params
+                    add_params_callback=self.add_params,
+                    fill_undefineds=True
                 )
                 compiled, _ = renderer.render()
                 status_code = int(compiled)
@@ -330,7 +332,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     value,
                     inject_objects=self.custom_context,
                     inject_methods=[],
-                    add_params_callback=self.add_params
+                    add_params_callback=self.add_params,
+                    fill_undefineds=True
                 )
                 new_value, _ = renderer.render()
                 new_value_list.append(new_value)
@@ -502,7 +505,8 @@ class GenericHandler(tornado.web.RequestHandler):
             orig_relative_path,
             inject_objects=self.custom_context,
             inject_methods=[],
-            add_params_callback=self.add_params
+            add_params_callback=self.add_params,
+            fill_undefineds=True
         )
         orig_relative_path, _ = renderer.render()
 

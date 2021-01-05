@@ -1,0 +1,16 @@
+{
+  "templatingEngine": "Jinja2",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/undefined",
+          "method": "GET",
+          "response": "Hello {{undefined}} world"
+        }
+      ]
+    }
+  ]
+}
