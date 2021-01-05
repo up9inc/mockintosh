@@ -59,7 +59,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.dynamic_unimplemented_method_guard()
 
         try:
-            _id, response, params, context, dataset = self.match_alternative()
+            _id, alternative, response, params, context, dataset = self.match_alternative()
         except TypeError:
             return
         self.custom_endpoint_id = _id
@@ -68,11 +68,17 @@ class GenericHandler(tornado.web.RequestHandler):
         self.initial_context = context
         self.custom_dataset = dataset
 
+        self.default_context['requestCounter'] = alternative['requestCounter']
+
         self.populate_context(*args)
         self.determine_status_code()
         self.determine_headers()
         self.log_request()
+
+        self.custom_context['requestCounter'] = alternative['requestCounter']
         self.rendered_body = self.render_template()
+        alternative['requestCounter'] += 1
+
         if self.rendered_body is None:
             return
         self.special_response = self.build_special_response()
@@ -164,9 +170,9 @@ class GenericHandler(tornado.web.RequestHandler):
             compiled = source_text
         else:
             if template_engine == PYBARS:
-                from mockintosh.hbs.methods import uuid, fake, random_integer
+                from mockintosh.hbs.methods import uuid, fake, random_integer, counter
             elif template_engine == JINJA:
-                from mockintosh.j2.methods import uuid, fake, random_integer
+                from mockintosh.j2.methods import uuid, fake, random_integer, counter
             else:
                 raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 
@@ -177,7 +183,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 inject_methods=[
                     uuid,
                     fake,
-                    random_integer
+                    random_integer,
+                    counter
                 ],
                 add_params_callback=self.add_params
             )
@@ -466,7 +473,7 @@ class GenericHandler(tornado.web.RequestHandler):
             _id = alternative['id']
             params = alternative['params']
             context = alternative['context']
-            return _id, response, params, context, dataset
+            return _id, alternative, response, params, context, dataset
 
         self.set_status(404)
         self.finish()

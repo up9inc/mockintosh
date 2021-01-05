@@ -139,6 +139,8 @@ class HttpServer:
                 extracted_parts[key] = endpoint[key]
                 if 'id' not in extracted_parts:
                     extracted_parts['id'] = None
+                if 'requestCounter' not in extracted_parts:
+                    extracted_parts['requestCounter'] = 0
             if identifier not in new_endpoints:
                 new_endpoints[identifier] = {}
                 new_endpoints[identifier]['path'] = endpoint['path']

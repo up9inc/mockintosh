@@ -31,3 +31,7 @@ def reg_ex(this, regex, *args, **kwargs):
     else:
         _handlebars_add_regex_context(this.context, this.context['scope'], this.context['key'], regex, *args)
     return regex
+
+
+def counter(this):
+    return this['requestCounter'] + 1

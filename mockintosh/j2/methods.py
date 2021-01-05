@@ -35,3 +35,8 @@ def reg_ex(context, regex, *args, **kwargs):
     else:
         _jinja_add_regex_context(context, context['scope'], context['key'], regex, *args)
     return regex
+
+
+@contextfunction
+def counter(context):
+    return context['requestCounter'] + 1
