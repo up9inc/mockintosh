@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from jinja2.utils import contextfunction
 
-from mockintosh.methods import _jinja_add_varname, _jinja_add_regex_context
+from mockintosh.methods import _jinja_add_varname, _jinja_add_to_context
 
 
 def fake():
@@ -28,8 +28,33 @@ def reg_ex(context, regex, *args, **kwargs):
         for arg in args:
             _jinja_add_varname(context, arg)
     else:
-        _jinja_add_regex_context(context, context['scope'], context['key'], regex, *args)
+        _type = 'regex'
+        _jinja_add_to_context(
+            context,
+            context['scope'],
+            context['key'],
+            {
+                'type': _type,
+                'regex': regex,
+                'args': args
+            }
+        )
     return regex
+
+
+@contextfunction
+def counter(context, name):
+    number = 0
+    if name in context:
+        number = context[name]
+    number += 1
+    _jinja_add_to_context(
+        context,
+        'counters',
+        name,
+        number
+    )
+    return number
 
 
 class Random():

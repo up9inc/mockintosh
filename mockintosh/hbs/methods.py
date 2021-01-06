@@ -12,7 +12,7 @@ import os
 import binascii
 from uuid import uuid4
 
-from mockintosh.methods import _handlebars_add_regex_context
+from mockintosh.methods import _handlebars_add_to_context
 
 
 def fake(this, fake, attr):
@@ -24,8 +24,32 @@ def reg_ex(this, regex, *args, **kwargs):
         for arg in args:
             this.context[arg] = None
     else:
-        _handlebars_add_regex_context(this.context, this.context['scope'], this.context['key'], regex, *args)
+        _type = 'regex'
+        _handlebars_add_to_context(
+            this.context,
+            this.context['scope'],
+            this.context['key'],
+            {
+                'type': _type,
+                'regex': regex,
+                'args': args
+            }
+        )
     return regex
+
+
+def counter(this, name):
+    number = 0
+    if name in this.context:
+        number = this.context[name]
+    number += 1
+    _handlebars_add_to_context(
+        this.context,
+        'counters',
+        name,
+        number
+    )
+    return number
 
 
 class Random():

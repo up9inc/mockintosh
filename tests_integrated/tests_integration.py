@@ -278,3 +278,22 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.post(SRV1 + '/body-regex', data="somewhere a-required-b is not present")
         self.assertEqual(404, resp.status_code)
+
+    def test_counter(self):
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant1: 1 1", resp.text)
+
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant2: 2 1", resp.text)
+
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant1: 3 2", resp.text)
+
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant2: 4 2", resp.text)
+
+        resp = requests.get(SRV1 + '/counter2')
+        self.assertEqual("variant3: 5 3 3", resp.headers.get('X-Counter'))
+
+        resp = requests.get(SRV1 + '/counter3')
+        self.assertEqual("variant3: 5 3 3", resp.text)
