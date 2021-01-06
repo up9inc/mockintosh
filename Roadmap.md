@@ -82,6 +82,8 @@
     - Allows to reload config on the fly Allows to get and reset the stats of the service
     - Allows to reset the cursors of datasets/performance profiles
     - config retrieval
+   
+A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
 
 ## Milestone N
 
