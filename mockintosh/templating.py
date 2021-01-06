@@ -10,7 +10,8 @@ import copy
 import logging
 
 from jinja2 import Environment, meta
-from pybars import Compiler
+from jinja2.exceptions import TemplateSyntaxError
+from pybars import Compiler, PybarsError
 from faker import Faker
 
 from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
@@ -60,7 +61,10 @@ class TemplateRenderer():
     def render_handlebars(self):
         context, helpers = self.add_globals(compiler._compiler, helpers={})
         template = compiler.compile(self.text)
-        compiled = template(context, helpers=helpers)
+        try:
+            compiled = template(context, helpers=helpers)
+        except PybarsError:
+            compiled = self.text
         return compiled, context
 
     def render_jinja(self):
@@ -74,13 +78,16 @@ class TemplateRenderer():
         if JINJA_VARNAME_DICT not in env.globals:
             env.globals[JINJA_VARNAME_DICT] = {}
 
-        if self.fill_undefineds:
-            ast = env.parse(self.text)
-            for var in meta.find_undeclared_variables(ast):
-                env.globals[var] = '{{%s}}' % var
+        try:
+            if self.fill_undefineds:
+                ast = env.parse(self.text)
+                for var in meta.find_undeclared_variables(ast):
+                    env.globals[var] = '{{%s}}' % var
 
-        template = env.from_string(self.text)
-        compiled = template.render()
+            template = env.from_string(self.text)
+            compiled = template.render()
+        except TemplateSyntaxError:
+            compiled = self.text
 
         if SPECIAL_CONTEXT in env.globals:
             env.globals[JINJA_VARNAME_DICT][SPECIAL_CONTEXT] = env.globals[SPECIAL_CONTEXT]

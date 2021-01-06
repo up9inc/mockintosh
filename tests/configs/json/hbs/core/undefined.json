@@ -1,5 +1,5 @@
 {
-  "templatingEngine": "Jinja2",
+  "templatingEngine": "Handlebars",
   "services": [
     {
       "comment": "Mock for Service1",

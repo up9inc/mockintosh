@@ -491,13 +491,18 @@ class TestCore():
         assert resp.text == 'service3'
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/j2/core/undefined.json'
+        'configs/json/hbs/core/undefined.json',
+        'configs/json/j2/core/undefined.json',
     ])
     def test_undefined_var(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
         resp = requests.get(SRV_8001 + '/undefined')
         assert 200 == resp.status_code
         assert resp.text == 'Hello {{undefined}} world'
+
+        resp = requests.get(SRV_8001 + '/undefined2')
+        assert 200 == resp.status_code
+        assert resp.text == 'Hello {{undefined 1 2}} world'
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/counter.yaml',
