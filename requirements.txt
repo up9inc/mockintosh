@@ -3,5 +3,5 @@ Faker==4.18.0
 tornado==6.0.4
 PyYAML==5.3.1
 jsonschema==3.2.0
-pybars3 @ git+https://github.com/up9inc/pybars3@cbeba33bb7df09642c2fa3edcfa943c3555f943e
+pybars4 @ git+https://github.com/up9inc/pybars4@675cb8059c493f7d406dfd2647c86045cea95743
 accept-types==0.4.1
