@@ -173,6 +173,10 @@
           "datasetLooped": false,
           "dataset": "@subdir/dataset.json",
           "response": "dset: {{var1}}"
+        },
+        {
+          "path": "/templating-random",
+          "response": "{{random.int 10 20}}\n{{random.float -0.5 20.7 3}}\n{{random.alphanum 5}}\n{{random.hex 16}}\n{{random.uuid4}}\n{{random.ascii 5}}"
         }
       ]
     },

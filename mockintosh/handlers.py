@@ -28,10 +28,16 @@ from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 
+from mockintosh.hbs.methods import Random as hbs_Random
+from mockintosh.j2.methods import Random as j2_Random
+
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
 NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
+
+hbs_random = hbs_Random()
+j2_random = j2_Random()
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -177,9 +183,11 @@ class GenericHandler(tornado.web.RequestHandler):
             compiled = source_text
         else:
             if template_engine == PYBARS:
-                from mockintosh.hbs.methods import uuid, fake, random_integer, counter
+                from mockintosh.hbs.methods import fake, counter
+                self.custom_context['random'] = hbs_random
             elif template_engine == JINJA:
-                from mockintosh.j2.methods import uuid, fake, random_integer, counter
+                from mockintosh.j2.methods import fake, counter
+                self.custom_context['random'] = j2_random
             else:
                 raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 
@@ -188,9 +196,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 source_text,
                 inject_objects=self.custom_context,
                 inject_methods=[
-                    uuid,
                     fake,
-                    random_integer,
                     counter
                 ],
                 add_params_callback=self.add_params
