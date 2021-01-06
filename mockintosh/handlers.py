@@ -63,21 +63,19 @@ class GenericHandler(tornado.web.RequestHandler):
         except TypeError:
             return
         self.custom_endpoint_id = _id
+        self.alternative = alternative
         self.custom_response = response
         self.custom_params = params
         self.initial_context = context
         self.custom_dataset = dataset
-
-        self.default_context['requestCounter'] = alternative['requestCounter']
 
         self.populate_context(*args)
         self.determine_status_code()
         self.determine_headers()
         self.log_request()
 
-        self.custom_context['requestCounter'] = alternative['requestCounter']
-        self.rendered_body = self.render_template()
-        alternative['requestCounter'] += 1
+        self.rendered_body, new_context = self.render_template()
+        self.populate_alternative(new_context)
 
         if self.rendered_body is None:
             return
@@ -108,7 +106,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.super_verb(*args)
 
     def populate_context(self, *args):
-        self.custom_context = {}
+        self.custom_context = {SPECIAL_CONTEXT: {'counters': {}}}
         for key, value in self.custom_dataset.items():
             self.custom_context[key] = value
         if args:
@@ -121,6 +119,14 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_headers()
         self.analyze_query_string()
         self.analyze_body_text()
+        self.analyze_counters()
+
+    def populate_alternative(self, context):
+        if context is None:
+            return
+        if 'counters' in context[SPECIAL_CONTEXT]:
+            for key, value in context[SPECIAL_CONTEXT]['counters'].items():
+                self.alternative['counters'][key] = value
 
     def dynamic_unimplemented_method_guard(self):
         if self.request.method.lower() not in self.methods:
@@ -149,12 +155,12 @@ class GenericHandler(tornado.web.RequestHandler):
         source_text = self.custom_response['body'] if 'body' in self.custom_response else None
 
         if source_text is None:
-            return source_text
+            return source_text, None
 
         if len(source_text) > 1 and source_text[0] == '@':
             template_path = self.resolve_relative_path(source_text)
             if template_path is None:
-                return None
+                return None, None
             with open(template_path, 'rb') as file:
                 logging.info('Reading external file from path: %s' % template_path)
                 source_text = file.read()
@@ -166,6 +172,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     logging.debug('Template file is binary. Templating disabled.')
 
         compiled = None
+        context = None
         if is_binary or not self.custom_response.get('useTemplating', True):
             compiled = source_text
         else:
@@ -188,12 +195,12 @@ class GenericHandler(tornado.web.RequestHandler):
                 ],
                 add_params_callback=self.add_params
             )
-            compiled, _ = renderer.render()
+            compiled, context = renderer.render()
 
         if not is_binary:
             logging.debug('Render output: %s' % compiled)
 
-        return compiled
+        return compiled, context
 
     def build_special_request(self):
         request = Request()
@@ -260,11 +267,20 @@ class GenericHandler(tornado.web.RequestHandler):
         status_code = None
         if 'status' in self.custom_response:
             if isinstance(self.custom_response['status'], str):
+                if self.definition_engine == PYBARS:
+                    from mockintosh.hbs.methods import counter
+                elif self.definition_engine == JINJA:
+                    from mockintosh.j2.methods import counter
+                else:
+                    raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
+
                 renderer = TemplateRenderer(
                     self.definition_engine,
                     self.custom_response['status'],
                     inject_objects=self.custom_context,
-                    inject_methods=[],
+                    inject_methods=[
+                        counter
+                    ],
                     add_params_callback=self.add_params
                 )
                 compiled, _ = renderer.render()
@@ -311,6 +327,10 @@ class GenericHandler(tornado.web.RequestHandler):
                     for i, key in enumerate(value['args']):
                         self.custom_context[key] = match.group(i + 1)
 
+    def analyze_counters(self):
+        for key, value in self.alternative['counters'].items():
+            self.custom_context[SPECIAL_CONTEXT]['counters'][key] = value
+
     def determine_headers(self):
         if self.custom_endpoint_id is not None:
             self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
@@ -321,6 +341,13 @@ class GenericHandler(tornado.web.RequestHandler):
 
         if 'headers' not in self.custom_response:
             return
+
+        if self.definition_engine == PYBARS:
+            from mockintosh.hbs.methods import counter
+        elif self.definition_engine == JINJA:
+            from mockintosh.j2.methods import counter
+        else:
+            raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
 
         for key, value in self.custom_response['headers'].items():
             value_list = None
@@ -336,7 +363,9 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.definition_engine,
                     value,
                     inject_objects=self.custom_context,
-                    inject_methods=[],
+                    inject_methods=[
+                        counter
+                    ],
                     add_params_callback=self.add_params
                 )
                 new_value, _ = renderer.render()
@@ -504,11 +533,20 @@ class GenericHandler(tornado.web.RequestHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
+        if self.definition_engine == PYBARS:
+            from mockintosh.hbs.methods import counter
+        elif self.definition_engine == JINJA:
+            from mockintosh.j2.methods import counter
+        else:
+            raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
+
         renderer = TemplateRenderer(
             self.definition_engine,
             orig_relative_path,
             inject_objects=self.custom_context,
-            inject_methods=[],
+            inject_methods=[
+                counter
+            ],
             add_params_callback=self.add_params
         )
         orig_relative_path, _ = renderer.render()

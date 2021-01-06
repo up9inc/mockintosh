@@ -5,4 +5,4 @@ services:
   endpoints:
   - path: "/counter"
     method: GET
-    response: "Hello {{counter()}} world"
+    response: "Hello {{counter('counterName')}} world"
