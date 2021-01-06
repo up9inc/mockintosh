@@ -189,13 +189,13 @@
           "path": "/counter2",
           "response": {
             "headers": {
-              "X-Counter": "{{counter 'counterName1'}} {{counter 'counterName2'}} {{counter 'counterName3'}}"
+              "X-Counter": "variant3: {{counter 'counterName1'}} {{counter 'counterName2'}} {{counter 'counterName3'}}"
             }
           }
         },
         {
           "path": "/counter3",
-          "response": "{{counterName1}} {{counterName2}} {{counterName3}}"
+          "response": "variant3: {{counterName1}} {{counterName2}} {{counterName3}}"
         }
       ]
     },

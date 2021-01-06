@@ -297,4 +297,3 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/counter3')
         self.assertEqual("variant3: 5 3 3", resp.text)
-

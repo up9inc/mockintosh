@@ -12,7 +12,6 @@ import os
 import binascii
 from uuid import uuid4
 
-from mockintosh.constants import SPECIAL_CONTEXT
 from mockintosh.methods import _handlebars_add_to_context
 
 
@@ -41,8 +40,8 @@ def reg_ex(this, regex, *args, **kwargs):
 
 def counter(this, name):
     number = 0
-    if 'counters' in this.context[SPECIAL_CONTEXT] and name in this.context[SPECIAL_CONTEXT]['counters']:
-        number = this.context[SPECIAL_CONTEXT]['counters'][name]
+    if name in this.context:
+        number = this.context[name]
     number += 1
     _handlebars_add_to_context(
         this.context,

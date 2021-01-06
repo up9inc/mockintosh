@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from jinja2.utils import contextfunction
 
-from mockintosh.constants import SPECIAL_CONTEXT
 from mockintosh.methods import _jinja_add_varname, _jinja_add_to_context
 
 
@@ -46,8 +45,8 @@ def reg_ex(context, regex, *args, **kwargs):
 @contextfunction
 def counter(context, name):
     number = 0
-    if 'counters' in context[SPECIAL_CONTEXT] and name in context[SPECIAL_CONTEXT]['counters']:
-        number = context[SPECIAL_CONTEXT]['counters'][name]
+    if name in context:
+        number = context[name]
     number += 1
     _jinja_add_to_context(
         context,

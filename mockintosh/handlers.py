@@ -39,6 +39,8 @@ NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
 hbs_random = hbs_Random()
 j2_random = j2_Random()
 
+counters = {}
+
 
 class GenericHandler(tornado.web.RequestHandler):
 
@@ -65,11 +67,10 @@ class GenericHandler(tornado.web.RequestHandler):
             self.dynamic_unimplemented_method_guard()
 
         try:
-            _id, alternative, response, params, context, dataset = self.match_alternative()
+            _id, response, params, context, dataset = self.match_alternative()
         except TypeError:
             return
         self.custom_endpoint_id = _id
-        self.alternative = alternative
         self.custom_response = response
         self.custom_params = params
         self.initial_context = context
@@ -80,8 +81,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_headers()
         self.log_request()
 
-        self.rendered_body, new_context = self.render_template()
-        self.populate_alternative(new_context)
+        self.rendered_body = self.render_template()
 
         if self.rendered_body is None:
             return
@@ -112,7 +112,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.super_verb(*args)
 
     def populate_context(self, *args):
-        self.custom_context = {SPECIAL_CONTEXT: {'counters': {}}}
+        self.custom_context = {}
         for key, value in self.custom_dataset.items():
             self.custom_context[key] = value
         if args:
@@ -127,12 +127,13 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_body_text()
         self.analyze_counters()
 
-    def populate_alternative(self, context):
+    def populate_counters(self, context):
         if context is None:
             return
-        if 'counters' in context[SPECIAL_CONTEXT]:
+
+        if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
             for key, value in context[SPECIAL_CONTEXT]['counters'].items():
-                self.alternative['counters'][key] = value
+                counters[key] = value
 
     def dynamic_unimplemented_method_guard(self):
         if self.request.method.lower() not in self.methods:
@@ -161,12 +162,12 @@ class GenericHandler(tornado.web.RequestHandler):
         source_text = self.custom_response['body'] if 'body' in self.custom_response else None
 
         if source_text is None:
-            return source_text, None
+            return source_text
 
         if len(source_text) > 1 and source_text[0] == '@':
             template_path = self.resolve_relative_path(source_text)
             if template_path is None:
-                return None, None
+                return None
             with open(template_path, 'rb') as file:
                 logging.info('Reading external file from path: %s' % template_path)
                 source_text = file.read()
@@ -202,11 +203,12 @@ class GenericHandler(tornado.web.RequestHandler):
                 add_params_callback=self.add_params
             )
             compiled, context = renderer.render()
+            self.populate_counters(context)
 
         if not is_binary:
             logging.debug('Render output: %s' % compiled)
 
-        return compiled, context
+        return compiled
 
     def build_special_request(self):
         request = Request()
@@ -289,7 +291,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     ],
                     add_params_callback=self.add_params
                 )
-                compiled, _ = renderer.render()
+                compiled, context = renderer.render()
+                self.populate_counters(context)
                 status_code = int(compiled)
             else:
                 status_code = self.custom_response['status']
@@ -334,8 +337,8 @@ class GenericHandler(tornado.web.RequestHandler):
                         self.custom_context[key] = match.group(i + 1)
 
     def analyze_counters(self):
-        for key, value in self.alternative['counters'].items():
-            self.custom_context[SPECIAL_CONTEXT]['counters'][key] = value
+        for key, value in counters.items():
+            self.custom_context[key] = value
 
     def determine_headers(self):
         if self.custom_endpoint_id is not None:
@@ -374,7 +377,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     ],
                     add_params_callback=self.add_params
                 )
-                new_value, _ = renderer.render()
+                new_value, context = renderer.render()
+                self.populate_counters(context)
                 new_value_list.append(new_value)
 
             for value in new_value_list:
@@ -508,7 +512,7 @@ class GenericHandler(tornado.web.RequestHandler):
             _id = alternative['id']
             params = alternative['params']
             context = alternative['context']
-            return _id, alternative, response, params, context, dataset
+            return _id, response, params, context, dataset
 
         self.set_status(404)
         self.finish()
@@ -555,7 +559,8 @@ class GenericHandler(tornado.web.RequestHandler):
             ],
             add_params_callback=self.add_params
         )
-        orig_relative_path, _ = renderer.render()
+        orig_relative_path, context = renderer.render()
+        self.populate_counters(context)
 
         error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
