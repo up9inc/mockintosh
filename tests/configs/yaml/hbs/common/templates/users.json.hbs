@@ -1,12 +1,12 @@
 {
   "users": [
     {
-      "id": {{ randomInteger 10000 100000 }},
+      "id": {{ random.int 10000 100000 }},
       "firstName": "{{ fake "first_name" }}",
       "lastName": "{{ fake "last_name" }}",
       "friends": [
         {
-          "id": "{{ uuid }}"
+          "id": "{{ random.uuid4 }}"
         }
       ]
     }

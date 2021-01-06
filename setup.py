@@ -25,13 +25,9 @@ def read_requirements():
         reqs = [line.strip() for line in f if not line.strip().startswith('#')]
 
     names = []
-    links = []
     for req in reqs:
-        if '://' in req:
-            links.append(req)
-        else:
-            names.append(req)
-    return {'install_requires': names, 'dependency_links': links}
+        names.append(req)
+    return {'install_requires': names}
 
 
 # Get the long description from the README file
@@ -85,6 +81,7 @@ setup(
             'flake8',
             'psutil',
             'pytest',
+            'coverage',
             'codecov',
             'requests'
         ]
