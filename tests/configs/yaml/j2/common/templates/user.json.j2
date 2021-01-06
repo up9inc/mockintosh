@@ -4,7 +4,7 @@
   "lastName": "{{ fake.last_name() }}",
   "friends": [{% for n in range(range(5) | random) %}
     {
-      "id": "{{ uuid() }}"
+      "id": "{{ random.uuid4() }}"
     }{% if not loop.last %},{% endif %}
   {% endfor %}]
 }

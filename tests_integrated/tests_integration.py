@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 import unittest
 
@@ -245,6 +246,31 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV5 + '/', verify=False)
         self.assertEqual(200, resp.status_code)
 
+    def test_templating_random(self):
+        resp = requests.get(SRV1 + '/templating-random')
+        self.assertEqual(200, resp.status_code)
+        resp = resp.text
+
+        rint, resp = resp.split("\n", 1)
+        self.assertTrue(10 <= int(rint) <= 20)
+
+        rfloat, resp = resp.split("\n", 1)
+        self.assertTrue(-0.5 <= float(rfloat) <= 20)
+        self.assertTrue(1 <= len(rfloat.split('.')[1]) <= 3)
+
+        alphanum, resp = resp.split("\n", 1)
+        self.assertEqual(5, len(alphanum))
+        self.assertTrue(alphanum.isalnum())
+
+        fhex, resp = resp.split("\n", 1)
+        self.assertEqual(16, len(fhex))
+        self.assertTrue(re.match("[0-9a-f]+", fhex))
+
+        fuuid, resp = resp.split("\n", 1)
+        self.assertTrue(re.match(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', fuuid))
+
+        self.assertEqual(5, len(resp))  # random ascii
+
     def test_body_regex(self):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")
         self.assertEqual(200, resp.status_code)
@@ -252,3 +278,22 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.post(SRV1 + '/body-regex', data="somewhere a-required-b is not present")
         self.assertEqual(404, resp.status_code)
+
+    def test_counter(self):
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant1: 1 1", resp.text)
+
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant2: 2 1", resp.text)
+
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant1: 3 2", resp.text)
+
+        resp = requests.get(SRV1 + '/counter1')
+        self.assertEqual("variant2: 4 2", resp.text)
+
+        resp = requests.get(SRV1 + '/counter2')
+        self.assertEqual("variant3: 5 3 3", resp.headers.get('X-Counter'))
+
+        resp = requests.get(SRV1 + '/counter3')
+        self.assertEqual("variant3: 5 3 3", resp.text)

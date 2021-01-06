@@ -28,10 +28,18 @@ from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 
+from mockintosh.hbs.methods import Random as hbs_Random
+from mockintosh.j2.methods import Random as j2_Random
+
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
 NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
+
+hbs_random = hbs_Random()
+j2_random = j2_Random()
+
+counters = {}
 
 
 class GenericHandler(tornado.web.RequestHandler):
@@ -72,7 +80,9 @@ class GenericHandler(tornado.web.RequestHandler):
         self.determine_status_code()
         self.determine_headers()
         self.log_request()
+
         self.rendered_body = self.render_template()
+
         if self.rendered_body is None:
             return
         self.special_response = self.build_special_response()
@@ -115,6 +125,15 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_headers()
         self.analyze_query_string()
         self.analyze_body_text()
+        self.analyze_counters()
+
+    def populate_counters(self, context):
+        if context is None:
+            return
+
+        if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
+            for key, value in context[SPECIAL_CONTEXT]['counters'].items():
+                counters[key] = value
 
     def dynamic_unimplemented_method_guard(self):
         if self.request.method.lower() not in self.methods:
@@ -160,13 +179,16 @@ class GenericHandler(tornado.web.RequestHandler):
                     logging.debug('Template file is binary. Templating disabled.')
 
         compiled = None
+        context = None
         if is_binary or not self.custom_response.get('useTemplating', True):
             compiled = source_text
         else:
             if template_engine == PYBARS:
-                from mockintosh.hbs.methods import uuid, fake, random_integer
+                from mockintosh.hbs.methods import fake, counter
+                self.custom_context['random'] = hbs_random
             elif template_engine == JINJA:
-                from mockintosh.j2.methods import uuid, fake, random_integer
+                from mockintosh.j2.methods import fake, counter
+                self.custom_context['random'] = j2_random
             else:
                 raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 
@@ -175,14 +197,14 @@ class GenericHandler(tornado.web.RequestHandler):
                 source_text,
                 inject_objects=self.custom_context,
                 inject_methods=[
-                    uuid,
                     fake,
-                    random_integer
+                    counter
                 ],
                 add_params_callback=self.add_params,
                 fill_undefineds=True
             )
-            compiled, _ = renderer.render()
+            compiled, context = renderer.render()
+            self.populate_counters(context)
 
         if not is_binary:
             logging.debug('Render output: %s' % compiled)
@@ -254,15 +276,25 @@ class GenericHandler(tornado.web.RequestHandler):
         status_code = None
         if 'status' in self.custom_response:
             if isinstance(self.custom_response['status'], str):
+                if self.definition_engine == PYBARS:
+                    from mockintosh.hbs.methods import counter
+                elif self.definition_engine == JINJA:
+                    from mockintosh.j2.methods import counter
+                else:
+                    raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
+
                 renderer = TemplateRenderer(
                     self.definition_engine,
                     self.custom_response['status'],
                     inject_objects=self.custom_context,
-                    inject_methods=[],
+                    inject_methods=[
+                        counter
+                    ],
                     add_params_callback=self.add_params,
                     fill_undefineds=True
                 )
-                compiled, _ = renderer.render()
+                compiled, context = renderer.render()
+                self.populate_counters(context)
                 status_code = int(compiled)
             else:
                 status_code = self.custom_response['status']
@@ -306,6 +338,10 @@ class GenericHandler(tornado.web.RequestHandler):
                     for i, key in enumerate(value['args']):
                         self.custom_context[key] = match.group(i + 1)
 
+    def analyze_counters(self):
+        for key, value in counters.items():
+            self.custom_context[key] = value
+
     def determine_headers(self):
         if self.custom_endpoint_id is not None:
             self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
@@ -316,6 +352,13 @@ class GenericHandler(tornado.web.RequestHandler):
 
         if 'headers' not in self.custom_response:
             return
+
+        if self.definition_engine == PYBARS:
+            from mockintosh.hbs.methods import counter
+        elif self.definition_engine == JINJA:
+            from mockintosh.j2.methods import counter
+        else:
+            raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
 
         for key, value in self.custom_response['headers'].items():
             value_list = None
@@ -331,11 +374,14 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.definition_engine,
                     value,
                     inject_objects=self.custom_context,
-                    inject_methods=[],
+                    inject_methods=[
+                        counter
+                    ],
                     add_params_callback=self.add_params,
                     fill_undefineds=True
                 )
-                new_value, _ = renderer.render()
+                new_value, context = renderer.render()
+                self.populate_counters(context)
                 new_value_list.append(new_value)
 
             for value in new_value_list:
@@ -500,15 +546,25 @@ class GenericHandler(tornado.web.RequestHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
+        if self.definition_engine == PYBARS:
+            from mockintosh.hbs.methods import counter
+        elif self.definition_engine == JINJA:
+            from mockintosh.j2.methods import counter
+        else:
+            raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
+
         renderer = TemplateRenderer(
             self.definition_engine,
             orig_relative_path,
             inject_objects=self.custom_context,
-            inject_methods=[],
+            inject_methods=[
+                counter
+            ],
             add_params_callback=self.add_params,
             fill_undefineds=True
         )
-        orig_relative_path, _ = renderer.render()
+        orig_relative_path, context = renderer.render()
+        self.populate_counters(context)
 
         error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':

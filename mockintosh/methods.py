@@ -34,30 +34,20 @@ def _detect_engine(data, context='config', default=PYBARS):
     return template_engine
 
 
-def _handlebars_add_regex_context(context, scope, key, regex, *args):
-    _type = 'regex'
+def _handlebars_add_to_context(context, scope, key, value):
     if SPECIAL_CONTEXT not in context:
         context[SPECIAL_CONTEXT] = {}
     if scope not in context[SPECIAL_CONTEXT]:
         context[SPECIAL_CONTEXT][scope] = {}
-    context[SPECIAL_CONTEXT][scope][key] = {
-        'type': _type,
-        'regex': regex,
-        'args': args
-    }
+    context[SPECIAL_CONTEXT][scope][key] = value
 
 
-def _jinja_add_regex_context(context, scope, key, regex, *args):
-    _type = 'regex'
+def _jinja_add_to_context(context, scope, key, value):
     if SPECIAL_CONTEXT not in context.environment.globals:
         context.environment.globals[SPECIAL_CONTEXT] = {}
     if scope not in context.environment.globals[SPECIAL_CONTEXT]:
         context.environment.globals[SPECIAL_CONTEXT][scope] = {}
-    context.environment.globals[SPECIAL_CONTEXT][scope][key] = {
-        'type': _type,
-        'regex': regex,
-        'args': args
-    }
+    context.environment.globals[SPECIAL_CONTEXT][scope][key] = value
 
 
 def _jinja_add_varname(context, varname):

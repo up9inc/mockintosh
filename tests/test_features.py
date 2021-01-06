@@ -499,6 +499,19 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.text == 'Hello {{undefined}} world'
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/counter.yaml',
+        'configs/yaml/j2/core/counter.yaml'
+    ])
+    def test_counter(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        for i in range(1, 6):
+            resp = requests.get(SRV_8001 + '/counter', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'Hello %d world' % i
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
