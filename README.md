@@ -30,7 +30,7 @@ After server starts, you can issue requests against it.
 Alternatively, you can run Mockintosh as Docker container:
 
 ```bash
-docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp mockintosh:latest /tmp/config.json
+docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp testrio/mockintosh /tmp/config.json
 ```
 
 Please note the `-p` flag used to publish container's ports and `-v` to mount directory with config into container.
