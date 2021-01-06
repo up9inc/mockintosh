@@ -1,0 +1,8 @@
+templatingEngine: Handlebars
+services:
+- comment: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/counter"
+    method: GET
+    response: "Hello {{counter 'counterName'}} world"

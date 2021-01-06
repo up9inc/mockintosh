@@ -57,6 +57,7 @@ By default, dynamic templates use [Handlebars](https://handlebarsjs.com/guide/) 
 this: `{{namedValue}}` or `{{request.path}}` or `{{fake.address}}` etc.
 
 TODO: Can I use nested Handlebars expressions?
+TODO: Can we keep expression as-is if we were unable to evaluate it or it was misconfigured?
 
 _Note: To switch into [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) as templating engine, use
 the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2)._
@@ -66,7 +67,7 @@ Below is the reference of available dynamic value generators.
 ### Random
 
 - `random.int 10 20` - random integer between 10 and 20 (inclusive)
-- `random.float 3` - random float (between 0 and 1 , inclusive) with 3 digit precision
+- `random.float '-0.5' '20.7' 3` - random float (between `-0.5` and `20.7` , inclusive) with 3 digit precision, you have to keep range values in quotes
 - `random.ascii 5` - sequence of ASCII characters, length 5
 - `random.alphanum 5` - sequence of alphanumeric characters, length 5
 - `random.hex 16` - sequence of hexadecimal characters, length 16
@@ -84,7 +85,7 @@ It is available as `fake` object. Refer to the [official docs](https://faker.rea
 
 ### Counters
 
-Named counters like `counter 'counterName'`
+There is special kind of template helper, offering named counters like `{{counter 'counterName'}}`. The counters are global and identified by name. You can also refer to last value of counter by its name like this: `{{counterName}}`
 
 ### Request Object
 

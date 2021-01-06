@@ -54,13 +54,15 @@
 
 1. Dataset support
 1. SSL support
+1. Ability to match request body by regexp
+1. Counter functions
+1. `random.*` templates
 
 ## Milestone N
 
-1. Ability to match request body by regexp
-1. template helpers: random numbers, strings, dates, names, addresses etc
-1. Counter functions
+1. template helpers: dates, names, addresses etc
 1. jsonSchema extraction from body
+1. regex extraction from body/headers
 1. referencing multipart/urlencoded fields in matchers and templates
 1. base64-encoded body strings, for binary responses
 1. Import from OpenAPI and Postman collections

@@ -173,6 +173,29 @@
           "datasetLooped": false,
           "dataset": "@subdir/dataset.json",
           "response": "dset: {{var1}}"
+        },
+        {
+          "path": "/templating-random",
+          "response": "{{random.int 10 20}}\n{{random.float -0.5 20.7 3}}\n{{random.alphanum 5}}\n{{random.hex 16}}\n{{random.uuid4}}\n{{random.ascii 5}}"
+        },
+        {
+          "path": "/counter1",
+          "response": [
+            "variant1: {{counter 'counterName1'}} {{counter 'counterName2'}}",
+            "variant2: {{counter 'counterName1'}} {{counter 'counterName3'}}"
+          ]
+        },
+        {
+          "path": "/counter2",
+          "response": {
+            "headers": {
+              "X-Counter": "variant3: {{counter 'counterName1'}} {{counter 'counterName2'}} {{counter 'counterName3'}}"
+            }
+          }
+        },
+        {
+          "path": "/counter3",
+          "response": "variant3: {{counterName1}} {{counterName2}} {{counterName3}}"
         }
       ]
     },

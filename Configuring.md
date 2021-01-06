@@ -209,12 +209,12 @@ A response example that leverages Jinja2 templating and Faker is shown below:
 {
   "users": [{% for n in range(request.queryString.total) %}
     {
-      "id": {{ randomInteger(10000, 100000) }},
+      "id": {{ random.int(10000, 100000) }},
       "firstName": "{{ fake.first_name() }}",
       "lastName": "{{ fake.last_name() }}",
       "friends": [{% for n in range(range(5) | random) %}
         {
-          "id": "{{ uuid() }}"
+          "id": "{{ random.uuid4() }}"
         }{% if not loop.last %},{% endif %}
       {% endfor %}]
     }{% if not loop.last %},{% endif %}
