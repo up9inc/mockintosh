@@ -85,7 +85,7 @@ It is available as `fake` object. Refer to the [official docs](https://faker.rea
 
 ### Counters
 
-Named counters like `counter 'counterName'`
+There is special kind of template helper, offering named counters like `{{counter 'counterName'}}`. The counters are global and identified by name. You can also refer to last value of counter by its name like this: `{{counterName}}`
 
 ### Request Object
 
