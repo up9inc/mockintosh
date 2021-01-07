@@ -18,10 +18,14 @@ Key features:
 
 ## Quick Start
 
-If you have installed Mockintosh as Python package, start it with JSON/YAML [configuration file](Configuring.md) as
+```shell
+pip3 install mockintosh
+```
+
+If you have installed Mockintosh as Python package (requires Python 3.x+), start it with JSON/YAML [configuration file](Configuring.md) as
 parameter:
 
-```bash
+```shell
 mockintosh my_mocks.yaml
 ```
 
@@ -30,7 +34,7 @@ After server starts, you can issue requests against it.
 Alternatively, you can run Mockintosh as Docker container:
 
 ```bash
-docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp mockintosh:latest /tmp/config.json
+docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp testrio/mockintosh /tmp/config.json
 ```
 
 Please note the `-p` flag used to publish container's ports and `-v` to mount directory with config into container.

@@ -60,6 +60,7 @@
 
 ## Milestone N
 
+1. respond 400 if path matched, but header/qstr/body did not match
 1. template helpers: dates, names, addresses etc
 1. jsonSchema extraction from body
 1. regex extraction from body/headers
@@ -82,6 +83,8 @@
     - Allows to reload config on the fly Allows to get and reset the stats of the service
     - Allows to reset the cursors of datasets/performance profiles
     - config retrieval
+   
+A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
 
 ## Milestone N
 
