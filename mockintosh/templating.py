@@ -9,8 +9,9 @@
 import copy
 import logging
 
-from jinja2 import Template
-from pybars import Compiler
+from jinja2 import Environment, meta
+from jinja2.exceptions import TemplateSyntaxError
+from pybars import Compiler, PybarsError
 from faker import Faker
 
 from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
@@ -24,13 +25,22 @@ faker = Faker()
 
 class TemplateRenderer():
 
-    def __init__(self, engine, text, inject_objects={}, inject_methods=[], add_params_callback=None):
+    def __init__(
+        self,
+        engine,
+        text,
+        inject_objects={},
+        inject_methods=[],
+        add_params_callback=None,
+        fill_undefineds=False
+    ):
         self.engine = engine
         self.text = text
         self.inject_objects = inject_objects
         self.inject_methods = inject_methods
         self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
         self.add_params_callback = add_params_callback
+        self.fill_undefineds = fill_undefineds
 
         self.check_engine_support()
 
@@ -51,22 +61,40 @@ class TemplateRenderer():
     def render_handlebars(self):
         context, helpers = self.add_globals(compiler._compiler, helpers={})
         template = compiler.compile(self.text)
-        compiled = template(context, helpers=helpers)
+        try:
+            compiled = template(context, helpers=helpers)
+        except PybarsError:
+            if self.fill_undefineds:
+                compiled = self.text
+            else:
+                compiled = None
         return compiled, context
 
     def render_jinja(self):
-        template = Template(self.text)
-        if JINJA_VARNAME_DICT in template.globals:
-            template.globals[JINJA_VARNAME_DICT] = {}
-        if SPECIAL_CONTEXT in template.globals:
-            template.globals[SPECIAL_CONTEXT] = {}
-        self.add_globals(template)
-        if JINJA_VARNAME_DICT not in template.globals:
-            template.globals[JINJA_VARNAME_DICT] = {}
-        compiled = template.render()
-        if SPECIAL_CONTEXT in template.globals:
-            template.globals[JINJA_VARNAME_DICT][SPECIAL_CONTEXT] = template.globals[SPECIAL_CONTEXT]
-        return compiled, copy.deepcopy(template.globals[JINJA_VARNAME_DICT])
+        env = Environment()
+
+        if JINJA_VARNAME_DICT in env.globals:
+            env.globals[JINJA_VARNAME_DICT] = {}
+        if SPECIAL_CONTEXT in env.globals:
+            env.globals[SPECIAL_CONTEXT] = {}
+        self.add_globals(env)
+        if JINJA_VARNAME_DICT not in env.globals:
+            env.globals[JINJA_VARNAME_DICT] = {}
+
+        try:
+            if self.fill_undefineds:
+                ast = env.parse(self.text)
+                for var in meta.find_undeclared_variables(ast):
+                    env.globals[var] = '{{%s}}' % var
+
+            template = env.from_string(self.text)
+            compiled = template.render()
+        except TemplateSyntaxError:
+            compiled = self.text
+
+        if SPECIAL_CONTEXT in env.globals:
+            env.globals[JINJA_VARNAME_DICT][SPECIAL_CONTEXT] = env.globals[SPECIAL_CONTEXT]
+        return compiled, copy.deepcopy(env.globals[JINJA_VARNAME_DICT])
 
     def add_globals(self, template, helpers=None):
         fake = None

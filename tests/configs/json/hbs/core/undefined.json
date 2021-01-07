@@ -1,0 +1,26 @@
+{
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "comment": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/undefined",
+          "method": "GET",
+          "response": "Hello {{undefined}} world"
+        },
+        {
+          "path": "/undefined2",
+          "method": "GET",
+          "response": "Hello {{undefined 1 2}} world"
+        },
+        {
+          "path": "/undefined3",
+          "method": "GET",
+          "response": "Hello {{undefined.attr 1 2}} world"
+        }
+      ]
+    }
+  ]
+}

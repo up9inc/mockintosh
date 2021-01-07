@@ -297,3 +297,8 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/counter3')
         self.assertEqual("variant3: 5 3 3", resp.text)
+
+    def test_unprocessed_templates(self):
+        resp = requests.get(SRV1 + '/undefined-templates')
+        self.assertEqual("here goes {{unknownUndefined}} var", resp.text)
+        self.assertEqual("also {{random.intt 10 20}} can happen", resp.headers.get('X-header'))

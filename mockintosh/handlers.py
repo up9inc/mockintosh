@@ -200,7 +200,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     fake,
                     counter
                 ],
-                add_params_callback=self.add_params
+                add_params_callback=self.add_params,
+                fill_undefineds=True
             )
             compiled, context = renderer.render()
             self.populate_counters(context)
@@ -289,7 +290,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     inject_methods=[
                         counter
                     ],
-                    add_params_callback=self.add_params
+                    add_params_callback=self.add_params,
+                    fill_undefineds=True
                 )
                 compiled, context = renderer.render()
                 self.populate_counters(context)
@@ -375,7 +377,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     inject_methods=[
                         counter
                     ],
-                    add_params_callback=self.add_params
+                    add_params_callback=self.add_params,
+                    fill_undefineds=True
                 )
                 new_value, context = renderer.render()
                 self.populate_counters(context)
@@ -557,7 +560,8 @@ class GenericHandler(tornado.web.RequestHandler):
             inject_methods=[
                 counter
             ],
-            add_params_callback=self.add_params
+            add_params_callback=self.add_params,
+            fill_undefineds=True
         )
         orig_relative_path, context = renderer.render()
         self.populate_counters(context)
