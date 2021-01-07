@@ -64,7 +64,10 @@ class TemplateRenderer():
         try:
             compiled = template(context, helpers=helpers)
         except PybarsError:
-            compiled = self.text
+            if self.fill_undefineds:
+                compiled = self.text
+            else:
+                compiled = None
         return compiled, context
 
     def render_jinja(self):
