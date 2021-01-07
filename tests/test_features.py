@@ -504,6 +504,10 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.text == 'Hello {{undefined 1 2}} world'
 
+        resp = requests.get(SRV_8001 + '/undefined3')
+        assert 200 == resp.status_code
+        assert resp.text == 'Hello {{undefined.attr 1 2}} world'
+
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/counter.yaml',
         'configs/yaml/j2/core/counter.yaml'
