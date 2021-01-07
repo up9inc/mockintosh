@@ -196,6 +196,15 @@
         {
           "path": "/counter3",
           "response": "variant3: {{counterName1}} {{counterName2}} {{counterName3}}"
+        },
+        {
+          "path": "/undefined-templates",
+          "response": {
+            "headers": {
+              "x-header": "also {{random.intt 10 20}} can happen"
+            },
+            "body": "here goes {{unknownUndefined}} var"
+          }
         }
       ]
     },
