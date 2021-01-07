@@ -18,10 +18,14 @@ Key features:
 
 ## Quick Start
 
-If you have installed Mockintosh as Python package, start it with JSON/YAML [configuration file](Configuring.md) as
+```shell
+pip3 install mockintosh
+```
+
+If you have installed Mockintosh as Python package (requires Python 3.x+), start it with JSON/YAML [configuration file](Configuring.md) as
 parameter:
 
-```bash
+```shell
 mockintosh my_mocks.yaml
 ```
 

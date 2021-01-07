@@ -60,6 +60,7 @@
 
 ## Milestone N
 
+1. respond 400 if path matched, but header/qstr/body did not match
 1. template helpers: dates, names, addresses etc
 1. jsonSchema extraction from body
 1. regex extraction from body/headers

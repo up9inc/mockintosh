@@ -255,7 +255,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(10 <= int(rint) <= 20)
 
         rfloat, resp = resp.split("\n", 1)
-        self.assertTrue(-0.5 <= float(rfloat) <= 20)
+        self.assertTrue(-0.5 <= float(rfloat) <= 20.7)
         self.assertTrue(1 <= len(rfloat.split('.')[1]) <= 3)
 
         alphanum, resp = resp.split("\n", 1)
