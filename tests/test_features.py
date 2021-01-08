@@ -8,6 +8,7 @@
 
 import os
 import random
+import re
 import time
 
 import pytest
@@ -520,6 +521,18 @@ class TestCore():
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'Hello %d world' % i
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/subexpression.yaml',
+        'configs/yaml/j2/core/subexpression.yaml'
+    ])
+    def test_subexpression(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/subexpression')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert re.match(r'^-?\d+(?:\.\d+)?$', resp.text)
 
 
 @pytest.mark.parametrize(('config'), [
