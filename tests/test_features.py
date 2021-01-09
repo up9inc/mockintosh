@@ -113,11 +113,6 @@ class TestCommandLineArguments():
         assert resp.text == 'hello world'
 
     @pytest.mark.parametrize(('config'), configs)
-    def test_debug(self, config):
-        self.mock_server_process = run_mock_server(get_config_path(config), '--debug')
-        TestCommon.test_users(TestCommon, config)
-
-    @pytest.mark.parametrize(('config'), configs)
     def test_quiet(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--quiet')
         TestCommon.test_users(TestCommon, config)
