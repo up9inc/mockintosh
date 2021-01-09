@@ -120,7 +120,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for i, key in enumerate(self.initial_context):
                     self.custom_context[key] = args[i]
             else:
-                HTTPError(400)
+                HTTPError(404)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
