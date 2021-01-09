@@ -134,14 +134,21 @@ def import_interceptors(interceptors):
     return imported_interceptors
 
 
-def run(source, is_file=True, debug=False, interceptors=(), address=''):
+def run(source, is_file=True, debug=False, interceptors=(), address='', services_list=[]):
     if address:
         logging.info('Bind address: %s' % address)
     schema = get_schema()
 
     try:
         definition = Definition(source, schema, is_file=is_file)
-        http_server = HttpServer(definition, TornadoImpl(), debug=debug, interceptors=interceptors, address=address)
+        http_server = HttpServer(
+            definition,
+            TornadoImpl(),
+            debug=debug,
+            interceptors=interceptors,
+            address=address,
+            services_list=services_list
+        )
     except Exception:
         logging.exception('Mock server loading error:')
         with _nostderr():
@@ -181,11 +188,22 @@ def initiate():
     This method parses the command-line arguments and handles the top-level initiations accordingly.
     """
 
-    ap = argparse.ArgumentParser()
-    ap.add_argument('source', help='Path to configuration file', nargs='?')
+    ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    ap.add_argument(
+        'source',
+        help='Path to configuration file and (optional) a list of the service comments\n'
+             'to specify the services to be listened.',
+        nargs='*'
+    )
     ap.add_argument('-q', '--quiet', help='Less logging messages, only warnings and errors', action='store_true')
     ap.add_argument('-v', '--verbose', help='More logging messages, including debug', action='store_true')
-    ap.add_argument('-i', '--interceptor', help='A list of interceptors to be called in <package>.<module>.<function> format', action='append', nargs='+')
+    ap.add_argument(
+        '-i',
+        '--interceptor',
+        help='A list of interceptors to be called in <package>.<module>.<function> format',
+        action='append',
+        nargs='+'
+    )
     ap.add_argument('-l', '--logfile', help='Also write log into a file', action='store')
     ap.add_argument('-b', '--bind', help='Address to specify the network interface', action='store')
     args = vars(ap.parse_args())
@@ -211,4 +229,10 @@ def initiate():
     if debug_mode:
         logging.debug('Tornado Web Server\'s debug mode is enabled!')
 
-    run(args['source'], debug=debug_mode, interceptors=interceptors, address=address)
+    source = None
+    services_list = []
+    if len(args['source']) > 0:
+        source = args['source'][0]
+        services_list = args['source'][1:]
+
+    run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)

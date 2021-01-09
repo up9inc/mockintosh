@@ -48,13 +48,14 @@ class TornadoImpl(Impl):
 
 class HttpServer:
 
-    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address=''):
+    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address='', services_list=[]):
         self.definition = definition
         self.impl = impl
         self.address = address
         self.globals = self.definition.data['globals'] if 'globals' in self.definition.data else {}
         self.debug = debug
         self.interceptors = interceptors
+        self.services_list = services_list
         self.services_log = []
         self.load()
 
@@ -87,6 +88,13 @@ class HttpServer:
             }
 
             for service in services:
+                if self.services_list:
+                    if 'comment' in service:
+                        if service['comment'] not in self.services_list:
+                            continue
+                    else:
+                        continue
+
                 endpoints = []
                 if 'endpoints' in service:
                     endpoints = self.merge_alternatives(service['endpoints'])
