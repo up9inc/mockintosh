@@ -64,7 +64,11 @@ If no configuration file is provided `mockintosh` starts with the default config
 }
 ```
 
-`--debug` option enables Tornado Web Server's debug mode.
+If you don't want to listen all of the services in a configuration file then you can specify a list of service comments:
+
+```shell
+mockintosh my_mocks.yaml 'Mock for Service1' 'Mock for Service2'
+```
 
 Using `--quiet` and `--verbose` options the logging level can be changed.
 
