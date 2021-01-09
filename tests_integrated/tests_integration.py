@@ -89,15 +89,15 @@ class IntegrationTests(unittest.TestCase):
 
         path = '/qstr-matching1?param1=constantval&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
         resp = requests.get(SRV1 + path)
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
         path = '/qstr-matching1?param1=constant%%20val&param22=%s&param3=prefix-%s-suffix' % (param2, param3)
         resp = requests.get(SRV1 + path)
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
         path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-sufix' % (param2, param3)
         resp = requests.get(SRV1 + path)
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
     def test_headers(self):
         param2 = str(int(time.time()))
@@ -111,11 +111,11 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + path,
                             headers={"hdr1": "constant", "hdr2": param2, "hdr3": "prefix-%s-suffix" % param3})
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
         resp = requests.get(SRV1 + path,
                             headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefics-%s-suffix" % param3})
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
         resp = requests.get(SRV1 + path,
                             headers={"hdr4": "another header"})
@@ -129,7 +129,7 @@ class IntegrationTests(unittest.TestCase):
 
         path = '/body-jsonschema1'
         resp = requests.post(SRV1 + path, json={"somekey2": "invalid"})
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
     def test_status_templated(self):
         path = '/status-template1'
@@ -277,7 +277,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("body regex matched: 1 2", resp.text)
 
         resp = requests.post(SRV1 + '/body-regex', data="somewhere a-required-b is not present")
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(404, resp.status_code)
 
     def test_counter(self):
         resp = requests.get(SRV1 + '/counter1')
