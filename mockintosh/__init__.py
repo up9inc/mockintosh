@@ -183,7 +183,6 @@ def initiate():
 
     ap = argparse.ArgumentParser()
     ap.add_argument('source', help='Path to configuration file', nargs='?')
-    ap.add_argument('-d', '--debug', help='Enable Tornado Web Server\'s debug mode', action='store_true')
     ap.add_argument('-q', '--quiet', help='Less logging messages, only warnings and errors', action='store_true')
     ap.add_argument('-v', '--verbose', help='More logging messages, including debug', action='store_true')
     ap.add_argument('-i', '--interceptor', help='A list of interceptors to be called in <package>.<module>.<function> format', action='append', nargs='+')
@@ -208,4 +207,8 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    run(args['source'], debug=args['debug'], interceptors=interceptors, address=address)
+    debug_mode = environ.get('DEBUG', False)
+    if debug_mode:
+        logging.debug('Tornado Web Server\'s debug mode is enabled!')
+
+    run(args['source'], debug=debug_mode, interceptors=interceptors, address=address)
