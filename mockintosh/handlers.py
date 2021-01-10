@@ -517,7 +517,8 @@ class GenericHandler(tornado.web.RequestHandler):
             context = alternative['context']
             return _id, response, params, context, dataset
 
-        self.set_status(400)
+        if not self.__class__.__name__ == 'ErrorHandler':
+            self.set_status(400)
         self.finish()
 
     def trigger_interceptors(self):

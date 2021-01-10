@@ -797,7 +797,7 @@ class TestPath():
 
         path = '/parameterized2/text/wrongprefix-%s/subval' % str(int(time.time()))
         resp = requests.get(SRV_8001 + path)
-        assert 400 == resp.status_code
+        assert 404 == resp.status_code
 
     def test_regex_capture_group(self, config):
         param = str(int(time.time()))
