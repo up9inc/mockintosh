@@ -1,0 +1,8 @@
+templatingEngine: Handlebars
+services:
+- comment: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/subexpression"
+    method: GET
+    response: "{{random.float 1.0 2.0 (random.int 1 5)}}"
