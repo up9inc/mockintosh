@@ -370,7 +370,7 @@ class TestCore():
         assert resp.text == 'endpoint1: body json schema matched'
 
         resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey2": "invalid"})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.post(SRV_8001 + '/endpoint2')
         assert 200 == resp.status_code
@@ -615,29 +615,29 @@ class TestHeaders():
         data = resp.json()
         assert data['matched with regex capture group'] == param
 
-    def test_missing_header_should_404(self, config):
+    def test_missing_header_should_400(self, config):
         static_val = 'myValue'
         resp = requests.get(SRV_8001 + '/static-value', headers={"hdrX": static_val})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdrX": static_val})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
-    def test_wrong_static_value_should_404(self, config):
+    def test_wrong_static_value_should_400(self, config):
         static_val = 'wrongValue'
         resp = requests.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
-    def test_wrong_regex_pattern_should_404(self, config):
+    def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
         resp = requests.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'idefix-%s-suffix' % param})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'idefix-%s-suffix' % param})
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
     def test_first_alternative(self, config):
         static_val = 'myValue'
@@ -681,17 +681,17 @@ class TestHeaders():
         data = resp.json()
         assert data['hdr4 request header'] == static_val
 
-    def test_nonexisting_alternative_should_404(self, config):
+    def test_nonexisting_alternative_should_400(self, config):
         static_val = 'another header'
         resp = requests.get(SRV_8001 + '/alternative', headers={
             "hdr5": static_val
         })
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr5": static_val
         })
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
     def test_response_headers_in_first_alternative(self, config):
         static_val = 'myValue'
@@ -953,32 +953,32 @@ class TestQueryString():
         data = resp.json()
         assert data['matched with regex capture group'] == param
 
-    def test_missing_query_param_should_404(self, config):
+    def test_missing_query_param_should_400(self, config):
         static_val = 'myValue'
         query = '?paramX=%s' % static_val
         resp = requests.get(SRV_8001 + '/static-value' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
-    def test_wrong_static_value_should_404(self, config):
+    def test_wrong_static_value_should_400(self, config):
         static_val = 'wrong Value'
         query = '?param1=%s' % static_val
         resp = requests.get(SRV_8001 + '/static-value' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
-    def test_wrong_regex_pattern_should_404(self, config):
+    def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
         query = '?param1=idefix-%s-suffix' % param
         resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
     def test_first_alternative(self, config):
         static_val = 'my Value'
@@ -1012,11 +1012,11 @@ class TestQueryString():
         data = resp.json()
         assert data['param4 request query string'] == static_val
 
-    def test_nonexisting_alternative_should_404(self, config):
+    def test_nonexisting_alternative_should_400(self, config):
         static_val = 'another query string'
         query = '?param5=%s' % static_val
         resp = requests.get(SRV_8001 + '/alternative' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
-        assert 404 == resp.status_code
+        assert 400 == resp.status_code

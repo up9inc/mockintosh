@@ -120,7 +120,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for i, key in enumerate(self.initial_context):
                     self.custom_context[key] = args[i]
             else:
-                HTTPError(400)
+                HTTPError(404)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
@@ -517,7 +517,8 @@ class GenericHandler(tornado.web.RequestHandler):
             context = alternative['context']
             return _id, response, params, context, dataset
 
-        self.set_status(404)
+        if not self.__class__.__name__ == 'ErrorHandler':
+            self.set_status(400)
         self.finish()
 
     def trigger_interceptors(self):
