@@ -280,20 +280,33 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(400, resp.status_code)
 
     def test_body_jsonpath(self):
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": "val", "key2": "val2"})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("body jsonpath matched: val val2", resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": ["val"], "key2": "val2"})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("body jsonpath matched: [\"val\"] val2", resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": {"complex": "val"}, "key2": "val2"})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual('body jsonpath matched: {"complex": "val"} val2', resp.text)
+
         resp = requests.post(SRV1 + '/body-jsonpath', json={"key": "val"})
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual("body jsonpath matched: val", resp.text)
-
-        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": ["val"]})
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual("body jsonpath matched: [\"val\"]", resp.text)
-
-        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": {"complex": "val"}})
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual('body jsonpath matched: {"complex": "val"}', resp.text)
-
-        resp = requests.post(SRV1 + '/body-jsonpath', json={"not-key": "val"})
         self.assertEqual(400, resp.status_code)
+
+        resp = requests.post(SRV1 + '/body-jsonpath-tpl', json={"key": "val", "key2": 123})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual('body jsonpath matched: val 123', resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath-tpl', json={"key": None})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual('body jsonpath matched: null ', resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath-tpl', data="not json")
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("body jsonpath matched: {{jsonPath request.body '$.key'}} {{jsonPath request.body '$.key2'}}",
+                         resp.text)
 
     def test_counter(self):
         resp = requests.get(SRV1 + '/counter1')
