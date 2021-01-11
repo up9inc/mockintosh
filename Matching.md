@@ -160,14 +160,9 @@ Response: `201`  with `query string match: mvValue someValue validCapture`
 
 ## Body
 
-There are several ways of matching request body:
-
-- with `regEx` on `text`
-- with JSONPath expressions
-- with JSON Schema
+There are several ways of matching request body: with `regEx` on `text` or with JSON Schema.
 
 To match request body text using `regEx`, just do it like this:
-
 ```yaml
 services:
   - comment: Mock for Service1
@@ -178,22 +173,7 @@ services:
         body:
           text: {{regEx '"jsonkey": "expectedval-(.+)"' 'namedValue'}}
 ```
-
 _Note: you can use familiar `regEx` named value capturing for body, as usual._
-
-Matching `jsonPath` expressions is very similar to regular expressions, just the syntax changes slightly and allows
-multiple equasions:
-
-```yaml
-services:
-  - comment: Mock for Service1
-    port: 8001
-    endpoints:
-      - path: "/endpoint1"
-        method: POST
-        body:
-          text: {{jsonPath '$.jsonkey1' 'namedValue1'}}{{jsonPath '$.key2' 'namedValue2'}}
-```
 
 To do the match against [JSON Schema](https://json-schema.org/), please consider this example:
 

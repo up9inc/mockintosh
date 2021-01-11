@@ -102,14 +102,6 @@
           "response": "body regex matched: {{val1}} {{val2}}"
         },
         {
-          "path": "/body-jsonpath",
-          "method": "POST",
-          "body": {
-            "text": "{{jsonPath '$.key' 'val1'}} {{jsonPath '$.key2' 'val2'}}"
-          },
-          "response": "body jsonpath matched: {{val1}} {{val2}}"
-        },
-        {
           "path": "/body-jsonpath-tpl",
           "method": "POST",
           "response": "body jsonpath matched: {{jsonPath request.body '$.key'}} {{jsonPath request.body '$.key2'}}"
