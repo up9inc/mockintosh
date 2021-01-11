@@ -105,7 +105,7 @@
           "path": "/body-jsonpath",
           "method": "POST",
           "body": {
-            "text": "{{jsonPath '$.key' 'val1'}}"
+            "text":  "{{jsonPath '$.key' 'val1'}}"
           },
           "response": "body jsonpath matched: {{val1}}"
         },
