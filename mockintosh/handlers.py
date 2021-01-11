@@ -184,10 +184,10 @@ class GenericHandler(tornado.web.RequestHandler):
             compiled = source_text
         else:
             if template_engine == PYBARS:
-                from mockintosh.hbs.methods import fake, counter
+                from mockintosh.hbs.methods import fake, counter, json_path
                 self.custom_context['random'] = hbs_random
             elif template_engine == JINJA:
-                from mockintosh.j2.methods import fake, counter
+                from mockintosh.j2.methods import fake, counter, json_path
                 self.custom_context['random'] = j2_random
             else:
                 raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
@@ -198,7 +198,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 inject_objects=self.custom_context,
                 inject_methods=[
                     fake,
-                    counter
+                    counter,
+                    json_path
                 ],
                 add_params_callback=self.add_params,
                 fill_undefineds=True

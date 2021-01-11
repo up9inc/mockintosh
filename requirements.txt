@@ -5,3 +5,4 @@ PyYAML==5.3.1
 jsonschema==3.2.0
 pybars4 @ git+https://github.com/up9inc/pybars4@d7b9594d6c3c11b28bb0169a476f241a9b3fac90
 accept-types==0.4.1
+jsonpath-ng==1.5.2
