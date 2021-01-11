@@ -46,9 +46,8 @@ def reg_ex(context, regex, *args, **kwargs):
 
 
 def json_path(text, path):
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
+    data = text
+    if data is None:
         raise TemplateSyntaxError
     jsonpath_expr = jsonpath_parse(path)
     match = jsonpath_expr.find(data)

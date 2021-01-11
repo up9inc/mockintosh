@@ -648,6 +648,10 @@ class GenericHandler(tornado.web.RequestHandler):
         return alternative[key][alternative[index_key]]
 
 
+class NotParsedJSON():
+    pass
+
+
 class Request():
 
     def __init__(self):
@@ -661,9 +665,18 @@ class Request():
         self.path = None
         self.headers = {}
         self.queryString = {}
-        self.body = None
+        self._json = NotParsedJSON()
         self.files = {}
         self.formData = {}
+
+    @property
+    def json(self):
+        if isinstance(self._json, NotParsedJSON):
+            try:
+                self._json = json.loads(self.body)
+            except json.JSONDecodeError:
+                self._json = None
+        return self._json
 
 
 class Response():

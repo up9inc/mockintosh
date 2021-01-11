@@ -290,7 +290,7 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.post(SRV1 + '/body-jsonpath-tpl', data="not json")
         self.assertEqual(200, resp.status_code)
-        self.assertEqual("body jsonpath matched: {{jsonPath request.body '$.key'}} {{jsonPath request.body '$.key2'}}",
+        self.assertEqual("body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}",
                          resp.text)
 
     def test_counter(self):
