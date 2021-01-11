@@ -279,6 +279,22 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere a-required-b is not present")
         self.assertEqual(400, resp.status_code)
 
+    def test_body_jsonpath(self):
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": "val"})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("body jsonpath matched: val", resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": ["val"]})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("body jsonpath matched: [\"val\"]", resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"key": {"complex": "val"}})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual('body jsonpath matched: {"complex": "val"}', resp.text)
+
+        resp = requests.post(SRV1 + '/body-jsonpath', json={"not-key": "val"})
+        self.assertEqual(400, resp.status_code)
+
     def test_counter(self):
         resp = requests.get(SRV1 + '/counter1')
         self.assertEqual("variant1: 1 1", resp.text)

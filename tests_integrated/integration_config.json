@@ -102,6 +102,14 @@
           "response": "body regex matched: {{val1}} {{val2}}"
         },
         {
+          "path": "/body-jsonpath",
+          "method": "POST",
+          "body": {
+            "text": "{{jsonPath '$.key' 'val1'}}"
+          },
+          "response": "body jsonpath matched: {{val1}}"
+        },
+        {
           "path": "/status-template1",
           "response": {
             "status": "{{request.queryString.rc}}"
