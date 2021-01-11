@@ -104,7 +104,7 @@
         {
           "path": "/body-jsonpath-tpl",
           "method": "POST",
-          "response": "body jsonpath matched: {{jsonPath request.body '$.key'}} {{jsonPath request.body '$.key2'}}"
+          "response": "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}"
         },
         {
           "path": "/status-template1",

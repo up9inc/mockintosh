@@ -114,4 +114,4 @@ And some less frequently used:
 
 ### Using JSONPath Syntax
 
-You can reference certain fields from request's JSON by using `jsonPath` helper like this: `jsonPath request.body '$.key'`.
+You can reference certain fields from request's JSON by using `jsonPath` helper like this: `jsonPath request.json '$.key'`.
