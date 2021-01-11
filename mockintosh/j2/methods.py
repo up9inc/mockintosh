@@ -10,7 +10,6 @@ import random
 import string
 import os
 import binascii
-import json
 from uuid import uuid4
 
 from jsonpath_ng import parse as jsonpath_parse
