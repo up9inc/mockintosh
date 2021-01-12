@@ -665,6 +665,7 @@ class Request():
         self.path = None
         self.headers = {}
         self.queryString = {}
+        self.body = None
         self._json = NotParsedJSON()
         self.files = {}
         self.formData = {}
