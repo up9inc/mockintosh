@@ -12,6 +12,9 @@ import os
 import binascii
 from uuid import uuid4
 
+from jsonpath_ng import parse as jsonpath_parse
+from pybars import PybarsError
+
 from mockintosh.methods import _handlebars_add_to_context
 
 
@@ -36,6 +39,20 @@ def reg_ex(this, regex, *args, **kwargs):
             }
         )
     return regex
+
+
+def json_path(this, text, path):
+    data = text
+    if data is None:
+        raise PybarsError
+    jsonpath_expr = jsonpath_parse(path)
+    match = jsonpath_expr.find(data)
+    if len(match) < 1:
+        return ''
+    value = match[0].value
+    if value is None:
+        value = 'null'
+    return value
 
 
 def counter(this, name):

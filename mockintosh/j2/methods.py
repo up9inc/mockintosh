@@ -12,7 +12,9 @@ import os
 import binascii
 from uuid import uuid4
 
+from jsonpath_ng import parse as jsonpath_parse
 from jinja2.utils import contextfunction
+from jinja2.exceptions import TemplateSyntaxError
 
 from mockintosh.methods import _jinja_add_varname, _jinja_add_to_context
 
@@ -40,6 +42,20 @@ def reg_ex(context, regex, *args, **kwargs):
             }
         )
     return regex
+
+
+def json_path(text, path):
+    data = text
+    if data is None:
+        raise TemplateSyntaxError('JSON decode failure!', 0)
+    jsonpath_expr = jsonpath_parse(path)
+    match = jsonpath_expr.find(data)
+    if len(match) < 1:
+        return ''
+    value = match[0].value
+    if value is None:
+        value = 'null'
+    return value
 
 
 @contextfunction

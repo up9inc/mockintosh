@@ -8,6 +8,7 @@
 
 import copy
 import logging
+from os import environ
 
 from jinja2 import Environment, meta
 from jinja2.exceptions import TemplateSyntaxError
@@ -21,6 +22,8 @@ from mockintosh.hbs.methods import fake as hbs_fake
 
 compiler = Compiler()
 faker = Faker()
+
+debug_mode = environ.get('MOCKINTOSH_DEBUG', False)
 
 
 class TemplateRenderer():
@@ -63,8 +66,10 @@ class TemplateRenderer():
         template = compiler.compile(self.text)
         try:
             compiled = template(context, helpers=helpers)
-        except PybarsError:
+        except PybarsError as e:
             if self.fill_undefineds:
+                if debug_mode:
+                    raise e
                 compiled = self.text
             else:
                 compiled = None
@@ -89,7 +94,9 @@ class TemplateRenderer():
 
             template = env.from_string(self.text)
             compiled = template.render()
-        except TemplateSyntaxError:
+        except TemplateSyntaxError as e:
+            if self.fill_undefineds and debug_mode:
+                raise e
             compiled = self.text
 
         if SPECIAL_CONTEXT in env.globals:

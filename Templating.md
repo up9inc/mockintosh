@@ -111,3 +111,7 @@ And some less frequently used:
 - `request.protocol` - The HTTP protocol e.g. `http` or `https`.
 - `request.remoteIp` - The IP address of the client e.g. `127.0.0.1`.
 - `request.version` - HTTP version e.g. `HTTP/1.1`, [see](https://tools.ietf.org/html/rfc2145).
+
+### Using JSONPath Syntax
+
+You can reference certain fields from request's JSON by using `jsonPath` helper like this: `jsonPath request.json '$.key'`.

@@ -225,7 +225,7 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    debug_mode = environ.get('DEBUG', False)
+    debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
         logging.debug('Tornado Web Server\'s debug mode is enabled!')
 
