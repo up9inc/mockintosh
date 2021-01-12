@@ -675,6 +675,7 @@ class Request():
             try:
                 self._json = json.loads(self.body)
             except json.JSONDecodeError:
+                logging.debug('Failed to decode request body to JSON:\n%s' % self.body)
                 self._json = None
         return self._json
 
