@@ -1,7 +1,7 @@
 ---
 templatingEngine: Handlebars
 services:
-- comment: Mock for Service1
+- name: Mock for Service1
   port: 8001
   endpoints:
   - path: "/static-value"

@@ -191,7 +191,7 @@ def initiate():
     ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument(
         'source',
-        help='Path to configuration file and (optional) a list of the service comments\n'
+        help='Path to configuration file and (optional) a list of the service names\n'
              'to specify the services to be listened.',
         nargs='*'
     )

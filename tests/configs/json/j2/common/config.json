@@ -2,7 +2,7 @@
   "templatingEngine": "Jinja2",
   "services": [
     {
-      "comment": "Mock for Service1",
+      "name": "Mock for Service1",
       "hostname": "service1.example.com",
       "port": 8001,
       "endpoints": [
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "comment": "Mock for Service2",
+      "name": "Mock for Service2",
       "hostname": "service2.example.com",
       "port": 8002,
       "endpoints": [
@@ -49,7 +49,7 @@
       ]
     },
     {
-      "comment": "Service with no endpoints, for bare interceptors",
+      "name": "Service with no endpoints, for bare interceptors",
       "port": 8003
     }
   ]
