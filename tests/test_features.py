@@ -1033,3 +1033,35 @@ class TestQueryString():
 
         resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
         assert 400 == resp.status_code
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/json/hbs/body/config.json',
+    'configs/json/j2/body/config.json',
+    'configs/yaml/hbs/body/config.yaml',
+    'configs/yaml/j2/body/config.yaml'
+])
+class TestBody():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_jsonpath_templating(self, config):
+        resp = requests.post(SRV_8001 + '/body-jsonpath-tpl', json={"key": "val", "key2": 123})
+        assert 200 == resp.status_code
+        assert 'body jsonpath matched: val 123' == resp.text
+
+        resp = requests.post(SRV_8001 + '/body-jsonpath-tpl', json={"key": None})
+        assert 200 == resp.status_code
+        assert 'body jsonpath matched: null ' == resp.text
+
+        resp = requests.post(SRV_8001 + '/body-jsonpath-tpl', data="not json")
+        assert 200 == resp.status_code
+        if 'j2' in config:
+            assert "body jsonpath matched: {{jsonPath(request.json, '$.key')}} {{jsonPath(request.json, '$.key2')}}" == resp.text
+        else:
+            assert "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}" == resp.text

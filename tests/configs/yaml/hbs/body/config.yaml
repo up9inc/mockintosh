@@ -1,0 +1,9 @@
+---
+templatingEngine: Handlebars
+services:
+- comment: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/body-jsonpath-tpl"
+    method: POST
+    response: "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}"
