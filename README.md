@@ -49,7 +49,7 @@ If no configuration file is provided `mockintosh` starts with the default config
 {
   "services": [
     {
-      "comment": "Default Mock Service Config",
+      "name": "Default Mock Service Config",
       "hostname": "localhost",
       "port": 8001,
       "endpoints": [
@@ -64,7 +64,7 @@ If no configuration file is provided `mockintosh` starts with the default config
 }
 ```
 
-If you don't want to listen all of the services in a configuration file then you can specify a list of service comments:
+If you don't want to listen all of the services in a configuration file then you can specify a list of service names (`name` is a string attribute you can set per service):
 
 ```shell
 mockintosh my_mocks.yaml 'Mock for Service1' 'Mock for Service2'

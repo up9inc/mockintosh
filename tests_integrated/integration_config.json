@@ -7,7 +7,7 @@
   },
   "services": [
     {
-      "comment": "First basic service",
+      "name": "First basic service",
       "port": 8001,
       "endpoints": [
         {
@@ -217,7 +217,7 @@
       ]
     },
     {
-      "comment": "Service with specified.host",
+      "name": "Service with specified.host",
       "port": 8002,
       "hostname": "specified.host",
       "endpoints": [
@@ -230,12 +230,12 @@
       ]
     },
     {
-      "comment": "Service with no endpoints, for bare interceptors",
+      "name": "Service with no endpoints, for bare interceptors",
       "port": 8003,
       "ssl": true
     },
     {
-      "comment": "Service for CORS",
+      "name": "Service for CORS",
       "port": 8004,
       "endpoints": [
         {
@@ -245,7 +245,7 @@
       ]
     },
     {
-      "comment": "SSL with certfile",
+      "name": "SSL with certfile",
       "port": 8005,
       "ssl": true,
       "sslCertFile": "subdir/cert.pem",

@@ -89,8 +89,8 @@ class HttpServer:
 
             for service in services:
                 if self.services_list:
-                    if 'comment' in service:
-                        if service['comment'] not in self.services_list:
+                    if 'name' in service:
+                        if service['name'] not in self.services_list:
                             continue
                     else:
                         continue
@@ -107,7 +107,7 @@ class HttpServer:
                         protocol,
                         'localhost',
                         service['port'],
-                        ' the mock for %r' % service['comment'] if 'comment' in service else ''
+                        ' the mock for %r' % service['name'] if 'name' in service else ''
                     ))
                 else:
                     rules.append(
@@ -123,10 +123,10 @@ class HttpServer:
                         protocol,
                         service['hostname'],
                         service['port'],
-                        ' the mock for %r' % service['comment'] if 'comment' in service else ''
+                        ' the mock for %r' % service['name'] if 'name' in service else ''
                     ))
-                if 'comment' in service:
-                    logging.debug('Finished registering: %s' % service['comment'])
+                if 'name' in service:
+                    logging.debug('Finished registering: %s' % service['name'])
 
             if rules:
                 router = RuleRouter(rules)

@@ -17,16 +17,16 @@ that is used to validate all configuration files. You can use that as a formal s
 ## Defining Services
 
 When defining services, the key property is `port`, which defines on which port the server will be available to
-requests. It is also a good practice to specify `comment` property. You can configure one or multiple services at once.
+requests. It is also a good practice to specify `name` property, which is just piece of string. You can configure one or multiple services at once.
 Here's a minimalistic working example:
 
 ```yaml
 services:
-  - comment: Catalogue API
+  - name: Catalogue API
     port: 8001
     endpoints:
       - path: /
-  - comment: Cart API
+  - name: Cart API
     port: 8002
     endpoints:
       - path: /
@@ -37,7 +37,7 @@ HTTP header:
 
 ```yaml
 services:
-  - comment: I'm like Google
+  - name: I'm like Google
     port: 8001
     hostname: www.google.com
     endpoints:
@@ -50,7 +50,7 @@ Enabling SSL for service is as easy as specifying `ssl: true` for it:
 
 ```yaml
 services:
-  - comment: This requires 'https://' to be used by a client
+  - name: This requires 'https://' to be used by a client
     port: 443
     ssl: true
 ```
@@ -63,7 +63,7 @@ In case you want Mockintosh to use your SSL certificate and key, just provide it
 
 ```yaml
 services:
-  - comment: This requires 'https://' to be used by a client
+  - name: This requires 'https://' to be used by a client
     port: 443
     ssl: true
     sslCertFile: path/to/cert.crt
@@ -77,10 +77,10 @@ handy when you serve multiple microservice mocks from single container:
 
 ```yaml
 services:
-  - comment: "First service"
+  - name: "First service"
     hostname: "service1.example.com"
     port: 80
-  - comment: "Second service"
+  - name: "Second service"
     hostname: "service2.example.com"
     port: 80
 ```

@@ -141,7 +141,7 @@
     {
       // headers and performance profile per-service, maybe interceptors too
       // first service
-      "comment": "Mock for http://card-service.trdemo",
+      "name": "Mock for http://card-service.trdemo",
       "port": 8001,
       // optional per-service management API
       "managementRoot": "/__admin",
@@ -204,7 +204,7 @@
     },
     {
       // second service on different port
-      "comment": "Mock for http://frontend-service.trdemo",
+      "name": "Mock for http://frontend-service.trdemo",
       "port": 8002
     },
   ]
