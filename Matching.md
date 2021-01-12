@@ -127,7 +127,7 @@ of the query strings:
 
 ```yaml
 services:
-  - comment: Service1
+  - name: Service1
     port: 8001
     endpoints:
       - path: "/alternative"
@@ -165,7 +165,7 @@ There are several ways of matching request body: with `regEx` on `text` or with 
 To match request body text using `regEx`, just do it like this:
 ```yaml
 services:
-  - comment: Mock for Service1
+  - name: Mock for Service1
     port: 8001
     endpoints:
       - path: "/endpoint1"
@@ -179,7 +179,7 @@ To do the match against [JSON Schema](https://json-schema.org/), please consider
 
 ```yaml
 services:
-  - comment: Mock for Service1
+  - name: Mock for Service1
     port: 8001
     endpoints:
       - path: "/endpoint1"

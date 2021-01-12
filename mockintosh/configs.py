@@ -11,7 +11,7 @@ def get_default():
     return {
         'services': [
             {
-                'comment': 'Default Mock Service Config',
+                'name': 'Default Mock Service Config',
                 'port': 8001,
                 'endpoints': [
                     {

@@ -2,7 +2,7 @@
   "templatingEngine": "Handlebars",
   "services": [
     {
-      "comment": "Mock for Service1",
+      "name": "Mock for Service1",
       "hostname": "service1.example.com",
       "ssl": true,
       "port": 8001,
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "comment": "Mock for Service2",
+      "name": "Mock for Service2",
       "hostname": "service2.example.com",
       "port": 8002,
       "endpoints": [
@@ -27,7 +27,7 @@
       ]
     },
     {
-      "comment": "Mock for Service3",
+      "name": "Mock for Service3",
       "hostname": "service3.example.com",
       "ssl": true,
       "port": 8003,

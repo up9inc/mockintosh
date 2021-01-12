@@ -1,7 +1,7 @@
 ---
 templatingEngine: Handlebars
 services:
-- comment: Mock for Service1
+- name: Mock for Service1
   hostname: service1.example.com
   port: 8001
   endpoints:
@@ -19,7 +19,7 @@ services:
         Content-Type: "application/json; charset=UTF-8"
       useTemplating: true
       body: "@templates/user.json.hbs"
-- comment: Mock for Service2
+- name: Mock for Service2
   hostname: service2.example.com
   port: 8002
   endpoints:
@@ -30,5 +30,5 @@ services:
         Content-Type: "application/json; charset=UTF-8"
       useTemplating: true
       body: "@templates/companies.json.hbs"
-- comment: Service with no endpoints, for bare interceptors
+- name: Service with no endpoints, for bare interceptors
   port: 8003

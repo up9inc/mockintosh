@@ -5,7 +5,7 @@ globals:
     global-hdr1: globalval1
     global-hdr2: globalval2
 services:
-- comment: Mock for Service1
+- name: Mock for Service1
   port: 8001
   endpoints:
   - path: "/static-value"
