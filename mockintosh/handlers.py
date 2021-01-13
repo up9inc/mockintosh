@@ -186,30 +186,7 @@ class GenericHandler(tornado.web.RequestHandler):
         if is_binary or not self.custom_response.get('useTemplating', True):
             compiled = source_text
         else:
-            if template_engine == PYBARS:
-                from mockintosh.hbs.methods import fake, counter, json_path
-                self.custom_context['random'] = hbs_random
-                self.custom_context['date'] = hbs_date
-            elif template_engine == JINJA:
-                from mockintosh.j2.methods import fake, counter, json_path
-                self.custom_context['random'] = j2_random
-                self.custom_context['date'] = j2_date
-            else:
-                raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
-
-            renderer = TemplateRenderer(
-                template_engine,
-                source_text,
-                inject_objects=self.custom_context,
-                inject_methods=[
-                    fake,
-                    counter,
-                    json_path
-                ],
-                add_params_callback=self.add_params,
-                fill_undefineds=True
-            )
-            compiled, context = renderer.render()
+            compiled, context = self.common_template_renderer(template_engine, source_text)
             self.populate_counters(context)
 
         if not is_binary:
@@ -282,24 +259,10 @@ class GenericHandler(tornado.web.RequestHandler):
         status_code = None
         if 'status' in self.custom_response:
             if isinstance(self.custom_response['status'], str):
-                if self.definition_engine == PYBARS:
-                    from mockintosh.hbs.methods import counter
-                elif self.definition_engine == JINJA:
-                    from mockintosh.j2.methods import counter
-                else:
-                    raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
-
-                renderer = TemplateRenderer(
+                compiled, context = self.common_template_renderer(
                     self.definition_engine,
-                    self.custom_response['status'],
-                    inject_objects=self.custom_context,
-                    inject_methods=[
-                        counter
-                    ],
-                    add_params_callback=self.add_params,
-                    fill_undefineds=True
+                    self.custom_response['status']
                 )
-                compiled, context = renderer.render()
                 self.populate_counters(context)
                 status_code = int(compiled)
             else:
@@ -359,13 +322,6 @@ class GenericHandler(tornado.web.RequestHandler):
         if 'headers' not in self.custom_response:
             return
 
-        if self.definition_engine == PYBARS:
-            from mockintosh.hbs.methods import counter
-        elif self.definition_engine == JINJA:
-            from mockintosh.j2.methods import counter
-        else:
-            raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
-
         for key, value in self.custom_response['headers'].items():
             value_list = None
             if isinstance(value, list):
@@ -376,17 +332,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
             new_value_list = []
             for value in value_list:
-                renderer = TemplateRenderer(
-                    self.definition_engine,
-                    value,
-                    inject_objects=self.custom_context,
-                    inject_methods=[
-                        counter
-                    ],
-                    add_params_callback=self.add_params,
-                    fill_undefineds=True
-                )
-                new_value, context = renderer.render()
+                new_value, context = self.common_template_renderer(self.definition_engine, value)
                 self.populate_counters(context)
                 new_value_list.append(new_value)
 
@@ -553,24 +499,7 @@ class GenericHandler(tornado.web.RequestHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
-        if self.definition_engine == PYBARS:
-            from mockintosh.hbs.methods import counter
-        elif self.definition_engine == JINJA:
-            from mockintosh.j2.methods import counter
-        else:
-            raise UnsupportedTemplateEngine(self.definition_engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.definition_engine,
-            orig_relative_path,
-            inject_objects=self.custom_context,
-            inject_methods=[
-                counter
-            ],
-            add_params_callback=self.add_params,
-            fill_undefineds=True
-        )
-        orig_relative_path, context = renderer.render()
+        orig_relative_path, context = self.common_template_renderer(self.definition_engine, orig_relative_path)
         self.populate_counters(context)
 
         error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
@@ -651,6 +580,32 @@ class GenericHandler(tornado.web.RequestHandler):
                 self.finish()
                 return
         return alternative[key][alternative[index_key]]
+
+    def common_template_renderer(self, template_engine, text):
+        if template_engine == PYBARS:
+            from mockintosh.hbs.methods import fake, counter, json_path
+            self.custom_context['random'] = hbs_random
+            self.custom_context['date'] = hbs_date
+        elif template_engine == JINJA:
+            from mockintosh.j2.methods import fake, counter, json_path
+            self.custom_context['random'] = j2_random
+            self.custom_context['date'] = j2_date
+        else:
+            raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
+
+        renderer = TemplateRenderer(
+            template_engine,
+            text,
+            inject_objects=self.custom_context,
+            inject_methods=[
+                fake,
+                counter,
+                json_path
+            ],
+            add_params_callback=self.add_params,
+            fill_undefineds=True
+        )
+        return renderer.render()
 
 
 class NotParsedJSON():

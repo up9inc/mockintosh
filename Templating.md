@@ -56,9 +56,6 @@ _Note: The template file path has to be relative to the directory of the config 
 By default, dynamic templates use [Handlebars](https://handlebarsjs.com/guide/) syntax that looks like
 this: `{{namedValue}}` or `{{request.path}}` or `{{fake.address}}` etc.
 
-TODO: Can I use nested Handlebars expressions?
-TODO: Can we keep expression as-is if we were unable to evaluate it or it was misconfigured?
-
 _Note: To switch into [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) as templating engine, use
 the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2)._
 
