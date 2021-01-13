@@ -50,7 +50,7 @@
 1. Automatic image placeholders
 1. allow specifying bind address via CLI option
 
-## Milestone 6 - WIP
+## Milestone 6 - Complete v0.5
 
 1. Dataset support
 1. SSL support
@@ -60,14 +60,16 @@
 1. keep unsupported templates as-is
 1. Support for running single service from config, selected by its comment
 1. respond 400/405 if path matched, but method/header/qstr/body did not match
+1. How do I do jsonPath extraction from request body?
 
-1. How do I do jsonPath extraction from request body? 
+## Milestone 7 - WIP
+
 1. Document template helpers: dates, names, addresses etc
-   - int timestamp
-   - float timestamp
-   - milliseconds timestamp
-   - date with format
-   - all above with time shift into future/past
+    - int timestamp
+    - float timestamp
+    - milliseconds timestamp
+    - date with format
+    - all above with time shift into future/past
 
 ## Milestone N
 
@@ -87,12 +89,12 @@
     - Allows to reload config on the fly Allows to get and reset the stats of the service
     - Allows to reset the cursors of datasets/performance profiles
     - config retrieval
-    - A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service. Automatically inject `servers` property of OAS.
+    - A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
+      Automatically inject `servers` property of OAS.
 
 1. Configuration-by-request
-   - Ability to control a lot of response via request headers - for quick experimentation and code-level configuration
-     in any language / maybe it falls into management API area
-   
+    - Ability to control a lot of response via request headers - for quick experimentation and code-level configuration
+      in any language / maybe it falls into management API area
 
 ## Milestone N
 
