@@ -565,7 +565,7 @@ class TestCore():
         assert int(segments[0]) < int(segments[1])
         assert int(segments[0]) > int(segments[2])
 
-        resp = requests.get(SRV_8001 + '/timef')
+        resp = requests.get(SRV_8001 + '/timefloat')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
@@ -574,7 +574,7 @@ class TestCore():
         assert len(segments[0].split('.')[1]) <= 7
         assert len(segments[1].split('.')[1]) <= 3
 
-        resp = requests.get(SRV_8001 + '/timef-shift')
+        resp = requests.get(SRV_8001 + '/timefloat-shift')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')

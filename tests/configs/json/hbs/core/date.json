@@ -16,14 +16,14 @@
           "response": "{{date.time}}<br>{{date.time 42}}<br>{{date.time -42}}"
         },
         {
-          "path": "/timef",
+          "path": "/timefloat",
           "method": "GET",
-          "response": "{{date.timef}}<br>{{date.timef 3}}"
+          "response": "{{date.timefloat}}<br>{{date.timefloat 3}}"
         },
         {
-          "path": "/timef-shift",
+          "path": "/timefloat-shift",
           "method": "GET",
-          "response": "{{date.timef}}<br>{{date.timef 7 3.14}}<br>{{date.timef 7 -3.14}}"
+          "response": "{{date.timefloat}}<br>{{date.timefloat 7 3.14}}<br>{{date.timefloat 7 -3.14}}"
         },
         {
           "path": "/date",

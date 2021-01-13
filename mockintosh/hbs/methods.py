@@ -104,7 +104,7 @@ class Date():
     def time(self, this, shift=0):
         return round(time.time()) + shift
 
-    def timef(self, this, precision=7, shift=0.0):
+    def timefloat(self, this, precision=7, shift=0.0):
         return round(time.time() + shift, precision)
 
     def date(
