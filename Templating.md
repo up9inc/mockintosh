@@ -14,7 +14,7 @@ services:
           headers:
             content-type: application/json
             x-custom-id: 12345
-          body: '{"result": "created"}'            
+          body: '{"result": "created"}'
 ```
 
 Any of those fields allows using dynamic template that will be evaluated for each request. Like this:
@@ -29,7 +29,7 @@ services:
           headers:
             content-type: '{{request.headers.accept}}'
             x-custom-id: '{{random.int 0 1000}}'
-          body: '{"result": "created", "name": "{{fake.lastname}}" }'            
+          body: '{"result": "created", "name": "{{fake.lastname}}" }'
 ```
 
 _Note: for `headers`, only the value part is subject for templating. Mind
@@ -75,9 +75,41 @@ Below is the reference of available dynamic value generators.
 
 For random names, addresses etc, please refer to [Faker's](#faker) functionality.
 
+### Date
+
+- `date.time` - UNIX timestamp (UTC)
+- `date.time -42` - UNIX timestamp (UTC) shifted 42 back
+- `date.timef` - UNIX timestamp (UTC) in floating-point format (default: 7 decimal percision)
+- `date.timef 3` - UNIX timestamp (UTC) in floating-point format with 3 decimal precision
+- `date.timef 7 3.14` - UNIX timestamp (UTC) in floating-point format with 7 decimal precision, shifted 3.14 forward
+- `date.date` - Current date (UTC) (default format: `%Y-%m-%d`)
+- `date.date '%Y-%m-%d %H:%M'` Current date (UTC) with format `%Y-%m-%d %H:%M`. For date and time formates please refer to [`strftime`](https://strftime.org/) reference.
+
+Here is a list of all date shifting parameters as a Handlebars response template:
+
+```hbs
+{
+  "now": "{{ date.date '%Y-%m-%d %H:%M %f' }}",
+  "1_week_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 1 }}",
+  "1_week_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 1 }}",
+  "1_day_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 0 1 }}",
+  "1_day_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 0 1 }}",
+  "1_hour_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 0 0 1 }}",
+  "1_hour_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 0 0 1 }}",
+  "1_minute_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 0 0 0 1 }}",
+  "1_minute_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 0 0 0 1 }}",
+  "60_seconds_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 0 0 0 0 60 }}",
+  "60_seconds_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 0 0 0 0 60 }}",
+  "60000_milliseconds_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 0 0 0 0 0 60000 }}",
+  "60000_milliseconds_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 0 0 0 0 0 60000 }}",
+  "1000000_microseconds_back": "{{ date.date '%Y-%m-%d %H:%M %f' true 0 0 0 0 0 1000000 }}",
+  "1000000_microseconds_forward": "{{ date.date '%Y-%m-%d %H:%M %f' false 0 0 0 0 0 1000000 }}"
+}
+```
+
 ### Faker
 
-[Faker](https://faker.readthedocs.io/en/master/providers.html) library is provided for generating some dynamic data. 
+[Faker](https://faker.readthedocs.io/en/master/providers.html) library is provided for generating some dynamic data.
 It is available as `fake` object. Refer to the [official docs](https://faker.readthedocs.io/en/master/providers.html) for all capabilities. Below are some examples:
 
 - `fake.first_name`

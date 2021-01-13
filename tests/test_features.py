@@ -582,7 +582,7 @@ class TestCore():
         assert float(segments[0]) > float(segments[2])
 
         resp = requests.get(SRV_8001 + '/date')
-        now = datetime.now()
+        now = datetime.utcnow()
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
@@ -594,7 +594,7 @@ class TestCore():
         assert delta.seconds / 60 < 2
 
         resp = requests.get(SRV_8001 + '/date-shift')
-        now = datetime.now()
+        now = datetime.utcnow()
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()

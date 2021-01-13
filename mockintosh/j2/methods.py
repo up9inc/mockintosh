@@ -123,7 +123,7 @@ class Date():
         milliseconds=0,
         microseconds=0
     ):
-        now = datetime.now()
+        now = datetime.utcnow()
         shift_time = timedelta(
             days=days,
             seconds=seconds,
