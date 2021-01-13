@@ -28,8 +28,8 @@ from mockintosh.templating import TemplateRenderer
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 from mockintosh.methods import _safe_path_split, _detect_engine
 
-from mockintosh.hbs.methods import Random as hbs_Random
-from mockintosh.j2.methods import Random as j2_Random
+from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
+from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -38,6 +38,9 @@ NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
+
+hbs_date = hbs_Date()
+j2_date = j2_Date()
 
 counters = {}
 
@@ -186,9 +189,11 @@ class GenericHandler(tornado.web.RequestHandler):
             if template_engine == PYBARS:
                 from mockintosh.hbs.methods import fake, counter, json_path
                 self.custom_context['random'] = hbs_random
+                self.custom_context['date'] = hbs_date
             elif template_engine == JINJA:
                 from mockintosh.j2.methods import fake, counter, json_path
                 self.custom_context['random'] = j2_random
+                self.custom_context['date'] = j2_date
             else:
                 raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 

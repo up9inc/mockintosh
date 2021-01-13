@@ -10,6 +10,9 @@ import random
 import string
 import os
 import binascii
+import time
+from datetime import datetime
+from datetime import timedelta
 from uuid import uuid4
 
 from jsonpath_ng import parse as jsonpath_parse
@@ -98,3 +101,40 @@ class Random():
 
     def _ascii(self, length):
         return ''.join(random.choices(string.ascii_letters, k=length))
+
+
+class Date():
+
+    def time(self, shift=0):
+        return round(time.time()) + shift
+
+    def timef(self, precision=7, shift=0.0):
+        return round(time.time() + shift, precision)
+
+    def date(
+        self,
+        pattern='%Y-%m-%d',
+        subtract=False,
+        weeks=0,
+        days=0,
+        hours=0,
+        minutes=0,
+        seconds=0,
+        milliseconds=0,
+        microseconds=0
+    ):
+        now = datetime.now()
+        shift_time = timedelta(
+            days=days,
+            seconds=seconds,
+            microseconds=microseconds,
+            milliseconds=milliseconds,
+            minutes=minutes,
+            hours=hours,
+            weeks=weeks
+        )
+        if subtract:
+            now = now - shift_time
+        else:
+            now = now + shift_time
+        return now.strftime(pattern)

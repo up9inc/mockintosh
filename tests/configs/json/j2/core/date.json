@@ -1,0 +1,46 @@
+{
+  "templatingEngine": "Jinja2",
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/time",
+          "method": "GET",
+          "response": "{{date.time()}}"
+        },
+        {
+          "path": "/time-shift",
+          "method": "GET",
+          "response": "{{date.time()}}<br>{{date.time(42)}}<br>{{date.time(-42)}}"
+        },
+        {
+          "path": "/timef",
+          "method": "GET",
+          "response": "{{date.timef()}}<br>{{date.timef(3)}}"
+        },
+        {
+          "path": "/timef-shift",
+          "method": "GET",
+          "response": "{{date.timef()}}<br>{{date.timef(7, 3.14)}}<br>{{date.timef(7, -3.14)}}"
+        },
+        {
+          "path": "/date",
+          "method": "GET",
+          "response": "{{date.date()}}<br>{{date.date('%Y-%m-%d %H:%M')}}"
+        },
+        {
+          "path": "/date-shift",
+          "method": "GET",
+          "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
+            "body": "@templates/date.json.j2"
+          }
+        }
+      ]
+    }
+  ]
+}
