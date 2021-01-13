@@ -25,7 +25,7 @@ from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStrin
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.handlers import Request, Response  # noqa: F401
 
-__version__ = "0.4"
+__version__ = "0.5"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
