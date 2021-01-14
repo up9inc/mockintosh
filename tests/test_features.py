@@ -511,11 +511,32 @@ class TestCore():
 
         resp = requests.get(SRV_8001 + '/undefined2')
         assert 200 == resp.status_code
-        assert resp.text == 'Hello {{undefined 1 2}} world'
+        if 'j2' in config:
+            assert resp.text == 'Hello {{undefined(1, 2)}} world'
+        else:
+            assert resp.text == 'Hello {{undefined 1 2}} world'
 
         resp = requests.get(SRV_8001 + '/undefined3')
         assert 200 == resp.status_code
-        assert resp.text == 'Hello {{undefined.attr 1 2}} world'
+        if 'j2' in config:
+            assert resp.text == 'Hello {{undefined.attr(1, 2)}} world'
+        else:
+            assert resp.text == 'Hello {{undefined.attr 1 2}} world'
+
+        resp = requests.get(SRV_8001 + '/undefined4')
+        assert 200 == resp.status_code
+        if 'j2' in config:
+            assert resp.text == '{{ date.date(\'%Y-%m-%d %H:%M %f\', false, 99999) }}'
+        else:
+            assert resp.text == '{{ date.date \'%Y-%m-%d %H:%M %f\' false 99999 }}'
+
+        resp = requests.get(SRV_8001 + '/undefined5')
+        assert 200 == resp.status_code
+        assert resp.text == 'Hello {{undefined_var}} world'
+
+        resp = requests.get(SRV_8001 + '/undefined6')
+        assert 200 == resp.status_code
+        assert resp.text == 'Hello {{date.undefined_attr}} world'
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/counter.yaml',

@@ -46,7 +46,7 @@ def reg_ex(this, regex, *args, **kwargs):
 
 def json_path(this, text, path):
     data = text
-    if data is None:
+    if isinstance(data, tuple) and data[0] is None:
         raise PybarsError
     jsonpath_expr = jsonpath_parse(path)
     match = jsonpath_expr.find(data)
