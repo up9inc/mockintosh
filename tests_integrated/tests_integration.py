@@ -3,6 +3,7 @@ import os
 import re
 import time
 import unittest
+from datetime import datetime
 
 import requests
 
@@ -270,6 +271,49 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(re.match(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', fuuid))
 
         self.assertEqual(5, len(resp))  # random ascii
+
+    def test_templating_date(self):
+        resp = requests.get(SRV1 + '/date-tpl')
+        self.assertEqual(200, resp.status_code)
+        resp = resp.text
+        logging.info("Resp: %s", resp)
+
+        # {date.timestamp}}
+        chunk, resp = resp.split(" ", 1)
+        self.assertTrue(abs(time.time() - int(chunk)) < 1)
+        self.assertNotIn('.', chunk)
+
+        # {{date.timestamp -10}}
+        chunk, resp = resp.split(" ", 1)
+        self.assertTrue(abs((time.time() - 10) - int(chunk)) < 1)
+        self.assertNotIn('.', chunk)
+
+        #  {{date.timestamp 10}}
+        chunk, resp = resp.split(" ", 1)
+        self.assertTrue(abs((time.time() + 10) - int(chunk)) < 1)
+        self.assertNotIn('.', chunk)
+
+        #  {{date.ftimestamp}}
+        chunk, resp = resp.split(" ", 1)
+        self.assertTrue(abs((time.time()) - int(chunk)) < 1)
+        self.assertIn('.', chunk)
+        self.assertTrue(len(chunk.split('.')[1]) == 3)
+
+        #  {{date.ftimestamp 10 5}}
+        chunk, resp = resp.split(" ", 1)
+        self.assertTrue(abs((time.time() + 10) - int(chunk)) < 1)
+        self.assertIn('.', chunk)
+        self.assertTrue(len(chunk.split('.')[1]) == 5)
+
+        #  {{date.date '%Y-%m-%d %H:%M:%S'}}
+        chunk, resp = resp.split(" ", 1)
+        pdate = datetime.strptime(chunk, '%Y-%m-%d %H:%M:%S')
+        self.assertTrue(abs((time.time()) - int(pdate.timestamp())) < 1)
+
+        #  {{date.date '%Y-%m-%d' 86400}}
+        chunk, resp = resp.split(" ", 1)
+        pdate = datetime.strptime(chunk, '%Y-%m-%d')
+        self.assertTrue(pdate)  # TODO: better assertion
 
     def test_body_regex(self):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")
