@@ -1,6 +1,6 @@
 # Mockintosh, the API mocking server for microservice environments
 
-Quick links: [Config Syntax](Configuring.md) | [Request Matching](Matching.md) | [Response Templating](Templating.md)
+Quick links: [Config Syntax](Configuring.md) | [Request Matching](Matching.md) | [Response Templating](Templating.md) | [Changelog](Changelog.md)
 
 ## About
 
