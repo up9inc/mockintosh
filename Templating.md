@@ -77,8 +77,8 @@ For random names, addresses etc, please refer to [Faker's](#faker) functionality
 - `date.time` - UNIX timestamp (UTC)
 - `date.time -42` - UNIX timestamp (UTC) shifted 42 back
 - `date.timefloat` - UNIX timestamp (UTC) in floating-point format (default: 7 decimal percision)
-- `date.timefloat 3` - UNIX timestamp (UTC) in floating-point format with 3 decimal precision
-- `date.timefloat 7 3.14` - UNIX timestamp (UTC) in floating-point format with 7 decimal precision, shifted 3.14 forward
+- `date.timefloat 0.0 3` - UNIX timestamp (UTC) in floating-point format with 3 decimal precision
+- `date.timefloat 3.14` - UNIX timestamp (UTC) in floating-point format with 7 decimal precision, shifted 3.14 forward
 - `date.date` - Current date (UTC) (default format: `%Y-%m-%d`)
 - `date.date '%Y-%m-%d %H:%M'` Current date (UTC) with format `%Y-%m-%d %H:%M`. For date and time formates please refer to [`strftime`](https://strftime.org/) reference.
 
