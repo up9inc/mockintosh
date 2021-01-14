@@ -586,7 +586,7 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
-        pattern = '%Y-%m-%d'
+        pattern = '%Y-%m-%dT%H:%M:%S.%f'
         delta = now - datetime.strptime(segments[0], pattern)
         assert delta.days < 2
         pattern = '%Y-%m-%d %H:%M'

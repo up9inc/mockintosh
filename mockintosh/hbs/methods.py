@@ -110,7 +110,7 @@ class Date():
     def date(
         self,
         this,
-        pattern='%Y-%m-%d',
+        pattern='%Y-%m-%dT%H:%M:%S.%f',
         subtract=False,
         weeks=0,
         days=0,
