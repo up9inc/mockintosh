@@ -14,7 +14,7 @@ services:
           headers:
             content-type: application/json
             x-custom-id: 12345
-          body: '{"result": "created"}'            
+          body: '{"result": "created"}'
 ```
 
 Any of those fields allows using dynamic template that will be evaluated for each request. Like this:
@@ -29,7 +29,7 @@ services:
           headers:
             content-type: '{{request.headers.accept}}'
             x-custom-id: '{{random.int 0 1000}}'
-          body: '{"result": "created", "name": "{{fake.lastname}}" }'            
+          body: '{"result": "created", "name": "{{fake.lastname}}" }'
 ```
 
 _Note: for `headers`, only the value part is subject for templating. Mind
@@ -56,9 +56,6 @@ _Note: The template file path has to be relative to the directory of the config 
 By default, dynamic templates use [Handlebars](https://handlebarsjs.com/guide/) syntax that looks like
 this: `{{namedValue}}` or `{{request.path}}` or `{{fake.address}}` etc.
 
-TODO: Can I use nested Handlebars expressions?
-TODO: Can we keep expression as-is if we were unable to evaluate it or it was misconfigured?
-
 _Note: To switch into [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) as templating engine, use
 the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2)._
 
@@ -75,9 +72,35 @@ Below is the reference of available dynamic value generators.
 
 For random names, addresses etc, please refer to [Faker's](#faker) functionality.
 
+### Date
+
+- `date.timestamp` - UNIX timestamp (UTC)
+- `date.timestamp -42` - UNIX timestamp (UTC) shifted 42 back
+- `date.ftimestamp` - UNIX timestamp (UTC) in floating-point format (default: 3 decimal percision)
+- `date.ftimestamp 0.0 7` - UNIX timestamp (UTC) in floating-point format with 7 decimal precision
+- `date.ftimestamp 3.14` - UNIX timestamp (UTC) in floating-point format with 3 decimal precision, shifted 3.14 forward
+- `date.date` - Current date (UTC) (default format: `%Y-%m-%dT%H:%M:%S.%f`)
+- `date.date '%Y-%m-%d %H:%M'` Current date (UTC) with format `%Y-%m-%d %H:%M`. For date and time formates please refer to [`strftime`](https://strftime.org/) reference.
+
+Here is a list of date shifting examples as a Handlebars response template:
+
+```hbs
+{
+  "now": "{{ date.date '%Y-%m-%d %H:%M %f' }}",
+  "1_week_back": "{{ date.date '%Y-%m-%d %H:%M %f' -604800 }}",
+  "1_week_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 604800 }}",
+  "1_day_back": "{{ date.date '%Y-%m-%d %H:%M %f' -86400 }}",
+  "1_day_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 86400 }}",
+  "1_hour_back": "{{ date.date '%Y-%m-%d %H:%M %f' -3600 }}",
+  "1_hour_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 3600 }}",
+  "1_minute_back": "{{ date.date '%Y-%m-%d %H:%M %f' -60 }}",
+  "1_minute_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 60 }}"
+}
+```
+
 ### Faker
 
-[Faker](https://faker.readthedocs.io/en/master/providers.html) library is provided for generating some dynamic data. 
+[Faker](https://faker.readthedocs.io/en/master/providers.html) library is provided for generating some dynamic data.
 It is available as `fake` object. Refer to the [official docs](https://faker.readthedocs.io/en/master/providers.html) for all capabilities. Below are some examples:
 
 - `fake.first_name`
