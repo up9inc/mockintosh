@@ -104,33 +104,20 @@ class Date():
     def time(self, this, shift=0):
         return round(time.time()) + shift
 
-    def timefloat(self, this, precision=7, shift=0.0):
+    def timefloat(self, this, shift=0.0, precision=7):
         return round(time.time() + shift, precision)
 
     def date(
         self,
         this,
-        pattern='%Y-%m-%d',
-        subtract=False,
-        weeks=0,
-        days=0,
-        hours=0,
-        minutes=0,
-        seconds=0,
-        milliseconds=0,
-        microseconds=0
+        pattern='%Y-%m-%dT%H:%M:%S.%f',
+        seconds=0
     ):
         now = datetime.utcnow()
         shift_time = timedelta(
-            days=days,
-            seconds=seconds,
-            microseconds=microseconds,
-            milliseconds=milliseconds,
-            minutes=minutes,
-            hours=hours,
-            weeks=weeks
+            seconds=abs(seconds)
         )
-        if subtract:
+        if seconds < 0:
             now = now - shift_time
         else:
             now = now + shift_time

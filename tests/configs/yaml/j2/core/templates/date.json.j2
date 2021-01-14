@@ -1,17 +1,11 @@
 {
   "now": "{{ date.date('%Y-%m-%d %H:%M %f') }}",
-  "1_week_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 1) }}",
-  "1_week_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 1) }}",
-  "1_day_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 0, 1) }}",
-  "1_day_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 0, 1) }}",
-  "1_hour_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 0, 0, 1) }}",
-  "1_hour_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 0, 0, 1) }}",
-  "1_minute_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 0, 0, 0, 1) }}",
-  "1_minute_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 0, 0, 0, 1) }}",
-  "60_seconds_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 0, 0, 0, 0, 60) }}",
-  "60_seconds_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 0, 0, 0, 0, 60) }}",
-  "60000_milliseconds_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 0, 0, 0, 0, 0, 60000) }}",
-  "60000_milliseconds_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 0, 0, 0, 0, 0, 60000) }}",
-  "1000000_microseconds_back": "{{ date.date('%Y-%m-%d %H:%M %f', true, 0, 0, 0, 0, 0, 1000000) }}",
-  "1000000_microseconds_forward": "{{ date.date('%Y-%m-%d %H:%M %f', false, 0, 0, 0, 0, 0, 1000000) }}"
+  "1_week_back": "{{ date.date('%Y-%m-%d %H:%M %f', -604800) }}",
+  "1_week_forward": "{{ date.date('%Y-%m-%d %H:%M %f', 604800) }}",
+  "1_day_back": "{{ date.date('%Y-%m-%d %H:%M %f', 86400) }}",
+  "1_day_forward": "{{ date.date('%Y-%m-%d %H:%M %f', 86400) }}",
+  "1_hour_back": "{{ date.date('%Y-%m-%d %H:%M %f', -3600) }}",
+  "1_hour_forward": "{{ date.date('%Y-%m-%d %H:%M %f', 3600) }}",
+  "1_minute_back": "{{ date.date('%Y-%m-%d %H:%M %f', -60) }}",
+  "1_minute_forward": "{{ date.date('%Y-%m-%d %H:%M %f', 60) }}"
 }

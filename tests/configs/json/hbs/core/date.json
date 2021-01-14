@@ -18,12 +18,12 @@
         {
           "path": "/timefloat",
           "method": "GET",
-          "response": "{{date.timefloat}}<br>{{date.timefloat 3}}"
+          "response": "{{date.timefloat}}<br>{{date.timefloat 0.0 3}}"
         },
         {
           "path": "/timefloat-shift",
           "method": "GET",
-          "response": "{{date.timefloat}}<br>{{date.timefloat 7 3.14}}<br>{{date.timefloat 7 -3.14}}"
+          "response": "{{date.timefloat}}<br>{{date.timefloat 3.14}}<br>{{date.timefloat -3.14}}"
         },
         {
           "path": "/date",
