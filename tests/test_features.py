@@ -551,30 +551,33 @@ class TestCore():
     def test_date(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/time')
+        resp = requests.get(SRV_8001 + '/timestamp')
+        utcnow = datetime.utcnow()
+        now = time.time()
+
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         resp_int = int(resp.text)
-        diff = time.time() - resp_int
+        diff = now - resp_int
         assert diff < 1
 
-        resp = requests.get(SRV_8001 + '/time-shift')
+        resp = requests.get(SRV_8001 + '/timestamp-shift')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
         assert int(segments[0]) < int(segments[1])
         assert int(segments[0]) > int(segments[2])
 
-        resp = requests.get(SRV_8001 + '/timefloat')
+        resp = requests.get(SRV_8001 + '/ftimestamp')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
-        diff = time.time() - float(segments[0])
+        diff = now - float(segments[0])
         assert diff < 1
-        assert len(segments[0].split('.')[1]) <= 7
-        assert len(segments[1].split('.')[1]) <= 3
+        assert len(segments[0].split('.')[1]) <= 3
+        assert len(segments[1].split('.')[1]) <= 7
 
-        resp = requests.get(SRV_8001 + '/timefloat-shift')
+        resp = requests.get(SRV_8001 + '/ftimestamp-shift')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
@@ -582,38 +585,36 @@ class TestCore():
         assert float(segments[0]) > float(segments[2])
 
         resp = requests.get(SRV_8001 + '/date')
-        now = datetime.utcnow()
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
         pattern = '%Y-%m-%dT%H:%M:%S.%f'
-        delta = now - datetime.strptime(segments[0], pattern)
+        delta = utcnow - datetime.strptime(segments[0], pattern)
         assert delta.days < 2
         pattern = '%Y-%m-%d %H:%M'
-        delta = now - datetime.strptime(segments[1], pattern)
+        delta = utcnow - datetime.strptime(segments[1], pattern)
         assert delta.seconds / 60 < 2
 
         resp = requests.get(SRV_8001 + '/date-shift')
-        now = datetime.utcnow()
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         pattern = '%Y-%m-%d %H:%M %f'
-        delta = now - datetime.strptime(data['now'], pattern)
+        delta = utcnow - datetime.strptime(data['now'], pattern)
         assert delta.days < 2
-        delta = now - datetime.strptime(data['1_week_back'], pattern)
+        delta = utcnow - datetime.strptime(data['1_week_back'], pattern)
         assert delta.days < 9
-        delta = datetime.strptime(data['1_week_forward'], pattern) - now
+        delta = datetime.strptime(data['1_week_forward'], pattern) - utcnow
         assert delta.days > 5
-        delta = now - datetime.strptime(data['1_day_back'], pattern)
+        delta = utcnow - datetime.strptime(data['1_day_back'], pattern)
         assert delta.days < 3
-        delta = datetime.strptime(data['1_day_forward'], pattern) - now
+        delta = datetime.strptime(data['1_day_forward'], pattern) - utcnow
         assert delta.seconds > 82800
-        delta = now - datetime.strptime(data['1_hour_back'], pattern)
+        delta = utcnow - datetime.strptime(data['1_hour_back'], pattern)
         assert delta.seconds < 3700
-        delta = datetime.strptime(data['1_hour_forward'], pattern) - now
+        delta = datetime.strptime(data['1_hour_forward'], pattern) - utcnow
         assert delta.seconds > 3500
-        delta = now - datetime.strptime(data['1_minute_back'], pattern)
+        delta = utcnow - datetime.strptime(data['1_minute_back'], pattern)
         assert delta.seconds < 120
 
 

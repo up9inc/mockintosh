@@ -105,10 +105,10 @@ class Random():
 
 class Date():
 
-    def time(self, shift=0):
+    def timestamp(self, shift=0):
         return round(time.time()) + shift
 
-    def timefloat(self, shift=0.0, precision=7):
+    def ftimestamp(self, shift=0.0, precision=3):
         return round(time.time() + shift, precision)
 
     def date(

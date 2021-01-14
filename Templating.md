@@ -76,20 +76,20 @@ For random names, addresses etc, please refer to [Faker's](#faker) functionality
 
 - `date.timestamp` - UNIX timestamp (UTC)
 - `date.timestamp -42` - UNIX timestamp (UTC) shifted 42 back
-- `date.ftimestamp` - UNIX timestamp (UTC) in floating-point format (default: 7 decimal percision)
-- `date.ftimestamp 0.0 3` - UNIX timestamp (UTC) in floating-point format with 3 decimal precision
-- `date.ftimestamp 3.14` - UNIX timestamp (UTC) in floating-point format with 7 decimal precision, shifted 3.14 forward
+- `date.ftimestamp` - UNIX timestamp (UTC) in floating-point format (default: 3 decimal percision)
+- `date.ftimestamp 0.0 7` - UNIX timestamp (UTC) in floating-point format with 7 decimal precision
+- `date.ftimestamp 3.14` - UNIX timestamp (UTC) in floating-point format with 3 decimal precision, shifted 3.14 forward
 - `date.date` - Current date (UTC) (default format: `%Y-%m-%dT%H:%M:%S.%f`)
 - `date.date '%Y-%m-%d %H:%M'` Current date (UTC) with format `%Y-%m-%d %H:%M`. For date and time formates please refer to [`strftime`](https://strftime.org/) reference.
 
-Here is a list of all date shifting parameters as a Handlebars response template:
+Here is a list of date shifting examples as a Handlebars response template:
 
 ```hbs
 {
   "now": "{{ date.date '%Y-%m-%d %H:%M %f' }}",
   "1_week_back": "{{ date.date '%Y-%m-%d %H:%M %f' -604800 }}",
   "1_week_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 604800 }}",
-  "1_day_back": "{{ date.date '%Y-%m-%d %H:%M %f' 86400 }}",
+  "1_day_back": "{{ date.date '%Y-%m-%d %H:%M %f' -86400 }}",
   "1_day_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 86400 }}",
   "1_hour_back": "{{ date.date '%Y-%m-%d %H:%M %f' -3600 }}",
   "1_hour_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 3600 }}",
