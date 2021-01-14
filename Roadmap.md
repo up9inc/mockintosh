@@ -1,4 +1,50 @@
-# Roadmap
+# Changelog
+
+## v0.5.1 - 2021-01-13
+
+1. Dataset support
+1. SSL support
+1. Ability to match request body by regexp
+1. Counter functions
+1. `random.*` templates
+1. keep unsupported templates as-is
+1. Support for running single service from config, selected by its comment
+1. respond 400/405 if path matched, but method/header/qstr/body did not match
+1. How do I do jsonPath extraction from request body?
+
+## v0.4 - 2021-01-06
+
+1. Automatic CORS
+1. Ability to refer to external files containing request _and_ response bodies
+    - make it secure by disallowing files outside mock config hierarchy
+1. Clear status in log on which service addresses are listened to
+    - right before `Mock server is ready!` have series of log lines
+    - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
+1. have own server signature like `Mockintosh/<version>`
+1. fix pip install
+1. Multi-response functionality
+1. Automatic image placeholders
+1. allow specifying bind address via CLI option
+
+## Milestone 4 - Complete
+
+1. Integration of custom "interceptor"
+    - Object model for request and response
+    - Ability to provide python function/object to alter response
+    - Both successful and failed responses intercepted
+
+## Milestone 3 - Complete
+
+1. Request headers and query string matching
+2. Request JSON body schema validation as part of matching
+3. Response status code
+4. response headers - global and local
+
+## Milestone 2 - Complete
+
+1. Endpoints configuration with only Path matcher
+2. Response with templating
+4. Log exception if loading server failed
 
 ## Milestone 1 - Complete
 
@@ -16,51 +62,7 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-## Milestone 2 - Complete
-
-1. Endpoints configuration with only Path matcher
-2. Response with templating
-4. Log exception if loading server failed
-
-## Milestone 3 - Complete
-
-1. Request headers and query string matching
-2. Request JSON body schema validation as part of matching
-3. Response status code
-4. response headers - global and local
-
-## Milestone 4 - Complete
-
-1. Integration of custom "interceptor"
-    - Object model for request and response
-    - Ability to provide python function/object to alter response
-    - Both successful and failed responses intercepted
-
-## Milestone 5 - Complete v0.4
-
-1. Automatic CORS
-1. Ability to refer to external files containing request _and_ response bodies
-    - make it secure by disallowing files outside mock config hierarchy
-1. Clear status in log on which service addresses are listened to
-    - right before `Mock server is ready!` have series of log lines
-    - each line with clear URL of mock `Serving at http://<bind address>:port the mock for <service comment>`
-1. have own server signature like `Mockintosh/<version>`
-1. fix pip install
-1. Multi-response functionality
-1. Automatic image placeholders
-1. allow specifying bind address via CLI option
-
-## Milestone 6 - Complete v0.5
-
-1. Dataset support
-1. SSL support
-1. Ability to match request body by regexp
-1. Counter functions
-1. `random.*` templates
-1. keep unsupported templates as-is
-1. Support for running single service from config, selected by its comment
-1. respond 400/405 if path matched, but method/header/qstr/body did not match
-1. How do I do jsonPath extraction from request body?
+# Roadmap
 
 ## Milestone 7 - WIP
 
@@ -102,9 +104,7 @@
     - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
       ratio” of fuzziness
 
-# Backlog
-
-## Ideas
+# Ideas
 
 - `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
 - `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
@@ -133,9 +133,6 @@
     }
   },
   "globals": {
-    "requestInterceptors": [
-      "mypackage.subpackage.myfunc"
-    ],
     "performanceProfile": "profile1",
     "headers": []
   },
