@@ -274,46 +274,60 @@ class IntegrationTests(unittest.TestCase):
 
     def test_templating_date(self):
         resp = requests.get(SRV1 + '/date-tpl')
+        now = time.time()  # To late to get `time.time()` after that
+        utcnow = datetime.utcnow()  # To late to get `datetime.utcnow()` after that
+
         self.assertEqual(200, resp.status_code)
         resp = resp.text
         logging.info("Resp: %s", resp)
 
         # {date.timestamp}}
         chunk, resp = resp.split(" ", 1)
-        self.assertTrue(abs(time.time() - int(chunk)) < 1)
+        self.assertTrue(abs(now - int(chunk)) < 1)
         self.assertNotIn('.', chunk)
 
         # {{date.timestamp -10}}
         chunk, resp = resp.split(" ", 1)
-        self.assertTrue(abs((time.time() - 10) - int(chunk)) < 1)
+        self.assertTrue(abs((now - 10) - int(chunk)) < 1)
         self.assertNotIn('.', chunk)
 
         #  {{date.timestamp 10}}
         chunk, resp = resp.split(" ", 1)
-        self.assertTrue(abs((time.time() + 10) - int(chunk)) < 1)
+        self.assertTrue(abs((now + 10) - int(chunk)) < 1)
         self.assertNotIn('.', chunk)
 
         #  {{date.ftimestamp}}
         chunk, resp = resp.split(" ", 1)
-        self.assertTrue(abs((time.time()) - int(chunk)) < 1)
+        self.assertTrue(abs((now) - float(chunk)) < 1)
         self.assertIn('.', chunk)
-        self.assertTrue(len(chunk.split('.')[1]) == 3)
+        self.assertTrue(len(chunk.split('.')[1]) <= 3)
 
         #  {{date.ftimestamp 10 5}}
         chunk, resp = resp.split(" ", 1)
-        self.assertTrue(abs((time.time() + 10) - int(chunk)) < 1)
+        self.assertTrue(abs((now + 10) - float(chunk)) < 1)
         self.assertIn('.', chunk)
-        self.assertTrue(len(chunk.split('.')[1]) == 5)
+        self.assertTrue(len(chunk.split('.')[1]) <= 5)
+
+        #  {{date.date}}
+        chunk, resp = resp.split(" ", 1)
+        pdate = datetime.strptime(chunk, '%Y-%m-%dT%H:%M:%S.%f')
+        delta = utcnow - pdate
+        self.assertTrue(delta.days < 2)
 
         #  {{date.date '%Y-%m-%d %H:%M:%S'}}
-        chunk, resp = resp.split(" ", 1)
+        chunk1, resp = resp.split(" ", 1)
+        chunk2, resp = resp.split(" ", 1)
+        chunk = ' '.join((chunk1, chunk2))
         pdate = datetime.strptime(chunk, '%Y-%m-%d %H:%M:%S')
-        self.assertTrue(abs((time.time()) - int(pdate.timestamp())) < 1)
+        delta = utcnow - pdate
+        self.assertTrue(delta.days < 2)
 
         #  {{date.date '%Y-%m-%d' 86400}}
         chunk, resp = resp.split(" ", 1)
-        pdate = datetime.strptime(chunk, '%Y-%m-%d')
-        self.assertTrue(pdate)  # TODO: better assertion
+        chunk = ' '.join((chunk1, resp))
+        pdate = datetime.strptime(chunk, '%Y-%m-%d %H')
+        delta = pdate - utcnow
+        self.assertTrue(delta.seconds > 82800)
 
     def test_body_regex(self):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")

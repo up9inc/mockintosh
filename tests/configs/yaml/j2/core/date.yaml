@@ -4,18 +4,18 @@ services:
 - name: Mock for Service1
   port: 8001
   endpoints:
-  - path: "/time"
+  - path: "/timestamp"
     method: GET
-    response: "{{date.time()}}"
-  - path: "/time-shift"
+    response: "{{date.timestamp()}}"
+  - path: "/timestamp-shift"
     method: GET
-    response: "{{date.time()}}<br>{{date.time(42)}}<br>{{date.time(-42)}}"
-  - path: "/timefloat"
+    response: "{{date.timestamp()}}<br>{{date.timestamp(42)}}<br>{{date.timestamp(-42)}}"
+  - path: "/ftimestamp"
     method: GET
-    response: "{{date.timefloat()}}<br>{{date.timefloat(0.0, 3)}}"
-  - path: "/timefloat-shift"
+    response: "{{date.ftimestamp()}}<br>{{date.ftimestamp(0.0, 7)}}"
+  - path: "/ftimestamp-shift"
     method: GET
-    response: "{{date.timefloat()}}<br>{{date.timefloat(3.14)}}<br>{{date.timefloat(-3.14)}}"
+    response: "{{date.ftimestamp()}}<br>{{date.ftimestamp(3.14)}}<br>{{date.ftimestamp(-3.14)}}"
   - path: "/date"
     method: GET
     response: "{{date.date()}}<br>{{date.date('%Y-%m-%d %H:%M')}}"
