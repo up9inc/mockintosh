@@ -274,8 +274,8 @@ class IntegrationTests(unittest.TestCase):
 
     def test_templating_date(self):
         resp = requests.get(SRV1 + '/date-tpl')
-        now = time.time()  # To late to get `time.time()` after that
-        utcnow = datetime.utcnow()  # To late to get `datetime.utcnow()` after that
+        now = time.time()  # Too late to get `time.time()` after that
+        utcnow = datetime.utcnow()  # Too late to get `datetime.utcnow()` after that
 
         self.assertEqual(200, resp.status_code)
         resp = resp.text
