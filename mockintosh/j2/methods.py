@@ -114,26 +114,13 @@ class Date():
     def date(
         self,
         pattern='%Y-%m-%dT%H:%M:%S.%f',
-        subtract=False,
-        weeks=0,
-        days=0,
-        hours=0,
-        minutes=0,
-        seconds=0,
-        milliseconds=0,
-        microseconds=0
+        seconds=0
     ):
         now = datetime.utcnow()
         shift_time = timedelta(
-            days=days,
-            seconds=seconds,
-            microseconds=microseconds,
-            milliseconds=milliseconds,
-            minutes=minutes,
-            hours=hours,
-            weeks=weeks
+            seconds=abs(seconds)
         )
-        if subtract:
+        if seconds < 0:
             now = now - shift_time
         else:
             now = now + shift_time
