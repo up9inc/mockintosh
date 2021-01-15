@@ -548,9 +548,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_cors_headers()
 
     def should_cors(self):
-        return not self.__class__.__name__ == 'ErrorHandler' and (
-                self.is_options and self.request.method.lower() not in self.methods.keys()
-        )
+        is_options_unspecified = self.is_options and self.request.method.lower() not in self.methods.keys()
+        return not self.__class__.__name__ == 'ErrorHandler' and is_options_unspecified
 
     def load_dataset(self, dataset):
         if isinstance(dataset, list):
