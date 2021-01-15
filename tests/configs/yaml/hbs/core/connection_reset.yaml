@@ -1,0 +1,30 @@
+templatingEngine: Handlebars
+services:
+- name: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/normal"
+    method: GET
+    response:
+      status: 200
+      body: "Hello world"
+  - path: "/reset"
+    method: GET
+    response:
+      status: "RST"
+      body: "Hello world"
+  - path: "/close"
+    method: GET
+    response:
+      status: "FIN"
+      body: "Hello world"
+  - path: "/reset2"
+    method: GET
+    response:
+      status: "rst"
+      body: "Hello world"
+  - path: "/close2"
+    method: GET
+    response:
+      status: "fin"
+      body: "Hello world"

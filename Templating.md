@@ -32,6 +32,8 @@ services:
           body: '{"result": "created", "name": "{{fake.lastname}}" }'
 ```
 
+`"RST"` and `"FIN"` can be specified in the `status` field to simulate the behavior of corresponding TCP flags.
+
 _Note: for `headers`, only the value part is subject for templating. Mind
 the [global headers](Configuring.md#global-settings) feature, too._
 
