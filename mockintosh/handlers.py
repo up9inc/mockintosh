@@ -6,30 +6,29 @@
     :synopsis: module that contains request handlers.
 """
 
-import re
-import os
 import json
 import logging
+import os
+import re
 import urllib
 from typing import (
     Union,
     Optional
 )
 
-import tornado.web
 import jsonschema
-from tornado.web import HTTPError
+import tornado.web
 from tornado.concurrent import Future
+from tornado.web import HTTPError
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
-from mockintosh.templating import TemplateRenderer
-from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
-from mockintosh.methods import _safe_path_split, _detect_engine
-
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
+from mockintosh.methods import _safe_path_split, _detect_engine
+from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
+from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -143,7 +142,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self._unimplemented_method()
 
     def log_request(self):
-        logging.debug('Received request:\n%s' % self.request.__dict__)
+        logging.debug('Received request:\n%s', self.request.__dict__)
 
     def add_params(self, context):
         if not hasattr(self, 'custom_params'):
@@ -172,11 +171,11 @@ class GenericHandler(tornado.web.RequestHandler):
             if template_path is None:
                 return None
             with open(template_path, 'rb') as file:
-                logging.info('Reading external file from path: %s' % template_path)
+                logging.debug('Reading external file from path: %s', template_path)
                 source_text = file.read()
                 try:
                     source_text = source_text.decode('utf-8')
-                    logging.debug('Template file text: %s' % source_text)
+                    logging.debug('Template file text: %s', source_text)
                 except UnicodeDecodeError:
                     is_binary = True
                     logging.debug('Template file is binary. Templating disabled.')
@@ -190,7 +189,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.populate_counters(context)
 
         if not is_binary:
-            logging.debug('Render output: %s' % compiled)
+            logging.debug('Render output: %s', compiled)
 
         return compiled
 
@@ -407,9 +406,9 @@ class GenericHandler(tornado.web.RequestHandler):
                     if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
                         json_schema_path = self.resolve_relative_path(json_schema)
                         with open(json_schema_path, 'r') as file:
-                            logging.info('Reading JSON schema file from path: %s' % json_schema_path)
+                            logging.info('Reading JSON schema file from path: %s', json_schema_path)
                             json_schema = json.load(file)
-                            logging.debug('JSON schema: %s' % json_schema)
+                            logging.debug('JSON schema: %s', json_schema)
                     json_data = None
 
                     if body and json_schema:
@@ -550,7 +549,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def should_cors(self):
         return not self.__class__.__name__ == 'ErrorHandler' and (
-            self.is_options and self.request.method.lower() not in self.methods.keys()
+                self.is_options and self.request.method.lower() not in self.methods.keys()
         )
 
     def load_dataset(self, dataset):
@@ -559,9 +558,9 @@ class GenericHandler(tornado.web.RequestHandler):
         else:
             dataset_path = self.resolve_relative_path(dataset)
             with open(dataset_path, 'r') as file:
-                logging.info('Reading dataset file from path: %s' % dataset_path)
+                logging.info('Reading dataset file from path: %s', dataset_path)
                 data = json.load(file)
-                logging.debug('Dataset: %s' % data)
+                logging.debug('Dataset: %s', data)
                 return data
 
     def loop_alternative(self, alternative, key, subkey):
@@ -636,7 +635,7 @@ class Request():
             try:
                 self._json = json.loads(self.body)
             except json.JSONDecodeError:
-                logging.warning('Failed to decode request body to JSON:\n%s' % self.body)
+                logging.warning('Failed to decode request body to JSON:\n%s', self.body)
                 self._json = None
         return self._json
 
