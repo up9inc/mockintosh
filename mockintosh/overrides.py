@@ -118,4 +118,3 @@ class ErrorHandler(GenericHandler):
 
     def should_cors(self):
         return False
-
