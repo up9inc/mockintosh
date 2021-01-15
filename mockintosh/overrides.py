@@ -115,3 +115,7 @@ class ErrorHandler(GenericHandler):
                 self.set_header('content-type', 'image/png')
                 self.write(image)
                 self.rendered_body = image
+
+    def should_cors(self):
+        return False
+
