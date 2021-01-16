@@ -4,7 +4,6 @@ import re
 import time
 import unittest
 from datetime import datetime
-from http.client import RemoteDisconnected
 
 import requests
 
@@ -379,8 +378,6 @@ class IntegrationTests(unittest.TestCase):
     def test_conn_status(self):
         with self.assertRaises(requests.exceptions.ConnectionError) as cm:
             requests.get(SRV1 + '/conn-rst')
-        self.assertEqual(ConnectionResetError, type(cm.exception.args[0].args[1]))
 
         with self.assertRaises(requests.exceptions.ConnectionError) as cm:
             requests.get(SRV1 + '/conn-close')
-        self.assertEqual(RemoteDisconnected, type(cm.exception.args[0].args[1]))
