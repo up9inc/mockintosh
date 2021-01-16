@@ -47,8 +47,7 @@ def reg_ex(context, regex, *args, **kwargs):
     return regex
 
 
-def json_path(text, path):
-    data = text
+def json_path(data, path):
     if data is None:
         raise TemplateSyntaxError('JSON decode failure!', 0)
     jsonpath_expr = jsonpath_parse(path)
