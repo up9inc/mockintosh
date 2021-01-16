@@ -7,11 +7,11 @@
 """
 
 import argparse
+import atexit
 import json
 import logging
-import sys
-import atexit
 import signal
+import sys
 from collections import OrderedDict
 from os import path, environ
 
@@ -20,10 +20,10 @@ from jsonschema import validate
 
 from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
+from mockintosh.handlers import Request, Response  # noqa: F401
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer, BodyRecognizer
 from mockintosh.servers import HttpServer, TornadoImpl
-from mockintosh.handlers import Request, Response  # noqa: F401
 
 __version__ = "0.5.1"
 __location__ = path.abspath(path.dirname(__file__))
@@ -224,6 +224,8 @@ def initiate():
         handler = logging.FileHandler(args['logfile'])
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
+
+    logging.info("Mockintosh v%s is starting..." % __version__)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
