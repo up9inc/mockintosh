@@ -21,8 +21,8 @@ from pybars import PybarsError
 from mockintosh.methods import _handlebars_add_to_context
 
 
-def fake(this, fake, attr):
-    return getattr(fake, attr)()
+def fake(this, fake, attr, *args):
+    return getattr(fake, attr)(*args)
 
 
 def reg_ex(this, regex, *args, **kwargs):

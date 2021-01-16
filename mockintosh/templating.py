@@ -63,10 +63,10 @@ class TemplateRenderer():
 
     def render_handlebars(self):
         context, helpers = self.add_globals(compiler._compiler, helpers={})
-        template = compiler.compile(self.text)
         try:
+            template = compiler.compile(self.text)
             compiled = template(context, helpers=helpers)
-        except (PybarsError, TypeError) as e:
+        except (PybarsError, TypeError, SyntaxError) as e:
             if self.fill_undefineds:
                 if debug_mode:
                     raise e
