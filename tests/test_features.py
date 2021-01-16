@@ -504,24 +504,52 @@ class TestCore():
         'configs/json/j2/core/undefined.json',
     ])
     def test_undefined_var(self, config):
-        self.mock_server_process = run_mock_server(get_config_path(config))
+        logfile_name = 'server.log'
+        if os.path.isfile(logfile_name):
+            os.remove(logfile_name)
+
+        self.mock_server_process = run_mock_server(get_config_path(config), '--logfile', logfile_name)
         resp = requests.get(SRV_8001 + '/undefined')
         assert 200 == resp.status_code
-        assert resp.text == 'Hello {{undefined}} world'
+        assert resp.text == 'Hello {{undefined_var}} world'
+
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as file:
+            server_log = file.read()
+            if 'j2' in config:
+                assert "WARNING] Jinja2: Could not find variable `undefined_var`" in server_log
+            else:
+                assert "WARNING] Handlebars: Could not find variable 'undefined_var'" in server_log
 
         resp = requests.get(SRV_8001 + '/undefined2')
         assert 200 == resp.status_code
         if 'j2' in config:
-            assert resp.text == 'Hello {{undefined(1, 2)}} world'
+            assert resp.text == 'Hello {{undefined_helper(1, 2)}} world'
         else:
-            assert resp.text == 'Hello {{undefined 1 2}} world'
+            assert resp.text == 'Hello {{undefined_helper 1 2}} world'
+
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as file:
+            server_log = file.read()
+            if 'j2' in config:
+                assert "WARNING] Jinja2: Could not find variable `undefined_helper`" in server_log
+            else:
+                assert "WARNING] Handlebars: Could not find property undefined_helper" in server_log
 
         resp = requests.get(SRV_8001 + '/undefined3')
         assert 200 == resp.status_code
         if 'j2' in config:
-            assert resp.text == 'Hello {{undefined.attr(1, 2)}} world'
+            assert resp.text == 'Hello {{undefined_obj.attr(1, 2)}} world'
         else:
-            assert resp.text == 'Hello {{undefined.attr 1 2}} world'
+            assert resp.text == 'Hello {{undefined_obj.attr 1 2}} world'
+
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as file:
+            server_log = file.read()
+            if 'j2' in config:
+                assert "WARNING] Jinja2: Could not find variable `undefined_obj`" in server_log
+            else:
+                assert "WARNING] Handlebars: Could not find object attribute 'undefined_obj.attr'" in server_log
 
         resp = requests.get(SRV_8001 + '/undefined4')
         assert 200 == resp.status_code
@@ -530,13 +558,25 @@ class TestCore():
         else:
             assert resp.text == '{{ date.date \'%Y-%m-%d %H:%M %f\' false 99999 }}'
 
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as file:
+            server_log = file.read()
+            if 'j2' in config:
+                assert "WARNING] Jinja2: date() takes from 1 to 3 positional arguments but 4 were given" in server_log
+            else:
+                assert "WARNING] Handlebars: date() takes from 2 to 4 positional arguments but 5 were given" in server_log
+
         resp = requests.get(SRV_8001 + '/undefined5')
         assert 200 == resp.status_code
-        assert resp.text == 'Hello {{undefined_var}} world'
-
-        resp = requests.get(SRV_8001 + '/undefined6')
-        assert 200 == resp.status_code
         assert resp.text == 'Hello {{date.undefined_attr}} world'
+
+        assert os.path.isfile(logfile_name)
+        with open(logfile_name, 'r') as file:
+            server_log = file.read()
+            if 'j2' in config:
+                assert "WARNING] Jinja2: 'mockintosh.j2.methods.Date object' has no attribute 'undefined_attr'" in server_log
+            else:
+                assert "WARNING] Handlebars: Could not find object attribute 'date.undefined_attr'" in server_log
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/counter.yaml',

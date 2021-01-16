@@ -8,17 +8,17 @@
         {
           "path": "/undefined",
           "method": "GET",
-          "response": "Hello {{undefined}} world"
+          "response": "Hello {{undefined_var}} world"
         },
         {
           "path": "/undefined2",
           "method": "GET",
-          "response": "Hello {{undefined(1, 2)}} world"
+          "response": "Hello {{undefined_helper(1, 2)}} world"
         },
         {
           "path": "/undefined3",
           "method": "GET",
-          "response": "Hello {{undefined.attr(1, 2)}} world"
+          "response": "Hello {{undefined_obj.attr(1, 2)}} world"
         },
         {
           "path": "/undefined4",
@@ -27,11 +27,6 @@
         },
         {
           "path": "/undefined5",
-          "method": "GET",
-          "response": "Hello {{undefined_var}} world"
-        },
-        {
-          "path": "/undefined6",
           "method": "GET",
           "response": "Hello {{date.undefined_attr}} world"
         }
