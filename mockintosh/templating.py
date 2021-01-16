@@ -10,8 +10,8 @@ import copy
 import logging
 from os import environ
 
-from jinja2 import Environment, meta
-from jinja2.exceptions import TemplateSyntaxError
+from jinja2 import Environment, meta, StrictUndefined
+from jinja2.exceptions import TemplateSyntaxError, UndefinedError
 from pybars import Compiler, PybarsError
 from faker import Faker
 
@@ -66,17 +66,22 @@ class TemplateRenderer():
         template = compiler.compile(self.text)
         try:
             compiled = template(context, helpers=helpers)
-        except PybarsError as e:
+        except (PybarsError, TypeError) as e:
             if self.fill_undefineds:
                 if debug_mode:
                     raise e
+                else:
+                    logging.warning('Handlebars: %s' % e)
                 compiled = self.text
             else:
                 compiled = None
         return compiled, context
 
     def render_jinja(self):
-        env = Environment()
+        if self.fill_undefineds:
+            env = Environment(undefined=StrictUndefined)
+        else:
+            env = Environment()
 
         if JINJA_VARNAME_DICT in env.globals:
             env.globals[JINJA_VARNAME_DICT] = {}
@@ -90,13 +95,16 @@ class TemplateRenderer():
             if self.fill_undefineds:
                 ast = env.parse(self.text)
                 for var in meta.find_undeclared_variables(ast):
+                    logging.warning('Jinja2: Could not find variable `%s`' % var)
                     env.globals[var] = '{{%s}}' % var
 
             template = env.from_string(self.text)
             compiled = template.render()
-        except TemplateSyntaxError as e:
+        except (TemplateSyntaxError, TypeError, UndefinedError) as e:
             if self.fill_undefineds and debug_mode:
                 raise e
+            else:
+                logging.warning('Jinja2: %s' % e)
             compiled = self.text
 
         if SPECIAL_CONTEXT in env.globals:
