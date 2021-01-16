@@ -22,7 +22,10 @@ from mockintosh.methods import _handlebars_add_to_context
 
 
 def fake(this, fake, attr, *args):
-    return getattr(fake, attr)(*args)
+    result = getattr(fake, attr)(*args)
+    if isinstance(result, str):
+        result = result.replace('\n','\\n')
+    return result
 
 
 def reg_ex(this, regex, *args, **kwargs):

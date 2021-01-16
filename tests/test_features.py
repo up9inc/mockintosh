@@ -709,6 +709,20 @@ class TestCore():
         except ConnectionError as e:
             assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/faker.json',
+        'configs/json/j2/core/faker.json'
+    ])
+    def test_faker(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/faker')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert isinstance(data['random_letters'][0], str)
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
