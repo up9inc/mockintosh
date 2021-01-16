@@ -376,8 +376,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("also {{random.intt 10 20}} can happen", resp.headers.get('X-header'))
 
     def test_conn_status(self):
-        with self.assertRaises(requests.exceptions.ConnectionError) as cm:
+        with self.assertRaises(requests.exceptions.ConnectionError):
             requests.get(SRV1 + '/conn-rst')
 
-        with self.assertRaises(requests.exceptions.ConnectionError) as cm:
+        with self.assertRaises(requests.exceptions.ConnectionError):
             requests.get(SRV1 + '/conn-close')
