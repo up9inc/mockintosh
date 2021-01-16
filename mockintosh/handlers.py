@@ -11,6 +11,8 @@ import logging
 import os
 import re
 import urllib
+import socket
+import struct
 from typing import (
     Union,
     Optional
@@ -263,12 +265,26 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.custom_response['status']
                 )
                 self.populate_counters(context)
-                status_code = int(compiled)
+                try:
+                    status_code = int(compiled)
+                except ValueError:
+                    status_code = compiled
             else:
                 status_code = self.custom_response['status']
         else:
             status_code = 200
-        self.set_status(status_code)
+
+        if isinstance(status_code, str) and status_code.lower() == 'rst':
+            self.request.server_connection.stream.socket.setsockopt(
+                socket.SOL_SOCKET,
+                socket.SO_LINGER,
+                struct.pack('ii', 1, 0)
+            )
+            self.request.server_connection.stream.close()
+        if isinstance(status_code, str) and status_code.lower() == 'fin':
+            self.request.server_connection.stream.close()
+        else:
+            self.set_status(status_code)
 
     def analyze_headers(self):
         if SPECIAL_CONTEXT not in self.initial_context or 'headers' not in self.initial_context[SPECIAL_CONTEXT]:

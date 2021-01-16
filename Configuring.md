@@ -132,6 +132,8 @@ services:
 
 ```
 
+_Note: Apart from numeric HTTP status codes, `RST` and `FIN` special values can be set in the `status` field to simulate the behavior of sudden TCP connection reset or close._
+
 ### Multiple Responses
 
 The `response` field under `endpoint` can be an array, too. If this field is an array then for each request the next

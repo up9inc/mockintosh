@@ -14,6 +14,7 @@ from datetime import datetime
 
 import pytest
 import requests
+from requests.exceptions import ConnectionError
 
 from mockintosh.constants import PROGRAM
 from utilities import tcping, run_mock_server, get_config_path, nostdout, nostderr
@@ -616,6 +617,36 @@ class TestCore():
         assert delta.seconds > 3500
         delta = utcnow - datetime.strptime(data['1_minute_back'], pattern)
         assert delta.seconds < 120
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/connection_reset.yaml'
+    ])
+    def test_connection_reset(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/normal')
+        assert 200 == resp.status_code
+        assert resp.text == 'Hello world'
+
+        try:
+            requests.get(SRV_8001 + '/reset')
+        except ConnectionError as e:
+            assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+
+        try:
+            requests.get(SRV_8001 + '/close')
+        except ConnectionError as e:
+            assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+
+        try:
+            requests.get(SRV_8001 + '/reset2')
+        except ConnectionError as e:
+            assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+
+        try:
+            requests.get(SRV_8001 + '/close2')
+        except ConnectionError as e:
+            assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
 
 
 @pytest.mark.parametrize(('config'), [

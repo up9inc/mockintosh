@@ -214,6 +214,18 @@
         {
           "path": "/date-tpl",
           "response": "{{date.timestamp}} {{date.timestamp -10}} {{date.timestamp 10}} {{date.ftimestamp}} {{date.ftimestamp 10 5}} {{date.date}} {{date.date '%Y-%m-%d %H:%M:%S'}} {{date.date '%Y-%m-%d %H' 86400}}"
+        },
+        {
+          "path": "/conn-rst",
+          "response": {
+            "status": "RST"
+          }
+        },
+        {
+          "path": "/conn-close",
+          "response": {
+            "status": "FIN"
+          }
         }
       ]
     },
