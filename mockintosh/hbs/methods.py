@@ -12,6 +12,7 @@ import os
 import binascii
 import time
 import html
+import json
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid4
@@ -76,6 +77,14 @@ def counter(this, name):
 
 def escape_html(this, text):
     return html.escape(text)
+
+
+def tojson(this, text):
+    return json.dumps(text) \
+        .replace(u'<', u'\\u003c') \
+        .replace(u'>', u'\\u003e') \
+        .replace(u'&', u'\\u0026') \
+        .replace(u"'", u'\\u0027')
 
 
 class Random():
