@@ -138,3 +138,9 @@ And some less frequently used:
 ### Using JSONPath Syntax
 
 You can reference certain fields from request's JSON by using `jsonPath` helper like this: `jsonPath request.json '$.key'`.
+
+### Other Helper Methods
+
+### escapeHtml
+
+`{{ escapeHtml '& < \" >' }}` a helper to escape HTML special characters. (see [`html.escape`](https://wiki.python.org/moin/EscapingHtml))

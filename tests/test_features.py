@@ -727,6 +727,18 @@ class TestCore():
         data = resp.json()
         assert isinstance(data['random_letters'][0], str)
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/escape_html.yaml',
+        'configs/yaml/j2/core/escape_html.yaml'
+    ])
+    def test_escape_html(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/endp1')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '&amp; &lt; &quot; &gt;'
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',

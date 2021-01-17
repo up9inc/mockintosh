@@ -11,6 +11,7 @@ import string
 import os
 import binascii
 import time
+import html
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid4
@@ -71,6 +72,10 @@ def counter(this, name):
         number
     )
     return number
+
+
+def escape_html(this, text):
+    return html.escape(text)
 
 
 class Random():
