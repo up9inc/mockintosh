@@ -141,14 +141,18 @@ You can reference certain fields from request's JSON by using `jsonPath` helper 
 
 ### Other Template Helpers
 
-### `escapeHtml(text)`
+#### `escapeHtml(text)`
 
 `{{ escapeHtml '& < \" >' }}` a helper to escape HTML special characters. (see [`html.escape`](https://wiki.python.org/moin/EscapingHtml))
 
-### `tojson(text)` (Handlebars)
+#### `tojson(text)` (Handlebars)
 
 The equivalent of [`tojson`](https://jinja.palletsprojects.com/en/2.10.x/templates/#tojson) filter in Jinja2.
 
 Jinja2 usage: `{{ fake.random_letters() | tojson }}`
 
 Handlebars usage: `{{ tojson ( fake.random_letters ) }}`
+
+#### `array(*args)` (Handlebars)
+
+Provides array support in parameters. `{{ array 'a' 'b' 'c' 'd' 'e' }}` returns `['a', 'b', 'c', 'd', 'e']`.

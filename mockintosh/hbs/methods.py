@@ -87,6 +87,10 @@ def tojson(this, text):
         .replace(u"'", u'\\u0027')
 
 
+def array(this, *args):
+    return [*args]
+
+
 class Random():
 
     def __init__(self):

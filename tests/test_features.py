@@ -735,18 +735,18 @@ class TestCore():
         assert isinstance(data['lexify'], str) and len(data['lexify']) == 4
         assert isinstance(data['locale'], str) and 5 <= len(data['locale']) <= 6
         assert isinstance(data['numerify'], str) and 0 <= int(data['numerify']) <= 999
-        # assert isinstance(data['random_choices'][0], str)
+        assert isinstance(data['random_choices'][0], str)
         assert 0 <= data['random_digit'] <= 9
         assert 1 <= data['random_digit_not_null'] <= 9
-        # assert isinstance(data['random_element'], str)
-        # assert isinstance(data['random_elements'][0], str)
+        assert isinstance(data['random_element'], str)
+        assert isinstance(data['random_elements'][0], str)
         assert 0 <= data['random_int'] <= 9999
         assert 10000 <= data['random_int_args'] <= 50000
         assert isinstance(data['random_letter'], str)
         assert isinstance(data['random_letters'][0], str)
         assert isinstance(data['random_letters_args'][0], str)
         assert data['random_lowercase_letter'].lower() == data['random_lowercase_letter']
-        # assert isinstance(data['random_sample'][0], str)
+        assert isinstance(data['random_sample'][0], str)
         assert data['random_uppercase_letter'].upper() == data['random_uppercase_letter']
 
     @pytest.mark.parametrize(('config'), [
