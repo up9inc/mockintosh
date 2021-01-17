@@ -17,15 +17,14 @@ from uuid import uuid4
 
 from jsonpath_ng import parse as jsonpath_parse
 from pybars import PybarsError
+from faker import Faker
 
 from mockintosh.methods import _handlebars_add_to_context
 
 
-def fake(this, fake, attr, *args):
-    result = getattr(fake, attr)(*args)
-    if isinstance(result, str):
-        result = result.replace('\n','\\n')
-    return result
+def fake():
+    # Fake fake :)
+    pass
 
 
 def reg_ex(this, regex, *args, **kwargs):
@@ -124,3 +123,17 @@ class Date():
         else:
             now = now + shift_time
         return now.strftime(pattern)
+
+
+class HbsFaker(Faker):
+    def __getattr__(self, name):
+        attr = Faker.__getattr__(self, name)
+        if hasattr(attr, '__call__'):
+            def newfunc(this, *args, **kwargs):
+                result = attr(*args, **kwargs)
+                if isinstance(result, str):
+                    result = result.replace('\n', '\\n')
+                return result
+            return newfunc
+        else:
+            return attr

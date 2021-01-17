@@ -245,12 +245,12 @@ class TestCore():
         var = 'print_this'
         with nostdout() and nostderr():
             self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         if 'j2' in config:
-            assert self.mock_server_process.is_alive() is False
+            assert resp.text == '{{varname}}'
         else:
-            resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == var
 
     @pytest.mark.parametrize(('config'), [
@@ -277,11 +277,13 @@ class TestCore():
     def test_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
         if 'j2' in config:
-            assert 500 == resp.status_code
-        else:
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            assert data['hello'] == '{{ fake.first_name() }}'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/no_use_templating_no_templating_engine_in_response.json',
@@ -292,11 +294,13 @@ class TestCore():
     def test_no_use_templating_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
         if 'j2' in config:
-            assert 500 == resp.status_code
-        else:
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            assert data['hello'] == '{{ fake.first_name() }}'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/use_templating_false_in_response.json',

@@ -18,10 +18,11 @@ from faker import Faker
 from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.methods import _to_camel_case
-from mockintosh.hbs.methods import fake as hbs_fake
+from mockintosh.hbs.methods import HbsFaker
 
 compiler = Compiler()
 faker = Faker()
+hbs_faker = HbsFaker()
 
 debug_mode = environ.get('MOCKINTOSH_DEBUG', False)
 
@@ -112,11 +113,6 @@ class TemplateRenderer():
         return compiled, copy.deepcopy(env.globals[JINJA_VARNAME_DICT])
 
     def add_globals(self, template, helpers=None):
-        fake = None
-        # Create the faker object if `fake` is in the `inject_methods`
-        if 'fake' in self.inject_methods_name_list:
-            fake = faker
-
         # To provide the support of both PYBARS and JINJA
         context = {}
         engine = PYBARS
@@ -130,7 +126,11 @@ class TemplateRenderer():
         for method in self.inject_methods:
             if method.__name__ == 'fake':
                 logging.debug('Inject Faker object into the template.')
-                helpers[method.__name__] = fake
+                if engine == PYBARS:
+                    # Workaround to provide Faker support in PYBARS
+                    context['fake'] = hbs_faker
+                else:
+                    context['fake'] = faker
             else:
                 helpers[_to_camel_case(method.__name__)] = method
 
@@ -141,14 +141,5 @@ class TemplateRenderer():
         # If any params wants to be injected
         if self.add_params_callback is not None:
             context = self.add_params_callback(context)
-
-        # Workaround to provide Faker support in PYBARS
-        if engine == PYBARS and 'fake' in self.inject_methods_name_list:
-            logging.debug('Use Handlebars version of Faker.')
-
-            def super_fake(this, *args, **kwargs):
-                return hbs_fake(this, fake, *args, **kwargs)
-
-            helpers['fake'] = super_fake
 
         return context, helpers
