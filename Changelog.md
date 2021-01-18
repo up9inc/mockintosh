@@ -72,6 +72,9 @@
     - milliseconds timestamp
     - date with format
     - all above with time shift into future/past
+1. Better error reporting for wrong templates
+1. Polish and document `faker` usage
+1. Allow overriding port via env var `MOCKINTOSH_FORCE_PORT`
 
 ## Milestone N
 

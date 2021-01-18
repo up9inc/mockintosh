@@ -106,6 +106,17 @@ for all capabilities. Below are some examples (Handlebars):
 
 ```hbs
 {
+  "first_name": "{{ fake.first_name }}",
+  "first_name_female": "{{ fake.first_name_female }}",
+  "first_name_male": "{{ fake.first_name_male }}",
+  "first_name_nonbinary": "{{ fake.first_name_nonbinary }}",
+  "last_name": "{{ fake.last_name }}",
+  "last_name_female": "{{ fake.last_name_female }}",
+  "last_name_male": "{{ fake.last_name_male }}",
+  "last_name_nonbinary": "{{ fake.last_name_nonbinary }}",
+  "address": "{{ replace ( fake.address ) old='\n' new='\\n' }}",
+  "city": "{{ fake.city }}",
+  "country": "{{ fake.country }}",
   "hexify_args": "{{ fake.hexify text="MAC Address: ^^:^^:^^:^^:^^:^^" upper=true }}",
   "lexify_args": "{{ fake.lexify text="Random Identifier: ??????????" }}",
   "numerify_args": "{{ fake.numerify text="Intel Core i%-%%##K vs AMD Ryzen % %%##X" }}",
@@ -119,18 +130,7 @@ for all capabilities. Below are some examples (Handlebars):
   "random_letters_args": {{ tojson ( fake.random_letters length=32 ) }},
   "random_lowercase_letter": "{{ fake.random_lowercase_letter }}",
   "random_sample": {{ tojson ( fake.random_sample elements=( array 'a' 'b' 'c' 'd' 'e' ) ) }},
-  "random_uppercase_letter": "{{ fake.random_uppercase_letter }}",
-  "first_name": "{{ fake.first_name }}",
-  "first_name_female": "{{ fake.first_name_female }}",
-  "first_name_male": "{{ fake.first_name_male }}",
-  "first_name_nonbinary": "{{ fake.first_name_nonbinary }}",
-  "last_name": "{{ fake.last_name }}",
-  "last_name_female": "{{ fake.last_name_female }}",
-  "last_name_male": "{{ fake.last_name_male }}",
-  "last_name_nonbinary": "{{ fake.last_name_nonbinary }}",
-  "address": "{{ replace ( fake.address ) old='\n' new='\\n' }}",
-  "city": "{{ fake.city }}",
-  "country": "{{ fake.country }}"
+  "random_uppercase_letter": "{{ fake.random_uppercase_letter }}"
 }
 ```
 
@@ -138,6 +138,17 @@ Rendered:
 
 ```json
 {
+  "first_name": "Mark",
+  "first_name_female": "Sharon",
+  "first_name_male": "Brian",
+  "first_name_nonbinary": "Jessica",
+  "last_name": "Campbell",
+  "last_name_female": "Rodriguez",
+  "last_name_male": "Combs",
+  "last_name_nonbinary": "Mcmillan",
+  "address": "035 Angela Brook\nElizabethhaven, MO 35984",
+  "city": "Hannaport",
+  "country": "Burkina Faso",
   "hexify_args": "MAC Address: 84:DE:AD:1C:AD:D7",
   "lexify_args": "Random Identifier: ZDGINMgIkX",
   "numerify_args": "Intel Core i7-8517K vs AMD Ryzen 3 8887X",
@@ -151,18 +162,7 @@ Rendered:
   "random_letters_args": ["F", "L", "X", "R", "Z", "T", "f", "k", "C", "v", "U", "d", "d", "S", "p", "j", "s", "F", "M", "X", "k", "J", "P", "R", "W", "m", "i", "A", "x", "o", "r", "H"],
   "random_lowercase_letter": "i",
   "random_sample": ["c", "a", "b"],
-  "random_uppercase_letter": "U",
-  "first_name": "Mark",
-  "first_name_female": "Sharon",
-  "first_name_male": "Brian",
-  "first_name_nonbinary": "Jessica",
-  "last_name": "Campbell",
-  "last_name_female": "Rodriguez",
-  "last_name_male": "Combs",
-  "last_name_nonbinary": "Mcmillan",
-  "address": "035 Angela Brook\nElizabethhaven, MO 35984",
-  "city": "Hannaport",
-  "country": "Burkina Faso"
+  "random_uppercase_letter": "U"
 }
 ```
 
