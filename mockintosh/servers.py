@@ -10,7 +10,7 @@ import logging
 import sys
 from abc import abstractmethod
 from collections import OrderedDict
-from os import path
+from os import path, environ
 
 import tornado.ioloop
 import tornado.web
@@ -60,6 +60,8 @@ class HttpServer:
         self.load()
 
     def load(self):
+        port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
+
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
             port = str(service['port'])
@@ -89,6 +91,9 @@ class HttpServer:
 
             for service in services:
                 if self.services_list:
+                    if port_override is not None:
+                        service['port'] = int(port_override)
+
                     if 'name' in service:
                         if service['name'] not in self.services_list:
                             continue
