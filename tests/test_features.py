@@ -29,6 +29,7 @@ configs = [
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
+SRV_9000 = os.environ.get('SRV2', 'http://localhost:9000')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
@@ -1298,3 +1299,30 @@ class TestBody():
             assert "body jsonpath matched: {{jsonPath(request.json, '$.key')}} {{jsonPath(request.json, '$.key2')}}" == resp.text
         else:
             assert "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}" == resp.text
+
+
+class TestManagement():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_config(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/config')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.text == '{"management": {"endpoint": "mockintosh_admin_api", "port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "endpoints": [{"path": "/service1", "method": "GET", "response": "service1", "params": {}, "context": {}, "priority": 0}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8001, "endpoints": [{"path": "/service2", "method": "GET", "response": "service2", "params": {}, "context": {}, "priority": 0}]}]}'
+
+        resp = requests.get(SRV_8001 + '/mockintosh_admin_api/config', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.text == '{"GET": [{"response": "service1", "id": null, "counters": {}, "params": {}, "context": {}}]}'

@@ -17,7 +17,11 @@ import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
-from mockintosh.handlers import GenericHandler
+from mockintosh.handlers import (
+    GenericHandler,
+    ManagementConfigHandler,
+    ManagementEndpointMethodsHandler
+)
 from mockintosh.overrides import Application
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -89,6 +93,10 @@ class HttpServer:
                 "keyfile": key_file,
             }
 
+            management_endpoint = None
+            if 'management' in self.definition.data and 'endpoint' in self.definition.data['management']:
+                management_endpoint = self.definition.data['management']['endpoint']
+
             for service in services:
                 if self.services_list:
                     if port_override is not None:
@@ -103,7 +111,17 @@ class HttpServer:
                 endpoints = []
                 if 'endpoints' in service:
                     endpoints = self.merge_alternatives(service['endpoints'])
-                app = self.make_app(endpoints, self.globals, debug=self.debug)
+                app = self.make_app(endpoints, self.globals, debug=self.debug, management_endpoint=management_endpoint)
+
+                if management_endpoint is not None:
+                    self.services_log.append('Injected management API into %s. Will be available at %s://%s:%s/%s' % (
+                        'the mock for %r' % service['name'] if 'name' in service else '',
+                        protocol,
+                        'localhost' if 'hostname' not in service else service['hostname'],
+                        service['port'],
+                        management_endpoint
+                    ))
+
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
                     server.listen(service['port'], address=self.address)
@@ -138,6 +156,8 @@ class HttpServer:
                 server = self.impl.get_server(router, ssl, ssl_options)
                 server.listen(services[0]['port'], address=self.address)
                 logging.debug('Will listen port number: %d' % service['port'])
+
+            self.load_management_api()
 
     def merge_alternatives(self, endpoints):
         new_endpoints = {}
@@ -178,7 +198,7 @@ class HttpServer:
         logging.info('Mock server is ready!')
         self.impl.serve()
 
-    def make_app(self, endpoints, _globals, debug=False):
+    def make_app(self, endpoints, _globals, debug=False, management_endpoint=None):
         endpoint_handlers = []
         endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
@@ -199,6 +219,19 @@ class HttpServer:
             for method, alternatives in endpoint['methods'].items():
                 logging.debug('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
                 logging.debug('with alternatives:\n%s' % alternatives)
+
+        if management_endpoint is not None:
+            path = '/%s/config' % management_endpoint
+            endpoint_handlers.append(
+                (
+                    path,
+                    ManagementEndpointMethodsHandler,
+                    dict(
+                        methods=endpoint['methods']
+                    )
+                )
+            )
+
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
     def resolve_cert_path(self, cert_path):
@@ -210,3 +243,24 @@ class HttpServer:
             raise CertificateLoadingError('Path `%s` is inaccessible!' % cert_path)
 
         return relative_path
+
+    def load_management_api(self):
+        if 'management' not in self.definition.data:
+            return
+
+        if 'port' in self.definition.data['management']:
+            app = tornado.web.Application([
+                (
+                    r"/config",
+                    ManagementConfigHandler,
+                    dict(
+                        definition=self.definition
+                    )
+                )
+            ])
+            app.listen(self.definition.data['management']['port'])
+            self.services_log.append('Serving management API at %s://%s:%s' % (
+                'http',
+                'localhost',
+                self.definition.data['management']['port']
+            ))

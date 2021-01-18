@@ -661,3 +661,21 @@ class Response():
         self.status = None
         self.headers = {}
         self.body = None
+
+
+class ManagementConfigHandler(tornado.web.RequestHandler):
+
+    def initialize(self, definition):
+        self.definition = definition
+
+    def get(self):
+        self.write(self.definition.data)
+
+
+class ManagementEndpointMethodsHandler(tornado.web.RequestHandler):
+
+    def initialize(self, methods):
+        self.methods = methods
+
+    def get(self):
+        self.write(self.methods)

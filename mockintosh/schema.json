@@ -178,6 +178,18 @@
   },
   "type": "object",
   "properties": {
+    "management": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
     "templatingEngine": {
       "type": "string"
     },
