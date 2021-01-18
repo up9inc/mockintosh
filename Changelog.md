@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6 - 2021-01-18
+
+1. Document template helpers: random, dates, names, addresses etc
+1. Better error reporting for wrong templates
+1. Polish and document `faker` usage
+1. Allow overriding port via env var `MOCKINTOSH_FORCE_PORT`
+
 ## v0.5.1 - 2021-01-13
 
 1. Dataset support
@@ -63,18 +70,6 @@
 9. Logging with `-q` and `-v` respected
 
 # Roadmap
-
-## Milestone 7 - WIP
-
-1. Document template helpers: dates, names, addresses etc
-    - int timestamp
-    - float timestamp
-    - milliseconds timestamp
-    - date with format
-    - all above with time shift into future/past
-1. Better error reporting for wrong templates
-1. Polish and document `faker` usage
-1. Allow overriding port via env var `MOCKINTOSH_FORCE_PORT`
 
 ## Milestone N
 

@@ -44,6 +44,8 @@ services:
       - path: /
 ```
 
+_Note: There is special `MOCKINTOSH_FORCE_PORT` environment variable that allows to force all services to have certain port (same for all) listened. This is meant for advanced use when "pick service by name" feature is used (see [here](README.md#command-line-arguments))._
+
 ### SSL Support
 
 Enabling SSL for service is as easy as specifying `ssl: true` for it:
