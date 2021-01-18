@@ -91,6 +91,13 @@ def array(this, *args):
     return [*args]
 
 
+def replace(this, text, old, new, count=None):
+    if count is None:
+        count = -1
+    text = text.replace(str(old), str(new))
+    return text
+
+
 class Random():
 
     def __init__(self):
@@ -149,8 +156,6 @@ class HbsFaker(Faker):
         if hasattr(attr, '__call__'):
             def newfunc(this, *args, **kwargs):
                 result = attr(*args, **kwargs)
-                if isinstance(result, str):
-                    result = result.replace('\n', '\\n')
                 return result
             return newfunc
         else:

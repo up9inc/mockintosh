@@ -101,7 +101,8 @@ Here is a list of date shifting examples as a Handlebars response template:
 ### Faker
 
 [Faker](https://faker.readthedocs.io/en/master/providers.html) library is provided for generating some dynamic data.
-It is available as `fake` object. Refer to the [official docs](https://faker.readthedocs.io/en/master/providers.html) for all capabilities. Below are some examples:
+It is available as `fake` object. Refer to the [official docs](https://faker.readthedocs.io/en/master/providers.html)
+for all capabilities. Below are some examples (Handlebars):
 
 ```hbs
 {
@@ -127,7 +128,7 @@ It is available as `fake` object. Refer to the [official docs](https://faker.rea
   "last_name_female": "{{ fake.last_name_female }}",
   "last_name_male": "{{ fake.last_name_male }}",
   "last_name_nonbinary": "{{ fake.last_name_nonbinary }}",
-  "address": "{{ fake.address }}",
+  "address": "{{ replace ( fake.address ) old='\n' new='\\n' }}",
   "city": "{{ fake.city }}",
   "country": "{{ fake.country }}"
 }
@@ -164,6 +165,8 @@ Rendered:
   "country": "Burkina Faso"
 }
 ```
+
+An extended list of Faker examples can be found in: [Handlebars](https://github.com/up9inc/mockintosh/blob/main/tests/configs/json/hbs/core/templates/faker.json.hbs) and [Jinja2](https://github.com/up9inc/mockintosh/blob/main/tests/configs/json/j2/core/templates/faker.json.j2)
 
 ### Counters
 
@@ -206,7 +209,7 @@ You can reference certain fields from request's JSON by using `jsonPath` helper 
 
 #### `tojson(text)` (Handlebars)
 
-The equivalent of [`tojson`](https://jinja.palletsprojects.com/en/2.10.x/templates/#tojson) filter in Jinja2.
+The equivalent of [`tojson`](https://jinja.palletsprojects.com/en/2.11.x/templates/#tojson) filter in Jinja2.
 
 Jinja2 usage: `{{ fake.random_letters() | tojson }}`
 
@@ -215,3 +218,11 @@ Handlebars usage: `{{ tojson ( fake.random_letters ) }}`
 #### `array(*args)` (Handlebars)
 
 Provides array support in parameters. `{{ array 'a' 'b' 'c' 'd' 'e' }}` returns `['a', 'b', 'c', 'd', 'e']`.
+
+#### `replace(text, old, new, count=None)` (Handlebars)
+
+The equivalent of [`replace`](https://jinja.palletsprojects.com/en/2.11.x/templates/#replace) filter in Jinja2.
+
+Jinja2 usage: `{{ fake.address() | replace('\n','\\n') }}`
+
+Handlebars usage: `{{ replace ( fake.address ) old='\n' new='\\n' }}`

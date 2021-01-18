@@ -48,7 +48,7 @@
   "suffix_female": "{{ fake.suffix_female }}",
   "suffix_male": "{{ fake.suffix_male }}",
   "suffix_nonbinary": "{{ fake.suffix_nonbinary }}",
-  "address": "{{ fake.address }}",
+  "address": "{{ replace ( fake.address ) old='\n' new='\\n' }}",
   "city": "{{ fake.city }}",
   "city_suffix": "{{ fake.city_suffix }}",
   "country": "{{ fake.country }}",

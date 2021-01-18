@@ -18,7 +18,7 @@ from faker import Faker
 from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.methods import _to_camel_case
-from mockintosh.hbs.methods import HbsFaker, tojson, array
+from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
 
 compiler = Compiler()
 faker = Faker()
@@ -123,8 +123,11 @@ class TemplateRenderer():
             context = helpers
 
         if engine == PYBARS:
-            self.inject_methods.append(tojson)
-            self.inject_methods.append(array)
+            self.inject_methods += [
+                tojson,
+                array,
+                replace
+            ]
 
         # Inject the methods:
         for method in self.inject_methods:
