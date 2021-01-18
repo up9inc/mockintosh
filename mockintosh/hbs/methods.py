@@ -11,18 +11,22 @@ import string
 import os
 import binascii
 import time
+import html
+import json
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid4
 
 from jsonpath_ng import parse as jsonpath_parse
 from pybars import PybarsError
+from faker import Faker
 
 from mockintosh.methods import _handlebars_add_to_context
 
 
-def fake(this, fake, attr):
-    return getattr(fake, attr)()
+def fake():
+    # Fake fake :)
+    pass
 
 
 def reg_ex(this, regex, *args, **kwargs):
@@ -69,6 +73,29 @@ def counter(this, name):
         number
     )
     return number
+
+
+def escape_html(this, text):
+    return html.escape(text)
+
+
+def tojson(this, text):
+    return json.dumps(text) \
+        .replace(u'<', u'\\u003c') \
+        .replace(u'>', u'\\u003e') \
+        .replace(u'&', u'\\u0026') \
+        .replace(u"'", u'\\u0027')
+
+
+def array(this, *args):
+    return [*args]
+
+
+def replace(this, text, old, new, count=None):
+    if count is None:
+        count = -1
+    text = text.replace(str(old), str(new))
+    return text
 
 
 class Random():
@@ -121,3 +148,15 @@ class Date():
         else:
             now = now + shift_time
         return now.strftime(pattern)
+
+
+class HbsFaker(Faker):
+    def __getattr__(self, name):
+        attr = Faker.__getattr__(self, name)
+        if hasattr(attr, '__call__'):
+            def newfunc(this, *args, **kwargs):
+                result = attr(*args, **kwargs)
+                return result
+            return newfunc
+        else:
+            return attr
