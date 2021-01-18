@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.6 - 2021-01-18
+## v0.6.1 - 2021-01-18
 
 1. Document template helpers: random, dates, names, addresses etc
 1. Better error reporting for wrong templates
