@@ -596,11 +596,11 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def common_template_renderer(self, template_engine, text):
         if template_engine == PYBARS:
-            from mockintosh.hbs.methods import fake, counter, json_path
+            from mockintosh.hbs.methods import fake, counter, json_path, escape_html
             self.custom_context['random'] = hbs_random
             self.custom_context['date'] = hbs_date
         elif template_engine == JINJA:
-            from mockintosh.j2.methods import fake, counter, json_path
+            from mockintosh.j2.methods import fake, counter, json_path, escape_html
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
         else:
@@ -613,7 +613,8 @@ class GenericHandler(tornado.web.RequestHandler):
             inject_methods=[
                 fake,
                 counter,
-                json_path
+                json_path,
+                escape_html
             ],
             add_params_callback=self.add_params,
             fill_undefineds=True

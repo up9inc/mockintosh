@@ -245,12 +245,12 @@ class TestCore():
         var = 'print_this'
         with nostdout() and nostderr():
             self.mock_server_process = run_mock_server(get_config_path(config))
+        resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         if 'j2' in config:
-            assert self.mock_server_process.is_alive() is False
+            assert resp.text == '{{varname}}'
         else:
-            resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == var
 
     @pytest.mark.parametrize(('config'), [
@@ -277,11 +277,13 @@ class TestCore():
     def test_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
         if 'j2' in config:
-            assert 500 == resp.status_code
-        else:
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            assert data['hello'] == '{{ fake.first_name() }}'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/no_use_templating_no_templating_engine_in_response.json',
@@ -292,11 +294,13 @@ class TestCore():
     def test_no_use_templating_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
         resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
         if 'j2' in config:
-            assert 500 == resp.status_code
-        else:
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            assert data['hello'] == '{{ fake.first_name() }}'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/use_templating_false_in_response.json',
@@ -708,6 +712,54 @@ class TestCore():
             requests.get(SRV_8001 + '/close2')
         except ConnectionError as e:
             assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/faker.json',
+        'configs/json/j2/core/faker.json'
+    ])
+    def test_faker(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/faker')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert isinstance(data['bothify'], str) and len(data['bothify']) == 5
+        assert isinstance(data['bothify_args'], str) and len(data['bothify_args']) == 5
+        assert isinstance(data['hexify'], str) and len(data['hexify']) == 4
+        assert isinstance(data['hexify_args'], str) and len(data['hexify_args']) == 30
+        assert isinstance(data['language_code'], str) and 2 <= len(data['language_code']) <= 3
+        assert isinstance(data['lexify'], str) and len(data['lexify']) == 4
+        assert isinstance(data['lexify_args'], str) and len(data['lexify_args']) == 29
+        assert isinstance(data['lexify'], str) and len(data['lexify']) == 4
+        assert isinstance(data['locale'], str) and 5 <= len(data['locale']) <= 6
+        assert isinstance(data['numerify'], str) and 0 <= int(data['numerify']) <= 999
+        assert isinstance(data['random_choices'][0], str)
+        assert 0 <= data['random_digit'] <= 9
+        assert 1 <= data['random_digit_not_null'] <= 9
+        assert isinstance(data['random_element'], str)
+        assert isinstance(data['random_elements'][0], str)
+        assert 0 <= data['random_int'] <= 9999
+        assert 10000 <= data['random_int_args'] <= 50000
+        assert isinstance(data['random_letter'], str)
+        assert isinstance(data['random_letters'][0], str)
+        assert isinstance(data['random_letters_args'][0], str)
+        assert data['random_lowercase_letter'].lower() == data['random_lowercase_letter']
+        assert isinstance(data['random_sample'][0], str)
+        assert data['random_uppercase_letter'].upper() == data['random_uppercase_letter']
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/escape_html.yaml',
+        'configs/yaml/j2/core/escape_html.yaml'
+    ])
+    def test_escape_html(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/endp1')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '&amp; &lt; &quot; &gt;'
 
 
 @pytest.mark.parametrize(('config'), [

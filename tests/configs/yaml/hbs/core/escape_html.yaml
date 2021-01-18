@@ -1,0 +1,8 @@
+templatingEngine: Handlebars
+services:
+- name: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/endp1"
+    method: GET
+    response: "{{ escapeHtml '& < \" >' }}"

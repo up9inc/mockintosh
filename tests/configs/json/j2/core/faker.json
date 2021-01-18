@@ -1,0 +1,21 @@
+{
+  "templatingEngine": "Jinja2",
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/faker",
+          "method": "GET",
+          "response": {
+            "headers": {
+              "Content-Type": "application/json; charset=UTF-8"
+            },
+            "body": "@templates/faker.json.j2"
+          }
+        }
+      ]
+    }
+  ]
+}
