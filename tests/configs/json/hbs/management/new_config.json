@@ -1,0 +1,34 @@
+{
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8002,
+      "endpoints": [
+        {
+          "path": "/service1",
+          "method": "GET",
+          "response": "service1"
+        },
+        {
+          "path": "/service1-endpoint2",
+          "method": "GET",
+          "response": "service1-endpoint2"
+        }
+      ]
+    },
+    {
+      "name": "Mock for Service2",
+      "hostname": "service2.example.com",
+      "port": 8002,
+      "endpoints": [
+        {
+          "path": "/service2",
+          "method": "GET",
+          "response": "service2"
+        }
+      ]
+    }
+  ]
+}

@@ -49,6 +49,13 @@ class TornadoImpl(Impl):
     def serve(self):
         tornado.ioloop.IOLoop.current().start()
 
+    def stop(self):
+        # TODO What's the correct way to stop the IOLoop?
+        ioloop = tornado.ioloop.IOLoop.current()
+        ioloop.add_callback(ioloop.stop)
+        # tornado.ioloop.IOLoop.current().stop()
+        # tornado.ioloop.IOLoop.current().close()
+
 
 class HttpServer:
 
@@ -61,6 +68,7 @@ class HttpServer:
         self.interceptors = interceptors
         self.services_list = services_list
         self.services_log = []
+        self.servers = []
         self.load()
 
     def load(self):
@@ -125,6 +133,7 @@ class HttpServer:
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
                     server.listen(service['port'], address=self.address)
+                    self.servers.append(server)
                     logging.debug('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
@@ -155,6 +164,7 @@ class HttpServer:
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
                 server.listen(services[0]['port'], address=self.address)
+                self.servers.append(server)
                 logging.debug('Will listen port number: %d' % service['port'])
 
             self.load_management_api()
@@ -254,11 +264,14 @@ class HttpServer:
                     r"/config",
                     ManagementConfigHandler,
                     dict(
-                        definition=self.definition
+                        definition=self.definition,
+                        http_server=self
                     )
                 )
             ])
             app.listen(self.definition.data['management']['port'])
+            # TODO Does this need to be stopped?
+            # self.servers.append(app)
             self.services_log.append('Serving management API at %s://%s:%s' % (
                 'http',
                 'localhost',

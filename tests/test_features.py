@@ -10,6 +10,7 @@ import os
 import random
 import re
 import time
+import json
 from datetime import datetime
 
 import pytest
@@ -1326,3 +1327,23 @@ class TestManagement():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == '{"GET": [{"response": "service1", "id": null, "counters": {}, "params": {}, "context": {}}]}'
+
+    @pytest.mark.skip(reason="Not yet implemented!")
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_post_config(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
+            data = json.load(file)
+            resp = requests.post(SRV_9000 + '/config', data=data)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'OK'
+
+        resp = requests.get(SRV_8002 + '//service1-endpoint2', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-endpoint2'

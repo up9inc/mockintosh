@@ -13,6 +13,8 @@ import re
 import urllib
 import socket
 import struct
+import copy
+from multiprocessing import Process
 from typing import (
     Union,
     Optional
@@ -28,7 +30,7 @@ from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPEC
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine
+from mockintosh.methods import _safe_path_split, _detect_engine, _decoder
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 from mockintosh.templating import TemplateRenderer
 
@@ -157,7 +159,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if isinstance(param, QueryStringParam):
                 context[key] = self.get_query_argument(param.key)
             if isinstance(param, BodyParam):
-                context[key] = self.decoder(self.request.body)
+                context[key] = _decoder(self.request.body)
         return context
 
     def render_template(self):
@@ -219,17 +221,17 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            request.queryString[key] = [self.decoder(x) for x in value]
+            request.queryString[key] = [_decoder(x) for x in value]
             if len(request.queryString[key]) == 1:
                 request.queryString[key] = request.queryString[key][0]
 
         # Body
-        request.body = self.decoder(self.request.body)
+        request.body = _decoder(self.request.body)
         request.files = self.request.files
 
         # Form Data
         for key, value in self.request.body_arguments.items():
-            request.formData[key] = [self.decoder(x) for x in value]
+            request.formData[key] = [_decoder(x) for x in value]
             if len(request.formData[key]) == 1:
                 request.formData[key] = request.formData[key][0]
 
@@ -314,7 +316,7 @@ class GenericHandler(tornado.web.RequestHandler):
         if SPECIAL_CONTEXT not in self.initial_context or 'bodyText' not in self.initial_context[SPECIAL_CONTEXT]:
             return
 
-        body = self.decoder(self.request.body)
+        body = _decoder(self.request.body)
         for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyText'].items():
             if value['type'] == 'regex':
                 match = re.search(value['regex'], body)
@@ -414,7 +416,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
             # Body
             if 'body' in alternative:
-                body = self.decoder(self.request.body)
+                body = _decoder(self.request.body)
 
                 # Schema
                 if 'schema' in alternative['body']:
@@ -503,12 +505,6 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def should_write(self):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
-
-    def decoder(self, string):
-        try:
-            return string.decode('utf-8')
-        except UnicodeDecodeError:
-            return string.decode('latin-1')
 
     def resolve_relative_path(self, source_text):
         relative_path = None
@@ -663,13 +659,78 @@ class Response():
         self.body = None
 
 
+def run_new_server(new_definition, debug, interceptors, address, services_list):
+    import time
+    from mockintosh.servers import HttpServer, TornadoImpl
+
+    time.sleep(3)
+    # TODO Do we need this?
+    # tornado.ioloop.IOLoop.current().close()
+
+    new_http_server = HttpServer(
+        new_definition,
+        TornadoImpl(),
+        debug=debug,
+        interceptors=interceptors,
+        address=address,
+        services_list=services_list
+    )
+
+    # TODO Fix RuntimeError('This event loop is already running')
+    logging.info("The line below throws RuntimeError('This event loop is already running')")
+    new_http_server.run()
+
+
 class ManagementConfigHandler(tornado.web.RequestHandler):
 
-    def initialize(self, definition):
+    def initialize(self, definition, http_server):
         self.definition = definition
+        self.http_server = http_server
 
     def get(self):
         self.write(self.definition.data)
+
+    def post(self):
+        body = _decoder(self.request.body)
+        data = json.loads(body)
+        new_definition = copy.deepcopy(self.definition)
+        new_definition.data = data
+
+        try:
+            new_definition.validate()
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n\n%s' % str(e))
+            return
+
+        try:
+            new_definition.template_engine = _detect_engine(new_definition.data, 'config')
+            new_definition.analyze()
+        except Exception as e:
+            self.set_status(400)
+            self.write('Something bad happened:\n\n%s' % str(e))
+            return
+
+        self.http_server.impl.stop()
+        for server in self.http_server.servers:
+            server.stop()
+        self.write('OK')
+
+        # TODO Search for other alternatives
+        # Seems like we need paralelism to finalize this POST method. Tried `threading` does not work.
+        p = Process(
+            target=run_new_server,
+            args=(
+                new_definition,
+                self.http_server.debug,
+                self.http_server.interceptors,
+                self.http_server.address,
+                self.http_server.services_list
+            ),
+            kwargs={}
+        )
+        p.start()
+        logging.info('Reaches here without any problem.')
 
 
 class ManagementEndpointMethodsHandler(tornado.web.RequestHandler):

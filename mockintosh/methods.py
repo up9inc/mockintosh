@@ -69,3 +69,10 @@ def _nostderr():
 def _import_from(module, name):
     module = __import__(module, fromlist=[name])
     return getattr(module, name)
+
+
+def _decoder(string):
+    try:
+        return string.decode('utf-8')
+    except UnicodeDecodeError:
+        return string.decode('latin-1')
