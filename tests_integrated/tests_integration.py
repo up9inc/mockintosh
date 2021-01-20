@@ -9,6 +9,7 @@ import requests
 
 import mockintosh
 
+MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV3 = os.environ.get('SRV3', 'https://localhost:8003')
@@ -381,3 +382,17 @@ class IntegrationTests(unittest.TestCase):
 
         with self.assertRaises(requests.exceptions.ConnectionError):
             requests.get(SRV1 + '/conn-close')
+
+    def test_management_global(self):
+        resp = requests.get(MGMT + '/', verify=False)
+        self.assertEqual(200, resp.status_code)  # should return a HTML page
+
+        resp = requests.get(MGMT + '/config', verify=False)
+        self.assertEqual(200, resp.status_code)
+
+    def test_management_service(self):
+        resp = requests.get(SRV1 + '/__admin/')
+        self.assertEqual(200, resp.status_code)  # should return a HTML page
+
+        resp = requests.get(SRV1 + '/__admin/config')
+        self.assertEqual(200, resp.status_code)

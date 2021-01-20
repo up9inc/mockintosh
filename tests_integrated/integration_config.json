@@ -1,4 +1,8 @@
 {
+  "management": {
+    "port": 8000,
+    "ssl": true
+  },
   "globals": {
     "headers": {
       "global-hdr1": "globalval1",
@@ -9,6 +13,7 @@
     {
       "name": "First basic service",
       "port": 8001,
+      "managementRoot": "__admin",
       "endpoints": [
         {
           "path": "/",
