@@ -124,15 +124,6 @@ class HttpServer:
 
                 app = self.make_app(endpoints, self.globals, debug=self.debug, management_root=management_root)
 
-                if management_root is not None:
-                    self.services_log.append('Injected management API into %s. Will be available at %s://%s:%s/%s' % (
-                        'the mock for %r' % service['name'] if 'name' in service else '',
-                        protocol,
-                        'localhost' if 'hostname' not in service else service['hostname'],
-                        service['port'],
-                        management_root
-                    ))
-
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
                     server.listen(service['port'], address=self.address)
