@@ -189,6 +189,12 @@
         },
         "ssl": {
           "type": "boolean"
+        },
+        "sslCertFile": {
+          "type": "string"
+        },
+        "sslKeyFile": {
+          "type": "string"
         }
       },
       "required": [

@@ -140,7 +140,7 @@ class HttpServer:
                     logging.debug('Will listen port number: %d' % service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
-                        'localhost',
+                        self.address if self.address else 'localhost',
                         service['port'],
                         ' the mock for %r' % service['name'] if 'name' in service else ''
                     ))
@@ -265,7 +265,24 @@ class HttpServer:
         if 'management' not in self.definition.data:
             return
 
-        if 'port' in self.definition.data['management']:
+        management_config = self.definition.data['management']
+
+        cert_file = path.join(__location__, 'ssl', 'cert.pem')
+        key_file = path.join(__location__, 'ssl', 'key.pem')
+        ssl = management_config.get('ssl', False)
+        if ssl:
+            if 'sslCertFile' in management_config:
+                cert_file = self.resolve_cert_path(management_config['sslCertFile'])
+            if 'sslKeyFile' in management_config:
+                key_file = self.resolve_cert_path(management_config['sslKeyFile'])
+
+        protocol = 'https' if ssl else 'http'
+        ssl_options = {
+            "certfile": cert_file,
+            "keyfile": key_file,
+        }
+
+        if 'port' in management_config:
             app = tornado.web.Application([
                 (
                     '/',
@@ -281,11 +298,12 @@ class HttpServer:
                     )
                 )
             ])
-            app.listen(self.definition.data['management']['port'])
+            server = self.impl.get_server(app, ssl, ssl_options)
+            server.listen(management_config['port'], address=self.address)
             # TODO Does this need to be stopped?
             # self.servers.append(app)
             self.services_log.append('Serving management API at %s://%s:%s' % (
-                'http',
-                'localhost',
-                self.definition.data['management']['port']
+                protocol,
+                self.address if self.address else 'localhost',
+                management_config['port']
             ))

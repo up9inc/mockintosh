@@ -153,11 +153,11 @@ class GenericHandler(tornado.web.RequestHandler):
             return context
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param.index]
+                context[key] = _safe_path_split(self.request.path)[param['index']]
             if isinstance(param, HeaderParam):
-                context[key] = self.request.headers.get(param.key.title())
+                context[key] = self.request.headers.get(param['key'].title())
             if isinstance(param, QueryStringParam):
-                context[key] = self.get_query_argument(param.key)
+                context[key] = self.get_query_argument(param['key'])
             if isinstance(param, BodyParam):
                 context[key] = _decoder(self.request.body)
         return context
@@ -694,13 +694,14 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         self.http_server = http_server
 
     def get(self):
-        self.write(self.definition.data)
+        self.write(self.definition.orig_data)
 
     def post(self):
         body = _decoder(self.request.body)
         data = json.loads(body)
         new_definition = copy.deepcopy(self.definition)
         new_definition.data = data
+        new_definition.orig_data = new_definition.data
 
         try:
             new_definition.validate()

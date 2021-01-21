@@ -12,6 +12,7 @@ import json
 import logging
 import signal
 import sys
+import copy
 from collections import OrderedDict
 from os import path, environ
 
@@ -43,6 +44,7 @@ class Definition():
             self.data = configs.get_default()
         else:
             self.load()
+        self.orig_data = copy.deepcopy(self.data)
         self.validate()
         self.template_engine = _detect_engine(self.data, 'config')
         self.analyze()

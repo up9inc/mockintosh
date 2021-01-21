@@ -7,29 +7,25 @@
 """
 
 
-class PathParam():
+class PathParam(dict):
 
     def __init__(self, name, index):
-        self.name = name
-        self.index = index
+        dict.__init__(self, name=name, index=index)
 
 
-class HeaderParam():
-
-    def __init__(self, key, value):
-        self.key = key
-        self.value = value
-
-
-class QueryStringParam():
+class HeaderParam(dict):
 
     def __init__(self, key, value):
-        self.key = key
-        self.value = value
+        dict.__init__(self, key=key, value=value)
 
 
-class BodyParam():
+class QueryStringParam(dict):
 
     def __init__(self, key, value):
-        self.key = key
-        self.value = value
+        dict.__init__(self, key=key, value=value)
+
+
+class BodyParam(dict):
+
+    def __init__(self, key, value):
+        dict.__init__(self, key=key, value=value)
