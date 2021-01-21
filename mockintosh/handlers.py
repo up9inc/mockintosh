@@ -763,8 +763,8 @@ class ManagementServiceRootRedirectHandler(tornado.web.RequestHandler):
 
 class ManagementServiceConfigHandler(tornado.web.RequestHandler):
 
-    def initialize(self, methods):
-        self.methods = methods
+    def initialize(self, service):
+        self.service = service
 
     def get(self):
-        self.write(self.methods)
+        self.write(self.service)

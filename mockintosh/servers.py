@@ -123,7 +123,7 @@ class HttpServer:
                 if 'managementRoot' in service:
                     management_root = service['managementRoot']
 
-                app = self.make_app(endpoints, self.globals, debug=self.debug, management_root=management_root)
+                app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
 
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
@@ -203,7 +203,7 @@ class HttpServer:
         logging.info('Mock server is ready!')
         self.impl.serve()
 
-    def make_app(self, endpoints, _globals, debug=False, management_root=None):
+    def make_app(self, service, endpoints, _globals, debug=False, management_root=None):
         endpoint_handlers = []
         endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
@@ -243,7 +243,7 @@ class HttpServer:
                     '/%s/config' % management_root,
                     ManagementServiceConfigHandler,
                     dict(
-                        methods=endpoint['methods']
+                        service=service
                     )
                 )
             ]
