@@ -47,6 +47,8 @@ j2_date = j2_Date()
 
 counters = {}
 
+__location__ = os.path.abspath(os.path.dirname(__file__))
+
 
 class GenericHandler(tornado.web.RequestHandler):
 
@@ -684,7 +686,9 @@ def run_new_server(new_definition, debug, interceptors, address, services_list):
 class ManagementRootHandler(tornado.web.RequestHandler):
 
     def get(self):
-        self.write('MANAGEMENT ROOT')
+        with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
+            html = file.read()
+            self.write(html)
 
 
 class ManagementConfigHandler(tornado.web.RequestHandler):
@@ -743,7 +747,9 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
 
     def get(self):
-        self.write('MANAGEMENT SERVICE ROOT')
+        with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
+            html = file.read()
+            self.write(html)
 
 
 class ManagementServiceConfigHandler(tornado.web.RequestHandler):

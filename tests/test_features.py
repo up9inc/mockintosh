@@ -1321,12 +1321,12 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'MANAGEMENT ROOT'
+        assert resp.text == 'Mockintosh Admin'
 
         resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'MANAGEMENT SERVICE ROOT'
+        assert resp.text == 'Mockintosh Admin'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
