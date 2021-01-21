@@ -1321,12 +1321,10 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Mockintosh Admin'
 
         resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Mockintosh Admin'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -1343,7 +1341,7 @@ class TestManagement():
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"GET": [{"response": "service1", "id": null, "counters": {}, "params": {}, "context": {}}]}'
+        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}'
 
     @pytest.mark.skip(reason="Not yet implemented!")
     @pytest.mark.parametrize(('config'), [

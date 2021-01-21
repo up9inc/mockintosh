@@ -46,6 +46,8 @@ class Definition():
             self.load()
         self.orig_data = copy.deepcopy(self.data)
         self.validate()
+        for service in self.data['services']:
+            service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
         self.analyze()
 
