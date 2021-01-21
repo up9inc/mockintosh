@@ -1343,7 +1343,6 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}'
 
-    @pytest.mark.skip(reason="Not yet implemented!")
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml'
@@ -1353,12 +1352,13 @@ class TestManagement():
 
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
-            resp = requests.post(SRV_9000 + '/config', data=data)
+            resp = requests.post(SRV_9000 + '/config', json=data)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'OK'
 
-        resp = requests.get(SRV_8002 + '//service1-endpoint2', headers={'Host': SRV_8001_HOST})
+        time.sleep(1)
+        resp = requests.get(SRV_8002 + '/service1-endpoint2', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-endpoint2'
