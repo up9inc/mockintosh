@@ -239,3 +239,4 @@ Management edpoints:
 - TODO: `/stats` - `GET` to fetch, `DELETE` to reset 
 - TODO: how to reset dataset/multirequest iterators 
 - TODO: `/shutdown` to exit process?
+- TODO: endpoint to serve swagger-ui
