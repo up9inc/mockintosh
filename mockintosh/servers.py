@@ -22,6 +22,7 @@ from mockintosh.handlers import (
     ManagementRootHandler,
     ManagementConfigHandler,
     ManagementServiceRootHandler,
+    ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler
 )
 from mockintosh.overrides import Application
@@ -230,6 +231,13 @@ class HttpServer:
                     '/%s/' % management_root,
                     ManagementServiceRootHandler,
                     dict()
+                ),
+                (
+                    '/%s' % management_root,
+                    ManagementServiceRootRedirectHandler,
+                    dict(
+                        management_root=management_root
+                    )
                 ),
                 (
                     '/%s/config' % management_root,
