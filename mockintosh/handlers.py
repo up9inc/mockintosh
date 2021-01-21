@@ -733,7 +733,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         logging.info('Reaches here without any problem.')
 
 
-class ManagementEndpointMethodsHandler(tornado.web.RequestHandler):
+class ManagementRootHandler(tornado.web.RequestHandler):
 
     def initialize(self, methods):
         self.methods = methods

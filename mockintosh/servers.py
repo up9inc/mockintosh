@@ -20,7 +20,7 @@ from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import (
     GenericHandler,
     ManagementConfigHandler,
-    ManagementEndpointMethodsHandler
+    ManagementRootHandler
 )
 from mockintosh.overrides import Application
 
@@ -101,10 +101,6 @@ class HttpServer:
                 "keyfile": key_file,
             }
 
-            management_endpoint = None
-            if 'management' in self.definition.data and 'endpoint' in self.definition.data['management']:
-                management_endpoint = self.definition.data['management']['endpoint']
-
             for service in services:
                 if self.services_list:
                     if port_override is not None:
@@ -119,15 +115,20 @@ class HttpServer:
                 endpoints = []
                 if 'endpoints' in service:
                     endpoints = self.merge_alternatives(service['endpoints'])
-                app = self.make_app(endpoints, self.globals, debug=self.debug, management_endpoint=management_endpoint)
 
-                if management_endpoint is not None:
+                management_root = None
+                if 'managementRoot' in service:
+                    management_root = service['managementRoot']
+
+                app = self.make_app(endpoints, self.globals, debug=self.debug, management_root=management_root)
+
+                if management_root is not None:
                     self.services_log.append('Injected management API into %s. Will be available at %s://%s:%s/%s' % (
                         'the mock for %r' % service['name'] if 'name' in service else '',
                         protocol,
                         'localhost' if 'hostname' not in service else service['hostname'],
                         service['port'],
-                        management_endpoint
+                        management_root
                     ))
 
                 if 'hostname' not in service:
@@ -208,7 +209,7 @@ class HttpServer:
         logging.info('Mock server is ready!')
         self.impl.serve()
 
-    def make_app(self, endpoints, _globals, debug=False, management_endpoint=None):
+    def make_app(self, endpoints, _globals, debug=False, management_root=None):
         endpoint_handlers = []
         endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
@@ -230,12 +231,12 @@ class HttpServer:
                 logging.debug('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
                 logging.debug('with alternatives:\n%s' % alternatives)
 
-        if management_endpoint is not None:
-            path = '/%s/config' % management_endpoint
+        if management_root is not None:
+            path = '/%s/config' % management_root
             endpoint_handlers.append(
                 (
                     path,
-                    ManagementEndpointMethodsHandler,
+                    ManagementRootHandler,
                     dict(
                         methods=endpoint['methods']
                     )

@@ -1,6 +1,5 @@
 {
   "management": {
-    "endpoint": "mockintosh_admin_api",
     "port": 9000
   },
   "templatingEngine": "Handlebars",
@@ -9,6 +8,7 @@
       "name": "Mock for Service1",
       "hostname": "service1.example.com",
       "port": 8001,
+      "managementRoot": "__admin",
       "endpoints": [
         {
           "path": "/service1",

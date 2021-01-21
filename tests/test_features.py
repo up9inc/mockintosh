@@ -1321,9 +1321,9 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"management": {"endpoint": "mockintosh_admin_api", "port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "endpoints": [{"path": "/service1", "method": "GET", "response": "service1", "params": {}, "context": {}, "priority": 0}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8001, "endpoints": [{"path": "/service2", "method": "GET", "response": "service2", "params": {}, "context": {}, "priority": 0}]}]}'
+        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1", "params": {}, "context": {}, "priority": 0}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8001, "endpoints": [{"path": "/service2", "method": "GET", "response": "service2", "params": {}, "context": {}, "priority": 0}]}]}'
 
-        resp = requests.get(SRV_8001 + '/mockintosh_admin_api/config', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == '{"GET": [{"response": "service1", "id": null, "counters": {}, "params": {}, "context": {}}]}'
