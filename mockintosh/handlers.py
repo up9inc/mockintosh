@@ -155,11 +155,11 @@ class GenericHandler(tornado.web.RequestHandler):
             return context
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param['index']]
+                context[key] = _safe_path_split(self.request.path)[param.index]
             if isinstance(param, HeaderParam):
-                context[key] = self.request.headers.get(param['key'].title())
+                context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
-                context[key] = self.get_query_argument(param['key'])
+                context[key] = self.get_query_argument(param.key)
             if isinstance(param, BodyParam):
                 context[key] = _decoder(self.request.body)
         return context
@@ -767,4 +767,4 @@ class ManagementServiceConfigHandler(tornado.web.RequestHandler):
         self.service = service
 
     def get(self):
-        self.write(self.service)
+        self.write(self.service['orig_data'])
