@@ -14,7 +14,6 @@ import urllib
 import socket
 import struct
 import copy
-from multiprocessing import Process
 from typing import (
     Union,
     Optional
@@ -661,28 +660,6 @@ class Response():
         self.body = None
 
 
-def run_new_server(new_definition, debug, interceptors, address, services_list):
-    import time
-    from mockintosh.servers import HttpServer, TornadoImpl
-
-    time.sleep(3)
-    # TODO Do we need this?
-    # tornado.ioloop.IOLoop.current().close()
-
-    new_http_server = HttpServer(
-        new_definition,
-        TornadoImpl(),
-        debug=debug,
-        interceptors=interceptors,
-        address=address,
-        services_list=services_list
-    )
-
-    # TODO Fix RuntimeError('This event loop is already running')
-    logging.info("The line below throws RuntimeError('This event loop is already running')")
-    new_http_server.run()
-
-
 class ManagementRootHandler(tornado.web.RequestHandler):
 
     def get(self):
@@ -701,6 +678,8 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         self.write(self.definition.orig_data)
 
     def post(self):
+        from mockintosh.servers import HttpServer, TornadoImpl
+
         body = _decoder(self.request.body)
         data = json.loads(body)
         new_definition = copy.deepcopy(self.definition)
@@ -722,26 +701,18 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
             self.write('Something bad happened:\n\n%s' % str(e))
             return
 
-        self.http_server.impl.stop()
-        for server in self.http_server.servers:
-            server.stop()
         self.write('OK')
 
-        # TODO Search for other alternatives
-        # Seems like we need paralelism to finalize this POST method. Tried `threading` does not work.
-        p = Process(
-            target=run_new_server,
-            args=(
-                new_definition,
-                self.http_server.debug,
-                self.http_server.interceptors,
-                self.http_server.address,
-                self.http_server.services_list
-            ),
-            kwargs={}
+        HttpServer(
+            new_definition,
+            TornadoImpl(),
+            debug=self.http_server.debug,
+            interceptors=self.http_server.interceptors,
+            address=self.http_server.address,
+            services_list=self.http_server.services_list
         )
-        p.start()
-        logging.info('Reaches here without any problem.')
+
+        logging.info('Updated the config upon a request.')
 
 
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
