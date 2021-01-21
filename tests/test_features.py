@@ -1315,6 +1315,23 @@ class TestManagement():
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml'
     ])
+    def test_get_root(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'MANAGEMENT ROOT'
+
+        resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'MANAGEMENT SERVICE ROOT'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
     def test_get_config(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 

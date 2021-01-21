@@ -681,6 +681,12 @@ def run_new_server(new_definition, debug, interceptors, address, services_list):
     new_http_server.run()
 
 
+class ManagementRootHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        self.write('MANAGEMENT ROOT')
+
+
 class ManagementConfigHandler(tornado.web.RequestHandler):
 
     def initialize(self, definition, http_server):
@@ -733,7 +739,13 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         logging.info('Reaches here without any problem.')
 
 
-class ManagementRootHandler(tornado.web.RequestHandler):
+class ManagementServiceRootHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        self.write('MANAGEMENT SERVICE ROOT')
+
+
+class ManagementServiceConfigHandler(tornado.web.RequestHandler):
 
     def initialize(self, methods):
         self.methods = methods

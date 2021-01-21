@@ -19,8 +19,10 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import (
     GenericHandler,
+    ManagementRootHandler,
     ManagementConfigHandler,
-    ManagementRootHandler
+    ManagementServiceRootHandler,
+    ManagementServiceConfigHandler
 )
 from mockintosh.overrides import Application
 
@@ -168,7 +170,7 @@ class HttpServer:
                 self.servers.append(server)
                 logging.debug('Will listen port number: %d' % service['port'])
 
-            self.load_management_api()
+        self.load_management_api()
 
     def merge_alternatives(self, endpoints):
         new_endpoints = {}
@@ -232,16 +234,20 @@ class HttpServer:
                 logging.debug('with alternatives:\n%s' % alternatives)
 
         if management_root is not None:
-            path = '/%s/config' % management_root
-            endpoint_handlers.append(
+            endpoint_handlers += [
                 (
-                    path,
-                    ManagementRootHandler,
+                    '/%s/' % management_root,
+                    ManagementServiceRootHandler,
+                    dict()
+                ),
+                (
+                    '/%s/config' % management_root,
+                    ManagementServiceConfigHandler,
                     dict(
                         methods=endpoint['methods']
                     )
                 )
-            )
+            ]
 
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
@@ -262,7 +268,12 @@ class HttpServer:
         if 'port' in self.definition.data['management']:
             app = tornado.web.Application([
                 (
-                    r"/config",
+                    '/',
+                    ManagementRootHandler,
+                    dict()
+                ),
+                (
+                    '/config',
                     ManagementConfigHandler,
                     dict(
                         definition=self.definition,
