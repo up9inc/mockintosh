@@ -109,7 +109,7 @@ class ErrorHandler(GenericHandler):
         ext = path.splitext(self.request.path)[1]
         parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
         client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
-        if set(client_mime_types).issubset(IMAGE_MIME_TYPES) or ext in IMAGE_EXTENSIONS:
+        if (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS:
             with open(path.join(__location__, 'res/mock.png'), 'rb') as file:
                 image = file.read()
                 self.set_header('content-type', 'image/png')

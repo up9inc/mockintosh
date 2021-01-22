@@ -64,7 +64,7 @@ class PathRecognizer():
             match = re.search(r'{{(.*)}}', text)
             if match is not None:
                 name = match.group(1).strip()
-                compiled = '.*'
+                compiled = '[^/]+'
                 var = name
             else:
                 compiled = text

@@ -26,7 +26,7 @@ from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer, BodyRecognizer
 from mockintosh.servers import HttpServer, TornadoImpl
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
