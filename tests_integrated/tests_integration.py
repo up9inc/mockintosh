@@ -3,7 +3,7 @@ import os
 import re
 import time
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
@@ -313,7 +313,7 @@ class IntegrationTests(unittest.TestCase):
         chunk, resp = resp.split(" ", 1)
         pdate = datetime.strptime(chunk, '%Y-%m-%dT%H:%M:%S.%f')
         delta = utcnow - pdate
-        self.assertTrue(delta.days < 2)
+        self.assertTrue(delta < timedelta(days=2))
 
         #  {{date.date '%Y-%m-%d %H:%M:%S'}}
         chunk1, resp = resp.split(" ", 1)
@@ -321,14 +321,12 @@ class IntegrationTests(unittest.TestCase):
         chunk = ' '.join((chunk1, chunk2))
         pdate = datetime.strptime(chunk, '%Y-%m-%d %H:%M:%S')
         delta = utcnow - pdate
-        self.assertTrue(delta.days < 2)
+        self.assertTrue(delta < timedelta(days=2))
 
         #  {{date.date '%Y-%m-%d' 86400}}
-        chunk, resp = resp.split(" ", 1)
-        chunk = ' '.join((chunk1, resp))
-        pdate = datetime.strptime(chunk, '%Y-%m-%d %H')
+        pdate = datetime.strptime(resp, '%Y-%m-%d %H')
         delta = pdate - utcnow
-        self.assertTrue(delta.seconds > 82800)
+        self.assertTrue(delta > timedelta(seconds=82800))
 
     def test_body_regex(self):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")

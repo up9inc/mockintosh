@@ -11,7 +11,7 @@ import random
 import re
 import time
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 import requests
@@ -682,21 +682,21 @@ class TestCore():
         data = resp.json()
         pattern = '%Y-%m-%d %H:%M %f'
         delta = utcnow - datetime.strptime(data['now'], pattern)
-        assert delta.days < 2
+        assert delta < timedelta(days=2)
         delta = utcnow - datetime.strptime(data['1_week_back'], pattern)
-        assert delta.days < 9
+        assert delta < timedelta(days=9)
         delta = datetime.strptime(data['1_week_forward'], pattern) - utcnow
-        assert delta.days > 5
+        assert delta > timedelta(days=5)
         delta = utcnow - datetime.strptime(data['1_day_back'], pattern)
-        assert delta.days < 3
+        assert delta < timedelta(days=3)
         delta = datetime.strptime(data['1_day_forward'], pattern) - utcnow
-        assert delta.seconds > 82800
+        assert delta > timedelta(seconds=82800)
         delta = utcnow - datetime.strptime(data['1_hour_back'], pattern)
-        assert delta.seconds < 3700
+        assert delta < timedelta(seconds=3700)
         delta = datetime.strptime(data['1_hour_forward'], pattern) - utcnow
-        assert delta.seconds > 3500
+        assert delta > timedelta(seconds=3500)
         delta = utcnow - datetime.strptime(data['1_minute_back'], pattern)
-        assert delta.seconds < 120
+        assert delta < timedelta(seconds=120)
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/connection_reset.yaml'
