@@ -1141,6 +1141,33 @@ class TestPath():
         assert data['var4'] == param4
         assert data['var5'] == param5
 
+    def test_path_segment_capture_conflict(self, config):
+        param1 = str(int(time.time()))
+        param2 = str(int(time.time()))
+        resp = requests.delete(SRV_8001 + '/carts/%s' % param1)
+        assert 202 == resp.status_code
+
+        resp = requests.post(SRV_8001 + '/carts/%s/items' % param1)
+        assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json'
+        data = resp.json()
+        assert data['id'] == 'L8VEqJRB4R'
+
+        resp = requests.get(SRV_8001 + '/carts/%s/merge' % param1)
+        assert 202 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/carts/%s/items' % param1)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json'
+        data = resp.json()
+        assert isinstance(data, list) and not data
+
+        resp = requests.patch(SRV_8001 + '/carts/%s/items' % param1)
+        assert 202 == resp.status_code
+
+        resp = requests.delete(SRV_8001 + '/carts/%s/items/%s' % (param1, param2))
+        assert 202 == resp.status_code
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/query_string/config.json',

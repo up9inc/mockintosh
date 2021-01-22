@@ -86,6 +86,53 @@
             },
             "body": "@templates/5.json.hbs"
           }
+        },
+        {
+          "method": "delete",
+          "path": "/carts/{{customerId}}",
+          "response": {
+            "status": 202
+          }
+        },
+        {
+          "method": "post",
+          "path": "/carts/{{customerId}}/items",
+          "response": {
+            "body": "{\n \"id\": \"L8VEqJRB4R\",\n \"itemId\": \"{{request.body}}\",\n \"quantity\": 1,\n \"unitPrice\": 12.0\n}",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "status": 201
+          }
+        },
+        {
+          "path": "/carts/{{customerId}}/merge",
+          "response": {
+            "status": 202
+          }
+        },
+        {
+          "path": "/carts/{{customerId}}/items",
+          "response": {
+            "body": "[]",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+          }
+        },
+        {
+          "method": "patch",
+          "path": "/carts/{{customerId}}/items",
+          "response": {
+            "status": 202
+          }
+        },
+        {
+          "method": "delete",
+          "path": "/carts/{{customerId}}/items/{{itemId}}",
+          "response": {
+            "status": 202
+          }
         }
       ]
     }
