@@ -1294,6 +1294,7 @@ class TestQueryString():
         resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
         assert 400 == resp.status_code
 
+
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/body/config.json',
     'configs/json/j2/body/config.json',
