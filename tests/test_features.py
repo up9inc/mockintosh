@@ -1357,8 +1357,15 @@ class TestManagement():
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'OK'
 
-        time.sleep(1)
+        time.sleep(3)
         resp = requests.get(SRV_8002 + '/service1-endpoint2', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-endpoint2'
+
+        resp = requests.get(SRV_9000 + '/config')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
+            data = json.load(file)
+            assert data == resp.json()

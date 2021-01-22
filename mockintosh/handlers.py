@@ -6,6 +6,7 @@
     :synopsis: module that contains request handlers.
 """
 
+import sys
 import json
 import logging
 import os
@@ -14,6 +15,7 @@ import urllib
 import socket
 import struct
 import copy
+import tempfile
 from typing import (
     Union,
     Optional
@@ -23,6 +25,7 @@ import jsonschema
 import tornado.web
 from tornado.concurrent import Future
 from tornado.web import HTTPError
+from tornado import autoreload
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
@@ -678,8 +681,6 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         self.write(self.definition.orig_data)
 
     def post(self):
-        from mockintosh.servers import HttpServer, TornadoImpl
-
         body = _decoder(self.request.body)
         data = json.loads(body)
         new_definition = copy.deepcopy(self.definition)
@@ -702,17 +703,13 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
             return
 
         self.write('OK')
+        self.finish()
 
-        HttpServer(
-            new_definition,
-            TornadoImpl(),
-            debug=self.http_server.debug,
-            interceptors=self.http_server.interceptors,
-            address=self.http_server.address,
-            services_list=self.http_server.services_list
-        )
-
-        logging.info('Updated the config upon a request.')
+        temp = tempfile.NamedTemporaryFile(prefix='mockintosh-', suffix='.json', delete=False)
+        with open(temp.name, 'w') as file:
+            file.write(body)
+        sys.argv[1] = temp.name
+        autoreload._reload()
 
 
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
