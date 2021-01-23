@@ -83,8 +83,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.custom_args:
                 args = self.custom_args
             if self.methods is None:
-                from mockintosh.overrides import ErrorHandler
-                return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": 404}).execute()
+                self.raise_http_error(404)
             self.dynamic_unimplemented_method_guard()
 
         try:
@@ -141,8 +140,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for i, key in enumerate(self.initial_context):
                     self.custom_context[key] = args[i]
             else:
-                from mockintosh.overrides import ErrorHandler
-                return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": 404}).execute()
+                self.raise_http_error(404)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
@@ -583,8 +581,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def should_cors(self):
         if self.is_options and self.methods is None:
-            from mockintosh.overrides import ErrorHandler
-            return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": 404}).execute()
+            self.raise_http_error(404)
         return self.is_options and self.request.method.lower() not in self.methods.keys()
 
     def load_dataset(self, dataset):
@@ -641,6 +638,10 @@ class GenericHandler(tornado.web.RequestHandler):
             fill_undefineds=True
         )
         return renderer.render()
+
+    def raise_http_error(self, status_code):
+        from mockintosh.overrides import ErrorHandler
+        return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
 
 
 class NotParsedJSON():
