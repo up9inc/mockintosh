@@ -200,22 +200,28 @@ class HttpServer:
         endpoint_handlers = []
         endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
 
+        merged_endpoints = []
+
         for endpoint in endpoints:
-            endpoint_handlers.append(
-                (
-                    endpoint['path'],
-                    GenericHandler,
-                    dict(
-                        config_dir=self.definition.source_dir,
-                        methods=endpoint['methods'],
-                        _globals=_globals,
-                        definition_engine=self.definition.template_engine,
-                        interceptors=self.interceptors
-                    )
+            merged_endpoints.append((endpoint['path'], endpoint['methods']))
+
+        endpoint_handlers.append(
+            (
+                r'.*',
+                GenericHandler,
+                dict(
+                    config_dir=self.definition.source_dir,
+                    endpoints=merged_endpoints,
+                    _globals=_globals,
+                    definition_engine=self.definition.template_engine,
+                    interceptors=self.interceptors
                 )
             )
-            for method, alternatives in endpoint['methods'].items():
-                logging.debug('Registered endpoint: %s %s' % (method.upper(), endpoint['path']))
+        )
+
+        for _path, methods in merged_endpoints:
+            for method, alternatives in methods.items():
+                logging.debug('Registered endpoint: %s %s' % (method.upper(), _path))
                 logging.debug('with alternatives:\n%s' % alternatives)
 
         if management_root is not None:

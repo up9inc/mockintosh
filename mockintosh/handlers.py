@@ -24,7 +24,6 @@ from typing import (
 import jsonschema
 import tornado.web
 from tornado.concurrent import Future
-from tornado.web import HTTPError
 from tornado import autoreload
 
 import mockintosh
@@ -54,9 +53,22 @@ __location__ = os.path.abspath(os.path.dirname(__file__))
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, methods, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, endpoints, _globals, definition_engine, interceptors):
         self.config_dir = config_dir
-        self.methods = {k.lower(): v for k, v in methods.items()}
+        self.endpoints = endpoints
+        self.methods = None
+        self.custom_args = ()
+
+        for path, methods in self.endpoints:
+            if re.fullmatch(path, self.request.path):
+                groups = re.findall(path, self.request.path)
+                if isinstance(groups[0], tuple):
+                    self.custom_args = groups[0]
+                elif isinstance(groups, list) and groups:
+                    self.custom_args = tuple(groups)
+                self.methods = {k.lower(): v for k, v in methods.items()}
+                break
+
         self.alternatives = None
         self.globals = _globals
         self.definition_engine = definition_engine
@@ -74,6 +86,10 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_default_headers()
 
         if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
+            if self.custom_args:
+                args = self.custom_args
+            if self.methods is None:
+                self.raise_http_error(404)
             self.dynamic_unimplemented_method_guard()
 
         try:
@@ -130,7 +146,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for i, key in enumerate(self.initial_context):
                     self.custom_context[key] = args[i]
             else:
-                HTTPError(404)
+                self.raise_http_error(404)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
@@ -564,6 +580,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_cors_headers()
 
     def should_cors(self):
+        if self.is_options and self.methods is None:
+            self.raise_http_error(404)
         return self.is_options and self.request.method.lower() not in self.methods.keys()
 
     def load_dataset(self, dataset):
@@ -620,6 +638,10 @@ class GenericHandler(tornado.web.RequestHandler):
             fill_undefineds=True
         )
         return renderer.render()
+
+    def raise_http_error(self, status_code):
+        from mockintosh.overrides import ErrorHandler
+        return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
 
 
 class NotParsedJSON():
