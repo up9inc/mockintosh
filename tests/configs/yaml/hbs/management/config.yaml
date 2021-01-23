@@ -13,7 +13,7 @@ services:
     response: service1
 - name: Mock for Service2
   hostname: service2.example.com
-  port: 8001
+  port: 8002
   managementRoot: __admin
   endpoints:
   - path: "/service2"

@@ -193,9 +193,11 @@ class HttpServer:
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
 
+        pattern = None if management_root is None else '^(?!/%s).*$' % management_root
+
         endpoint_handlers.append(
             (
-                r'.*',
+                r'.*' if pattern is None else r'' + pattern,
                 GenericHandler,
                 dict(
                     config_dir=self.definition.source_dir,

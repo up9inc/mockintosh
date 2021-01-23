@@ -162,6 +162,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 counters[key] = value
 
     def dynamic_unimplemented_method_guard(self):
+        if self.methods is None:
+            self.raise_http_error(404)
+            return
         if self.request.method.lower() not in self.methods:
             self._unimplemented_method()
 
