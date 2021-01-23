@@ -167,7 +167,7 @@ class TestCommandLineArguments():
             assert 'Mock server loading error' in error_log and 'No such file or directory' in error_log
 
     def test_services_list(self):
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+        config = 'configs/json/hbs/core/multiple_services.json'
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -180,7 +180,7 @@ class TestCommandLineArguments():
 
     def test_port_override(self):
         os.environ['MOCKINTOSH_FORCE_PORT'] = '8002'
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+        config = 'configs/json/hbs/core/multiple_services.json'
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
         resp = requests.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -338,20 +338,6 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
-    def test_multiple_services_on_same_port(self):
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
-        self.mock_server_process = run_mock_server(get_config_path(config))
-
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'service1'
-
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'service2'
-
     def test_two_services_one_with_hostname_one_without(self):
         config = 'configs/json/hbs/core/two_services_one_with_hostname_one_without.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -385,7 +371,7 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-1'
 
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
@@ -806,14 +792,14 @@ class TestStatus():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 403 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
     def test_status_code_templated(self, config):
         query = '?rc=303'
-        resp = requests.get(SRV_8001 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
         assert 303 == resp.status_code
 
 

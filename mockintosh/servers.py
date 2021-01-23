@@ -9,7 +9,6 @@
 import logging
 import sys
 from abc import abstractmethod
-from collections import OrderedDict
 from os import path, environ
 
 import tornado.ioloop
@@ -69,29 +68,21 @@ class HttpServer:
     def load(self):
         port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
 
-        port_mapping = OrderedDict()
+        services = self.definition.data['services']
         service_id_counter = 0
-        for service in self.definition.data['services']:
+        for service in services:
             service['internalServiceId'] = service_id_counter
-            service_id_counter += 1
-            port = str(service['port'])
-            if port not in port_mapping:
-                port_mapping[port] = []
-            port_mapping[port].append(service)
 
-        for port, services in port_mapping.items():
-            rules = []
-            ssl = False
-            cert_file = path.join(__location__, 'ssl', 'cert.pem')
-            key_file = path.join(__location__, 'ssl', 'key.pem')
-            for service in services:
-                ssl = service.get('ssl', False)
-                if ssl:
-                    if 'sslCertFile' in service:
-                        cert_file = self.resolve_cert_path(service['sslCertFile'])
-                    if 'sslKeyFile' in service:
-                        key_file = self.resolve_cert_path(service['sslKeyFile'])
-                    break
+        cert_file = path.join(__location__, 'ssl', 'cert.pem')
+        key_file = path.join(__location__, 'ssl', 'key.pem')
+
+        for service in services:
+            ssl = service.get('ssl', False)
+            if ssl:
+                if 'sslCertFile' in service:
+                    cert_file = self.resolve_cert_path(service['sslCertFile'])
+                if 'sslKeyFile' in service:
+                    key_file = self.resolve_cert_path(service['sslKeyFile'])
 
             protocol = 'https' if ssl else 'http'
             ssl_options = {
@@ -99,61 +90,58 @@ class HttpServer:
                 "keyfile": key_file,
             }
 
-            for service in services:
-                if self.services_list:
-                    if port_override is not None:
-                        service['port'] = int(port_override)
+            if self.services_list:
+                if port_override is not None:
+                    service['port'] = int(port_override)
 
-                    if 'name' in service:
-                        if service['name'] not in self.services_list:
-                            continue
-                    else:
-                        continue
-
-                endpoints = []
-                if 'endpoints' in service:
-                    endpoints = self.merge_alternatives(service['endpoints'])
-
-                management_root = None
-                if 'managementRoot' in service:
-                    management_root = service['managementRoot']
-
-                app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-
-                if 'hostname' not in service:
-                    server = self.impl.get_server(app, ssl, ssl_options)
-                    server.listen(service['port'], address=self.address)
-                    logging.debug('Will listen port number: %d' % service['port'])
-                    self.services_log.append('Serving at %s://%s:%s%s' % (
-                        protocol,
-                        self.address if self.address else 'localhost',
-                        service['port'],
-                        ' the mock for %r' % service['name'] if 'name' in service else ''
-                    ))
-                else:
-                    rules.append(
-                        Rule(HostMatches(service['hostname']), app)
-                    )
-
-                    logging.debug('Registered hostname and port: %s://%s:%d' % (
-                        protocol,
-                        service['hostname'],
-                        service['port']
-                    ))
-                    self.services_log.append('Serving at %s://%s:%s%s' % (
-                        protocol,
-                        service['hostname'],
-                        service['port'],
-                        ' the mock for %r' % service['name'] if 'name' in service else ''
-                    ))
                 if 'name' in service:
-                    logging.debug('Finished registering: %s' % service['name'])
+                    if service['name'] not in self.services_list:
+                        continue
+                else:
+                    continue
 
-            if rules:
+            endpoints = []
+            if 'endpoints' in service:
+                endpoints = self.merge_alternatives(service['endpoints'])
+
+            management_root = None
+            if 'managementRoot' in service:
+                management_root = service['managementRoot']
+
+            app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
+
+            if 'hostname' not in service:
+                server = self.impl.get_server(app, ssl, ssl_options)
+                server.listen(service['port'], address=self.address)
+                logging.debug('Will listen port number: %d' % service['port'])
+                self.services_log.append('Serving at %s://%s:%s%s' % (
+                    protocol,
+                    self.address if self.address else 'localhost',
+                    service['port'],
+                    ' the mock for %r' % service['name'] if 'name' in service else ''
+                ))
+            else:
+                rules = [Rule(HostMatches(service['hostname']), app)]
+
+                logging.debug('Registered hostname and port: %s://%s:%d' % (
+                    protocol,
+                    service['hostname'],
+                    service['port']
+                ))
+                self.services_log.append('Serving at %s://%s:%s%s' % (
+                    protocol,
+                    service['hostname'],
+                    service['port'],
+                    ' the mock for %r' % service['name'] if 'name' in service else ''
+                ))
+
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
-                server.listen(services[0]['port'], address=self.address)
+                server.listen(service['port'], address=self.address)
                 logging.debug('Will listen port number: %d' % service['port'])
+
+            if 'name' in service:
+                logging.debug('Finished registering: %s' % service['name'])
 
         self.load_management_api()
 
