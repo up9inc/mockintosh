@@ -682,10 +682,14 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
 
     def post(self):
         body = _decoder(self.request.body)
-        data = json.loads(body)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as e:
+            self.set_status(400)
+            self.write('JSON decode error:\n\n%s' % str(e))
+            return
         new_definition = copy.deepcopy(self.definition)
         new_definition.data = data
-        new_definition.orig_data = new_definition.data
 
         try:
             new_definition.validate()
@@ -731,8 +735,50 @@ class ManagementServiceRootRedirectHandler(tornado.web.RequestHandler):
 
 class ManagementServiceConfigHandler(tornado.web.RequestHandler):
 
-    def initialize(self, service):
+    def initialize(self, definition, service):
+        self.definition = definition
         self.service = service
 
     def get(self):
         self.write(self.service['orig_data'])
+
+    def post(self):
+        body = _decoder(self.request.body)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as e:
+            self.set_status(400)
+            self.write('JSON decode error:\n\n%s' % str(e))
+            return
+        new_definition = copy.deepcopy(self.definition)
+        new_data = new_definition.orig_data
+        for i in range(len(new_data['services'])):
+            if i == self.service['internalServiceId']:
+                new_data['services'][i] = data
+                break
+        new_data_backup = copy.deepcopy(new_data)
+        new_definition.data = new_data
+
+        try:
+            new_definition.validate()
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n\n%s' % str(e))
+            return
+
+        try:
+            new_definition.template_engine = _detect_engine(new_definition.data, 'config')
+            new_definition.analyze()
+        except Exception as e:
+            self.set_status(400)
+            self.write('Something bad happened:\n\n%s' % str(e))
+            return
+
+        self.write('OK')
+        self.finish()
+
+        temp = tempfile.NamedTemporaryFile(prefix='mockintosh-', suffix='.json', delete=False)
+        with open(temp.name, 'w') as file:
+            json.dump(new_data_backup, file)
+        sys.argv[1] = temp.name
+        autoreload._reload()

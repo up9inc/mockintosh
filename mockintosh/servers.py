@@ -70,7 +70,10 @@ class HttpServer:
         port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
 
         port_mapping = OrderedDict()
+        service_id_counter = 0
         for service in self.definition.data['services']:
+            service['internalServiceId'] = service_id_counter
+            service_id_counter += 1
             port = str(service['port'])
             if port not in port_mapping:
                 port_mapping[port] = []
@@ -233,6 +236,7 @@ class HttpServer:
                     '/%s/config' % management_root,
                     ManagementServiceConfigHandler,
                     dict(
+                        definition=self.definition,
                         service=service
                     )
                 )

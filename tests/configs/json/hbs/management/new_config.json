@@ -7,7 +7,8 @@
     {
       "name": "Mock for Service1",
       "hostname": "service1.example.com",
-      "port": 8002,
+      "port": 8001,
+      "managementRoot": "__admin",
       "endpoints": [
         {
           "path": "/service1",
@@ -15,9 +16,9 @@
           "response": "service1"
         },
         {
-          "path": "/service1-endpoint2",
+          "path": "/service1-new-config",
           "method": "GET",
-          "response": "service1-endpoint2"
+          "response": "service1-new-config"
         }
       ]
     },
@@ -25,6 +26,7 @@
       "name": "Mock for Service2",
       "hostname": "service2.example.com",
       "port": 8002,
+      "managementRoot": "__admin",
       "endpoints": [
         {
           "path": "/service2",

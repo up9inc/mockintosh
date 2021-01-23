@@ -6,9 +6,11 @@ import socket
 import time
 import signal
 import io
+import psutil
 from os import path
 from unittest.mock import patch
 from multiprocessing import Process
+import subprocess
 import contextlib
 
 from mockintosh.constants import PROGRAM
@@ -49,6 +51,31 @@ def run_mock_server(*args, wait=5):
     signal.sigtimedwait([signal.SIGALRM], wait)
 
     return mock_server_process
+
+
+def run_mock_server_in_subshell(*args, wait=5):
+    cmd = PROGRAM + ' ' + ' '.join(args)
+    mock_server_process = subprocess.Popen(cmd, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL, shell=True)
+
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.sigtimedwait([signal.SIGALRM], wait)
+
+    return mock_server_process
+
+
+def kill_mock_server(process):
+    kill_child_processes(process.pid, sig=signal.SIGKILL)
+    process.send_signal(signal.SIGKILL)
+
+
+def kill_child_processes(parent_pid, sig=signal.SIGINT, recursive=False):
+    try:
+        parent = psutil.Process(parent_pid)
+    except psutil.NoSuchProcess:
+        return
+    children = parent.children(recursive=recursive)
+    for process in children:
+        process.send_signal(sig)
 
 
 def get_config_path(config):

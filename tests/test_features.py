@@ -18,7 +18,15 @@ import requests
 from requests.exceptions import ConnectionError
 
 from mockintosh.constants import PROGRAM
-from utilities import tcping, run_mock_server, get_config_path, nostdout, nostderr
+from utilities import (
+    tcping,
+    run_mock_server,
+    run_mock_server_in_subshell,
+    get_config_path,
+    kill_mock_server,
+    nostdout,
+    nostderr
+)
 
 configs = [
     'configs/json/hbs/common/config.json',
@@ -1363,19 +1371,24 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8001, "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}]}'
+        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}]}'
 
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}'
 
+        resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.text == '{"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}'
+
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml'
     ])
     def test_post_config(self, config):
-        self.mock_server_process = run_mock_server(get_config_path(config))
+        self.mock_server_process = run_mock_server_in_subshell(get_config_path(config))
 
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
@@ -1385,10 +1398,20 @@ class TestManagement():
             assert resp.text == 'OK'
 
         time.sleep(3)
-        resp = requests.get(SRV_8002 + '/service1-endpoint2', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'service1-endpoint2'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-config'
+
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
 
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
@@ -1396,3 +1419,51 @@ class TestManagement():
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
             assert data == resp.json()
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.json'), 'r') as file:
+            data = json.load(file)
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, json=data)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'OK'
+
+        time.sleep(3)
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-service'
+
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
+        with open(get_config_path('configs/json/hbs/management/new_service2.json'), 'r') as file:
+            data = json.load(file)
+            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, json=data)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'OK'
+
+        time.sleep(3)
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-service'
+
+        resp = requests.get(SRV_8003 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
+        kill_mock_server(self.mock_server_process)
