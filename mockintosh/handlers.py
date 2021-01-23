@@ -48,9 +48,16 @@ counters = {}
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, methods, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, endpoints, _globals, definition_engine, interceptors):
         self.config_dir = config_dir
-        self.methods = {k.lower(): v for k, v in methods.items()}
+        self.endpoints = endpoints
+        self.methods = None
+
+        for path, methods in self.endpoints:
+            if not re.fullmatch(path, self.request.uri):
+                continue
+            self.methods = {k.lower(): v for k, v in methods.items()}
+
         self.alternatives = None
         self.globals = _globals
         self.definition_engine = definition_engine
@@ -66,6 +73,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def super_verb(self, *args):
         self.set_default_headers()
+
+        if self.methods is None:
+            raise HTTPError(404)
 
         if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
             self.dynamic_unimplemented_method_guard()
@@ -124,7 +134,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for i, key in enumerate(self.initial_context):
                     self.custom_context[key] = args[i]
             else:
-                HTTPError(404)
+                raise HTTPError(404)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
