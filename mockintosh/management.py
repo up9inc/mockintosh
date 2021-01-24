@@ -64,6 +64,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
             self.write('Something bad happened:\n%s' % str(e))
             return
 
+        self.http_server.stats.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
@@ -73,11 +74,14 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
     def update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
+        self.http_server.stats.services[service_index].endpoints = []
+
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(service['endpoints'])
         merged_endpoints = []
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
+            self.http_server.stats.services[service_index].add_endpoint()
 
         endpoints_setted = False
         for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
@@ -102,6 +106,15 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
                 )
             ):
                 raise Exception('%s field is restricted!' % field)
+
+
+class ManagementStatsHandler(tornado.web.RequestHandler):
+
+    def initialize(self, stats):
+        self.stats = stats
+
+    def get(self):
+        self.write(self.stats.json())
 
 
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
@@ -157,6 +170,8 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             self.set_status(400)
             self.write('Something bad happened:\n%s' % str(e))
             return
+
+        self.http_server.stats.reset()
 
         self.write('OK')
         self.finish()

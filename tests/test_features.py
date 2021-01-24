@@ -1447,3 +1447,40 @@ class TestManagement():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var: %s' % param
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_stats(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/stats')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert data['global']['request_counter'] == 0
+        assert data['services'][0]['request_counter'] == 0
+        assert data['services'][0]['endpoints'][0]['request_counter'] == 0
+        assert data['services'][1]['request_counter'] == 0
+        assert data['services'][1]['endpoints'][0]['request_counter'] == 0
+
+        for _ in range(3):
+            resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+
+        for _ in range(2):
+            resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+            assert 200 == resp.status_code
+
+        resp = requests.get(SRV_9000 + '/stats')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert data['global']['request_counter'] == 5
+        assert data['services'][0]['request_counter'] == 3
+        assert data['services'][0]['endpoints'][0]['request_counter'] == 3
+        assert data['services'][1]['request_counter'] == 2
+        assert data['services'][1]['endpoints'][0]['request_counter'] == 2

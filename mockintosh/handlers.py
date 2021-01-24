@@ -50,14 +50,20 @@ __location__ = os.path.abspath(os.path.dirname(__file__))
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, endpoints, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, service_id, endpoints, _globals, definition_engine, interceptors, stats):
         self.config_dir = config_dir
         self.endpoints = endpoints
         self.methods = None
         self.custom_args = ()
+        self.stats = stats
+        self.service_id = service_id
+        self.endpoint_id = None
 
+        i = 0
         for path, methods in self.endpoints:
             if re.fullmatch(path, self.request.path):
+                self.endpoint_id = i
+                i += 1
                 groups = re.findall(path, self.request.path)
                 if isinstance(groups[0], tuple):
                     self.custom_args = groups[0]
@@ -88,6 +94,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.methods is None:
                 self.raise_http_error(404)
             self.dynamic_unimplemented_method_guard()
+            self.stats.services[self.service_id].endpoints[self.endpoint_id].increase_request_counter()
 
         try:
             _id, response, params, context, dataset = self.match_alternative()

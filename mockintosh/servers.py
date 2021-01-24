@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that server classes.
+    :synopsis: module that contains server classes.
 """
 
 import logging
@@ -20,11 +20,15 @@ from mockintosh.handlers import GenericHandler
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
+    ManagementStatsHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler
 )
 from mockintosh.overrides import Application
+from mockintosh.stats import Stats
+
+stats = Stats()
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -69,6 +73,7 @@ class HttpServer:
         self.services_list = services_list
         self.services_log = []
         self._apps = _Apps()
+        self.stats = stats
         self.load()
 
     def load(self):
@@ -84,6 +89,7 @@ class HttpServer:
         key_file = path.join(__location__, 'ssl', 'key.pem')
 
         for service in services:
+            self.stats.add_service()
             ssl = service.get('ssl', False)
             if ssl:
                 if 'sslCertFile' in service:
@@ -201,6 +207,7 @@ class HttpServer:
 
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
+            self.stats.services[service['internalServiceId']].add_endpoint()
 
         endpoint_handlers.append(
             (
@@ -208,10 +215,12 @@ class HttpServer:
                 GenericHandler,
                 dict(
                     config_dir=self.definition.source_dir,
+                    service_id=service['internalServiceId'],
                     endpoints=merged_endpoints,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
-                    interceptors=self.interceptors
+                    interceptors=self.interceptors,
+                    stats=self.stats
                 )
             )
         )
@@ -294,6 +303,13 @@ class HttpServer:
                     ManagementConfigHandler,
                     dict(
                         http_server=self
+                    )
+                ),
+                (
+                    '/stats',
+                    ManagementStatsHandler,
+                    dict(
+                        stats=stats
                     )
                 )
             ])
