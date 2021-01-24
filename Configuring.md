@@ -226,3 +226,17 @@ A response example that leverages Jinja2 templating and Faker is shown below:
   "total": {{ request.queryString.total }}
 }
 ```
+
+## Management API
+
+Can be defined on global level via port (+SSL)
+
+Can be defined per-service (to reuse service's port).
+
+Management edpoints:
+- `/` - opens simple UI
+- `/config` - `GET` to fetch, `POST` to set 
+- TODO: `/stats` - `GET` to fetch, `DELETE` to reset 
+- TODO: how to reset dataset/multirequest iterators 
+- TODO: `/shutdown` to exit process?
+- TODO: endpoint to serve swagger-ui

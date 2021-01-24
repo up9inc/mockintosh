@@ -22,6 +22,9 @@
         "sslKeyFile": {
           "type": "string"
         },
+        "managementRoot": {
+          "type": "string"
+        },
         "endpoints": {
           "type": "array",
           "items": {
@@ -178,6 +181,27 @@
   },
   "type": "object",
   "properties": {
+    "management": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer"
+        },
+        "ssl": {
+          "type": "boolean"
+        },
+        "sslCertFile": {
+          "type": "string"
+        },
+        "sslKeyFile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "additionalProperties": false
+    },
     "templatingEngine": {
       "type": "string"
     },

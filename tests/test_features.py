@@ -10,14 +10,21 @@ import os
 import random
 import re
 import time
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
 
 import pytest
 import requests
 from requests.exceptions import ConnectionError
 
 from mockintosh.constants import PROGRAM
-from utilities import tcping, run_mock_server, get_config_path, nostdout, nostderr
+from utilities import (
+    tcping,
+    run_mock_server,
+    get_config_path,
+    nostdout,
+    nostderr
+)
 
 configs = [
     'configs/json/hbs/common/config.json',
@@ -29,6 +36,7 @@ configs = [
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
+SRV_9000 = os.environ.get('SRV2', 'http://localhost:9000')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
@@ -157,7 +165,7 @@ class TestCommandLineArguments():
             assert 'Mock server loading error' in error_log and 'No such file or directory' in error_log
 
     def test_services_list(self):
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+        config = 'configs/json/hbs/core/multiple_services.json'
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -170,7 +178,7 @@ class TestCommandLineArguments():
 
     def test_port_override(self):
         os.environ['MOCKINTOSH_FORCE_PORT'] = '8002'
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+        config = 'configs/json/hbs/core/multiple_services.json'
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
         resp = requests.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -328,20 +336,6 @@ class TestCore():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
-    def test_multiple_services_on_same_port(self):
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
-        self.mock_server_process = run_mock_server(get_config_path(config))
-
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'service1'
-
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'service2'
-
     def test_two_services_one_with_hostname_one_without(self):
         config = 'configs/json/hbs/core/two_services_one_with_hostname_one_without.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -375,7 +369,7 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-1'
 
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
@@ -680,21 +674,21 @@ class TestCore():
         data = resp.json()
         pattern = '%Y-%m-%d %H:%M %f'
         delta = utcnow - datetime.strptime(data['now'], pattern)
-        assert delta.days < 2
+        assert delta < timedelta(days=2)
         delta = utcnow - datetime.strptime(data['1_week_back'], pattern)
-        assert delta.days < 9
+        assert delta < timedelta(days=9)
         delta = datetime.strptime(data['1_week_forward'], pattern) - utcnow
-        assert delta.days > 5
+        assert delta > timedelta(days=5)
         delta = utcnow - datetime.strptime(data['1_day_back'], pattern)
-        assert delta.days < 3
+        assert delta < timedelta(days=3)
         delta = datetime.strptime(data['1_day_forward'], pattern) - utcnow
-        assert delta.seconds > 82800
+        assert delta > timedelta(seconds=82800)
         delta = utcnow - datetime.strptime(data['1_hour_back'], pattern)
-        assert delta.seconds < 3700
+        assert delta < timedelta(seconds=3700)
         delta = datetime.strptime(data['1_hour_forward'], pattern) - utcnow
-        assert delta.seconds > 3500
+        assert delta > timedelta(seconds=3500)
         delta = utcnow - datetime.strptime(data['1_minute_back'], pattern)
-        assert delta.seconds < 120
+        assert delta < timedelta(seconds=120)
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/connection_reset.yaml'
@@ -796,14 +790,14 @@ class TestStatus():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 403 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
     def test_status_code_templated(self, config):
         query = '?rc=303'
-        resp = requests.get(SRV_8001 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
         assert 303 == resp.status_code
 
 
@@ -1325,3 +1319,131 @@ class TestBody():
             assert "body jsonpath matched: {{jsonPath(request.json, '$.key')}} {{jsonPath(request.json, '$.key2')}}" == resp.text
         else:
             assert "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}" == resp.text
+
+
+class TestManagement():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_root(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+
+        resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_config(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/config')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}]}'
+
+        resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}'
+
+        resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        assert resp.text == '{"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_post_config(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
+            data = json.load(file)
+            resp = requests.post(SRV_9000 + '/config', json=data)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'OK'
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-config'
+
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
+        resp = requests.get(SRV_9000 + '/config')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
+            data = json.load(file)
+            assert data == resp.json()
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.json'), 'r') as file:
+            data = json.load(file)
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, json=data)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'OK'
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-service'
+
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
+        with open(get_config_path('configs/json/hbs/management/new_service2.json'), 'r') as file:
+            data = json.load(file)
+            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, json=data)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'OK'
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-service'
+
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'var: %s' % param

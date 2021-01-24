@@ -17,7 +17,7 @@
     {
       "name": "Mock for Service2",
       "hostname": "service2.example.com",
-      "port": 8001,
+      "port": 8002,
       "endpoints": [
         {
           "id": "endpoint-id-2",

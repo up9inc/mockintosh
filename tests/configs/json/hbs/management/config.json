@@ -1,18 +1,19 @@
 {
-  "templatingEngine": "Jinja2",
+  "management": {
+    "port": 9000
+  },
+  "templatingEngine": "Handlebars",
   "services": [
     {
       "name": "Mock for Service1",
       "hostname": "service1.example.com",
       "port": 8001,
+      "managementRoot": "__admin",
       "endpoints": [
         {
           "path": "/service1",
           "method": "GET",
-          "response": {
-            "status": 202,
-            "body": "service1"
-          }
+          "response": "service1"
         }
       ]
     },
@@ -20,21 +21,12 @@
       "name": "Mock for Service2",
       "hostname": "service2.example.com",
       "port": 8002,
+      "managementRoot": "__admin",
       "endpoints": [
         {
           "path": "/service2",
           "method": "GET",
-          "response": {
-            "status": "403",
-            "body": "service2"
-          }
-        },
-        {
-          "path": "/service2-endpoint2",
-          "method": "GET",
-          "response": {
-            "status": "{{request.queryString['rc']}}"
-          }
+          "response": "service2"
         }
       ]
     }

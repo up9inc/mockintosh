@@ -3,17 +3,19 @@ import os
 import re
 import time
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
 import mockintosh
 
+MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV2 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV3 = os.environ.get('SRV3', 'https://localhost:8003')
 SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
+SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -312,7 +314,7 @@ class IntegrationTests(unittest.TestCase):
         chunk, resp = resp.split(" ", 1)
         pdate = datetime.strptime(chunk, '%Y-%m-%dT%H:%M:%S.%f')
         delta = utcnow - pdate
-        self.assertTrue(delta.days < 2)
+        self.assertTrue(delta < timedelta(days=2))
 
         #  {{date.date '%Y-%m-%d %H:%M:%S'}}
         chunk1, resp = resp.split(" ", 1)
@@ -320,14 +322,12 @@ class IntegrationTests(unittest.TestCase):
         chunk = ' '.join((chunk1, chunk2))
         pdate = datetime.strptime(chunk, '%Y-%m-%d %H:%M:%S')
         delta = utcnow - pdate
-        self.assertTrue(delta.days < 2)
+        self.assertTrue(delta < timedelta(days=2))
 
         #  {{date.date '%Y-%m-%d' 86400}}
-        chunk, resp = resp.split(" ", 1)
-        chunk = ' '.join((chunk1, resp))
-        pdate = datetime.strptime(chunk, '%Y-%m-%d %H')
+        pdate = datetime.strptime(resp, '%Y-%m-%d %H')
         delta = pdate - utcnow
-        self.assertTrue(delta.seconds > 82800)
+        self.assertTrue(delta > timedelta(seconds=82800))
 
     def test_body_regex(self):
         resp = requests.post(SRV1 + '/body-regex', data="somewhere 1-required-2 is present")
@@ -381,3 +381,69 @@ class IntegrationTests(unittest.TestCase):
 
         with self.assertRaises(requests.exceptions.ConnectionError):
             requests.get(SRV1 + '/conn-close')
+
+    def test_management_global(self):
+        resp = requests.get(MGMT + '/', verify=False)
+        self.assertEqual(200, resp.status_code)  # should return a HTML page
+
+        resp = requests.get(MGMT + '/config', verify=False)
+        self.assertEqual(200, resp.status_code)
+
+    def test_management_service(self):
+        resp = requests.get(SRV1 + '/__admin/')
+        self.assertEqual(200, resp.status_code)  # should return a HTML page
+
+        resp = requests.get(SRV1 + '/__admin/config')
+        self.assertEqual(200, resp.status_code)
+
+    def test_management_autotest_usecase(self):
+        resp = requests.get(SRV6 + '/__admin/config')
+        self.assertEqual(200, resp.status_code)
+        conf = resp.json()
+
+        endps1 = [{
+            "path": "/endp1",
+            "response": ["1", "2", "3"]
+        }]
+        conf['endpoints'] = endps1
+        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        self.assertEqual(200, resp.status_code)
+
+        resp = requests.get(SRV6 + '/endp1')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("1", resp.text)
+
+        resp = requests.get(SRV6 + '/endp1')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("2", resp.text)
+
+        endps1 = [{
+            "path": "/endp1",
+            "response": ["11", "22", "33"]
+        }]
+        conf['endpoints'] = endps1
+        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        self.assertEqual(200, resp.status_code)
+
+        resp = requests.get(SRV6 + '/endp1')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("11", resp.text)
+
+        resp = requests.get(SRV6 + '/endp1')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("22", resp.text)
+
+        endps2 = [{
+            "path": "/endp2",
+            "response": "simple"
+        }]
+        conf['endpoints'] = endps2
+        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        self.assertEqual(200, resp.status_code)
+
+        resp = requests.get(SRV6 + '/endp1')
+        self.assertEqual(404, resp.status_code)
+
+        resp = requests.get(SRV6 + '/endp2')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("simple", resp.text)

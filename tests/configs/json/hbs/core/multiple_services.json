@@ -1,5 +1,5 @@
 {
-  "templatingEngine": "Jinja2",
+  "templatingEngine": "Handlebars",
   "services": [
     {
       "name": "Mock for Service1",
@@ -9,10 +9,7 @@
         {
           "path": "/service1",
           "method": "GET",
-          "response": {
-            "status": 202,
-            "body": "service1"
-          }
+          "response": "service1"
         }
       ]
     },
@@ -24,17 +21,7 @@
         {
           "path": "/service2",
           "method": "GET",
-          "response": {
-            "status": "403",
-            "body": "service2"
-          }
-        },
-        {
-          "path": "/service2-endpoint2",
-          "method": "GET",
-          "response": {
-            "status": "{{request.queryString['rc']}}"
-          }
+          "response": "service2"
         }
       ]
     }

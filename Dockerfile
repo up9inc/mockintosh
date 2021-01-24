@@ -8,8 +8,6 @@ COPY setup.py .
 COPY README.md .
 COPY mockintosh/ ./mockintosh/
 
-# TODO: git is required for installing pybars4 from GitHub. Remove it when the upstream recieved the update.
-RUN apk add git
 RUN pip3 install .
 
 ENTRYPOINT ["mockintosh"]

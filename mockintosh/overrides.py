@@ -95,6 +95,8 @@ class ErrorHandler(GenericHandler):
         self.set_status(status_code)
         self.handle_404_image()
         self.special_response = self.build_special_response()
+        self._transforms = []
+        self.finish()
 
     def prepare(self) -> None:
         pass

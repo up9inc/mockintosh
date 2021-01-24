@@ -21,21 +21,21 @@ from typing import (
 import jsonschema
 import tornado.web
 from tornado.concurrent import Future
-from tornado.web import HTTPError
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine
+from mockintosh.methods import _safe_path_split, _detect_engine, _decoder
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
-NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
+NON_PREFLIGHT_METHODS = ('GET', 'HEAD', 'POST', 'DELETE', 'PATCH', 'PUT')
+POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -45,12 +45,27 @@ j2_date = j2_Date()
 
 counters = {}
 
+__location__ = os.path.abspath(os.path.dirname(__file__))
+
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, methods, _globals, definition_engine, interceptors):
+    def initialize(self, config_dir, endpoints, _globals, definition_engine, interceptors):
         self.config_dir = config_dir
-        self.methods = {k.lower(): v for k, v in methods.items()}
+        self.endpoints = endpoints
+        self.methods = None
+        self.custom_args = ()
+
+        for path, methods in self.endpoints:
+            if re.fullmatch(path, self.request.path):
+                groups = re.findall(path, self.request.path)
+                if isinstance(groups[0], tuple):
+                    self.custom_args = groups[0]
+                elif isinstance(groups, list) and groups:
+                    self.custom_args = tuple(groups)
+                self.methods = {k.lower(): v for k, v in methods.items()}
+                break
+
         self.alternatives = None
         self.globals = _globals
         self.definition_engine = definition_engine
@@ -68,6 +83,10 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_default_headers()
 
         if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
+            if self.custom_args:
+                args = self.custom_args
+            if self.methods is None:
+                self.raise_http_error(404)
             self.dynamic_unimplemented_method_guard()
 
         try:
@@ -124,7 +143,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for i, key in enumerate(self.initial_context):
                     self.custom_context[key] = args[i]
             else:
-                HTTPError(404)
+                self.raise_http_error(404)
         self.custom_context.update(self.default_context)
         self.analyze_headers()
         self.analyze_query_string()
@@ -140,6 +159,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 counters[key] = value
 
     def dynamic_unimplemented_method_guard(self):
+        if self.methods is None:
+            self.raise_http_error(404)
+            return
         if self.request.method.lower() not in self.methods:
             self._unimplemented_method()
 
@@ -157,7 +179,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if isinstance(param, QueryStringParam):
                 context[key] = self.get_query_argument(param.key)
             if isinstance(param, BodyParam):
-                context[key] = self.decoder(self.request.body)
+                context[key] = _decoder(self.request.body)
         return context
 
     def render_template(self):
@@ -219,17 +241,17 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            request.queryString[key] = [self.decoder(x) for x in value]
+            request.queryString[key] = [_decoder(x) for x in value]
             if len(request.queryString[key]) == 1:
                 request.queryString[key] = request.queryString[key][0]
 
         # Body
-        request.body = self.decoder(self.request.body)
+        request.body = _decoder(self.request.body)
         request.files = self.request.files
 
         # Form Data
         for key, value in self.request.body_arguments.items():
-            request.formData[key] = [self.decoder(x) for x in value]
+            request.formData[key] = [_decoder(x) for x in value]
             if len(request.formData[key]) == 1:
                 request.formData[key] = request.formData[key][0]
 
@@ -314,7 +336,7 @@ class GenericHandler(tornado.web.RequestHandler):
         if SPECIAL_CONTEXT not in self.initial_context or 'bodyText' not in self.initial_context[SPECIAL_CONTEXT]:
             return
 
-        body = self.decoder(self.request.body)
+        body = _decoder(self.request.body)
         for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyText'].items():
             if value['type'] == 'regex':
                 match = re.search(value['regex'], body)
@@ -414,7 +436,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
             # Body
             if 'body' in alternative:
-                body = self.decoder(self.request.body)
+                body = _decoder(self.request.body)
 
                 # Schema
                 if 'schema' in alternative['body']:
@@ -504,12 +526,6 @@ class GenericHandler(tornado.web.RequestHandler):
     def should_write(self):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
 
-    def decoder(self, string):
-        try:
-            return string.decode('utf-8')
-        except UnicodeDecodeError:
-            return string.decode('latin-1')
-
     def resolve_relative_path(self, source_text):
         relative_path = None
         orig_relative_path = source_text[1:]
@@ -564,6 +580,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_cors_headers()
 
     def should_cors(self):
+        if self.is_options and self.methods is None:
+            self.raise_http_error(404)
         return self.is_options and self.request.method.lower() not in self.methods.keys()
 
     def load_dataset(self, dataset):
@@ -620,6 +638,10 @@ class GenericHandler(tornado.web.RequestHandler):
             fill_undefineds=True
         )
         return renderer.render()
+
+    def raise_http_error(self, status_code):
+        from mockintosh.overrides import ErrorHandler
+        return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
 
 
 class NotParsedJSON():
