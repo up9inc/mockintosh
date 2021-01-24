@@ -52,14 +52,14 @@ class TornadoImpl(Impl):
         tornado.ioloop.IOLoop.current().start()
 
 
-class _Apps():
+class _Apps:
     def __init__(self):
         self.apps = []
 
 
 class HttpServer:
 
-    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address='', services_list=[]):
+    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address='', services_list=()):
         self.definition = definition
         self.impl = impl
         self.address = address
