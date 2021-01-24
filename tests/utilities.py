@@ -52,16 +52,6 @@ def run_mock_server(*args, wait=5):
     return mock_server_process
 
 
-def kill_child_processes(parent_pid, sig=signal.SIGINT, recursive=False):
-    try:
-        parent = psutil.Process(parent_pid)
-    except psutil.NoSuchProcess:
-        return
-    children = parent.children(recursive=recursive)
-    for process in children:
-        process.send_signal(sig)
-
-
 def get_config_path(config):
     __location__ = path.abspath(path.dirname(__file__))
     return path.join(__location__, config)
