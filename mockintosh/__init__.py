@@ -49,7 +49,7 @@ class Definition():
         for service in self.data['services']:
             service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
-        self.analyze()
+        self.data = Definition.analyze(self.data, self.template_engine)
 
     def load(self):
         if self.source_text is None:
@@ -72,8 +72,9 @@ class Definition():
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    def analyze(self):
-        for service in self.data['services']:
+    @staticmethod
+    def analyze(data, template_engine):
+        for service in data['services']:
             if 'endpoints' not in service:
                 continue
             for endpoint in service['endpoints']:
@@ -84,7 +85,7 @@ class Definition():
                     endpoint['path'],
                     endpoint['params'],
                     endpoint['context'],
-                    self.template_engine
+                    template_engine
                 )
                 endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
 
@@ -93,7 +94,7 @@ class Definition():
                         endpoint['headers'],
                         endpoint['params'],
                         endpoint['context'],
-                        self.template_engine
+                        template_engine
                     )
                     endpoint['headers'] = headers_recognizer.recognize()
 
@@ -102,7 +103,7 @@ class Definition():
                         endpoint['queryString'],
                         endpoint['params'],
                         endpoint['context'],
-                        self.template_engine
+                        template_engine
                     )
                     endpoint['queryString'] = headers_recognizer.recognize()
 
@@ -111,9 +112,10 @@ class Definition():
                         endpoint['body']['text'],
                         endpoint['params'],
                         endpoint['context'],
-                        self.template_engine
+                        template_engine
                     )
                     endpoint['body']['text'] = body_recognizer.recognize()
+        return data
 
 
 def get_schema():

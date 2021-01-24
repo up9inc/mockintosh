@@ -6,7 +6,6 @@
     :synopsis: module that contains request handlers.
 """
 
-import sys
 import json
 import logging
 import os
@@ -15,7 +14,6 @@ import urllib
 import socket
 import struct
 import copy
-import tempfile
 from typing import (
     Union,
     Optional
@@ -24,7 +22,6 @@ from typing import (
 import jsonschema
 import tornado.web
 from tornado.concurrent import Future
-from tornado import autoreload
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
@@ -38,7 +35,8 @@ from mockintosh.templating import TemplateRenderer
 OPTIONS = 'options'
 ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
-NON_PREFLIGHT_METHODS = ("GET", "HEAD", "POST", "DELETE", "PATCH", "PUT")
+NON_PREFLIGHT_METHODS = ('GET', 'HEAD', 'POST', 'DELETE', 'PATCH', 'PUT')
+POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -698,47 +696,77 @@ class ManagementRootHandler(tornado.web.RequestHandler):
 
 class ManagementConfigHandler(tornado.web.RequestHandler):
 
-    def initialize(self, definition, http_server):
-        self.definition = definition
+    def initialize(self, http_server):
         self.http_server = http_server
 
     def get(self):
-        self.write(self.definition.orig_data)
+        self.write(self.http_server.definition.orig_data)
 
     def post(self):
         body = _decoder(self.request.body)
         try:
-            data = json.loads(body)
+            orig_data = json.loads(body)
         except json.JSONDecodeError as e:
             self.set_status(400)
             self.write('JSON decode error:\n\n%s' % str(e))
             return
-        new_definition = copy.deepcopy(self.definition)
-        new_definition.data = data
+        data = copy.deepcopy(orig_data)
 
         try:
-            new_definition.validate()
+            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
         except jsonschema.exceptions.ValidationError as e:
             self.set_status(400)
             self.write('JSON schema validation error:\n\n%s' % str(e))
             return
 
         try:
-            new_definition.template_engine = _detect_engine(new_definition.data, 'config')
-            new_definition.analyze()
+            data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
+            for i, service in enumerate(data['services']):
+                self.update_service(service, i)
         except Exception as e:
             self.set_status(400)
             self.write('Something bad happened:\n\n%s' % str(e))
             return
 
+        self.http_server.definition.orig_data = orig_data
+        self.http_server.definition.data = data
+
         self.write('OK')
         self.finish()
 
-        temp = tempfile.NamedTemporaryFile(prefix='mockintosh-', suffix='.json', delete=False)
-        with open(temp.name, 'w') as file:
-            file.write(body)
-        sys.argv[1] = temp.name
-        autoreload._reload()
+    def update_service(self, service, service_index):
+        self.check_restricted_fields(service, service_index)
+        endpoints = []
+        if 'endpoints' in service:
+            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service['endpoints'])
+        merged_endpoints = []
+        for endpoint in endpoints:
+            merged_endpoints.append((endpoint['path'], endpoint['methods']))
+
+        endpoints_setted = False
+        for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['endpoints'] = merged_endpoints
+                endpoints_setted = True
+                break
+        if not endpoints_setted:
+            raise Exception('Target handler couldn\'t found.')
+
+        mockintosh.servers.HttpServer.log_merged_endpoints(merged_endpoints)
+
+    def check_restricted_fields(self, service, service_index):
+        for field in POST_CONFIG_RESTRICTED_FIELDS:
+            if (
+                (field in service and field not in self.http_server.definition.orig_data['services'][service_index])
+                or  # noqa: W504, W503
+                (field not in service and field in self.http_server.definition.orig_data['services'][service_index])
+                or  # noqa: W504, W503
+                field in service and field in self.http_server.definition.orig_data['services'][service_index] and (
+                    service[field] != self.http_server.definition.orig_data['services'][service_index][field]
+                )
+            ):
+                print('%s field is restricted!' % field)
+                raise Exception('%s field is restricted!' % field)
 
 
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
@@ -760,50 +788,13 @@ class ManagementServiceRootRedirectHandler(tornado.web.RequestHandler):
 
 class ManagementServiceConfigHandler(tornado.web.RequestHandler):
 
-    def initialize(self, definition, service):
-        self.definition = definition
-        self.service = service
+    def initialize(self, http_server, service_id):
+        self.http_server = http_server
+        self.service_id = service_id
 
     def get(self):
-        self.write(self.service['orig_data'])
+        self.write(self.http_server.definition.orig_data['services'][self.service_id])
 
     def post(self):
-        body = _decoder(self.request.body)
-        try:
-            data = json.loads(body)
-        except json.JSONDecodeError as e:
-            self.set_status(400)
-            self.write('JSON decode error:\n\n%s' % str(e))
-            return
-        new_definition = copy.deepcopy(self.definition)
-        new_data = new_definition.orig_data
-        for i in range(len(new_data['services'])):
-            if i == self.service['internalServiceId']:
-                new_data['services'][i] = data
-                break
-        new_data_backup = copy.deepcopy(new_data)
-        new_definition.data = new_data
-
-        try:
-            new_definition.validate()
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n\n%s' % str(e))
-            return
-
-        try:
-            new_definition.template_engine = _detect_engine(new_definition.data, 'config')
-            new_definition.analyze()
-        except Exception as e:
-            self.set_status(400)
-            self.write('Something bad happened:\n\n%s' % str(e))
-            return
-
         self.write('OK')
         self.finish()
-
-        temp = tempfile.NamedTemporaryFile(prefix='mockintosh-', suffix='.json', delete=False)
-        with open(temp.name, 'w') as file:
-            json.dump(new_data_backup, file)
-        sys.argv[1] = temp.name
-        autoreload._reload()

@@ -52,6 +52,11 @@ class TornadoImpl(Impl):
         tornado.ioloop.IOLoop.current().start()
 
 
+class _Apps():
+    def __init__(self):
+        self.apps = []
+
+
 class HttpServer:
 
     def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address='', services_list=[]):
@@ -63,6 +68,7 @@ class HttpServer:
         self.interceptors = interceptors
         self.services_list = services_list
         self.services_log = []
+        self._apps = _Apps()
         self.load()
 
     def load(self):
@@ -72,6 +78,7 @@ class HttpServer:
         service_id_counter = 0
         for service in services:
             service['internalServiceId'] = service_id_counter
+            service_id_counter += 1
 
         cert_file = path.join(__location__, 'ssl', 'cert.pem')
         key_file = path.join(__location__, 'ssl', 'key.pem')
@@ -102,13 +109,14 @@ class HttpServer:
 
             endpoints = []
             if 'endpoints' in service:
-                endpoints = self.merge_alternatives(service['endpoints'])
+                endpoints = HttpServer.merge_alternatives(service['endpoints'])
 
             management_root = None
             if 'managementRoot' in service:
                 management_root = service['managementRoot']
 
             app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
+            self._apps.apps.append(app)
 
             if 'hostname' not in service:
                 server = self.impl.get_server(app, ssl, ssl_options)
@@ -145,7 +153,8 @@ class HttpServer:
 
         self.load_management_api()
 
-    def merge_alternatives(self, endpoints):
+    @staticmethod
+    def merge_alternatives(endpoints):
         new_endpoints = {}
         for endpoint in endpoints:
             if 'method' not in endpoint:
@@ -207,10 +216,7 @@ class HttpServer:
             )
         )
 
-        for _path, methods in merged_endpoints:
-            for method, alternatives in methods.items():
-                logging.debug('Registered endpoint: %s %s' % (method.upper(), _path))
-                logging.debug('with alternatives:\n%s' % alternatives)
+        HttpServer.log_merged_endpoints(merged_endpoints)
 
         if management_root is not None:
             endpoint_handlers = [
@@ -230,13 +236,20 @@ class HttpServer:
                     '/%s/config' % management_root,
                     ManagementServiceConfigHandler,
                     dict(
-                        definition=self.definition,
-                        service=service
+                        http_server=self,
+                        service_id=service['internalServiceId']
                     )
                 )
             ] + endpoint_handlers
 
         return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
+
+    @staticmethod
+    def log_merged_endpoints(merged_endpoints):
+        for _path, methods in merged_endpoints:
+            for method, alternatives in methods.items():
+                logging.debug('Registered endpoint: %s %s' % (method.upper(), _path))
+                logging.debug('with alternatives:\n%s' % alternatives)
 
     def resolve_cert_path(self, cert_path):
         relative_path = path.join(self.definition.source_dir, cert_path)
@@ -280,7 +293,6 @@ class HttpServer:
                     '/config',
                     ManagementConfigHandler,
                     dict(
-                        definition=self.definition,
                         http_server=self
                     )
                 )
