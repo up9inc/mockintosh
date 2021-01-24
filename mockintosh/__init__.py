@@ -77,45 +77,50 @@ class Definition():
         for service in data['services']:
             if 'endpoints' not in service:
                 continue
-            for endpoint in service['endpoints']:
-                endpoint['params'] = {}
-                endpoint['context'] = OrderedDict()
+            service = Definition.analyze_service(service, template_engine)
+        return data
 
-                path_recognizer = PathRecognizer(
-                    endpoint['path'],
+    @staticmethod
+    def analyze_service(service, template_engine):
+        for endpoint in service['endpoints']:
+            endpoint['params'] = {}
+            endpoint['context'] = OrderedDict()
+
+            path_recognizer = PathRecognizer(
+                endpoint['path'],
+                endpoint['params'],
+                endpoint['context'],
+                template_engine
+            )
+            endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+
+            if 'headers' in endpoint and endpoint['headers']:
+                headers_recognizer = HeadersRecognizer(
+                    endpoint['headers'],
                     endpoint['params'],
                     endpoint['context'],
                     template_engine
                 )
-                endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+                endpoint['headers'] = headers_recognizer.recognize()
 
-                if 'headers' in endpoint and endpoint['headers']:
-                    headers_recognizer = HeadersRecognizer(
-                        endpoint['headers'],
-                        endpoint['params'],
-                        endpoint['context'],
-                        template_engine
-                    )
-                    endpoint['headers'] = headers_recognizer.recognize()
+            if 'queryString' in endpoint and endpoint['queryString']:
+                headers_recognizer = QueryStringRecognizer(
+                    endpoint['queryString'],
+                    endpoint['params'],
+                    endpoint['context'],
+                    template_engine
+                )
+                endpoint['queryString'] = headers_recognizer.recognize()
 
-                if 'queryString' in endpoint and endpoint['queryString']:
-                    headers_recognizer = QueryStringRecognizer(
-                        endpoint['queryString'],
-                        endpoint['params'],
-                        endpoint['context'],
-                        template_engine
-                    )
-                    endpoint['queryString'] = headers_recognizer.recognize()
-
-                if 'body' in endpoint and 'text' in endpoint['body'] and endpoint['body']['text']:
-                    body_recognizer = BodyRecognizer(
-                        endpoint['body']['text'],
-                        endpoint['params'],
-                        endpoint['context'],
-                        template_engine
-                    )
-                    endpoint['body']['text'] = body_recognizer.recognize()
-        return data
+            if 'body' in endpoint and 'text' in endpoint['body'] and endpoint['body']['text']:
+                body_recognizer = BodyRecognizer(
+                    endpoint['body']['text'],
+                    endpoint['params'],
+                    endpoint['context'],
+                    template_engine
+                )
+                endpoint['body']['text'] = body_recognizer.recognize()
+        return service
 
 
 def get_schema():

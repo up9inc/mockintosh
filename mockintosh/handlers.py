@@ -708,7 +708,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
             orig_data = json.loads(body)
         except json.JSONDecodeError as e:
             self.set_status(400)
-            self.write('JSON decode error:\n\n%s' % str(e))
+            self.write('JSON decode error:\n%s' % str(e))
             return
         data = copy.deepcopy(orig_data)
 
@@ -716,7 +716,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
             jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
         except jsonschema.exceptions.ValidationError as e:
             self.set_status(400)
-            self.write('JSON schema validation error:\n\n%s' % str(e))
+            self.write('JSON schema validation error:\n%s' % str(e))
             return
 
         try:
@@ -725,7 +725,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
                 self.update_service(service, i)
         except Exception as e:
             self.set_status(400)
-            self.write('Something bad happened:\n\n%s' % str(e))
+            self.write('Something bad happened:\n%s' % str(e))
             return
 
         self.http_server.definition.orig_data = orig_data
@@ -765,7 +765,6 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
                     service[field] != self.http_server.definition.orig_data['services'][service_index][field]
                 )
             ):
-                print('%s field is restricted!' % field)
                 raise Exception('%s field is restricted!' % field)
 
 
@@ -786,7 +785,7 @@ class ManagementServiceRootRedirectHandler(tornado.web.RequestHandler):
         self.redirect('/%s/' % self.management_root)
 
 
-class ManagementServiceConfigHandler(tornado.web.RequestHandler):
+class ManagementServiceConfigHandler(ManagementConfigHandler):
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
@@ -796,5 +795,32 @@ class ManagementServiceConfigHandler(tornado.web.RequestHandler):
         self.write(self.http_server.definition.orig_data['services'][self.service_id])
 
     def post(self):
+        body = _decoder(self.request.body)
+        try:
+            orig_data = json.loads(body)
+        except json.JSONDecodeError as e:
+            self.set_status(400)
+            self.write('JSON decode error:\n%s' % str(e))
+            return
+        data = copy.deepcopy(orig_data)
+
+        try:
+            jsonschema.validate(
+                instance=data,
+                schema=self.http_server.definition.schema['definitions']['service_ref']['properties']
+            )
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return
+
+        try:
+            data = mockintosh.Definition.analyze_service(data, self.http_server.definition.template_engine)
+            self.update_service(data, self.service_id)
+        except Exception as e:
+            self.set_status(400)
+            self.write('Something bad happened:\n%s' % str(e))
+            return
+
         self.write('OK')
         self.finish()

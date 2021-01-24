@@ -21,9 +21,7 @@ from mockintosh.constants import PROGRAM
 from utilities import (
     tcping,
     run_mock_server,
-    run_mock_server_in_subshell,
     get_config_path,
-    kill_mock_server,
     nostdout,
     nostderr
 )
@@ -1374,7 +1372,7 @@ class TestManagement():
         'configs/yaml/hbs/management/config.yaml'
     ])
     def test_post_config(self, config):
-        self.mock_server_process = run_mock_server_in_subshell(get_config_path(config))
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
@@ -1383,7 +1381,6 @@ class TestManagement():
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'OK'
 
-        time.sleep(3)
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -1413,7 +1410,6 @@ class TestManagement():
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'OK'
 
-        time.sleep(3)
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -1436,7 +1432,6 @@ class TestManagement():
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'OK'
 
-        time.sleep(3)
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -1447,9 +1442,8 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-service'
 
-        resp = requests.get(SRV_8003 + '/service2', headers={'Host': SRV_8002_HOST})
+        param = str(int(time.time()))
+        resp = requests.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'service2'
-
-        kill_mock_server(self.mock_server_process)
+        assert resp.text == 'var: %s' % param
