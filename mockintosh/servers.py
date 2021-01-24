@@ -16,8 +16,8 @@ import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
-from mockintosh.handlers import (
-    GenericHandler,
+from mockintosh.handlers import GenericHandler
+from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
     ManagementServiceRootHandler,
