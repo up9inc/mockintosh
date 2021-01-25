@@ -52,18 +52,25 @@ __location__ = os.path.abspath(os.path.dirname(__file__))
 class GenericHandler(tornado.web.RequestHandler):
 
     def prepare(self):
+        self.dont_add_status_code = False
         self.special_request_start_time = time.perf_counter()
         super().prepare()
 
     def on_finish(self):
-        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and (
-            self.methods is not None and self.get_status() != 405
-        ):
-            elapsed_time_in_microseconds = time.perf_counter() - self.special_request_start_time
-            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
-                elapsed_time_in_microseconds
-            )
+        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and self.methods is not None:
+            if self.get_status() != 405:
+                self.set_elapsed_time()
+            if not self.dont_add_status_code:
+                self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
+                    str(self.get_status())
+                )
         super().on_finish()
+
+    def set_elapsed_time(self):
+        elapsed_time_in_microseconds = time.perf_counter() - self.special_request_start_time
+        self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
+            elapsed_time_in_microseconds
+        )
 
     def initialize(self, config_dir, service_id, endpoints, _globals, definition_engine, interceptors, stats):
         self.config_dir = config_dir
@@ -323,8 +330,12 @@ class GenericHandler(tornado.web.RequestHandler):
                 struct.pack('ii', 1, 0)
             )
             self.request.server_connection.stream.close()
+            self.set_elapsed_time()
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('RST')
         if isinstance(status_code, str) and status_code.lower() == 'fin':
             self.request.server_connection.stream.close()
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('FIN')
+            self.dont_add_status_code = True
         else:
             self.set_status(status_code)
 
@@ -536,13 +547,14 @@ class GenericHandler(tornado.web.RequestHandler):
             interceptor(self.special_request, self.special_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
-        if self._status_code not in (204, 500):
+        if self._status_code not in (204, 500, 'RST', 'FIN'):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
             self.trigger_interceptors()
             if self.interceptors:
                 self.update_response()
-        super().finish(chunk)
+        if self._status_code not in ('RST', 'FIN'):
+            super().finish(chunk)
 
     def should_write(self):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response

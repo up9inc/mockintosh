@@ -57,6 +57,18 @@ class BaseStats:
         if callable(method):
             method()
 
+    def add_status_code(self, status_code):
+        if status_code not in self.status_code_distribution:
+            self.status_code_distribution[status_code] = 1
+        else:
+            self.status_code_distribution[status_code] += 1
+        if not hasattr(self, 'parent'):
+            return
+
+        method = getattr(self.parent, "add_status_code", None)
+        if callable(method):
+            method(status_code)
+
     def json(self):
         data = {}
 
@@ -65,7 +77,8 @@ class BaseStats:
 
         data.update({
             'request_counter': self.request_counter,
-            'avg_response_time_in_microseconds': self.avg_response_time_in_microseconds
+            'avg_response_time_in_microseconds': self.avg_response_time_in_microseconds,
+            'status_code_distribution': self.status_code_distribution
         })
 
         if hasattr(self, 'endpoints'):
@@ -120,7 +133,8 @@ class Stats(ServiceStats):
         data = {
             'global': {
                 'request_counter': self.request_counter,
-                'avg_response_time_in_microseconds': self.avg_response_time_in_microseconds
+                'avg_response_time_in_microseconds': self.avg_response_time_in_microseconds,
+                'status_code_distribution': self.status_code_distribution
             },
             'services': []
         }

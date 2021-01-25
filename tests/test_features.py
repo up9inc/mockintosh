@@ -1355,17 +1355,17 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": "service1-second"}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}]}'
+        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": {"status": 201, "body": "service1-second"}}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}, {"path": "/service2-rst", "method": "GET", "response": {"status": "RST", "body": "service2-rst"}}, {"path": "/service2-fin", "method": "GET", "response": {"status": "FIN", "body": "service2-fin"}}]}]}'
 
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": "service1-second"}]}'
+        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": {"status": 201, "body": "service1-second"}}]}'
 
         resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}'
+        assert resp.text == '{"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}, {"path": "/service2-rst", "method": "GET", "response": {"status": "RST", "body": "service2-rst"}}, {"path": "/service2-fin", "method": "GET", "response": {"status": "FIN", "body": "service2-fin"}}]}'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -1463,16 +1463,28 @@ class TestManagement():
             data = resp.json()
             assert data['global']['request_counter'] == 0
             assert data['global']['avg_response_time_in_microseconds'] == 0
+            assert data['global']['status_code_distribution'] == {}
             assert data['services'][0]['request_counter'] == 0
             assert data['services'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['status_code_distribution'] == {}
             assert data['services'][0]['endpoints'][0]['request_counter'] == 0
             assert data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {}
             assert data['services'][0]['endpoints'][1]['request_counter'] == 0
             assert data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {}
             assert data['services'][1]['request_counter'] == 0
             assert data['services'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['status_code_distribution'] == {}
             assert data['services'][1]['endpoints'][0]['request_counter'] == 0
             assert data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][0]['status_code_distribution'] == {}
+            assert data['services'][1]['endpoints'][1]['request_counter'] == 0
+            assert data['services'][1]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][1]['status_code_distribution'] == {}
+            assert data['services'][1]['endpoints'][2]['request_counter'] == 0
+            assert data['services'][1]['endpoints'][2]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(5):
                 resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -1480,10 +1492,24 @@ class TestManagement():
 
             for _ in range(3):
                 resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
-                assert 200 == resp.status_code
+                assert 201 == resp.status_code
 
             for _ in range(2):
                 resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+
+            for _ in range(2):
+                try:
+                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST})
+                except ConnectionError as e:
+                    assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+                assert 200 == resp.status_code
+
+            for _ in range(2):
+                try:
+                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST})
+                except ConnectionError as e:
+                    assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
                 assert 200 == resp.status_code
 
             resp = requests.get(SRV_9000 + '/stats')
@@ -1493,16 +1519,31 @@ class TestManagement():
             data = resp.json()
 
             # `request_counter` assertions
-            assert data['global']['request_counter'] == 10
+            assert data['global']['request_counter'] == 14
             assert data['services'][0]['request_counter'] == 8
             assert data['services'][0]['endpoints'][0]['request_counter'] == 5
             assert data['services'][0]['endpoints'][1]['request_counter'] == 3
-            assert data['services'][1]['request_counter'] == 2
+            assert data['services'][1]['request_counter'] == 6
             assert data['services'][1]['endpoints'][0]['request_counter'] == 2
+            assert data['services'][1]['endpoints'][1]['request_counter'] == 2
+            assert data['services'][1]['endpoints'][2]['request_counter'] == 2
 
             # `avg_response_time_in_microseconds` assertions
             assert data['services'][0]['avg_response_time_in_microseconds'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
-            assert data['services'][1]['avg_response_time_in_microseconds'] == data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds']
+            assert data['services'][1]['avg_response_time_in_microseconds'] == (data['services'][1]['endpoints'][0]['request_counter'] * data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][1]['endpoints'][1]['request_counter'] * data['services'][1]['endpoints'][1]['avg_response_time_in_microseconds'] + data['services'][1]['endpoints'][2]['request_counter'] * data['services'][1]['endpoints'][2]['avg_response_time_in_microseconds']) / (data['services'][1]['endpoints'][0]['request_counter'] + data['services'][1]['endpoints'][1]['request_counter'] + data['services'][1]['endpoints'][2]['request_counter'])
             assert data['global']['avg_response_time_in_microseconds'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_response_time_in_microseconds'] + data['services'][1]['request_counter'] * data['services'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
+
+            # `status_code_distribution` assertions
+            assert data['global']['status_code_distribution']['200'] == 7
+            assert data['global']['status_code_distribution']['201'] == 3
+            assert data['global']['status_code_distribution']['RST'] == 2
+            assert data['global']['status_code_distribution']['FIN'] == 2
+            assert data['services'][0]['status_code_distribution']['200'] == 5
+            assert data['services'][0]['status_code_distribution']['201'] == 3
+            assert data['services'][0]['endpoints'][0]['status_code_distribution']['200'] == 5
+            assert data['services'][0]['endpoints'][1]['status_code_distribution']['201'] == 3
+            assert data['services'][1]['status_code_distribution']['200'] == 2
+            assert data['services'][1]['status_code_distribution']['RST'] == 2
+            assert data['services'][1]['status_code_distribution']['FIN'] == 2
 
             resp = requests.delete(SRV_9000 + '/stats')
