@@ -63,7 +63,6 @@ class GenericHandler(tornado.web.RequestHandler):
         for path, methods in self.endpoints:
             if re.fullmatch(path, self.request.path):
                 self.endpoint_id = i
-                i += 1
                 groups = re.findall(path, self.request.path)
                 if isinstance(groups[0], tuple):
                     self.custom_args = groups[0]
@@ -71,6 +70,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.custom_args = tuple(groups)
                 self.methods = {k.lower(): v for k, v in methods.items()}
                 break
+            i += 1
 
         self.alternatives = None
         self.globals = _globals

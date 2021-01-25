@@ -41,8 +41,12 @@ class BaseStats:
         self.response_codes = []
         self.response_times = []
 
-        if hasattr(self, 'children'):
-            for child in self.children:
+        if hasattr(self, 'services'):
+            for child in self.services:
+                child.reset()
+
+        if hasattr(self, 'endpoints'):
+            for child in self.endpoints:
                 child.reset()
 
 

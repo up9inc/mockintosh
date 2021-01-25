@@ -1355,12 +1355,12 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}]}'
+        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": "service1-second"}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}]}]}'
 
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}]}'
+        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": "service1-second"}]}'
 
         resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
@@ -1466,8 +1466,12 @@ class TestManagement():
         assert data['services'][1]['request_counter'] == 0
         assert data['services'][1]['endpoints'][0]['request_counter'] == 0
 
-        for _ in range(3):
+        for _ in range(5):
             resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+
+        for _ in range(3):
+            resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
 
         for _ in range(2):
@@ -1479,8 +1483,9 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
         data = resp.json()
-        assert data['global']['request_counter'] == 5
-        assert data['services'][0]['request_counter'] == 3
-        assert data['services'][0]['endpoints'][0]['request_counter'] == 3
+        assert data['global']['request_counter'] == 10
+        assert data['services'][0]['request_counter'] == 8
+        assert data['services'][0]['endpoints'][0]['request_counter'] == 5
+        assert data['services'][0]['endpoints'][1]['request_counter'] == 3
         assert data['services'][1]['request_counter'] == 2
         assert data['services'][1]['endpoints'][0]['request_counter'] == 2

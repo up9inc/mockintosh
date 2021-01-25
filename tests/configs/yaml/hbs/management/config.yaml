@@ -11,6 +11,9 @@ services:
   - path: "/service1"
     method: GET
     response: service1
+  - path: "/service1-second"
+    method: GET
+    response: service1-second
 - name: Mock for Service2
   hostname: service2.example.com
   port: 8002

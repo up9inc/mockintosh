@@ -14,6 +14,11 @@
           "path": "/service1",
           "method": "GET",
           "response": "service1"
+        },
+        {
+          "path": "/service1-second",
+          "method": "GET",
+          "response": "service1-second"
         }
       ]
     },
