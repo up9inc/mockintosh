@@ -132,6 +132,20 @@ class ManagementStatsHandler(tornado.web.RequestHandler):
         self.write('OK')
 
 
+class ManagementServiceStatsHandler(tornado.web.RequestHandler):
+
+    def initialize(self, stats, service_id):
+        self.stats = stats
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.stats.services[self.service_id].json())
+
+    def delete(self):
+        self.stats.services[self.service_id].reset()
+        self.write('OK')
+
+
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
 
     def get(self):

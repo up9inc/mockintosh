@@ -1546,4 +1546,116 @@ class TestManagement():
             assert data['services'][1]['status_code_distribution']['RST'] == 2
             assert data['services'][1]['status_code_distribution']['FIN'] == 2
 
-            resp = requests.delete(SRV_9000 + '/stats')
+            requests.delete(SRV_9000 + '/stats')
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_stats_service(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        for _ in range(2):
+            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+            data = resp.json()
+            assert data['request_counter'] == 0
+            assert data['avg_response_time_in_microseconds'] == 0
+            assert data['status_code_distribution'] == {}
+            assert data['endpoints'][0]['request_counter'] == 0
+            assert data['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][0]['status_code_distribution'] == {}
+            assert data['endpoints'][1]['request_counter'] == 0
+            assert data['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][1]['status_code_distribution'] == {}
+
+            for _ in range(5):
+                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+
+            for _ in range(3):
+                resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
+                assert 201 == resp.status_code
+
+            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+            data = resp.json()
+
+            # `request_counter` assertions
+            assert data['request_counter'] == 8
+            assert data['endpoints'][0]['request_counter'] == 5
+            assert data['endpoints'][1]['request_counter'] == 3
+
+            # `avg_response_time_in_microseconds` assertions
+            assert data['avg_response_time_in_microseconds'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_response_time_in_microseconds'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_response_time_in_microseconds']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'])
+
+            # `status_code_distribution` assertions
+            assert data['status_code_distribution']['200'] == 5
+            assert data['status_code_distribution']['201'] == 3
+            assert data['endpoints'][0]['status_code_distribution']['200'] == 5
+            assert data['endpoints'][1]['status_code_distribution']['201'] == 3
+
+            requests.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+
+        for _ in range(2):
+            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+            data = resp.json()
+            assert data['request_counter'] == 0
+            assert data['avg_response_time_in_microseconds'] == 0
+            assert data['status_code_distribution'] == {}
+            assert data['endpoints'][0]['request_counter'] == 0
+            assert data['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][0]['status_code_distribution'] == {}
+            assert data['endpoints'][1]['request_counter'] == 0
+            assert data['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][1]['status_code_distribution'] == {}
+            assert data['endpoints'][2]['request_counter'] == 0
+            assert data['endpoints'][2]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][2]['status_code_distribution'] == {}
+
+            for _ in range(2):
+                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+
+            for _ in range(2):
+                try:
+                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST})
+                except ConnectionError as e:
+                    assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+                assert 200 == resp.status_code
+
+            for _ in range(2):
+                try:
+                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST})
+                except ConnectionError as e:
+                    assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+                assert 200 == resp.status_code
+
+            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+            data = resp.json()
+
+            # `request_counter` assertions
+            assert data['request_counter'] == 6
+            assert data['endpoints'][0]['request_counter'] == 2
+            assert data['endpoints'][1]['request_counter'] == 2
+            assert data['endpoints'][2]['request_counter'] == 2
+
+            # `avg_response_time_in_microseconds` assertions
+            assert data['avg_response_time_in_microseconds'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_response_time_in_microseconds'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_response_time_in_microseconds'] + data['endpoints'][2]['request_counter'] * data['endpoints'][2]['avg_response_time_in_microseconds']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'] + data['endpoints'][2]['request_counter'])
+
+            # `status_code_distribution` assertions
+            assert data['status_code_distribution']['200'] == 2
+            assert data['status_code_distribution']['RST'] == 2
+            assert data['status_code_distribution']['FIN'] == 2
+
+            requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})

@@ -23,7 +23,8 @@ from mockintosh.management import (
     ManagementStatsHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
-    ManagementServiceConfigHandler
+    ManagementServiceConfigHandler,
+    ManagementServiceStatsHandler
 )
 from mockintosh.overrides import Application
 from mockintosh.stats import Stats
@@ -265,6 +266,14 @@ class HttpServer:
                     ManagementServiceConfigHandler,
                     dict(
                         http_server=self,
+                        service_id=service['internalServiceId']
+                    )
+                ),
+                (
+                    '/%s/stats' % management_root,
+                    ManagementServiceStatsHandler,
+                    dict(
+                        stats=stats,
                         service_id=service['internalServiceId']
                     )
                 )
