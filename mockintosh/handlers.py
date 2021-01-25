@@ -13,6 +13,7 @@ import re
 import urllib
 import socket
 import struct
+import time
 from typing import (
     Union,
     Optional
@@ -50,6 +51,20 @@ __location__ = os.path.abspath(os.path.dirname(__file__))
 
 class GenericHandler(tornado.web.RequestHandler):
 
+    def prepare(self):
+        self.special_request_start_time = time.perf_counter()
+        super().prepare()
+
+    def on_finish(self):
+        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and (
+            self.methods is not None and self.get_status() != 405
+        ):
+            elapsed_time_in_microseconds = time.perf_counter() - self.special_request_start_time
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
+                elapsed_time_in_microseconds
+            )
+        super().on_finish()
+
     def initialize(self, config_dir, service_id, endpoints, _globals, definition_engine, interceptors, stats):
         self.config_dir = config_dir
         self.endpoints = endpoints
@@ -57,6 +72,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_args = ()
         self.stats = stats
         self.service_id = service_id
+        self.internal_endpoint_id = None
 
         for path, methods in self.endpoints:
             if re.fullmatch(path, self.request.path):
@@ -95,7 +111,8 @@ class GenericHandler(tornado.web.RequestHandler):
             _id, response, params, context, dataset, internal_endpoint_id = self.match_alternative()
         except TypeError:
             return
-        self.stats.services[self.service_id].endpoints[internal_endpoint_id].increase_request_counter()
+        self.internal_endpoint_id = internal_endpoint_id
+        self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
         self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params

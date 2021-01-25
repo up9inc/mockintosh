@@ -1461,10 +1461,17 @@ class TestManagement():
 
         data = resp.json()
         assert data['global']['request_counter'] == 0
+        assert data['global']['avg_response_time_in_microseconds'] == 0
         assert data['services'][0]['request_counter'] == 0
+        assert data['services'][0]['avg_response_time_in_microseconds'] == 0
         assert data['services'][0]['endpoints'][0]['request_counter'] == 0
+        assert data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+        assert data['services'][0]['endpoints'][1]['request_counter'] == 0
+        assert data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
         assert data['services'][1]['request_counter'] == 0
+        assert data['services'][1]['avg_response_time_in_microseconds'] == 0
         assert data['services'][1]['endpoints'][0]['request_counter'] == 0
+        assert data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
 
         for _ in range(5):
             resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -1483,9 +1490,16 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
         data = resp.json()
+
+        # `request_counter` assertions
         assert data['global']['request_counter'] == 10
         assert data['services'][0]['request_counter'] == 8
         assert data['services'][0]['endpoints'][0]['request_counter'] == 5
         assert data['services'][0]['endpoints'][1]['request_counter'] == 3
         assert data['services'][1]['request_counter'] == 2
         assert data['services'][1]['endpoints'][0]['request_counter'] == 2
+
+        # `avg_response_time_in_microseconds` assertions
+        assert data['services'][0]['avg_response_time_in_microseconds'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
+        assert data['services'][1]['avg_response_time_in_microseconds'] == data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds']
+        assert data['global']['avg_response_time_in_microseconds'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_response_time_in_microseconds'] + data['services'][1]['request_counter'] * data['services'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
