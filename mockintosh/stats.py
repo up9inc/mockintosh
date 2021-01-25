@@ -12,7 +12,7 @@ class BaseStats:
         self.parent = None
         self.children = None
         self.request_counter = 0
-        self.response_codes = []
+        self.status_code_distribution = {}
         self.avg_response_time_in_microseconds = 0
 
     def increase_request_counter(self):
@@ -77,8 +77,8 @@ class BaseStats:
 
     def reset(self):
         self.request_counter = 0
-        self.response_codes = []
-        self.response_times = []
+        self.status_code_distribution = {}
+        self.avg_response_time_in_microseconds = 0
 
         if hasattr(self, 'services'):
             for child in self.services:

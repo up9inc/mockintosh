@@ -1455,51 +1455,54 @@ class TestManagement():
     def test_get_stats(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/stats')
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-
-        data = resp.json()
-        assert data['global']['request_counter'] == 0
-        assert data['global']['avg_response_time_in_microseconds'] == 0
-        assert data['services'][0]['request_counter'] == 0
-        assert data['services'][0]['avg_response_time_in_microseconds'] == 0
-        assert data['services'][0]['endpoints'][0]['request_counter'] == 0
-        assert data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
-        assert data['services'][0]['endpoints'][1]['request_counter'] == 0
-        assert data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
-        assert data['services'][1]['request_counter'] == 0
-        assert data['services'][1]['avg_response_time_in_microseconds'] == 0
-        assert data['services'][1]['endpoints'][0]['request_counter'] == 0
-        assert data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
-
-        for _ in range(5):
-            resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
-            assert 200 == resp.status_code
-
-        for _ in range(3):
-            resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
-            assert 200 == resp.status_code
-
         for _ in range(2):
-            resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+            resp = requests.get(SRV_9000 + '/stats')
             assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
-        resp = requests.get(SRV_9000 + '/stats')
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            assert data['global']['request_counter'] == 0
+            assert data['global']['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['request_counter'] == 0
+            assert data['services'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['endpoints'][0]['request_counter'] == 0
+            assert data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['endpoints'][1]['request_counter'] == 0
+            assert data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['request_counter'] == 0
+            assert data['services'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][0]['request_counter'] == 0
+            assert data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
 
-        data = resp.json()
+            for _ in range(5):
+                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
 
-        # `request_counter` assertions
-        assert data['global']['request_counter'] == 10
-        assert data['services'][0]['request_counter'] == 8
-        assert data['services'][0]['endpoints'][0]['request_counter'] == 5
-        assert data['services'][0]['endpoints'][1]['request_counter'] == 3
-        assert data['services'][1]['request_counter'] == 2
-        assert data['services'][1]['endpoints'][0]['request_counter'] == 2
+            for _ in range(3):
+                resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
 
-        # `avg_response_time_in_microseconds` assertions
-        assert data['services'][0]['avg_response_time_in_microseconds'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
-        assert data['services'][1]['avg_response_time_in_microseconds'] == data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds']
-        assert data['global']['avg_response_time_in_microseconds'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_response_time_in_microseconds'] + data['services'][1]['request_counter'] * data['services'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
+            for _ in range(2):
+                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+
+            resp = requests.get(SRV_9000 + '/stats')
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+            data = resp.json()
+
+            # `request_counter` assertions
+            assert data['global']['request_counter'] == 10
+            assert data['services'][0]['request_counter'] == 8
+            assert data['services'][0]['endpoints'][0]['request_counter'] == 5
+            assert data['services'][0]['endpoints'][1]['request_counter'] == 3
+            assert data['services'][1]['request_counter'] == 2
+            assert data['services'][1]['endpoints'][0]['request_counter'] == 2
+
+            # `avg_response_time_in_microseconds` assertions
+            assert data['services'][0]['avg_response_time_in_microseconds'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
+            assert data['services'][1]['avg_response_time_in_microseconds'] == data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds']
+            assert data['global']['avg_response_time_in_microseconds'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_response_time_in_microseconds'] + data['services'][1]['request_counter'] * data['services'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
+
+            resp = requests.delete(SRV_9000 + '/stats')
