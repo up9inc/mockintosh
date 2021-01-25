@@ -27,12 +27,12 @@
 
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <a class="nav-link active" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
-               aria-selected="true">Configuration</a>
+            <a class="nav-link active" id="stats-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
+               aria-selected="false">Statistics</a>
         </li>
         <li class="nav-item" role="presentation">
-            <a class="nav-link" id="profile-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
-               aria-selected="false">Statistics</a>
+            <a class="nav-link" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
+               aria-selected="true">Configuration</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="contact-tab" data-toggle="tab" href="#trynow" role="tab" aria-controls="contact"
@@ -40,8 +40,14 @@
         </li>
     </ul>
     <div class="tab-content" id="myTabContent">
-        <div class="tab-pane fade show active" id="config" role="tabpanel" aria-labelledby="home-tab">...</div>
-        <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="profile-tab">...</div>
+        <div class="tab-pane fade show active" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+            <button class="button btn-info">Refresh</button>
+            <pre></pre>
+        </div>
+        <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
+            <button class="button btn-info">Refresh</button>
+            <pre></pre>
+        </div>
         <div class="tab-pane fade" id="trynow" role="tabpanel" aria-labelledby="contact-tab">...</div>
     </div>
 
@@ -60,7 +66,19 @@
         integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
         crossorigin="anonymous"></script>
 <script>
+    $(function () {
+        $("#stats button").click(function () {
+            $.getJSON("./stats").done(function (data) {
+                $("#stats pre").text(JSON.stringify(data, null, 2));
+            });
+        }).trigger('click');
 
+        $("#config button").click(function () {
+            $.getJSON("./config").done(function (data) {
+                $("#config pre").text(JSON.stringify(data, null, 2));
+            });
+        }).trigger('click');
+    });
 </script>
 
 </body>
