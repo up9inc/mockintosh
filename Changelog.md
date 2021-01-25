@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.2 - 2021-01-23
+
+1. Series of bugfixes
+
 ## v0.6.1 - 2021-01-18
 
 1. Document template helpers: random, dates, names, addresses etc
@@ -71,6 +75,12 @@
 
 # Roadmap
 
+## Next Version
+1. Management API
+   - Global and per-service (reuses same port)
+   - config retrieval
+   - API to modify configuration remotely, maybe programmatically (for UP9 live control)
+
 ## Milestone N
 
 1. referencing multipart/urlencoded fields in matchers and templates
@@ -84,11 +94,8 @@
 1. Management API
     - Ability to catch unhandled requests and turn those into configuration templates
     - Ability to get stats on mock items covered
-    - API to modify configuration remotely, maybe programmatically (for UP9 live control)
-    - Global and per-service (reuses same port)
     - Allows to reload config on the fly Allows to get and reset the stats of the service
     - Allows to reset the cursors of datasets/performance profiles
-    - config retrieval
     - A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
       Automatically inject `servers` property of OAS.
 
