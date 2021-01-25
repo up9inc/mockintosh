@@ -89,7 +89,15 @@ class HttpServer:
         key_file = path.join(__location__, 'ssl', 'key.pem')
 
         for service in services:
-            self.stats.add_service()
+            self.stats.add_service(
+                '%s:%s%s' % (
+                    service['hostname'] if 'hostname' in service else (
+                        self.address if self.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
+                )
+            )
             ssl = service.get('ssl', False)
             if ssl:
                 if 'sslCertFile' in service:
@@ -115,7 +123,7 @@ class HttpServer:
 
             endpoints = []
             if 'endpoints' in service:
-                endpoints = HttpServer.merge_alternatives(service['endpoints'])
+                endpoints = HttpServer.merge_alternatives(service, self.stats)
 
             management_root = None
             if 'managementRoot' in service:
@@ -160,21 +168,33 @@ class HttpServer:
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(endpoints):
+    def merge_alternatives(service, stats):
         new_endpoints = {}
-        for endpoint in endpoints:
+        i = 0
+        for endpoint in service['endpoints']:
             if 'method' not in endpoint:
                 endpoint['method'] = 'GET'
+            stats.services[service['internalServiceId']].add_endpoint(
+                '%s %s%s' % (
+                    endpoint['method'].upper(),
+                    endpoint['path'],
+                    ' - %s' % endpoint['id'] if 'id' in endpoint else ''
+                )
+            )
             identifier = endpoint['path']
             extracted_parts = {}
             for key in endpoint:
                 if key in ('method', 'path', 'priority'):
                     continue
                 extracted_parts[key] = endpoint[key]
-                if 'id' not in extracted_parts:
-                    extracted_parts['id'] = None
-                if 'counters' not in extracted_parts:
-                    extracted_parts['counters'] = {}
+
+            extracted_parts['internalEndpointId'] = i
+            i += 1
+            if 'id' not in extracted_parts:
+                extracted_parts['id'] = None
+            if 'counters' not in extracted_parts:
+                extracted_parts['counters'] = {}
+
             if identifier not in new_endpoints:
                 new_endpoints[identifier] = {}
                 new_endpoints[identifier]['path'] = endpoint['path']
@@ -207,7 +227,6 @@ class HttpServer:
 
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
-            self.stats.services[service['internalServiceId']].add_endpoint()
 
         endpoint_handlers.append(
             (

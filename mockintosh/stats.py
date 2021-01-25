@@ -25,9 +25,12 @@ class BaseStats:
             method()
 
     def json(self):
-        data = {
-            'request_counter': self.request_counter
-        }
+        data = {}
+
+        if hasattr(self, 'identifier'):
+            data['identifier'] = self.identifier
+
+        data['request_counter'] = self.request_counter
 
         if hasattr(self, 'endpoints'):
             data['endpoints'] = []
@@ -51,17 +54,18 @@ class BaseStats:
 
 
 class EndpointStats(BaseStats):
-    def __init__(self):
+    def __init__(self, identifier):
+        self.identifier = identifier
         super().__init__()
 
 
 class ServiceStats(EndpointStats):
-    def __init__(self):
+    def __init__(self, identifier):
         self.endpoints = []
-        super().__init__()
+        super().__init__(identifier)
 
-    def add_endpoint(self):
-        endpoint_stats = EndpointStats()
+    def add_endpoint(self, identifier):
+        endpoint_stats = EndpointStats(identifier)
         endpoint_stats.parent = self
         self.endpoints.append(endpoint_stats)
 
@@ -69,10 +73,10 @@ class ServiceStats(EndpointStats):
 class Stats(ServiceStats):
     def __init__(self):
         self.services = []
-        super().__init__()
+        super().__init__(None)
 
-    def add_service(self):
-        service_stats = ServiceStats()
+    def add_service(self, identifier):
+        service_stats = ServiceStats(identifier)
         service_stats.parent = self
         self.services.append(service_stats)
 

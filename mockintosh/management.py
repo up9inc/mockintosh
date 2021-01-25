@@ -57,7 +57,19 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
 
         try:
             data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
+            self.http_server.stats.services = []
+            for service in data['services']:
+                self.http_server.stats.add_service(
+                    '%s:%s%s' % (
+                        service['hostname'] if 'hostname' in service else (
+                            self.http_server.address if self.http_server.address else 'localhost'
+                        ),
+                        service['port'],
+                        ' - %s' % service['name'] if 'name' in service else ''
+                    )
+                )
             for i, service in enumerate(data['services']):
+                service['internalServiceId'] = i
                 self.update_service(service, i)
         except Exception as e:
             self.set_status(400)
@@ -77,11 +89,10 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         self.http_server.stats.services[service_index].endpoints = []
 
         if 'endpoints' in service:
-            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service['endpoints'])
+            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service, self.http_server.stats)
         merged_endpoints = []
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
-            self.http_server.stats.services[service_index].add_endpoint()
 
         endpoints_setted = False
         for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
@@ -165,6 +176,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
 
         try:
             data = mockintosh.Definition.analyze_service(data, self.http_server.definition.template_engine)
+            data['internalServiceId'] = self.service_id
             self.update_service(data, self.service_id)
         except Exception as e:
             self.set_status(400)

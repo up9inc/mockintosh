@@ -57,12 +57,9 @@ class GenericHandler(tornado.web.RequestHandler):
         self.custom_args = ()
         self.stats = stats
         self.service_id = service_id
-        self.endpoint_id = None
 
-        i = 0
         for path, methods in self.endpoints:
             if re.fullmatch(path, self.request.path):
-                self.endpoint_id = i
                 groups = re.findall(path, self.request.path)
                 if isinstance(groups[0], tuple):
                     self.custom_args = groups[0]
@@ -70,7 +67,6 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.custom_args = tuple(groups)
                 self.methods = {k.lower(): v for k, v in methods.items()}
                 break
-            i += 1
 
         self.alternatives = None
         self.globals = _globals
@@ -94,12 +90,12 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.methods is None:
                 self.raise_http_error(404)
             self.dynamic_unimplemented_method_guard()
-            self.stats.services[self.service_id].endpoints[self.endpoint_id].increase_request_counter()
 
         try:
-            _id, response, params, context, dataset = self.match_alternative()
+            _id, response, params, context, dataset, internal_endpoint_id = self.match_alternative()
         except TypeError:
             return
+        self.stats.services[self.service_id].endpoints[internal_endpoint_id].increase_request_counter()
         self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params
@@ -511,7 +507,8 @@ class GenericHandler(tornado.web.RequestHandler):
             _id = alternative['id']
             params = alternative['params']
             context = alternative['context']
-            return _id, response, params, context, dataset
+            internal_endpoint_id = alternative['internalEndpointId']
+            return _id, response, params, context, dataset, internal_endpoint_id
 
         if not self.__class__.__name__ == 'ErrorHandler':
             self.set_status(400)
