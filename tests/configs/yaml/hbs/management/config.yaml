@@ -11,6 +11,11 @@ services:
   - path: "/service1"
     method: GET
     response: service1
+  - path: "/service1-second/{{var}}"
+    method: GET
+    response:
+      status: 201
+      body: "service1-second: {{var}}"
 - name: Mock for Service2
   hostname: service2.example.com
   port: 8002
@@ -19,3 +24,13 @@ services:
   - path: "/service2"
     method: GET
     response: service2
+  - path: "/service2-rst"
+    method: GET
+    response:
+      status: "RST"
+      body: "service2-rst"
+  - path: "/service2-fin"
+    method: GET
+    response:
+      status: "FIN"
+      body: "service2-fin"

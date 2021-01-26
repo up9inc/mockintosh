@@ -13,6 +13,7 @@ import re
 import urllib
 import socket
 import struct
+import time
 from typing import (
     Union,
     Optional
@@ -50,11 +51,35 @@ __location__ = os.path.abspath(os.path.dirname(__file__))
 
 class GenericHandler(tornado.web.RequestHandler):
 
-    def initialize(self, config_dir, endpoints, _globals, definition_engine, interceptors):
+    def prepare(self):
+        self.dont_add_status_code = False
+        self.special_request_start_time = time.perf_counter()
+        super().prepare()
+
+    def on_finish(self):
+        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and self.methods is not None:
+            if self.get_status() != 405:
+                self.set_elapsed_time()
+            if not self.dont_add_status_code:
+                self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
+                    str(self.get_status())
+                )
+        super().on_finish()
+
+    def set_elapsed_time(self):
+        elapsed_time_in_seconds = (time.perf_counter() - self.special_request_start_time) / 1000000
+        self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
+            elapsed_time_in_seconds
+        )
+
+    def initialize(self, config_dir, service_id, endpoints, _globals, definition_engine, interceptors, stats):
         self.config_dir = config_dir
         self.endpoints = endpoints
         self.methods = None
         self.custom_args = ()
+        self.stats = stats
+        self.service_id = service_id
+        self.internal_endpoint_id = None
 
         for path, methods in self.endpoints:
             if re.fullmatch(path, self.request.path):
@@ -87,12 +112,15 @@ class GenericHandler(tornado.web.RequestHandler):
                 args = self.custom_args
             if self.methods is None:
                 self.raise_http_error(404)
+                return
             self.dynamic_unimplemented_method_guard()
 
-        try:
-            _id, response, params, context, dataset = self.match_alternative()
-        except TypeError:
+        match_alternative_return = self.match_alternative()
+        if not match_alternative_return:
             return
+        _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
+        self.internal_endpoint_id = internal_endpoint_id
+        self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
         self.custom_endpoint_id = _id
         self.custom_response = response
         self.custom_params = params
@@ -303,8 +331,12 @@ class GenericHandler(tornado.web.RequestHandler):
                 struct.pack('ii', 1, 0)
             )
             self.request.server_connection.stream.close()
+            self.set_elapsed_time()
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('RST')
         if isinstance(status_code, str) and status_code.lower() == 'fin':
             self.request.server_connection.stream.close()
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('FIN')
+            self.dont_add_status_code = True
         else:
             self.set_status(status_code)
 
@@ -384,9 +416,11 @@ class GenericHandler(tornado.web.RequestHandler):
     def match_alternative(self):
         if self.should_cors():
             self.respond_cors()
-            return
+            return ()
 
         if not self.__class__.__name__ == 'ErrorHandler':
+            if self.methods is None:
+                return ()
             self.alternatives = self.methods[self.request.method.lower()]
 
         response = None
@@ -400,6 +434,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 for key, value in alternative['headers'].items():
                     request_header_val = self.request.headers.get(key.title())
                     if key.title() not in self.request.headers._dict:
+                        self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
                         break
                     if value == request_header_val:
@@ -407,6 +442,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     value = '^%s$' % value
                     match = re.search(value, request_header_val)
                     if match is None:
+                        self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
                         break
                 if fail:
@@ -419,9 +455,11 @@ class GenericHandler(tornado.web.RequestHandler):
                     default = None
                     request_query_val = self.get_query_argument(key, default=default)
                     if request_query_val is default:
+                        self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
                         break
                     if key not in self.request.query_arguments:
+                        self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
                         break
                     if value == request_query_val:
@@ -429,6 +467,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     value = '^%s$' % value
                     match = re.search(value, request_query_val)
                     if match is None:
+                        self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
                         break
                 if fail:
@@ -453,6 +492,7 @@ class GenericHandler(tornado.web.RequestHandler):
                         try:
                             json_data = json.loads(body)
                         except json.decoder.JSONDecodeError:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
                             break
 
@@ -460,6 +500,7 @@ class GenericHandler(tornado.web.RequestHandler):
                         try:
                             jsonschema.validate(instance=json_data, schema=json_schema)
                         except jsonschema.exceptions.ValidationError:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
                             break
 
@@ -469,6 +510,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     if not body == value:
                         match = re.search(value, body)
                         if match is None:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
                             break
 
@@ -485,6 +527,8 @@ class GenericHandler(tornado.web.RequestHandler):
                         }
                     else:
                         response = self.loop_alternative(alternative, 'response', 'multiResponses')
+                        if not response:
+                            return ()
 
                 response = response if isinstance(response, dict) else {
                     'body': response
@@ -500,11 +544,14 @@ class GenericHandler(tornado.web.RequestHandler):
                 alternative['dataset'] = self.load_dataset(alternative['dataset'])
                 if alternative['dataset']:
                     dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
+                    if not dataset:
+                        return ()
 
             _id = alternative['id']
             params = alternative['params']
             context = alternative['context']
-            return _id, response, params, context, dataset
+            internal_endpoint_id = alternative['internalEndpointId']
+            return (_id, response, params, context, dataset, internal_endpoint_id)
 
         if not self.__class__.__name__ == 'ErrorHandler':
             self.set_status(400)
@@ -515,13 +562,14 @@ class GenericHandler(tornado.web.RequestHandler):
             interceptor(self.special_request, self.special_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
-        if self._status_code not in (204, 500):
+        if self._status_code not in (204, 500, 'RST', 'FIN'):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
             self.trigger_interceptors()
             if self.interceptors:
                 self.update_response()
-        super().finish(chunk)
+        if self._status_code not in ('RST', 'FIN'):
+            super().finish(chunk)
 
     def should_write(self):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
@@ -582,7 +630,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def should_cors(self):
         if self.is_options and self.methods is None:
             self.raise_http_error(404)
-        return self.is_options and self.request.method.lower() not in self.methods.keys()
+        return self.is_options and self.methods is not None and self.request.method.lower() not in self.methods.keys()
 
     def load_dataset(self, dataset):
         if isinstance(dataset, list):
@@ -607,9 +655,10 @@ class GenericHandler(tornado.web.RequestHandler):
             if alternative.get(loop_key, True):
                 alternative[index_key] = 0
             else:
+                self.internal_endpoint_id = alternative['internalEndpointId']
                 self.set_status(410)
                 self.finish()
-                return
+                return False
         return alternative[key][alternative[index_key]]
 
     def common_template_renderer(self, template_engine, text):

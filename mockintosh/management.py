@@ -9,9 +9,14 @@
 import os
 import json
 import copy
+from typing import (
+    Union
+)
 
 import jsonschema
 import tornado.web
+from tornado.util import unicode_type
+from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
@@ -22,7 +27,27 @@ POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslK
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
 
-class ManagementRootHandler(tornado.web.RequestHandler):
+class ManagementBaseHandler(tornado.web.RequestHandler):
+
+    def write(self, chunk: Union[str, bytes, dict]) -> None:
+        if self._finished:
+            raise RuntimeError("Cannot write() after finish()")
+        if not isinstance(chunk, (bytes, unicode_type, dict)):
+            message = "write() only accepts bytes, unicode, and dict objects"
+            if isinstance(chunk, list):
+                message += (
+                    ". Lists not accepted for security reasons; see "
+                    + "http://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write"  # noqa: E501, W503
+                )
+            raise TypeError(message)
+        if isinstance(chunk, dict):
+            chunk = json.dumps(chunk, sort_keys=False, indent=2)
+            self.set_header("Content-Type", "application/json; charset=UTF-8")
+        chunk = utf8(chunk)
+        self._write_buffer.append(chunk)
+
+
+class ManagementRootHandler(ManagementBaseHandler):
 
     def get(self):
         with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
@@ -30,7 +55,7 @@ class ManagementRootHandler(tornado.web.RequestHandler):
             self.write(html)
 
 
-class ManagementConfigHandler(tornado.web.RequestHandler):
+class ManagementConfigHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
@@ -57,24 +82,38 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
 
         try:
             data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
+            self.http_server.stats.services = []
+            for service in data['services']:
+                self.http_server.stats.add_service(
+                    '%s:%s%s' % (
+                        service['hostname'] if 'hostname' in service else (
+                            self.http_server.address if self.http_server.address else 'localhost'
+                        ),
+                        service['port'],
+                        ' - %s' % service['name'] if 'name' in service else ''
+                    )
+                )
             for i, service in enumerate(data['services']):
+                service['internalServiceId'] = i
                 self.update_service(service, i)
         except Exception as e:
             self.set_status(400)
             self.write('Something bad happened:\n%s' % str(e))
             return
 
+        self.http_server.stats.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
-        self.write('OK')
-        self.finish()
+        self.set_status(204)
 
     def update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
+        self.http_server.stats.services[service_index].endpoints = []
+
         if 'endpoints' in service:
-            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service['endpoints'])
+            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service, self.http_server.stats)
         merged_endpoints = []
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
@@ -104,7 +143,34 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
                 raise Exception('%s field is restricted!' % field)
 
 
-class ManagementServiceRootHandler(tornado.web.RequestHandler):
+class ManagementStatsHandler(ManagementBaseHandler):
+
+    def initialize(self, stats):
+        self.stats = stats
+
+    def get(self):
+        self.write(self.stats.json())
+
+    def delete(self):
+        self.stats.reset()
+        self.set_status(204)
+
+
+class ManagementServiceStatsHandler(ManagementBaseHandler):
+
+    def initialize(self, stats, service_id):
+        self.stats = stats
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.stats.services[self.service_id].json())
+
+    def delete(self):
+        self.stats.services[self.service_id].reset()
+        self.set_status(204)
+
+
+class ManagementServiceRootHandler(ManagementBaseHandler):
 
     def get(self):
         with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
@@ -112,7 +178,7 @@ class ManagementServiceRootHandler(tornado.web.RequestHandler):
             self.write(html)
 
 
-class ManagementServiceRootRedirectHandler(tornado.web.RequestHandler):
+class ManagementServiceRootRedirectHandler(ManagementBaseHandler):
 
     def initialize(self, management_root):
         self.management_root = management_root
@@ -152,11 +218,13 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
 
         try:
             data = mockintosh.Definition.analyze_service(data, self.http_server.definition.template_engine)
+            data['internalServiceId'] = self.service_id
             self.update_service(data, self.service_id)
         except Exception as e:
             self.set_status(400)
             self.write('Something bad happened:\n%s' % str(e))
             return
 
-        self.write('OK')
-        self.finish()
+        self.http_server.stats.reset()
+
+        self.set_status(204)

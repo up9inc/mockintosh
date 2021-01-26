@@ -407,7 +407,7 @@ class IntegrationTests(unittest.TestCase):
         }]
         conf['endpoints'] = endps1
         resp = requests.post(SRV6 + '/__admin/config', json=conf)
-        self.assertEqual(200, resp.status_code)
+        self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
         self.assertEqual(200, resp.status_code)
@@ -423,7 +423,7 @@ class IntegrationTests(unittest.TestCase):
         }]
         conf['endpoints'] = endps1
         resp = requests.post(SRV6 + '/__admin/config', json=conf)
-        self.assertEqual(200, resp.status_code)
+        self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
         self.assertEqual(200, resp.status_code)
@@ -439,7 +439,7 @@ class IntegrationTests(unittest.TestCase):
         }]
         conf['endpoints'] = endps2
         resp = requests.post(SRV6 + '/__admin/config', json=conf)
-        self.assertEqual(200, resp.status_code)
+        self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
         self.assertEqual(404, resp.status_code)
@@ -447,3 +447,27 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV6 + '/endp2')
         self.assertEqual(200, resp.status_code)
         self.assertEqual("simple", resp.text)
+
+    def test_1_stats(self):
+        requests.get(SRV1 + '/')  # to trigger counter
+
+        resp = requests.get(MGMT + '/stats', verify=False)
+        self.assertEqual(200, resp.status_code)
+        global_stats = resp.json()
+
+        resp = requests.get(SRV1 + '/__admin/stats')
+        self.assertEqual(200, resp.status_code)
+        srv_stats = resp.json()
+        self.assertGreater(srv_stats['request_counter'], 0)
+
+        self.assertEqual(srv_stats, global_stats['services'][0])
+        requests.get(SRV1 + '/')  # to trigger counter
+        resp = requests.get(SRV1 + '/__admin/stats')
+        srv_stats = resp.json()
+        self.assertNotEqual(srv_stats, global_stats['services'][0])
+
+        resp = requests.delete(SRV1 + '/__admin/stats')
+        resp.raise_for_status()
+        resp = requests.get(SRV1 + '/__admin/stats')
+        srv_stats = resp.json()
+        self.assertEqual(0, srv_stats['request_counter'])

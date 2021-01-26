@@ -1,0 +1,21 @@
+{
+  "name": "Mock for Service1",
+  "hostname": "service1.example.com",
+  "port": 8001,
+  "managementRoot": "__admin",
+  "endpoints": [
+    {
+      "path": "/service1",
+      "method": "GET",
+      "response": "service1"
+    },
+    {
+      "path": "/service1-second/{{var}}",
+      "method": "GET",
+      "response": {
+        "status": 201,
+        "body": "service1-second: {{var}}"
+      }
+    }
+  ]
+}
