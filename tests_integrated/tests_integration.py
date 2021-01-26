@@ -407,7 +407,7 @@ class IntegrationTests(unittest.TestCase):
         }]
         conf['endpoints'] = endps1
         resp = requests.post(SRV6 + '/__admin/config', json=conf)
-        self.assertEqual(200, resp.status_code)
+        self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
         self.assertEqual(200, resp.status_code)
