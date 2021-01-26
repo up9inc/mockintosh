@@ -80,6 +80,8 @@
    - Global and per-service (reuses same port)
    - config retrieval
    - API to modify configuration remotely, maybe programmatically (for UP9 live control)
+   - Ability to get stats on mock items covered
+   - Allows to reload config on the fly Allows to get and reset the stats of the service
 
 ## Milestone N
 
@@ -93,8 +95,6 @@
 
 1. Management API
     - Ability to catch unhandled requests and turn those into configuration templates
-    - Ability to get stats on mock items covered
-    - Allows to reload config on the fly Allows to get and reset the stats of the service
     - Allows to reset the cursors of datasets/performance profiles
     - A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
       Automatically inject `servers` property of OAS.

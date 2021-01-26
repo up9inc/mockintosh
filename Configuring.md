@@ -236,7 +236,7 @@ Can be defined per-service (to reuse service's port).
 Management edpoints:
 - `/` - opens simple UI
 - `/config` - `GET` to fetch, `POST` to set 
-- TODO: `/stats` - `GET` to fetch, `DELETE` to reset 
-- TODO: how to reset dataset/multirequest iterators 
-- TODO: `/shutdown` to exit process?
+- `/stats` - `GET` to fetch, `DELETE` to reset 
+- TODO: how to reset dataset/multirequest iterators
 - TODO: endpoint to serve swagger-ui
+- TODO: `/shutdown` to exit process?
