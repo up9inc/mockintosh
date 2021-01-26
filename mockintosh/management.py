@@ -9,9 +9,14 @@
 import os
 import json
 import copy
+from typing import (
+    Union
+)
 
 import jsonschema
 import tornado.web
+from tornado.util import unicode_type
+from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
@@ -22,7 +27,27 @@ POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslK
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
 
-class ManagementRootHandler(tornado.web.RequestHandler):
+class ManagementBaseHandler(tornado.web.RequestHandler):
+
+    def write(self, chunk: Union[str, bytes, dict]) -> None:
+        if self._finished:
+            raise RuntimeError("Cannot write() after finish()")
+        if not isinstance(chunk, (bytes, unicode_type, dict)):
+            message = "write() only accepts bytes, unicode, and dict objects"
+            if isinstance(chunk, list):
+                message += (
+                    ". Lists not accepted for security reasons; see "
+                    + "http://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write"  # noqa: E501, W503
+                )
+            raise TypeError(message)
+        if isinstance(chunk, dict):
+            chunk = json.dumps(chunk, sort_keys=False, indent=2)
+            self.set_header("Content-Type", "application/json; charset=UTF-8")
+        chunk = utf8(chunk)
+        self._write_buffer.append(chunk)
+
+
+class ManagementRootHandler(ManagementBaseHandler):
 
     def get(self):
         with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
@@ -30,7 +55,7 @@ class ManagementRootHandler(tornado.web.RequestHandler):
             self.write(html)
 
 
-class ManagementConfigHandler(tornado.web.RequestHandler):
+class ManagementConfigHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
@@ -118,7 +143,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
                 raise Exception('%s field is restricted!' % field)
 
 
-class ManagementStatsHandler(tornado.web.RequestHandler):
+class ManagementStatsHandler(ManagementBaseHandler):
 
     def initialize(self, stats):
         self.stats = stats
@@ -131,7 +156,7 @@ class ManagementStatsHandler(tornado.web.RequestHandler):
         self.set_status(204)
 
 
-class ManagementServiceStatsHandler(tornado.web.RequestHandler):
+class ManagementServiceStatsHandler(ManagementBaseHandler):
 
     def initialize(self, stats, service_id):
         self.stats = stats
@@ -145,7 +170,7 @@ class ManagementServiceStatsHandler(tornado.web.RequestHandler):
         self.set_status(204)
 
 
-class ManagementServiceRootHandler(tornado.web.RequestHandler):
+class ManagementServiceRootHandler(ManagementBaseHandler):
 
     def get(self):
         with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
@@ -153,7 +178,7 @@ class ManagementServiceRootHandler(tornado.web.RequestHandler):
             self.write(html)
 
 
-class ManagementServiceRootRedirectHandler(tornado.web.RequestHandler):
+class ManagementServiceRootRedirectHandler(ManagementBaseHandler):
 
     def initialize(self, management_root):
         self.management_root = management_root

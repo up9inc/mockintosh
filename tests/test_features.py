@@ -1355,17 +1355,17 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second/{{var}}", "method": "GET", "response": {"status": 201, "body": "service1-second: {{var}}"}}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}, {"path": "/service2-rst", "method": "GET", "response": {"status": "RST", "body": "service2-rst"}}, {"path": "/service2-fin", "method": "GET", "response": {"status": "FIN", "body": "service2-fin"}}]}]}'
+        assert resp.text == open(get_config_path('configs/stats_config.json'), 'r').read()[:-1]
 
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second/{{var}}", "method": "GET", "response": {"status": 201, "body": "service1-second: {{var}}"}}]}'
+        assert resp.text == open(get_config_path('configs/stats_config_service1.json'), 'r').read()[:-1]
 
         resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}, {"path": "/service2-rst", "method": "GET", "response": {"status": "RST", "body": "service2-rst"}}, {"path": "/service2-fin", "method": "GET", "response": {"status": "FIN", "body": "service2-fin"}}]}'
+        assert resp.text == open(get_config_path('configs/stats_config_service2.json'), 'r').read()[:-1]
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
