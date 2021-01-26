@@ -112,6 +112,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 args = self.custom_args
             if self.methods is None:
                 self.raise_http_error(404)
+                return
             self.dynamic_unimplemented_method_guard()
 
         match_alternative_return = self.match_alternative()
