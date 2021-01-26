@@ -98,9 +98,6 @@ class ErrorHandler(GenericHandler):
         self._transforms = []
         self.finish()
 
-    def prepare(self) -> None:
-        pass
-
     def check_xsrf_cookie(self) -> None:
         pass
 
