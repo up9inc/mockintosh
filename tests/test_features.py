@@ -1377,9 +1377,7 @@ class TestManagement():
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
             resp = requests.post(SRV_9000 + '/config', json=data)
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-            assert resp.text == 'OK'
+            assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
@@ -1406,9 +1404,7 @@ class TestManagement():
         with open(get_config_path('configs/json/hbs/management/new_service1.json'), 'r') as file:
             data = json.load(file)
             resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, json=data)
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-            assert resp.text == 'OK'
+            assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
@@ -1428,9 +1424,7 @@ class TestManagement():
         with open(get_config_path('configs/json/hbs/management/new_service2.json'), 'r') as file:
             data = json.load(file)
             resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, json=data)
-            assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-            assert resp.text == 'OK'
+            assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
@@ -1548,7 +1542,8 @@ class TestManagement():
             assert data['services'][1]['status_code_distribution']['RST'] == 2
             assert data['services'][1]['status_code_distribution']['FIN'] == 2
 
-            requests.delete(SRV_9000 + '/stats')
+            resp = requests.delete(SRV_9000 + '/stats')
+            assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -1600,7 +1595,8 @@ class TestManagement():
             assert data['endpoints'][0]['status_code_distribution']['200'] == 5
             assert data['endpoints'][1]['status_code_distribution']['201'] == 3
 
-            requests.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = requests.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            assert 204 == resp.status_code
 
         for _ in range(2):
             resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
@@ -1659,4 +1655,5 @@ class TestManagement():
             assert data['status_code_distribution']['RST'] == 2
             assert data['status_code_distribution']['FIN'] == 2
 
-            requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            assert 204 == resp.status_code

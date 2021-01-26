@@ -80,8 +80,7 @@ class ManagementConfigHandler(tornado.web.RequestHandler):
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
-        self.write('OK')
-        self.finish()
+        self.set_status(204)
 
     def update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
@@ -129,7 +128,7 @@ class ManagementStatsHandler(tornado.web.RequestHandler):
 
     def delete(self):
         self.stats.reset()
-        self.write('OK')
+        self.set_status(204)
 
 
 class ManagementServiceStatsHandler(tornado.web.RequestHandler):
@@ -143,7 +142,7 @@ class ManagementServiceStatsHandler(tornado.web.RequestHandler):
 
     def delete(self):
         self.stats.services[self.service_id].reset()
-        self.write('OK')
+        self.set_status(204)
 
 
 class ManagementServiceRootHandler(tornado.web.RequestHandler):
@@ -203,5 +202,4 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
 
         self.http_server.stats.reset()
 
-        self.write('OK')
-        self.finish()
+        self.set_status(204)
