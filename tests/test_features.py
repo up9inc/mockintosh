@@ -1528,11 +1528,6 @@ class TestManagement():
             assert data['services'][1]['endpoints'][1]['request_counter'] == 2
             assert data['services'][1]['endpoints'][2]['request_counter'] == 2
 
-            # `avg_resp_time` assertions
-            assert data['services'][0]['avg_resp_time'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_resp_time'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_resp_time']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
-            assert data['services'][1]['avg_resp_time'] == (data['services'][1]['endpoints'][0]['request_counter'] * data['services'][1]['endpoints'][0]['avg_resp_time'] + data['services'][1]['endpoints'][1]['request_counter'] * data['services'][1]['endpoints'][1]['avg_resp_time'] + data['services'][1]['endpoints'][2]['request_counter'] * data['services'][1]['endpoints'][2]['avg_resp_time']) / (data['services'][1]['endpoints'][0]['request_counter'] + data['services'][1]['endpoints'][1]['request_counter'] + data['services'][1]['endpoints'][2]['request_counter'])
-            assert data['global']['avg_resp_time'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_resp_time'] + data['services'][1]['request_counter'] * data['services'][1]['avg_resp_time']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
-
             # `status_code_distribution` assertions
             assert data['global']['status_code_distribution']['200'] == 7
             assert data['global']['status_code_distribution']['201'] == 3
@@ -1590,9 +1585,6 @@ class TestManagement():
             assert data['endpoints'][0]['request_counter'] == 5
             assert data['endpoints'][1]['request_counter'] == 3
 
-            # `avg_resp_time` assertions
-            assert data['avg_resp_time'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_resp_time'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_resp_time']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'])
-
             # `status_code_distribution` assertions
             assert data['status_code_distribution']['200'] == 5
             assert data['status_code_distribution']['201'] == 3
@@ -1649,9 +1641,6 @@ class TestManagement():
             assert data['endpoints'][0]['request_counter'] == 2
             assert data['endpoints'][1]['request_counter'] == 2
             assert data['endpoints'][2]['request_counter'] == 2
-
-            # `avg_resp_time` assertions
-            assert data['avg_resp_time'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_resp_time'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_resp_time'] + data['endpoints'][2]['request_counter'] * data['endpoints'][2]['avg_resp_time']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'] + data['endpoints'][2]['request_counter'])
 
             # `status_code_distribution` assertions
             assert data['status_code_distribution']['200'] == 2
