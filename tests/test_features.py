@@ -1464,24 +1464,31 @@ class TestManagement():
             assert data['global']['request_counter'] == 0
             assert data['global']['avg_resp_time'] == 0
             assert data['global']['status_code_distribution'] == {}
+            assert data['services'][0]['hint'] == 'service1.example.com:8001 - Mock for Service1'
             assert data['services'][0]['request_counter'] == 0
             assert data['services'][0]['avg_resp_time'] == 0
             assert data['services'][0]['status_code_distribution'] == {}
+            assert data['services'][0]['endpoints'][0]['hint'] == 'GET /service1'
             assert data['services'][0]['endpoints'][0]['request_counter'] == 0
             assert data['services'][0]['endpoints'][0]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {}
+            assert data['services'][0]['endpoints'][1]['hint'] == 'GET /service1-second'
             assert data['services'][0]['endpoints'][1]['request_counter'] == 0
             assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {}
+            assert data['services'][1]['hint'] == 'service2.example.com:8002 - Mock for Service2'
             assert data['services'][1]['request_counter'] == 0
             assert data['services'][1]['avg_resp_time'] == 0
             assert data['services'][1]['status_code_distribution'] == {}
+            assert data['services'][1]['endpoints'][0]['hint'] == 'GET /service2'
             assert data['services'][1]['endpoints'][0]['request_counter'] == 0
             assert data['services'][1]['endpoints'][0]['avg_resp_time'] == 0
             assert data['services'][1]['endpoints'][0]['status_code_distribution'] == {}
+            assert data['services'][1]['endpoints'][1]['hint'] == 'GET /service2-rst'
             assert data['services'][1]['endpoints'][1]['request_counter'] == 0
             assert data['services'][1]['endpoints'][1]['avg_resp_time'] == 0
             assert data['services'][1]['endpoints'][1]['status_code_distribution'] == {}
+            assert data['services'][1]['endpoints'][2]['hint'] == 'GET /service2-fin'
             assert data['services'][1]['endpoints'][2]['request_counter'] == 0
             assert data['services'][1]['endpoints'][2]['avg_resp_time'] == 0
             assert data['services'][1]['endpoints'][2]['status_code_distribution'] == {}
@@ -1559,9 +1566,11 @@ class TestManagement():
             assert data['request_counter'] == 0
             assert data['avg_resp_time'] == 0
             assert data['status_code_distribution'] == {}
+            assert data['endpoints'][0]['hint'] == 'GET /service1'
             assert data['endpoints'][0]['request_counter'] == 0
             assert data['endpoints'][0]['avg_resp_time'] == 0
             assert data['endpoints'][0]['status_code_distribution'] == {}
+            assert data['endpoints'][1]['hint'] == 'GET /service1-second'
             assert data['endpoints'][1]['request_counter'] == 0
             assert data['endpoints'][1]['avg_resp_time'] == 0
             assert data['endpoints'][1]['status_code_distribution'] == {}
@@ -1602,12 +1611,15 @@ class TestManagement():
             assert data['request_counter'] == 0
             assert data['avg_resp_time'] == 0
             assert data['status_code_distribution'] == {}
+            assert data['endpoints'][0]['hint'] == 'GET /service2'
             assert data['endpoints'][0]['request_counter'] == 0
             assert data['endpoints'][0]['avg_resp_time'] == 0
             assert data['endpoints'][0]['status_code_distribution'] == {}
+            assert data['endpoints'][1]['hint'] == 'GET /service2-rst'
             assert data['endpoints'][1]['request_counter'] == 0
             assert data['endpoints'][1]['avg_resp_time'] == 0
             assert data['endpoints'][1]['status_code_distribution'] == {}
+            assert data['endpoints'][2]['hint'] == 'GET /service2-fin'
             assert data['endpoints'][2]['request_counter'] == 0
             assert data['endpoints'][2]['avg_resp_time'] == 0
             assert data['endpoints'][2]['status_code_distribution'] == {}

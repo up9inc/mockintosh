@@ -48,8 +48,8 @@ class BaseStats:
     def json(self):
         data = {}
 
-        if hasattr(self, 'identifier'):
-            data['identifier'] = self.identifier
+        if hasattr(self, 'hint'):
+            data['hint'] = self.hint
 
         data.update({
             'request_counter': self.request_counter,
@@ -79,18 +79,18 @@ class BaseStats:
 
 
 class EndpointStats(BaseStats):
-    def __init__(self, identifier):
-        self.identifier = identifier
+    def __init__(self, hint):
+        self.hint = hint
         super().__init__()
 
 
 class ServiceStats(EndpointStats):
-    def __init__(self, identifier):
+    def __init__(self, hint):
         self.endpoints = []
-        super().__init__(identifier)
+        super().__init__(hint)
 
-    def add_endpoint(self, identifier):
-        endpoint_stats = EndpointStats(identifier)
+    def add_endpoint(self, hint):
+        endpoint_stats = EndpointStats(hint)
         endpoint_stats.parent = self
         self.endpoints.append(endpoint_stats)
 
@@ -100,8 +100,8 @@ class Stats(ServiceStats):
         self.services = []
         super().__init__(None)
 
-    def add_service(self, identifier):
-        service_stats = ServiceStats(identifier)
+    def add_service(self, hint):
+        service_stats = ServiceStats(hint)
         service_stats.parent = self
         self.services.append(service_stats)
 
