@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" type="text/css"
+          href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui.css"/>
 
     <title>Mockintosh Management API</title>
     <style></style>
@@ -48,7 +50,13 @@
             <button class="button btn-info">Refresh</button>
             <pre></pre>
         </div>
-        <div class="tab-pane fade" id="trynow" role="tabpanel" aria-labelledby="contact-tab">...</div>
+        <div class="tab-pane fade" id="trynow" role="tabpanel" aria-labelledby="contact-tab">
+            <div id="swagger-ui">
+                <div class="center_progress">
+                    <div class="lds-dual-ring"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -65,7 +73,25 @@
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
         integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
         crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-standalone-preset.js"></script>
 <script>
+    function addOAS(config, parent) {
+        const el = document.createElement('div');
+        el.id = "id_" + Math.random().toString(16).slice(2);
+        parent.append(el);
+
+        SwaggerUIBundle({
+            spec: config,
+            dom_id: '#' + el.id,
+            presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIStandalonePreset
+            ]
+        });
+        return el;
+    }
+
     $(function () {
         $("#stats button").click(function () {
             $.getJSON("./stats").done(function (data) {
@@ -78,6 +104,20 @@
                 $("#config pre").text(JSON.stringify(data, null, 2));
             });
         }).trigger('click');
+
+        $.getJSON('./oas').done(function (data) {
+            const parent = $('#swagger-ui');
+            parent.empty();
+
+            if (data.openapi) {
+                data['servers'] = [{'url': '', 'description': 'Current mock'}]
+                data = {"": data};
+            }
+
+            Object.entries(data).forEach(entry => {
+                const el = addOAS(entry[1], parent);
+            });
+        });
     });
 </script>
 
