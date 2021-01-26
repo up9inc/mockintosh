@@ -67,9 +67,9 @@ class GenericHandler(tornado.web.RequestHandler):
         super().on_finish()
 
     def set_elapsed_time(self):
-        elapsed_time_in_microseconds = time.perf_counter() - self.special_request_start_time
+        elapsed_time_in_seconds = (time.perf_counter() - self.special_request_start_time) / 1000000
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
-            elapsed_time_in_microseconds
+            elapsed_time_in_seconds
         )
 
     def initialize(self, config_dir, service_id, endpoints, _globals, definition_engine, interceptors, stats):

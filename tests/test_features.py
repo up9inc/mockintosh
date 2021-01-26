@@ -1462,28 +1462,28 @@ class TestManagement():
 
             data = resp.json()
             assert data['global']['request_counter'] == 0
-            assert data['global']['avg_response_time_in_microseconds'] == 0
+            assert data['global']['avg_resp_time'] == 0
             assert data['global']['status_code_distribution'] == {}
             assert data['services'][0]['request_counter'] == 0
-            assert data['services'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['avg_resp_time'] == 0
             assert data['services'][0]['status_code_distribution'] == {}
             assert data['services'][0]['endpoints'][0]['request_counter'] == 0
-            assert data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['endpoints'][0]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {}
             assert data['services'][0]['endpoints'][1]['request_counter'] == 0
-            assert data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {}
             assert data['services'][1]['request_counter'] == 0
-            assert data['services'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['avg_resp_time'] == 0
             assert data['services'][1]['status_code_distribution'] == {}
             assert data['services'][1]['endpoints'][0]['request_counter'] == 0
-            assert data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][0]['avg_resp_time'] == 0
             assert data['services'][1]['endpoints'][0]['status_code_distribution'] == {}
             assert data['services'][1]['endpoints'][1]['request_counter'] == 0
-            assert data['services'][1]['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][1]['avg_resp_time'] == 0
             assert data['services'][1]['endpoints'][1]['status_code_distribution'] == {}
             assert data['services'][1]['endpoints'][2]['request_counter'] == 0
-            assert data['services'][1]['endpoints'][2]['avg_response_time_in_microseconds'] == 0
+            assert data['services'][1]['endpoints'][2]['avg_resp_time'] == 0
             assert data['services'][1]['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(5):
@@ -1528,10 +1528,10 @@ class TestManagement():
             assert data['services'][1]['endpoints'][1]['request_counter'] == 2
             assert data['services'][1]['endpoints'][2]['request_counter'] == 2
 
-            # `avg_response_time_in_microseconds` assertions
-            assert data['services'][0]['avg_response_time_in_microseconds'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
-            assert data['services'][1]['avg_response_time_in_microseconds'] == (data['services'][1]['endpoints'][0]['request_counter'] * data['services'][1]['endpoints'][0]['avg_response_time_in_microseconds'] + data['services'][1]['endpoints'][1]['request_counter'] * data['services'][1]['endpoints'][1]['avg_response_time_in_microseconds'] + data['services'][1]['endpoints'][2]['request_counter'] * data['services'][1]['endpoints'][2]['avg_response_time_in_microseconds']) / (data['services'][1]['endpoints'][0]['request_counter'] + data['services'][1]['endpoints'][1]['request_counter'] + data['services'][1]['endpoints'][2]['request_counter'])
-            assert data['global']['avg_response_time_in_microseconds'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_response_time_in_microseconds'] + data['services'][1]['request_counter'] * data['services'][1]['avg_response_time_in_microseconds']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
+            # `avg_resp_time` assertions
+            assert data['services'][0]['avg_resp_time'] == (data['services'][0]['endpoints'][0]['request_counter'] * data['services'][0]['endpoints'][0]['avg_resp_time'] + data['services'][0]['endpoints'][1]['request_counter'] * data['services'][0]['endpoints'][1]['avg_resp_time']) / (data['services'][0]['endpoints'][0]['request_counter'] + data['services'][0]['endpoints'][1]['request_counter'])
+            assert data['services'][1]['avg_resp_time'] == (data['services'][1]['endpoints'][0]['request_counter'] * data['services'][1]['endpoints'][0]['avg_resp_time'] + data['services'][1]['endpoints'][1]['request_counter'] * data['services'][1]['endpoints'][1]['avg_resp_time'] + data['services'][1]['endpoints'][2]['request_counter'] * data['services'][1]['endpoints'][2]['avg_resp_time']) / (data['services'][1]['endpoints'][0]['request_counter'] + data['services'][1]['endpoints'][1]['request_counter'] + data['services'][1]['endpoints'][2]['request_counter'])
+            assert data['global']['avg_resp_time'] == (data['services'][0]['request_counter'] * data['services'][0]['avg_resp_time'] + data['services'][1]['request_counter'] * data['services'][1]['avg_resp_time']) / (data['services'][0]['request_counter'] + data['services'][1]['request_counter'])
 
             # `status_code_distribution` assertions
             assert data['global']['status_code_distribution']['200'] == 7
@@ -1562,13 +1562,13 @@ class TestManagement():
 
             data = resp.json()
             assert data['request_counter'] == 0
-            assert data['avg_response_time_in_microseconds'] == 0
+            assert data['avg_resp_time'] == 0
             assert data['status_code_distribution'] == {}
             assert data['endpoints'][0]['request_counter'] == 0
-            assert data['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][0]['avg_resp_time'] == 0
             assert data['endpoints'][0]['status_code_distribution'] == {}
             assert data['endpoints'][1]['request_counter'] == 0
-            assert data['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][1]['avg_resp_time'] == 0
             assert data['endpoints'][1]['status_code_distribution'] == {}
 
             for _ in range(5):
@@ -1590,8 +1590,8 @@ class TestManagement():
             assert data['endpoints'][0]['request_counter'] == 5
             assert data['endpoints'][1]['request_counter'] == 3
 
-            # `avg_response_time_in_microseconds` assertions
-            assert data['avg_response_time_in_microseconds'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_response_time_in_microseconds'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_response_time_in_microseconds']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'])
+            # `avg_resp_time` assertions
+            assert data['avg_resp_time'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_resp_time'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_resp_time']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'])
 
             # `status_code_distribution` assertions
             assert data['status_code_distribution']['200'] == 5
@@ -1608,16 +1608,16 @@ class TestManagement():
 
             data = resp.json()
             assert data['request_counter'] == 0
-            assert data['avg_response_time_in_microseconds'] == 0
+            assert data['avg_resp_time'] == 0
             assert data['status_code_distribution'] == {}
             assert data['endpoints'][0]['request_counter'] == 0
-            assert data['endpoints'][0]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][0]['avg_resp_time'] == 0
             assert data['endpoints'][0]['status_code_distribution'] == {}
             assert data['endpoints'][1]['request_counter'] == 0
-            assert data['endpoints'][1]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][1]['avg_resp_time'] == 0
             assert data['endpoints'][1]['status_code_distribution'] == {}
             assert data['endpoints'][2]['request_counter'] == 0
-            assert data['endpoints'][2]['avg_response_time_in_microseconds'] == 0
+            assert data['endpoints'][2]['avg_resp_time'] == 0
             assert data['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(2):
@@ -1650,8 +1650,8 @@ class TestManagement():
             assert data['endpoints'][1]['request_counter'] == 2
             assert data['endpoints'][2]['request_counter'] == 2
 
-            # `avg_response_time_in_microseconds` assertions
-            assert data['avg_response_time_in_microseconds'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_response_time_in_microseconds'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_response_time_in_microseconds'] + data['endpoints'][2]['request_counter'] * data['endpoints'][2]['avg_response_time_in_microseconds']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'] + data['endpoints'][2]['request_counter'])
+            # `avg_resp_time` assertions
+            assert data['avg_resp_time'] == (data['endpoints'][0]['request_counter'] * data['endpoints'][0]['avg_resp_time'] + data['endpoints'][1]['request_counter'] * data['endpoints'][1]['avg_resp_time'] + data['endpoints'][2]['request_counter'] * data['endpoints'][2]['avg_resp_time']) / (data['endpoints'][0]['request_counter'] + data['endpoints'][1]['request_counter'] + data['endpoints'][2]['request_counter'])
 
             # `status_code_distribution` assertions
             assert data['status_code_distribution']['200'] == 2

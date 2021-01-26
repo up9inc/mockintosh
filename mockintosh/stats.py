@@ -13,7 +13,7 @@ class BaseStats:
         self.children = None
         self.request_counter = 0
         self.status_code_distribution = {}
-        self.avg_response_time_in_microseconds = 0
+        self.avg_resp_time = 0
 
     def increase_request_counter(self):
         self.request_counter += 1
@@ -24,10 +24,10 @@ class BaseStats:
         if callable(method):
             method()
 
-    def add_request_elapsed_time(self, elapsed_time_in_microseconds):
-        self.avg_response_time_in_microseconds = (
-            elapsed_time_in_microseconds + (
-                self.avg_response_time_in_microseconds * self.request_counter
+    def add_request_elapsed_time(self, elapsed_time_in_seconds):
+        self.avg_resp_time = (
+            elapsed_time_in_seconds + (
+                self.avg_resp_time * self.request_counter
             )
         ) / (self.request_counter + 1)
         if not hasattr(self, 'parent'):
@@ -44,11 +44,11 @@ class BaseStats:
         total_elapsed_time = 0
         if hasattr(self, 'services'):
             for child in self.services:
-                total_elapsed_time += child.avg_response_time_in_microseconds * child.request_counter
+                total_elapsed_time += child.avg_resp_time * child.request_counter
         if hasattr(self, 'endpoints'):
             for child in self.endpoints:
-                total_elapsed_time += child.avg_response_time_in_microseconds * child.request_counter
-        self.avg_response_time_in_microseconds = total_elapsed_time / self.request_counter
+                total_elapsed_time += child.avg_resp_time * child.request_counter
+        self.avg_resp_time = total_elapsed_time / self.request_counter
 
         if not hasattr(self, 'parent'):
             return
@@ -77,7 +77,7 @@ class BaseStats:
 
         data.update({
             'request_counter': self.request_counter,
-            'avg_response_time_in_microseconds': self.avg_response_time_in_microseconds,
+            'avg_resp_time': self.avg_resp_time,
             'status_code_distribution': self.status_code_distribution
         })
 
@@ -91,7 +91,7 @@ class BaseStats:
     def reset(self):
         self.request_counter = 0
         self.status_code_distribution = {}
-        self.avg_response_time_in_microseconds = 0
+        self.avg_resp_time = 0
 
         if hasattr(self, 'services'):
             for child in self.services:
@@ -133,7 +133,7 @@ class Stats(ServiceStats):
         data = {
             'global': {
                 'request_counter': self.request_counter,
-                'avg_response_time_in_microseconds': self.avg_response_time_in_microseconds,
+                'avg_resp_time': self.avg_resp_time,
                 'status_code_distribution': self.status_code_distribution
             },
             'services': []
