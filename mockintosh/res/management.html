@@ -111,12 +111,12 @@
 
             if (data.openapi) {
                 data['servers'] = [{'url': '', 'description': 'Current mock'}]
-                data = {"": data};
+                data = [data];
             }
 
-            Object.entries(data).forEach(entry => {
-                const el = addOAS(entry[1], parent);
-            });
+            for (let i = 0; i < data.length; i++) {
+                addOAS(data[i], parent);
+            }
         });
     });
 </script>
