@@ -178,7 +178,7 @@ class HttpServer:
             stats.services[service['internalServiceId']].add_endpoint(
                 '%s %s%s' % (
                     endpoint['method'].upper(),
-                    endpoint['path'],
+                    endpoint['internalOrigPath'],
                     ' - %s' % endpoint['id'] if 'id' in endpoint else ''
                 )
             )

@@ -1355,12 +1355,12 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/config')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": {"status": 201, "body": "service1-second"}}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}, {"path": "/service2-rst", "method": "GET", "response": {"status": "RST", "body": "service2-rst"}}, {"path": "/service2-fin", "method": "GET", "response": {"status": "FIN", "body": "service2-fin"}}]}]}'
+        assert resp.text == '{"management": {"port": 9000}, "templatingEngine": "Handlebars", "services": [{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second/{{var}}", "method": "GET", "response": {"status": 201, "body": "service1-second: {{var}}"}}]}, {"name": "Mock for Service2", "hostname": "service2.example.com", "port": 8002, "managementRoot": "__admin", "endpoints": [{"path": "/service2", "method": "GET", "response": "service2"}, {"path": "/service2-rst", "method": "GET", "response": {"status": "RST", "body": "service2-rst"}}, {"path": "/service2-fin", "method": "GET", "response": {"status": "FIN", "body": "service2-fin"}}]}]}'
 
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second", "method": "GET", "response": {"status": 201, "body": "service1-second"}}]}'
+        assert resp.text == '{"name": "Mock for Service1", "hostname": "service1.example.com", "port": 8001, "managementRoot": "__admin", "endpoints": [{"path": "/service1", "method": "GET", "response": "service1"}, {"path": "/service1-second/{{var}}", "method": "GET", "response": {"status": 201, "body": "service1-second: {{var}}"}}]}'
 
         resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
@@ -1448,6 +1448,7 @@ class TestManagement():
     ])
     def test_get_stats(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
+        param = str(int(time.time()))
 
         for _ in range(2):
             resp = requests.get(SRV_9000 + '/stats')
@@ -1466,7 +1467,7 @@ class TestManagement():
             assert data['services'][0]['endpoints'][0]['request_counter'] == 0
             assert data['services'][0]['endpoints'][0]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {}
-            assert data['services'][0]['endpoints'][1]['hint'] == 'GET /service1-second'
+            assert data['services'][0]['endpoints'][1]['hint'] == 'GET /service1-second/{{var}}'
             assert data['services'][0]['endpoints'][1]['request_counter'] == 0
             assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {}
@@ -1492,8 +1493,9 @@ class TestManagement():
                 assert 200 == resp.status_code
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
+                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST})
                 assert 201 == resp.status_code
+                assert resp.text == 'service1-second: %s' % param
 
             for _ in range(2):
                 resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
@@ -1551,6 +1553,7 @@ class TestManagement():
     ])
     def test_get_stats_service(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
+        param = str(int(time.time()))
 
         for _ in range(2):
             resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
@@ -1565,7 +1568,7 @@ class TestManagement():
             assert data['endpoints'][0]['request_counter'] == 0
             assert data['endpoints'][0]['avg_resp_time'] == 0
             assert data['endpoints'][0]['status_code_distribution'] == {}
-            assert data['endpoints'][1]['hint'] == 'GET /service1-second'
+            assert data['endpoints'][1]['hint'] == 'GET /service1-second/{{var}}'
             assert data['endpoints'][1]['request_counter'] == 0
             assert data['endpoints'][1]['avg_resp_time'] == 0
             assert data['endpoints'][1]['status_code_distribution'] == {}
@@ -1575,8 +1578,9 @@ class TestManagement():
                 assert 200 == resp.status_code
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1-second', headers={'Host': SRV_8001_HOST})
+                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST})
                 assert 201 == resp.status_code
+                assert resp.text == 'service1-second: %s' % param
 
             resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code

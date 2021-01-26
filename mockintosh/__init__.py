@@ -83,6 +83,7 @@ class Definition():
     @staticmethod
     def analyze_service(service, template_engine):
         for endpoint in service['endpoints']:
+            endpoint['internalOrigPath'] = endpoint['path']
             endpoint['params'] = {}
             endpoint['context'] = OrderedDict()
 

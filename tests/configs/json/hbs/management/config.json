@@ -16,11 +16,11 @@
           "response": "service1"
         },
         {
-          "path": "/service1-second",
+          "path": "/service1-second/{{var}}",
           "method": "GET",
           "response": {
             "status": 201,
-            "body": "service1-second"
+            "body": "service1-second: {{var}}"
           }
         }
       ]
