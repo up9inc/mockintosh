@@ -114,10 +114,10 @@ class GenericHandler(tornado.web.RequestHandler):
                 self.raise_http_error(404)
             self.dynamic_unimplemented_method_guard()
 
-        try:
-            _id, response, params, context, dataset, internal_endpoint_id = self.match_alternative()
-        except TypeError:
+        match_alternative_return = self.match_alternative()
+        if not match_alternative_return:
             return
+        _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
         self.internal_endpoint_id = internal_endpoint_id
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
         self.custom_endpoint_id = _id
@@ -415,7 +415,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def match_alternative(self):
         if self.should_cors():
             self.respond_cors()
-            return
+            return ()
 
         if not self.__class__.__name__ == 'ErrorHandler':
             self.alternatives = self.methods[self.request.method.lower()]
@@ -536,7 +536,7 @@ class GenericHandler(tornado.web.RequestHandler):
             params = alternative['params']
             context = alternative['context']
             internal_endpoint_id = alternative['internalEndpointId']
-            return _id, response, params, context, dataset, internal_endpoint_id
+            return (_id, response, params, context, dataset, internal_endpoint_id)
 
         if not self.__class__.__name__ == 'ErrorHandler':
             self.set_status(400)
