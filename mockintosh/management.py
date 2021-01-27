@@ -156,6 +156,53 @@ class ManagementStatsHandler(ManagementBaseHandler):
         self.set_status(204)
 
 
+class ManagementUnhandledHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    def get(self):
+        data = {
+            'services': []
+        }
+
+        for i in range(len(self.http_server.definition.data['services'])):
+            data['services'].append(self.build_unhandled_requests(i))
+
+        self.write(data)
+
+    def build_unhandled_requests(self, service_id):
+        data = {
+            'hint': self.http_server.stats.services[service_id].hint,
+            'unhandledRequests': []
+        }
+
+        for request in self.http_server.unhandled_data.requests[service_id].values():
+            config_template = {}
+
+            # Method
+            config_template['method'] = request.method
+
+            # Path
+            config_template['path'] = request.path
+
+            # Headers
+            for key, value in request.headers._dict.items():
+                if 'headers' not in config_template:
+                    config_template['headers'] = {}
+                config_template['headers'][key] = value
+
+            # Query String
+            for key, value in request.query_arguments.items():
+                if 'queryString' not in config_template:
+                    config_template['queryString'] = {}
+                config_template['queryString'][key] = _decoder(value[0])
+            config_template['response'] = ''
+            data['unhandledRequests'].append(config_template)
+
+        return data
+
+
 class ManagementServiceStatsHandler(ManagementBaseHandler):
 
     def initialize(self, stats, service_id):
@@ -228,3 +275,18 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         self.http_server.stats.reset()
 
         self.set_status(204)
+
+
+class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
+
+    def initialize(self, http_server, service_id):
+        self.http_server = http_server
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.build_unhandled_requests(self.service_id))
+
+
+class UnhandledData:
+    def __init__(self):
+        self.requests = []
