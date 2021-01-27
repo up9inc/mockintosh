@@ -1677,29 +1677,29 @@ class TestManagement():
         assert data['services'][0]['hint'] == 'service1.example.com:8001 - Mock for Service1'
         assert data['services'][1]['hint'] == 'service2.example.com:8002 - Mock for Service2'
 
-        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1y?a=b&c=d', headers={'Host': SRV_8001_HOST, 'Example-Header': 'Example-Value'})
+        resp = requests.get(SRV_8001 + '/service1y?a=b&c=d', headers={'Host': SRV_8001_HOST, 'Example-Header': 'Example-Value', 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
 
         resp = requests.get(SRV_9000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'services': [{'hint': 'service1.example.com:8001 - Mock for Service1', 'unhandledRequests': [{'method': 'GET', 'path': '/service1x', 'headers': {'User-Agent': 'python-requests/2.22.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com'}, 'response': ''}, {'method': 'GET', 'path': '/service1y', 'headers': {'User-Agent': 'python-requests/2.22.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com', 'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}, {'hint': 'service2.example.com:8002 - Mock for Service2', 'unhandledRequests': [{'method': 'GET', 'path': '/service2z', 'headers': {'User-Agent': 'python-requests/2.22.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service2.example.com'}, 'response': ''}]}]}
+        expected_data = {'services': [{'hint': 'service1.example.com:8001 - Mock for Service1', 'unhandledRequests': [{'method': 'GET', 'path': '/service1x', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com'}, 'response': ''}, {'method': 'GET', 'path': '/service1y', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com', 'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}, {'hint': 'service2.example.com:8002 - Mock for Service2', 'unhandledRequests': [{'method': 'GET', 'path': '/service2z', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service2.example.com'}, 'response': ''}]}]}
         assert expected_data == resp.json()
 
         resp = requests.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'hint': 'service1.example.com:8001 - Mock for Service1', 'unhandledRequests': [{'method': 'GET', 'path': '/service1x', 'headers': {'User-Agent': 'python-requests/2.22.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com'}, 'response': ''}, {'method': 'GET', 'path': '/service1y', 'headers': {'User-Agent': 'python-requests/2.22.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com', 'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}
+        expected_data = {'hint': 'service1.example.com:8001 - Mock for Service1', 'unhandledRequests': [{'method': 'GET', 'path': '/service1x', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com'}, 'response': ''}, {'method': 'GET', 'path': '/service1y', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com', 'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}
         assert expected_data == resp.json()
 
         resp = requests.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'hint': 'service2.example.com:8002 - Mock for Service2', 'unhandledRequests': [{'method': 'GET', 'path': '/service2z', 'headers': {'User-Agent': 'python-requests/2.22.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service2.example.com'}, 'response': ''}]}
+        expected_data = {'hint': 'service2.example.com:8002 - Mock for Service2', 'unhandledRequests': [{'method': 'GET', 'path': '/service2z', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service2.example.com'}, 'response': ''}]}
         assert expected_data == resp.json()
