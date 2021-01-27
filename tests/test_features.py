@@ -1661,3 +1661,55 @@ class TestManagement():
 
             resp = requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
             assert 204 == resp.status_code
+
+    @pytest.mark.parametrize(('config, level'), [
+        ('configs/json/hbs/management/multiresponse.json', 'global'),
+        ('configs/json/hbs/management/multiresponse.json', 'service'),
+    ])
+    def test_post_reset_iterators(self, config, level):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        for _ in range(3):
+            for i in range(2):
+                resp = requests.get(SRV_8001 + '/service1-multi-response-looped', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'resp%d' % (i + 1)
+
+                resp = requests.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'resp%d' % (i + 1)
+
+                resp = requests.get(SRV_8001 + '/service1-dataset-inline', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'dset: val%d' % (i + 1)
+
+            if level == 'service':
+                resp = requests.post(SRV_8001 + '/__admin/reset-iterators', headers={'Host': SRV_8001_HOST})
+                assert 204 == resp.status_code
+
+            for i in range(2):
+                resp = requests.get(SRV_8002 + '/service2-multi-response-looped', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'resp%d' % (i + 1)
+
+                resp = requests.get(SRV_8002 + '/service2-multi-response-nonlooped', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'resp%d' % (i + 1)
+
+                resp = requests.get(SRV_8002 + '/service2-dataset-inline', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'dset: val%d' % (i + 1)
+
+            if level == 'service':
+                resp = requests.post(SRV_8002 + '/__admin/reset-iterators', headers={'Host': SRV_8002_HOST})
+                assert 204 == resp.status_code
+
+            if level == 'global':
+                resp = requests.post(SRV_9000 + '/reset-iterators')
+                assert 204 == resp.status_code
