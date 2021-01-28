@@ -1724,9 +1724,8 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-
-        data = resp.json()
-        assert data == requests.get(SRV_9000 + '/config').json()
+        expected_data = {'services': [{'name': 'Mock for Service1', 'port': 8001, 'hostname': 'service1.example.com', 'endpoints': []}, {'name': 'Mock for Service2', 'port': 8002, 'hostname': 'service2.example.com', 'endpoints': []}]}
+        assert expected_data == resp.json()
 
         resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
@@ -1740,17 +1739,17 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'management': {'port': 9000}, 'templatingEngine': 'Handlebars', 'services': [{'name': 'Mock for Service1', 'hostname': 'service1.example.com', 'port': 8001, 'managementRoot': '__admin', 'endpoints': [{'path': '/service1', 'method': 'GET', 'response': 'service1'}, {'path': '/service1-second/{{var}}', 'method': 'GET', 'response': {'status': 201, 'body': 'service1-second: {{var}}'}}, {'path': '/service1x', 'method': 'GET', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com'}, 'response': ''}, {'path': '/service1y', 'method': 'GET', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com', 'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}, {'name': 'Mock for Service2', 'hostname': 'service2.example.com', 'port': 8002, 'managementRoot': '__admin', 'endpoints': [{'path': '/service2', 'method': 'GET', 'response': 'service2'}, {'path': '/service2-rst', 'method': 'GET', 'response': {'status': 'RST', 'body': 'service2-rst'}}, {'path': '/service2-fin', 'method': 'GET', 'response': {'status': 'FIN', 'body': 'service2-fin'}}, {'path': '/service2z', 'method': 'GET', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service2.example.com'}, 'response': ''}]}]}
+        expected_data = {'services': [{'name': 'Mock for Service1', 'port': 8001, 'hostname': 'service1.example.com', 'endpoints': [{'path': '/service1x', 'method': 'GET', 'headers': {}, 'response': ''}, {'path': '/service1y', 'method': 'GET', 'headers': {'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}, {'name': 'Mock for Service2', 'port': 8002, 'hostname': 'service2.example.com', 'endpoints': [{'path': '/service2z', 'method': 'GET', 'headers': {}, 'response': ''}]}]}
         assert expected_data == resp.json()
 
         resp = requests.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'name': 'Mock for Service1', 'hostname': 'service1.example.com', 'port': 8001, 'managementRoot': '__admin', 'endpoints': [{'path': '/service1', 'method': 'GET', 'response': 'service1'}, {'path': '/service1-second/{{var}}', 'method': 'GET', 'response': {'status': 201, 'body': 'service1-second: {{var}}'}}, {'path': '/service1x', 'method': 'GET', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com'}, 'response': ''}, {'path': '/service1y', 'method': 'GET', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service1.example.com', 'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}
+        expected_data = {'services': [{'name': 'Mock for Service1', 'port': 8001, 'hostname': 'service1.example.com', 'endpoints': [{'path': '/service1x', 'method': 'GET', 'headers': {}, 'response': ''}, {'path': '/service1y', 'method': 'GET', 'headers': {'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}]}
         assert expected_data == resp.json()
 
         resp = requests.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'name': 'Mock for Service2', 'hostname': 'service2.example.com', 'port': 8002, 'managementRoot': '__admin', 'endpoints': [{'path': '/service2', 'method': 'GET', 'response': 'service2'}, {'path': '/service2-rst', 'method': 'GET', 'response': {'status': 'RST', 'body': 'service2-rst'}}, {'path': '/service2-fin', 'method': 'GET', 'response': {'status': 'FIN', 'body': 'service2-fin'}}, {'path': '/service2z', 'method': 'GET', 'headers': {'User-Agent': 'mockintosh-test', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Host': 'service2.example.com'}, 'response': ''}]}
+        expected_data = {'services': [{'name': 'Mock for Service2', 'port': 8002, 'hostname': 'service2.example.com', 'endpoints': [{'path': '/service2z', 'method': 'GET', 'headers': {}, 'response': ''}]}]}
         assert expected_data == resp.json()
