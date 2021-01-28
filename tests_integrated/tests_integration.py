@@ -510,10 +510,13 @@ class IntegrationTests(unittest.TestCase):
         config = resp.json()
         for endp in config['services'][0]['endpoints']:
             if endp['path'] == path:
-                hdrs = (x.lower() for x in endp.get('headers', {}).keys())
+                hdrs = [x.lower() for x in endp.get('headers', {}).keys()]
                 self.assertNotIn('host', hdrs)
                 self.assertNotIn('user-agent', hdrs)
                 self.assertNotIn('connection', hdrs)
+                self.assertIn('hdr1', hdrs)
+                self.assertIn('hdr2', hdrs)
+                self.assertIn('hdr3', hdrs)
                 break
         else:
             self.fail("Did not find endpoint")
@@ -526,7 +529,26 @@ class IntegrationTests(unittest.TestCase):
         config = resp.json()
         for endp in config['services'][0]['endpoints']:
             if endp['path'] == path:
-                # TODO: check that hdr2 and hdr3 are not present
+                hdrs = [x.lower() for x in endp.get('headers', {}).keys()]
+                self.assertIn('hdr1', hdrs)
+                self.assertNotIn('hdr2', hdrs)
+                self.assertNotIn('hdr3', hdrs)
+                break
+        else:
+            self.fail("Did not find endpoint")
+
+        resp = requests.get(SRV1 + path, headers={"hdr1": "val1", "hdr2": "val2", "hdr3": "val3"})
+        self.assertEqual(404, resp.status_code)
+
+        resp = requests.get(SRV1 + '/__admin/unhandled')
+        resp.raise_for_status()
+        config = resp.json()
+        for endp in config['services'][0]['endpoints']:
+            if endp['path'] == path:
+                hdrs = [x.lower() for x in endp.get('headers', {}).keys()]
+                self.assertIn('hdr1', hdrs)
+                self.assertNotIn('hdr2', hdrs)
+                self.assertNotIn('hdr3', hdrs)
                 break
         else:
             self.fail("Did not find endpoint")
