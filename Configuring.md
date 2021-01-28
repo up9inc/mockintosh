@@ -238,5 +238,6 @@ Management edpoints:
 - `/config` - `GET` to fetch, `POST` to set 
 - `/stats` - `GET` to fetch, `DELETE` to reset 
 - `/reset-iterators` to reset dataset/multirequest iterators
+- `/unhandled` to get config proto for unhandler requests  
 - TODO: endpoint to serve swagger-ui
 - TODO: `/shutdown` to exit process?

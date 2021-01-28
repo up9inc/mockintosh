@@ -26,28 +26,32 @@
     Mockintosh Management API</H1>
 
 <div class="container-fluid">
-
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link active" id="stats-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
-               aria-selected="false">Statistics</a>
+               aria-selected="true">Statistics</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
-               aria-selected="true">Configuration</a>
+               aria-selected="false">Configuration</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="contact-tab" data-toggle="tab" href="#trynow" role="tab" aria-controls="contact"
                aria-selected="false">Query APIs</a>
         </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="unhandled-tab" data-toggle="tab" href="#unhandled" role="tab" aria-controls="unhandled"
+               aria-selected="false">Unhandled Requests</a>
+        </li>
     </ul>
     <div class="tab-content" id="myTabContent">
         <div class="tab-pane fade show active" id="stats" role="tabpanel" aria-labelledby="stats-tab">
-            <button class="button btn-info">Refresh</button>
+            <button class="btn btn-sm btn-primary">Refresh</button>
             <pre></pre>
         </div>
         <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
-            <button class="button btn-info">Refresh</button>
+            <button class="btn btn-sm btn-primary">Refresh</button>
+            <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
             <pre></pre>
         </div>
         <div class="tab-pane fade" id="trynow" role="tabpanel" aria-labelledby="contact-tab">
@@ -56,6 +60,10 @@
                     <div class="lds-dual-ring"></div>
                 </div>
             </div>
+        </div>
+        <div class="tab-pane fade show active" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
+            <button class="btn btn-sm btn-primary">Refresh</button>
+            <pre></pre>
         </div>
     </div>
 
@@ -99,9 +107,15 @@
             });
         }).trigger('click');
 
-        $("#config button").click(function () {
+        $("#config .btn-primary").click(function () {
             $.getJSON("./config").done(function (data) {
                 $("#config pre").text(JSON.stringify(data, null, 2));
+            });
+        }).trigger('click');
+
+        $("#unhandled button").click(function () {
+            $.getJSON("./unhandled").done(function (data) {
+                $("#unhandled pre").text(JSON.stringify(data, null, 2));
             });
         }).trigger('click');
 
