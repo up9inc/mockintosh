@@ -189,28 +189,34 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             'services': []
         }
 
+        data = copy.deepcopy(self.http_server.definition.orig_data)
+
         for i in range(len(self.http_server.definition.data['services'])):
             service = self.http_server.definition.data['services'][i]
             if 'endpoints' not in service or not service['endpoints']:
                 continue
-            data['services'].append(self.build_unhandled_requests(i))
+            data['services'][i]['endpoints'] += self.build_unhandled_requests(i)
+
+        try:
+            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return
 
         self.write(data)
 
     def build_unhandled_requests(self, service_id):
-        data = {
-            'hint': self.http_server.stats.services[service_id].hint,
-            'unhandledRequests': []
-        }
+        endpoints = []
 
         for request in self.http_server.unhandled_data.requests[service_id].values():
             config_template = {}
 
-            # Method
-            config_template['method'] = request.method
-
             # Path
             config_template['path'] = request.path
+
+            # Method
+            config_template['method'] = request.method
 
             # Headers
             for key, value in request.headers._dict.items():
@@ -224,9 +230,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = _decoder(value[0])
             config_template['response'] = ''
-            data['unhandledRequests'].append(config_template)
+            endpoints.append(config_template)
 
-        return data
+        return endpoints
 
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
@@ -322,7 +328,22 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         self.service_id = service_id
 
     def get(self):
-        self.write(self.build_unhandled_requests(self.service_id))
+        data = copy.deepcopy(self.http_server.definition.orig_data['services'][self.service_id])
+        if 'endpoints' not in data:
+            data['endpoints'] = []
+        data['endpoints'] += self.build_unhandled_requests(self.service_id)
+
+        try:
+            jsonschema.validate(
+                instance=data,
+                schema=self.http_server.definition.schema['definitions']['service_ref']['properties']
+            )
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return
+
+        self.write(data)
 
 
 class UnhandledData:
