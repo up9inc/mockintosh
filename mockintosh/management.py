@@ -23,6 +23,7 @@ from mockintosh.handlers import GenericHandler
 from mockintosh.methods import _decoder
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
+UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
 
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
@@ -189,13 +190,15 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             'services': []
         }
 
-        data = copy.deepcopy(self.http_server.definition.orig_data)
+        services = self.http_server.definition.orig_data['services']
+        for service in services:
+            data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
 
         for i in range(len(self.http_server.definition.data['services'])):
             service = self.http_server.definition.data['services'][i]
             if 'endpoints' not in service or not service['endpoints']:
                 continue
-            data['services'][i]['endpoints'] += self.build_unhandled_requests(i)
+            data['services'][i]['endpoints'] = self.build_unhandled_requests(i)
 
         try:
             jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
@@ -328,10 +331,13 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         self.service_id = service_id
 
     def get(self):
-        data = copy.deepcopy(self.http_server.definition.orig_data['services'][self.service_id])
-        if 'endpoints' not in data:
-            data['endpoints'] = []
-        data['endpoints'] += self.build_unhandled_requests(self.service_id)
+        data = {
+            'services': []
+        }
+
+        service = self.http_server.definition.orig_data['services'][self.service_id]
+        data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
+        data['services'][0]['endpoints'] = self.build_unhandled_requests(self.service_id)
 
         try:
             jsonschema.validate(
