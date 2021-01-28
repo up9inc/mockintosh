@@ -85,6 +85,8 @@
 
 ## Milestone N
 
+1. Tagging responses of endpoint and switching between current tag via admin API, or header
+1. "Bypass" mode for service to learn configuration   
 1. referencing multipart/urlencoded fields in matchers and templates
 1. base64-encoded body strings, for binary responses
 1. Import from OpenAPI and Postman collections

@@ -72,7 +72,17 @@ class GenericHandler(tornado.web.RequestHandler):
             elapsed_time_in_seconds
         )
 
-    def initialize(self, config_dir, service_id, endpoints, _globals, definition_engine, interceptors, stats):
+    def initialize(
+        self,
+        config_dir,
+        service_id,
+        endpoints,
+        _globals,
+        definition_engine,
+        interceptors,
+        stats,
+        unhandled_data
+    ):
         self.config_dir = config_dir
         self.endpoints = endpoints
         self.methods = None
@@ -80,6 +90,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.stats = stats
         self.service_id = service_id
         self.internal_endpoint_id = None
+        self.unhandled_data = unhandled_data
 
         for path, methods in self.endpoints:
             if re.fullmatch(path, self.request.path):
@@ -690,6 +701,13 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def raise_http_error(self, status_code):
         from mockintosh.overrides import ErrorHandler
+
+        if self.unhandled_data is not None and status_code == 404:
+            identifier = '%s %s' % (self.request.method.upper(), self.request.path)
+            if identifier not in self.unhandled_data.requests[self.service_id]:
+                self.unhandled_data.requests[self.service_id][identifier] = []
+            self.unhandled_data.requests[self.service_id][identifier].append(self.request)
+
         return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
 
 

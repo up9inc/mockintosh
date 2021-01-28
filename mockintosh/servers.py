@@ -22,11 +22,14 @@ from mockintosh.management import (
     ManagementConfigHandler,
     ManagementStatsHandler,
     ManagementResetIteratorsHandler,
+    ManagementUnhandledHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
     ManagementServiceStatsHandler,
-    ManagementServiceResetIteratorsHandler
+    ManagementServiceResetIteratorsHandler,
+    ManagementServiceUnhandledHandler,
+    UnhandledData
 )
 from mockintosh.overrides import Application
 from mockintosh.stats import Stats
@@ -77,6 +80,7 @@ class HttpServer:
         self.services_log = []
         self._apps = _Apps()
         self.stats = stats
+        self.unhandled_data = UnhandledData()
         self.load()
 
     def load(self):
@@ -92,6 +96,7 @@ class HttpServer:
         key_file = path.join(__location__, 'ssl', 'key.pem')
 
         for service in services:
+            self.unhandled_data.requests.append({})
             self.stats.add_service(
                 '%s:%s%s' % (
                     service['hostname'] if 'hostname' in service else (
@@ -231,6 +236,8 @@ class HttpServer:
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
 
+        unhandled_enabled = True if (management_root is not None or 'management' in self.definition.data) else False
+
         endpoint_handlers.append(
             (
                 r'.*',
@@ -242,7 +249,8 @@ class HttpServer:
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
                     interceptors=self.interceptors,
-                    stats=self.stats
+                    stats=self.stats,
+                    unhandled_data=self.unhandled_data if unhandled_enabled else None
                 )
             )
         )
@@ -282,6 +290,14 @@ class HttpServer:
                 (
                     '/%s/reset-iterators' % management_root,
                     ManagementServiceResetIteratorsHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service['internalServiceId']
+                    )
+                ),
+                (
+                    '/%s/unhandled' % management_root,
+                    ManagementServiceUnhandledHandler,
                     dict(
                         http_server=self,
                         service_id=service['internalServiceId']
@@ -353,6 +369,13 @@ class HttpServer:
                 (
                     '/reset-iterators',
                     ManagementResetIteratorsHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/unhandled',
+                    ManagementUnhandledHandler,
                     dict(
                         http_server=self
                     )
