@@ -190,6 +190,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         }
 
         for i in range(len(self.http_server.definition.data['services'])):
+            service = self.http_server.definition.data['services'][i]
+            if 'endpoints' not in service or not service['endpoints']:
+                continue
             data['services'].append(self.build_unhandled_requests(i))
 
         self.write(data)
