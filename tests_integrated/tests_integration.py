@@ -508,6 +508,8 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/unhandled', verify=False)
         resp.raise_for_status()
         config = resp.json()
+        self.assertFalse([x for x in config['services'] if not x['endpoints']])
+
         for endp in config['services'][0]['endpoints']:
             if endp['path'] == path:
                 hdrs = [x.lower() for x in endp.get('headers', {}).keys()]
