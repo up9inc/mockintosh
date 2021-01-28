@@ -1,4 +1,4 @@
-# Mockintosh, the API mocking server for microservice environments
+# Mockintosh, Docker and K8s-friendly mock
 
 Quick links: [Config Syntax](Configuring.md) | [Request Matching](Matching.md) | [Response Templating](Templating.md) | [Changelog](Changelog.md)
 
