@@ -208,21 +208,23 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for service in services:
-            data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
-
-        for i in range(len(self.http_server.definition.data['services'])):
-            service = self.http_server.definition.data['services'][i]
+        for i, service in enumerate(services):
             if 'endpoints' not in service or not service['endpoints']:
                 continue
-            data['services'][i]['endpoints'] = self.build_unhandled_requests(i)
+            endpoints = self.build_unhandled_requests(i)
+            if not endpoints:
+                continue
+            new_service = dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service)
+            new_service['endpoints'] = endpoints
+            data['services'].append(new_service)
 
-        try:
-            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
-            return
+        if data['services']:
+            try:
+                jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+            except jsonschema.exceptions.ValidationError as e:
+                self.set_status(400)
+                self.write('JSON schema validation error:\n%s' % str(e))
+                return
 
         self.write(data)
 
