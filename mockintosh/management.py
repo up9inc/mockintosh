@@ -208,28 +208,34 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for service in services:
-            data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
-
-        for i in range(len(self.http_server.definition.data['services'])):
-            service = self.http_server.definition.data['services'][i]
+        for i, service in enumerate(services):
             if 'endpoints' not in service or not service['endpoints']:
                 continue
-            data['services'][i]['endpoints'] = self.build_unhandled_requests(i)
+            endpoints = self.build_unhandled_requests(i)
+            if not endpoints:
+                continue
+            new_service = dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service)
+            new_service['endpoints'] = endpoints
+            data['services'].append(new_service)
 
-        try:
-            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
-            return
+        if data['services']:
+            try:
+                jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+            except jsonschema.exceptions.ValidationError as e:
+                self.set_status(400)
+                self.write('JSON schema validation error:\n%s' % str(e))
+                return
 
         self.write(data)
 
     def build_unhandled_requests(self, service_id):
         endpoints = []
 
-        for request in self.http_server.unhandled_data.requests[service_id].values():
+        for requests in self.http_server.unhandled_data.requests[service_id].values():
+            if not requests:
+                continue
+
+            request = requests[-1]
             config_template = {}
 
             # Path
@@ -240,16 +246,39 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
             # Headers
             for key, value in request.headers._dict.items():
-                if 'headers' not in config_template:
-                    config_template['headers'] = {}
+                continue_parent = False
+                for _request in requests:
+                    if (
+                        (key.title() not in _request.headers._dict)
+                        or  # noqa: W504, W503
+                        (key.title() in _request.headers._dict and value != _request.headers._dict[key.title()])
+                    ):
+                        continue_parent = True
+                        break
+                if continue_parent:
+                    continue
                 if key.lower() not in UNHANDLED_IGNORED_HEADERS:
+                    if 'headers' not in config_template:
+                        config_template['headers'] = {}
                     config_template['headers'][key] = value
 
             # Query String
             for key, value in request.query_arguments.items():
+                continue_parent = False
+                for _request in requests:
+                    if (
+                        (key not in request.query_arguments)
+                        or  # noqa: W504, W503
+                        (key in request.query_arguments and value != request.query_arguments[key])
+                    ):
+                        continue_parent = True
+                        break
+                if continue_parent:
+                    continue
                 if 'queryString' not in config_template:
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = _decoder(value[0])
+
             config_template['response'] = ''
             endpoints.append(config_template)
 
