@@ -208,6 +208,13 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertIn("<title>CORS Example</title>", resp.text)
 
+        resp = requests.post(MGMT + '/reset-iterators', verify=False)
+        resp.raise_for_status()
+
+        resp = requests.get(SRV1 + '/multi-response-looped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("<title>CORS Example</title>", resp.text)
+
     def test_multiresponse_noloop(self):
         resp = requests.get(SRV1 + '/multi-response-nonlooped')
         self.assertEqual(200, resp.status_code)
@@ -220,6 +227,13 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/multi-response-nonlooped')
         self.assertEqual(410, resp.status_code)
 
+        resp = requests.post(SRV1 + '/__admin/reset-iterators')
+        resp.raise_for_status()
+
+        resp = requests.get(SRV1 + '/multi-response-nonlooped')
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("resp1", resp.text)
+
     def test_dataset(self):
         resp = requests.get(SRV1 + '/dataset-inline')
         self.assertEqual(200, resp.status_code)
@@ -228,6 +242,13 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/dataset-inline')
         self.assertEqual(200, resp.status_code)
         self.assertEqual("dset: val2", resp.text)
+
+        resp = requests.get(SRV1 + '/dataset-inline')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val1", resp.text)
+
+        resp = requests.post(SRV1 + '/__admin/reset-iterators')
+        resp.raise_for_status()
 
         resp = requests.get(SRV1 + '/dataset-inline')
         self.assertEqual(200, resp.status_code)
@@ -244,6 +265,13 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/dataset-fromfile')
         self.assertEqual(410, resp.status_code)
+
+        resp = requests.post(MGMT + '/reset-iterators', verify=False)
+        resp.raise_for_status()
+
+        resp = requests.get(SRV1 + '/dataset-fromfile')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("dset: val3", resp.text)
 
     def test_ssl(self):
         resp = requests.get(SRV5 + '/', verify=False)

@@ -21,11 +21,13 @@ from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
     ManagementStatsHandler,
+    ManagementResetIteratorsHandler,
     ManagementUnhandledHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
     ManagementServiceStatsHandler,
+    ManagementServiceResetIteratorsHandler,
     ManagementServiceUnhandledHandler,
     UnhandledData
 )
@@ -286,6 +288,14 @@ class HttpServer:
                     )
                 ),
                 (
+                    '/%s/reset-iterators' % management_root,
+                    ManagementServiceResetIteratorsHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service['internalServiceId']
+                    )
+                ),
+                (
                     '/%s/unhandled' % management_root,
                     ManagementServiceUnhandledHandler,
                     dict(
@@ -354,6 +364,13 @@ class HttpServer:
                     ManagementStatsHandler,
                     dict(
                         stats=stats
+                    )
+                ),
+                (
+                    '/reset-iterators',
+                    ManagementResetIteratorsHandler,
+                    dict(
+                        http_server=self
                     )
                 ),
                 (
