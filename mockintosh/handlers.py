@@ -704,7 +704,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
         if self.unhandled_data is not None and status_code == 404:
             identifier = '%s %s' % (self.request.method.upper(), self.request.path)
-            self.unhandled_data.requests[self.service_id][identifier] = self.request
+            if identifier not in self.unhandled_data.requests[self.service_id]:
+                self.unhandled_data.requests[self.service_id][identifier] = []
+            self.unhandled_data.requests[self.service_id][identifier].append(self.request)
 
         return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
 
