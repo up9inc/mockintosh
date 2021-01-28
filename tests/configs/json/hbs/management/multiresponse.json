@@ -1,0 +1,88 @@
+{
+  "management": {
+    "port": 9000
+  },
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8001,
+      "managementRoot": "__admin",
+      "endpoints": [
+        {
+          "path": "/service1-multi-response-looped",
+          "response": [
+            "resp1",
+            "resp2",
+            "resp3"
+          ]
+        },
+        {
+          "path": "/service1-multi-response-nonlooped",
+          "multiResponsesLooped": false,
+          "response": [
+            "resp1",
+            "resp2",
+            "resp3"
+          ]
+        },
+        {
+          "path": "/service1-dataset-inline",
+          "dataset": [
+            {
+              "var1": "val1"
+            },
+            {
+              "var1": "val2"
+            },
+            {
+              "var1": "val3"
+            }
+          ],
+          "response": "dset: {{var1}}"
+        }
+      ]
+    },
+    {
+      "name": "Mock for Service2",
+      "hostname": "service2.example.com",
+      "port": 8002,
+      "managementRoot": "__admin",
+      "endpoints": [
+        {
+          "path": "/service2-multi-response-looped",
+          "response": [
+            "resp1",
+            "resp2",
+            "resp3"
+          ]
+        },
+        {
+          "path": "/service2-multi-response-nonlooped",
+          "multiResponsesLooped": false,
+          "response": [
+            "resp1",
+            "resp2",
+            "resp3"
+          ]
+        },
+        {
+          "path": "/service2-dataset-inline",
+          "dataset": [
+            {
+              "var1": "val1"
+            },
+            {
+              "var1": "val2"
+            },
+            {
+              "var1": "val3"
+            }
+          ],
+          "response": "dset: {{var1}}"
+        }
+      ]
+    }
+  ]
+}

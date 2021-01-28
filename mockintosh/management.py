@@ -27,6 +27,18 @@ POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslK
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
 
+def _reset_iterators(app):
+    for rule in app.default_router.rules[0].target.rules:
+        if rule.target == GenericHandler:
+            endpoints = rule.target_kwargs['endpoints']
+            for _, methods in endpoints:
+                for _, alternatives in methods.items():
+                    for alternative in alternatives:
+                        alternative.pop('multiResponsesIndex', None)
+                        alternative.pop('datasetIndex', None)
+            break
+
+
 class ManagementBaseHandler(tornado.web.RequestHandler):
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
@@ -156,17 +168,14 @@ class ManagementStatsHandler(ManagementBaseHandler):
         self.set_status(204)
 
 
-class ManagementServiceStatsHandler(ManagementBaseHandler):
+class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
-    def initialize(self, stats, service_id):
-        self.stats = stats
-        self.service_id = service_id
+    def initialize(self, http_server):
+        self.http_server = http_server
 
-    def get(self):
-        self.write(self.stats.services[self.service_id].json())
-
-    def delete(self):
-        self.stats.services[self.service_id].reset()
+    def post(self):
+        for app in self.http_server._apps.apps:
+            _reset_iterators(app)
         self.set_status(204)
 
 
@@ -227,4 +236,30 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
 
         self.http_server.stats.reset()
 
+        self.set_status(204)
+
+
+class ManagementServiceStatsHandler(ManagementBaseHandler):
+
+    def initialize(self, stats, service_id):
+        self.stats = stats
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.stats.services[self.service_id].json())
+
+    def delete(self):
+        self.stats.services[self.service_id].reset()
+        self.set_status(204)
+
+
+class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server, service_id):
+        self.http_server = http_server
+        self.service_id = service_id
+
+    def post(self):
+        app = self.http_server._apps.apps[self.service_id]
+        _reset_iterators(app)
         self.set_status(204)

@@ -21,10 +21,12 @@ from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
     ManagementStatsHandler,
+    ManagementResetIteratorsHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
-    ManagementServiceStatsHandler
+    ManagementServiceStatsHandler,
+    ManagementServiceResetIteratorsHandler
 )
 from mockintosh.overrides import Application
 from mockintosh.stats import Stats
@@ -276,6 +278,14 @@ class HttpServer:
                         stats=stats,
                         service_id=service['internalServiceId']
                     )
+                ),
+                (
+                    '/%s/reset-iterators' % management_root,
+                    ManagementServiceResetIteratorsHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service['internalServiceId']
+                    )
                 )
             ] + endpoint_handlers
 
@@ -338,6 +348,13 @@ class HttpServer:
                     ManagementStatsHandler,
                     dict(
                         stats=stats
+                    )
+                ),
+                (
+                    '/reset-iterators',
+                    ManagementResetIteratorsHandler,
+                    dict(
+                        http_server=self
                     )
                 )
             ])
