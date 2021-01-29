@@ -285,6 +285,69 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         return endpoints
 
 
+class ManagementOasHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    def get(self):
+        data = {
+            'documents': []
+        }
+
+        services = self.http_server.definition.orig_data['services']
+        for i, service in enumerate(services):
+            if 'endpoints' not in service or not service['endpoints']:
+                continue
+            data['documents'].append(self.build_oas(i))
+
+        self.write(data)
+
+    def build_oas(self, service_id):
+        service = self.http_server.definition.orig_data['services'][service_id]
+        ssl = service.get('ssl', False)
+        protocol = 'https' if ssl else 'http'
+        hostname = self.http_server.address if self.http_server.address else (
+            'localhost' if 'hostname' not in service else service['hostname']
+        )
+        document = {
+            'openapi': '3.0.0',
+            'info': {
+                'title': 'Mockintosh API',
+                'description': 'Automatically generated Open API Specification.',
+                'version': '0.1.9'
+            },
+            'servers': [
+                {
+                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
+                    'description': service['name'] if 'name' in service else ''
+                }
+            ],
+            'paths': []
+        }
+
+        endpoints = []
+        for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                endpoints = rule.target_kwargs['endpoints']
+        print(endpoints)
+
+        for endpoint in endpoints:
+            original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
+            original_path = self.handlebars_to_oas(original_path)
+            methods = {}
+            for method, responses in endpoint[1].items():
+                print(responses)
+                methods[method.lower()] = {}
+            path = {'%s' % original_path: methods}
+            document['paths'].append(path)
+
+        return document
+
+    def handlebars_to_oas(self, string):
+        return string.replace('{{', '{').replace('}}', '}')
+
+
 class ManagementServiceRootHandler(ManagementBaseHandler):
 
     def get(self):
@@ -397,6 +460,16 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             return
 
         self.write(data)
+
+
+class ManagementServiceOasHandler(ManagementOasHandler):
+
+    def initialize(self, http_server, service_id):
+        self.http_server = http_server
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.build_oas(self.service_id))
 
 
 class UnhandledData:

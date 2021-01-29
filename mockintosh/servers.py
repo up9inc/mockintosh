@@ -23,12 +23,14 @@ from mockintosh.management import (
     ManagementStatsHandler,
     ManagementResetIteratorsHandler,
     ManagementUnhandledHandler,
+    ManagementOasHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
     ManagementServiceStatsHandler,
     ManagementServiceResetIteratorsHandler,
     ManagementServiceUnhandledHandler,
+    ManagementServiceOasHandler,
     UnhandledData
 )
 from mockintosh.overrides import Application
@@ -302,6 +304,14 @@ class HttpServer:
                         http_server=self,
                         service_id=service['internalServiceId']
                     )
+                ),
+                (
+                    '/%s/oas' % management_root,
+                    ManagementServiceOasHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service['internalServiceId']
+                    )
                 )
             ] + endpoint_handlers
 
@@ -376,6 +386,13 @@ class HttpServer:
                 (
                     '/unhandled',
                     ManagementUnhandledHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/oas',
+                    ManagementOasHandler,
                     dict(
                         http_server=self
                     )
