@@ -21,7 +21,7 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.methods import _decoder
-from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
+from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -328,9 +328,11 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         endpoints = []
+        rule_cursor = None
         for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 endpoints = rule.target_kwargs['endpoints']
+                rule_cursor = rule
 
         for endpoint in endpoints:
             original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
@@ -339,24 +341,40 @@ class ManagementOasHandler(ManagementBaseHandler):
             for method, alternatives in endpoint[1].items():
                 method_data = {'responses': {}}
                 for alternative in alternatives:
+                    # requestBody
+                    if 'body' in alternative and 'schema' in alternative['body']:
+                        json_schema = alternative['body']['schema']
+                        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
+                            with open(json_schema_path, 'r') as file:
+                                json_schema = json.load(file)
+                        method_data['requestBody'] = {
+                            'required': True,
+                            'content': {
+                                'application/json': {
+                                    'schema': json_schema
+                                }
+                            }
+                        }
+
                     # parameters
                     params = alternative['params']
                     if params:
                         method_data['parameters'] = []
-                    for key, param in params.items():
-                        data = {}
-                        if isinstance(param, PathParam):
-                            data['in'] = 'path'
-                            data['name'] = key
-                        if isinstance(param, HeaderParam):
-                            data['in'] = 'header'
-                            data['name'] = key
-                        if isinstance(param, QueryStringParam):
-                            data['in'] = 'query'
-                            data['name'] = key
-                        data['required'] = True
-                        data['type'] = 'integer'
-                        method_data['parameters'].append(data)
+                        for key, param in params.items():
+                            data = {}
+                            if isinstance(param, PathParam):
+                                data['in'] = 'path'
+                                data['name'] = key
+                            if isinstance(param, HeaderParam):
+                                data['in'] = 'header'
+                                data['name'] = key
+                            if isinstance(param, QueryStringParam):
+                                data['in'] = 'query'
+                                data['name'] = key
+                            data['required'] = True
+                            data['type'] = 'integer'
+                            method_data['parameters'].append(data)
 
                     # responses
                     if 'response' in alternative:
@@ -393,6 +411,23 @@ class ManagementOasHandler(ManagementBaseHandler):
     def handlebars_to_oas(self, string):
         return string.replace('{{', '{').replace('}}', '}')
 
+    def resolve_relative_path(self, config_dir, source_text):
+        relative_path = None
+        orig_relative_path = source_text[1:]
+
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        relative_path = os.path.join(config_dir, orig_relative_path)
+        if not os.path.isfile(relative_path):
+            self.send_error(403, message=error_msg)
+            return None
+        relative_path = os.path.abspath(relative_path)
+        if not relative_path.startswith(config_dir):
+            self.send_error(403, message=error_msg)
+            return None
+
+        return relative_path
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
 
