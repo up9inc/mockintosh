@@ -330,15 +330,40 @@ class ManagementOasHandler(ManagementBaseHandler):
         for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 endpoints = rule.target_kwargs['endpoints']
-        print(endpoints)
 
         for endpoint in endpoints:
             original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
             original_path = self.handlebars_to_oas(original_path)
             methods = {}
-            for method, responses in endpoint[1].items():
-                print(responses)
-                methods[method.lower()] = {}
+            for method, alternatives in endpoint[1].items():
+                method_data = {}
+                for alternative in alternatives:
+                    if 'response' in alternative:
+                        response = alternative['response']
+                        status = 200
+                        if 'status' in response:
+                            status = str(response['status'])
+                        status_data = {}
+                        if 'headers' in response:
+                            new_headers = {k.title(): v for k, v in response['headers'].items()}
+                            if 'Content-Type' in new_headers:
+                                if 'application/json' == new_headers['Content-Type']:
+                                    status_data = {
+                                        'content': {
+                                            'application/json': {
+                                                'schema': {}
+                                            }
+                                        }
+                                    }
+                            status_data['headers'] = {}
+                            for key in new_headers.keys():
+                                status_data['headers'][key] = {
+                                    'schema': {
+                                        'type': 'string'
+                                    }
+                                }
+                        method_data[status] = status_data
+                methods[method.lower()] = method_data
             path = {'%s' % original_path: methods}
             document['paths'].append(path)
 
