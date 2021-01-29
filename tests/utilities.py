@@ -14,6 +14,7 @@ import contextlib
 from mockintosh.constants import PROGRAM
 from mockintosh import initiate
 
+__location__ = path.abspath(path.dirname(__file__))
 
 def signal_handler(sig, frame):
     pass
@@ -52,7 +53,6 @@ def run_mock_server(*args, wait=5):
 
 
 def get_config_path(config):
-    __location__ = path.abspath(path.dirname(__file__))
     return path.join(__location__, config)
 
 

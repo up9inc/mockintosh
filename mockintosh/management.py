@@ -324,15 +324,13 @@ class ManagementOasHandler(ManagementBaseHandler):
                     'description': service['name'] if 'name' in service else ''
                 }
             ],
-            'paths': []
+            'paths': {}
         }
 
         endpoints = []
-        rule_cursor = None
         for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 endpoints = rule.target_kwargs['endpoints']
-                rule_cursor = rule
 
         for endpoint in endpoints:
             original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
@@ -373,7 +371,9 @@ class ManagementOasHandler(ManagementBaseHandler):
                                 data['in'] = 'query'
                                 data['name'] = key
                             data['required'] = True
-                            data['type'] = 'integer'
+                            data['schema'] = {
+                                'type': 'integer'
+                            }
                             method_data['parameters'].append(data)
 
                     # responses
@@ -401,10 +401,10 @@ class ManagementOasHandler(ManagementBaseHandler):
                                         'type': 'string'
                                     }
                                 }
+                        status_data['description'] = ''
                         method_data['responses'][status] = status_data
                 methods[method.lower()] = method_data
-            path = {'%s' % original_path: methods}
-            document['paths'].append(path)
+            document['paths']['%s' % original_path] = methods
 
         return document
 
@@ -428,6 +428,7 @@ class ManagementOasHandler(ManagementBaseHandler):
             return None
 
         return relative_path
+
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
 

@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import pytest
 import requests
 from requests.exceptions import ConnectionError
+from openapi_spec_validator import validate_spec
 
 from mockintosh.constants import PROGRAM
 from utilities import (
@@ -26,6 +27,8 @@ from utilities import (
     nostderr
 )
 
+__location__ = os.path.abspath(os.path.dirname(__file__))
+
 configs = [
     'configs/json/hbs/common/config.json',
     'configs/json/j2/common/config.json',
@@ -33,6 +36,7 @@ configs = [
     'configs/yaml/j2/common/config.yaml'
 ]
 
+MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
@@ -1753,3 +1757,42 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': [{'name': 'Mock for Service2', 'port': 8002, 'hostname': 'service2.example.com', 'endpoints': [{'path': '/service2z', 'method': 'GET', 'response': ''}]}]}
         assert expected_data == resp.json()
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml',
+        'tests_integrated/integration_config.json'
+    ])
+    def test_get_oas(self, config):
+        config_path = None
+        if config.startswith('tests_integrated'):
+            config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
+        else:
+            config_path = get_config_path(config)
+        self.mock_server_process = run_mock_server(config_path)
+
+        resp = None
+        if config.startswith('tests_integrated'):
+            resp = requests.get(MGMT + '/oas', verify=False)
+        else:
+            resp = requests.get(SRV_9000 + '/oas')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for document in data['documents']:
+            validate_spec(document)
+
+        if config.startswith('tests_integrated'):
+            resp = requests.get(SRV_8001 + '/__admin/oas')
+        else:
+            resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        validate_spec(resp.json())
+
+        if not config.startswith('tests_integrated'):
+            resp = requests.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            validate_spec(resp.json())
