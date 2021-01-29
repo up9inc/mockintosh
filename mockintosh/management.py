@@ -21,6 +21,7 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.methods import _decoder
+from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -336,8 +337,28 @@ class ManagementOasHandler(ManagementBaseHandler):
             original_path = self.handlebars_to_oas(original_path)
             methods = {}
             for method, alternatives in endpoint[1].items():
-                method_data = {}
+                method_data = {'responses': {}}
                 for alternative in alternatives:
+                    # parameters
+                    params = alternative['params']
+                    if params:
+                        method_data['parameters'] = []
+                    for key, param in params.items():
+                        data = {}
+                        if isinstance(param, PathParam):
+                            data['in'] = 'path'
+                            data['name'] = key
+                        if isinstance(param, HeaderParam):
+                            data['in'] = 'header'
+                            data['name'] = key
+                        if isinstance(param, QueryStringParam):
+                            data['in'] = 'query'
+                            data['name'] = key
+                        data['required'] = True
+                        data['type'] = 'integer'
+                        method_data['parameters'].append(data)
+
+                    # responses
                     if 'response' in alternative:
                         response = alternative['response']
                         status = 200
@@ -362,7 +383,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                                         'type': 'string'
                                     }
                                 }
-                        method_data[status] = status_data
+                        method_data['responses'][status] = status_data
                 methods[method.lower()] = method_data
             path = {'%s' % original_path: methods}
             document['paths'].append(path)
