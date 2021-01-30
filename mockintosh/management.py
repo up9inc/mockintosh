@@ -7,6 +7,7 @@
 """
 
 import os
+import re
 import json
 import copy
 from typing import (
@@ -20,7 +21,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder
+from mockintosh.methods import _decoder, _safe_path_split
 from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -334,7 +335,7 @@ class ManagementOasHandler(ManagementBaseHandler):
 
         for endpoint in endpoints:
             original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
-            original_path = self.handlebars_to_oas(original_path)
+            path, path_params = self.path_handlebars_to_oas(original_path)
             methods = {}
             for method, alternatives in endpoint[1].items():
                 method_data = {'responses': {}}
@@ -362,8 +363,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                         for key, param in params.items():
                             data = {}
                             if isinstance(param, PathParam):
-                                data['in'] = 'path'
-                                data['name'] = key
+                                continue
                             if isinstance(param, HeaderParam):
                                 data['in'] = 'header'
                                 data['name'] = key
@@ -372,7 +372,22 @@ class ManagementOasHandler(ManagementBaseHandler):
                                 data['name'] = key
                             data['required'] = True
                             data['schema'] = {
-                                'type': 'integer'
+                                'type': 'string'
+                            }
+                            method_data['parameters'].append(data)
+
+                    # path parameters
+                    if path_params:
+                        if 'parameters' not in method_data:
+                            method_data['parameters'] = []
+                        for param in path_params:
+                            data = {
+                                'in': 'path',
+                                'name': param,
+                                'required': True,
+                                'schema': {
+                                    'type': 'string'
+                                }
                             }
                             method_data['parameters'].append(data)
 
@@ -409,12 +424,28 @@ class ManagementOasHandler(ManagementBaseHandler):
                             status_data['description'] = ''
                             method_data['responses'][status] = status_data
                 methods[method.lower()] = method_data
-            document['paths']['%s' % original_path] = methods
+            document['paths']['%s' % path] = methods
 
         return document
 
-    def handlebars_to_oas(self, string):
-        return string.replace('{{', '{').replace('}}', '}')
+    def path_handlebars_to_oas(self, path):
+        segments = _safe_path_split(path)
+        params = []
+        new_segments = []
+        for segment in segments:
+            match = re.search(r'{{(.*)}}', segment)
+            if match is not None:
+                name = match.group(1).strip()
+                param = None
+                if ' ' not in name:
+                    param = name
+                else:
+                    param = 'param%d' % (len(params) + 1)
+                new_segments.append('{%s}' % param)
+                params.append(param)
+            else:
+                new_segments.append(segment)
+        return '/'.join(new_segments), params
 
     def resolve_relative_path(self, config_dir, source_text):
         relative_path = None
