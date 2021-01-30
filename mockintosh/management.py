@@ -298,9 +298,7 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for i, service in enumerate(services):
-            if 'endpoints' not in service or not service['endpoints']:
-                continue
+        for i in range(len(services)):
             data['documents'].append(self.build_oas(i))
 
         self.write(data)
