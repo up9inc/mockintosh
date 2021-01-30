@@ -573,5 +573,3 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         oas = resp.json()
         self.assertEqual('http://localhost:8006', oas['servers'][0]['url'])
-
-

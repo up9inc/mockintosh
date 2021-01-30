@@ -23,7 +23,6 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.methods import _decoder, _safe_path_split
-from mockintosh.params import PathParam, HeaderParam, QueryStringParam
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -355,101 +354,106 @@ class ManagementOasHandler(ManagementBaseHandler):
             path, path_params = self.path_handlebars_to_oas(original_path)
             methods = {}
             for method, alternatives in endpoint[1].items():
+                if not alternatives:
+                    continue
+
                 method_data = {'responses': {}}
-                for alternative in alternatives:
-                    # requestBody
-                    if 'body' in alternative and 'schema' in alternative['body']:
-                        json_schema = alternative['body']['schema']
-                        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
-                            with open(json_schema_path, 'r') as file:
-                                json_schema = json.load(file)
-                        method_data['requestBody'] = {
-                            'required': True,
-                            'content': {
-                                'application/json': {
-                                    'schema': json_schema
-                                }
+                alternative = alternatives[0]
+
+                # requestBody
+                if 'body' in alternative and 'schema' in alternative['body']:
+                    json_schema = alternative['body']['schema']
+                    if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+                        json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
+                        with open(json_schema_path, 'r') as file:
+                            json_schema = json.load(file)
+                    method_data['requestBody'] = {
+                        'required': True,
+                        'content': {
+                            'application/json': {
+                                'schema': json_schema
                             }
                         }
+                    }
 
-                    # path parameters
-                    if path_params:
-                        if 'parameters' not in method_data:
-                            method_data['parameters'] = []
-                        for param in path_params:
-                            data = {
-                                'in': 'path',
-                                'name': param,
-                                'required': True,
-                                'schema': {
-                                    'type': 'string'
-                                }
+                # path parameters
+                if path_params:
+                    if 'parameters' not in method_data:
+                        method_data['parameters'] = []
+                    for param in path_params:
+                        data = {
+                            'in': 'path',
+                            'name': param,
+                            'required': True,
+                            'schema': {
+                                'type': 'string'
                             }
-                            method_data['parameters'].append(data)
+                        }
+                        method_data['parameters'].append(data)
 
-                    # header parameters
-                    if 'headers' in alternative:
-                        if 'parameters' not in method_data:
-                            method_data['parameters'] = []
-                        for key in alternative['headers'].keys():
-                            data = {
-                                'in': 'header',
-                                'name': key,
-                                'required': True,
-                                'schema': {
-                                    'type': 'string'
-                                }
+                # header parameters
+                if 'headers' in alternative:
+                    if 'parameters' not in method_data:
+                        method_data['parameters'] = []
+                    for key in alternative['headers'].keys():
+                        data = {
+                            'in': 'header',
+                            'name': key,
+                            'required': True,
+                            'schema': {
+                                'type': 'string'
                             }
-                            method_data['parameters'].append(data)
+                        }
+                        method_data['parameters'].append(data)
 
-                    # query string parameters
-                    if 'queryString' in alternative:
-                        if 'parameters' not in method_data:
-                            method_data['parameters'] = []
-                        for key in alternative['queryString'].keys():
-                            data = {
-                                'in': 'query',
-                                'name': key,
-                                'required': True,
-                                'schema': {
-                                    'type': 'string'
-                                }
+                # query string parameters
+                if 'queryString' in alternative:
+                    if 'parameters' not in method_data:
+                        method_data['parameters'] = []
+                    for key in alternative['queryString'].keys():
+                        data = {
+                            'in': 'query',
+                            'name': key,
+                            'required': True,
+                            'schema': {
+                                'type': 'string'
                             }
-                            method_data['parameters'].append(data)
+                        }
+                        method_data['parameters'].append(data)
 
-                    # responses
-                    if 'response' in alternative:
-                        response = alternative['response']
-                        status = 200
-                        if 'status' in response:
-                            status = str(response['status'])
-                        if status not in ('RST', 'FIN'):
-                            try:
-                                int(status)
-                            except ValueError:
-                                status = 'default'
-                            status_data = {}
-                            if 'headers' in response:
-                                new_headers = {k.title(): v for k, v in response['headers'].items()}
-                                if 'Content-Type' in new_headers:
-                                    if 'application/json' == new_headers['Content-Type']:
-                                        status_data = {
-                                            'content': {
-                                                'application/json': {
-                                                    'schema': {}
-                                                }
+                # responses
+                if 'response' in alternative:
+                    response = alternative['response']
+                    status = 200
+                    if 'status' in response:
+                        status = str(response['status'])
+                    if status not in ('RST', 'FIN'):
+                        try:
+                            int(status)
+                        except ValueError:
+                            status = 'default'
+                        status_data = {}
+                        if 'headers' in response:
+                            new_headers = {k.title(): v for k, v in response['headers'].items()}
+                            if 'Content-Type' in new_headers:
+                                if 'application/json' == new_headers['Content-Type']:
+                                    status_data = {
+                                        'content': {
+                                            'application/json': {
+                                                'schema': {}
                                             }
                                         }
-                                status_data['headers'] = {}
-                                for key in new_headers.keys():
-                                    status_data['headers'][key] = {
-                                        'schema': {
-                                            'type': 'string'
-                                        }
                                     }
-                            status_data['description'] = ''
-                            method_data['responses'][status] = status_data
+                            status_data['headers'] = {}
+                            for key in new_headers.keys():
+                                status_data['headers'][key] = {
+                                    'schema': {
+                                        'type': 'string'
+                                    }
+                                }
+                        status_data['description'] = ''
+                        method_data['responses'][status] = status_data
+
                 if not method_data['responses']:
                     method_data['responses']['default'] = {
                         'description': ''
