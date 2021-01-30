@@ -560,7 +560,7 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         docs = resp.json()
         self.assertEqual(6, len(docs['documents']))
-        self.assertEqual('http://localhost:8006', docs['documents'][4]['servers'][0]['url'])
+        self.assertEqual('http://localhost:8006', docs['documents'][5]['servers'][0]['url'])
 
         resp = requests.get(SRV1 + '/__admin/oas')
         resp.raise_for_status()
@@ -571,3 +571,5 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         oas = resp.json()
         self.assertEqual('http://localhost:8006', oas['servers'][0]['url'])
+
+
