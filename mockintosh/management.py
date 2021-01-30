@@ -376,16 +376,16 @@ class ManagementOasHandler(ManagementBaseHandler):
                     params = alternative['params']
                     if params:
                         method_data['parameters'] = []
-                        for key, param in params.items():
+                        for _, param in params.items():
                             data = {}
                             if isinstance(param, PathParam):
                                 continue
                             if isinstance(param, HeaderParam):
                                 data['in'] = 'header'
-                                data['name'] = key
+                                data['name'] = param.key
                             if isinstance(param, QueryStringParam):
                                 data['in'] = 'query'
-                                data['name'] = key
+                                data['name'] = param.key
                             data['required'] = True
                             data['schema'] = {
                                 'type': 'string'
