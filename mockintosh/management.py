@@ -423,6 +423,10 @@ class ManagementOasHandler(ManagementBaseHandler):
                                     }
                             status_data['description'] = ''
                             method_data['responses'][status] = status_data
+                if not method_data['responses']:
+                    method_data['responses']['default'] = {
+                        'description': ''
+                    }
                 methods[method.lower()] = method_data
             document['paths']['%s' % path] = methods
 

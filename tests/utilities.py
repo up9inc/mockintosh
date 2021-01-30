@@ -16,6 +16,7 @@ from mockintosh import initiate
 
 __location__ = path.abspath(path.dirname(__file__))
 
+
 def signal_handler(sig, frame):
     pass
 
