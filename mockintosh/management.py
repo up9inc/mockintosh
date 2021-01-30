@@ -382,27 +382,32 @@ class ManagementOasHandler(ManagementBaseHandler):
                         status = 200
                         if 'status' in response:
                             status = str(response['status'])
-                        status_data = {}
-                        if 'headers' in response:
-                            new_headers = {k.title(): v for k, v in response['headers'].items()}
-                            if 'Content-Type' in new_headers:
-                                if 'application/json' == new_headers['Content-Type']:
-                                    status_data = {
-                                        'content': {
-                                            'application/json': {
-                                                'schema': {}
+                        if status not in ('RST', 'FIN'):
+                            try:
+                                int(status)
+                            except ValueError:
+                                status = 'default'
+                            status_data = {}
+                            if 'headers' in response:
+                                new_headers = {k.title(): v for k, v in response['headers'].items()}
+                                if 'Content-Type' in new_headers:
+                                    if 'application/json' == new_headers['Content-Type']:
+                                        status_data = {
+                                            'content': {
+                                                'application/json': {
+                                                    'schema': {}
+                                                }
                                             }
                                         }
+                                status_data['headers'] = {}
+                                for key in new_headers.keys():
+                                    status_data['headers'][key] = {
+                                        'schema': {
+                                            'type': 'string'
+                                        }
                                     }
-                            status_data['headers'] = {}
-                            for key in new_headers.keys():
-                                status_data['headers'][key] = {
-                                    'schema': {
-                                        'type': 'string'
-                                    }
-                                }
-                        status_data['description'] = ''
-                        method_data['responses'][status] = status_data
+                            status_data['description'] = ''
+                            method_data['responses'][status] = status_data
                 methods[method.lower()] = method_data
             document['paths']['%s' % original_path] = methods
 
