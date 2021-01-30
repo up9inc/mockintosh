@@ -13,6 +13,7 @@ import copy
 from typing import (
     Union
 )
+from collections import OrderedDict
 
 import jsonschema
 import tornado.web
@@ -445,6 +446,8 @@ class ManagementOasHandler(ManagementBaseHandler):
                     }
                 methods[method.lower()] = method_data
             document['paths']['%s' % path] = methods
+
+        document['paths'] = OrderedDict(sorted(document['paths'].items(), key=lambda t: t[0]))
 
         return document
 
