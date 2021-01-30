@@ -307,6 +307,14 @@ class ManagementOasHandler(ManagementBaseHandler):
 
     def build_oas(self, service_id):
         service = self.http_server.definition.orig_data['services'][service_id]
+        if 'oas' in service:
+            custom_oas = service['oas']
+            if isinstance(custom_oas, str) and len(custom_oas) > 1 and custom_oas[0] == '@':
+                custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas)
+                with open(custom_oas_path, 'r') as file:
+                    custom_oas = json.load(file)
+                return custom_oas
+
         ssl = service.get('ssl', False)
         protocol = 'https' if ssl else 'http'
         hostname = self.http_server.address if self.http_server.address else (
@@ -315,7 +323,7 @@ class ManagementOasHandler(ManagementBaseHandler):
         document = {
             'openapi': '3.0.0',
             'info': {
-                'title': 'Mockintosh API',
+                'title': service['name'] if 'name' in service else '%s://%s:%s' % (protocol, hostname, service['port']),
                 'description': 'Automatically generated Open API Specification.',
                 'version': '0.1.9'
             },

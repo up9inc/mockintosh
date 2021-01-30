@@ -1796,3 +1796,21 @@ class TestManagement():
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             validate_spec(resp.json())
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config_custom_oas.json'
+    ])
+    def test_get_oas_custom(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/oas')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['documents'][0]['info']['title'] == 'Mock for Service1 CUSTOM'
+
+        resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data['info']['title'] == 'Mock for Service1 CUSTOM'

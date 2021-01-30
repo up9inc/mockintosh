@@ -25,6 +25,9 @@
         "managementRoot": {
           "type": "string"
         },
+        "oas": {
+          "type": "string"
+        },
         "endpoints": {
           "type": "array",
           "items": {
