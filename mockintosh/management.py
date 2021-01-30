@@ -373,26 +373,6 @@ class ManagementOasHandler(ManagementBaseHandler):
                             }
                         }
 
-                    # parameters
-                    params = alternative['params']
-                    if params:
-                        method_data['parameters'] = []
-                        for _, param in params.items():
-                            data = {}
-                            if isinstance(param, PathParam):
-                                continue
-                            if isinstance(param, HeaderParam):
-                                data['in'] = 'header'
-                                data['name'] = param.key
-                            if isinstance(param, QueryStringParam):
-                                data['in'] = 'query'
-                                data['name'] = param.key
-                            data['required'] = True
-                            data['schema'] = {
-                                'type': 'string'
-                            }
-                            method_data['parameters'].append(data)
-
                     # path parameters
                     if path_params:
                         if 'parameters' not in method_data:
@@ -401,6 +381,36 @@ class ManagementOasHandler(ManagementBaseHandler):
                             data = {
                                 'in': 'path',
                                 'name': param,
+                                'required': True,
+                                'schema': {
+                                    'type': 'string'
+                                }
+                            }
+                            method_data['parameters'].append(data)
+
+                    # header parameters
+                    if 'headers' in alternative:
+                        if 'parameters' not in method_data:
+                            method_data['parameters'] = []
+                        for key in alternative['headers'].keys():
+                            data = {
+                                'in': 'header',
+                                'name': key,
+                                'required': True,
+                                'schema': {
+                                    'type': 'string'
+                                }
+                            }
+                            method_data['parameters'].append(data)
+
+                    # query string parameters
+                    if 'queryString' in alternative:
+                        if 'parameters' not in method_data:
+                            method_data['parameters'] = []
+                        for key in alternative['queryString'].keys():
+                            data = {
+                                'in': 'query',
+                                'name': key,
                                 'required': True,
                                 'schema': {
                                     'type': 'string'
