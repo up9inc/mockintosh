@@ -554,3 +554,20 @@ class IntegrationTests(unittest.TestCase):
                 break
         else:
             self.fail("Did not find endpoint")
+
+    def test_oas(self):
+        resp = requests.get(MGMT + '/oas', verify=False)
+        resp.raise_for_status()
+        docs = resp.json()
+        self.assertEqual(6, len(docs['documents']))
+        self.assertEqual('http://localhost:8006', docs['documents'][4]['servers'][0]['url'])
+
+        resp = requests.get(SRV1 + '/__admin/oas')
+        resp.raise_for_status()
+        oas = resp.json()
+        self.assertEqual(29, len(oas['paths']))
+
+        resp = requests.get(SRV6 + '/__admin/oas')
+        resp.raise_for_status()
+        oas = resp.json()
+        self.assertEqual('http://localhost:8006', oas['servers'][0]['url'])
