@@ -62,9 +62,14 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.get_status() != 405:
                 self.set_elapsed_time()
             if not self.dont_add_status_code:
-                self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
-                    str(self.get_status())
-                )
+                if self.get_status() == 405:
+                    self.stats.services[self.service_id].add_status_code(
+                        str(self.get_status())
+                    )
+                else:
+                    self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
+                        str(self.get_status())
+                    )
         super().on_finish()
 
     def set_elapsed_time(self):
@@ -130,7 +135,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 if self.methods is None:
                     self.raise_http_error(404)
                     return
-                self.dynamic_unimplemented_method_guard()
+                if not self.dynamic_unimplemented_method_guard():
+                    return
 
             match_alternative_return = self.match_alternative()
             if not match_alternative_return:
@@ -209,10 +215,12 @@ class GenericHandler(tornado.web.RequestHandler):
     def dynamic_unimplemented_method_guard(self):
         if self.methods is None:
             self.raise_http_error(404)
-            return
+            return False
         if self.request.method.lower() not in self.methods:
-            self.raise_http_error(405)
-            return
+            self.set_status(405)
+            self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
+            return False
+        return True
 
     def log_request(self):
         logging.debug('Received request:\n%s', self.request.__dict__)

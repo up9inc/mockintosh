@@ -445,21 +445,26 @@ class TestCore():
 
         resp = requests.get(SRV_8001 + '/method-not-allowed-unless-post')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: POST' == resp.text
 
         resp = requests.post(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.head(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
 
         resp = requests.delete(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.patch(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.put(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
         assert 404 == resp.status_code
