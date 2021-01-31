@@ -14,6 +14,7 @@ import urllib
 import socket
 import struct
 import time
+import traceback
 from typing import (
     Union,
     Optional
@@ -57,7 +58,7 @@ class GenericHandler(tornado.web.RequestHandler):
         super().prepare()
 
     def on_finish(self):
-        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and self.methods is not None:
+        if self.get_status() != 500 and not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
                 self.set_elapsed_time()
             if not self.dont_add_status_code:
@@ -83,73 +84,81 @@ class GenericHandler(tornado.web.RequestHandler):
         stats,
         unhandled_data
     ):
-        self.config_dir = config_dir
-        self.endpoints = endpoints
-        self.methods = None
-        self.custom_args = ()
-        self.stats = stats
-        self.service_id = service_id
-        self.internal_endpoint_id = None
-        self.unhandled_data = unhandled_data
+        try:
+            self.config_dir = config_dir
+            self.endpoints = endpoints
+            self.methods = None
+            self.custom_args = ()
+            self.stats = stats
+            self.service_id = service_id
+            self.internal_endpoint_id = None
+            self.unhandled_data = unhandled_data
 
-        for path, methods in self.endpoints:
-            if re.fullmatch(path, self.request.path):
-                groups = re.findall(path, self.request.path)
-                if isinstance(groups[0], tuple):
-                    self.custom_args = groups[0]
-                elif isinstance(groups, list) and groups:
-                    self.custom_args = tuple(groups)
-                self.methods = {k.lower(): v for k, v in methods.items()}
-                break
+            for path, methods in self.endpoints:
+                if re.fullmatch(path, self.request.path):
+                    groups = re.findall(path, self.request.path)
+                    if isinstance(groups[0], tuple):
+                        self.custom_args = groups[0]
+                    elif isinstance(groups, list) and groups:
+                        self.custom_args = tuple(groups)
+                    self.methods = {k.lower(): v for k, v in methods.items()}
+                    break
 
-        self.alternatives = None
-        self.globals = _globals
-        self.definition_engine = definition_engine
-        self.interceptors = interceptors
-        self.is_options = False
-        self.custom_dataset = {}
+            self.alternatives = None
+            self.globals = _globals
+            self.definition_engine = definition_engine
+            self.interceptors = interceptors
+            self.is_options = False
+            self.custom_dataset = {}
 
-        self.special_request = self.build_special_request()
-        self.default_context = {
-            'request': self.special_request
-        }
-        self.custom_context = {}
+            self.special_request = self.build_special_request()
+            self.default_context = {
+                'request': self.special_request
+            }
+            self.custom_context = {}
+        except Exception as e:
+            self.set_status(500)
+            self.write(''.join(traceback.format_tb(e.__traceback__)))
 
     def super_verb(self, *args):
-        self.set_default_headers()
+        try:
+            self.set_default_headers()
 
-        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
-            if self.custom_args:
-                args = self.custom_args
-            if self.methods is None:
-                self.raise_http_error(404)
+            if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
+                if self.custom_args:
+                    args = self.custom_args
+                if self.methods is None:
+                    self.raise_http_error(404)
+                    return
+                self.dynamic_unimplemented_method_guard()
+
+            match_alternative_return = self.match_alternative()
+            if not match_alternative_return:
                 return
-            self.dynamic_unimplemented_method_guard()
+            _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
+            self.internal_endpoint_id = internal_endpoint_id
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
+            self.custom_endpoint_id = _id
+            self.custom_response = response
+            self.custom_params = params
+            self.initial_context = context
+            self.custom_dataset = dataset
 
-        match_alternative_return = self.match_alternative()
-        if not match_alternative_return:
-            return
-        _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
-        self.internal_endpoint_id = internal_endpoint_id
-        self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
-        self.custom_endpoint_id = _id
-        self.custom_response = response
-        self.custom_params = params
-        self.initial_context = context
-        self.custom_dataset = dataset
+            self.populate_context(*args)
+            self.determine_status_code()
+            self.determine_headers()
+            self.log_request()
 
-        self.populate_context(*args)
-        self.determine_status_code()
-        self.determine_headers()
-        self.log_request()
+            self.rendered_body = self.render_template()
 
-        self.rendered_body = self.render_template()
-
-        if self.rendered_body is None:
-            return
-        self.special_response = self.build_special_response()
-        if self.should_write():
-            self.write(self.rendered_body)
+            if self.rendered_body is None:
+                return
+            self.special_response = self.build_special_response()
+            if self.should_write():
+                self.write(self.rendered_body)
+        except Exception as e:
+            self.set_status(500)
+            self.write(''.join(traceback.format_tb(e.__traceback__)))
 
     def get(self, *args):
         self.super_verb(*args)
@@ -202,7 +211,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.raise_http_error(404)
             return
         if self.request.method.lower() not in self.methods:
-            self._unimplemented_method()
+            self.raise_http_error(405)
+            return
 
     def log_request(self):
         logging.debug('Received request:\n%s', self.request.__dict__)
