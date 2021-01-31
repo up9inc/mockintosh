@@ -14,6 +14,7 @@ import urllib
 import socket
 import struct
 import time
+import traceback
 from typing import (
     Union,
     Optional
@@ -22,6 +23,7 @@ from typing import (
 import jsonschema
 import tornado.web
 from tornado.concurrent import Future
+from accept_types import parse_header
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
@@ -37,6 +39,29 @@ ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
 NON_PREFLIGHT_METHODS = ('GET', 'HEAD', 'POST', 'DELETE', 'PATCH', 'PUT')
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
+IMAGE_MIME_TYPES = [
+    'image/apng',
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/svg+xml',
+    'image/webp',
+    'image/*'
+]
+IMAGE_EXTENSIONS = [
+    '.apng',
+    '.avif',
+    '.gif',
+    '.jpg',
+    '.jpeg',
+    '.jfif',
+    '.pjpeg',
+    '.pjp',
+    '.png',
+    '.svg',
+    '.webp'
+]
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -57,13 +82,18 @@ class GenericHandler(tornado.web.RequestHandler):
         super().prepare()
 
     def on_finish(self):
-        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and self.methods is not None:
+        if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
                 self.set_elapsed_time()
             if not self.dont_add_status_code:
-                self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
-                    str(self.get_status())
-                )
+                if self.get_status() == 405:
+                    self.stats.services[self.service_id].add_status_code(
+                        str(self.get_status())
+                    )
+                else:
+                    self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
+                        str(self.get_status())
+                    )
         super().on_finish()
 
     def set_elapsed_time(self):
@@ -83,73 +113,82 @@ class GenericHandler(tornado.web.RequestHandler):
         stats,
         unhandled_data
     ):
-        self.config_dir = config_dir
-        self.endpoints = endpoints
-        self.methods = None
-        self.custom_args = ()
-        self.stats = stats
-        self.service_id = service_id
-        self.internal_endpoint_id = None
-        self.unhandled_data = unhandled_data
+        try:
+            self.config_dir = config_dir
+            self.endpoints = endpoints
+            self.methods = None
+            self.custom_args = ()
+            self.stats = stats
+            self.service_id = service_id
+            self.internal_endpoint_id = None
+            self.unhandled_data = unhandled_data
 
-        for path, methods in self.endpoints:
-            if re.fullmatch(path, self.request.path):
-                groups = re.findall(path, self.request.path)
-                if isinstance(groups[0], tuple):
-                    self.custom_args = groups[0]
-                elif isinstance(groups, list) and groups:
-                    self.custom_args = tuple(groups)
-                self.methods = {k.lower(): v for k, v in methods.items()}
-                break
+            for path, methods in self.endpoints:
+                if re.fullmatch(path, self.request.path):
+                    groups = re.findall(path, self.request.path)
+                    if isinstance(groups[0], tuple):
+                        self.custom_args = groups[0]
+                    elif isinstance(groups, list) and groups:
+                        self.custom_args = tuple(groups)
+                    self.methods = {k.lower(): v for k, v in methods.items()}
+                    break
 
-        self.alternatives = None
-        self.globals = _globals
-        self.definition_engine = definition_engine
-        self.interceptors = interceptors
-        self.is_options = False
-        self.custom_dataset = {}
+            self.alternatives = None
+            self.globals = _globals
+            self.definition_engine = definition_engine
+            self.interceptors = interceptors
+            self.is_options = False
+            self.custom_dataset = {}
 
-        self.special_request = self.build_special_request()
-        self.default_context = {
-            'request': self.special_request
-        }
-        self.custom_context = {}
+            self.special_request = self.build_special_request()
+            self.default_context = {
+                'request': self.special_request
+            }
+            self.custom_context = {}
+        except Exception as e:
+            self.set_status(500)
+            self.write(''.join(traceback.format_tb(e.__traceback__)))
 
     def super_verb(self, *args):
-        self.set_default_headers()
+        try:
+            self.set_default_headers()
 
-        if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
-            if self.custom_args:
-                args = self.custom_args
-            if self.methods is None:
-                self.raise_http_error(404)
+            if not self.is_options:
+                if self.custom_args:
+                    args = self.custom_args
+                if self.methods is None:
+                    self.raise_http_error(404)
+                self.dynamic_unimplemented_method_guard()
+
+            match_alternative_return = self.match_alternative()
+            if not match_alternative_return:
                 return
-            self.dynamic_unimplemented_method_guard()
+            _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
+            self.internal_endpoint_id = internal_endpoint_id
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
+            self.custom_endpoint_id = _id
+            self.custom_response = response
+            self.custom_params = params
+            self.initial_context = context
+            self.custom_dataset = dataset
 
-        match_alternative_return = self.match_alternative()
-        if not match_alternative_return:
+            self.populate_context(*args)
+            self.determine_status_code()
+            self.determine_headers()
+            self.log_request()
+
+            self.rendered_body = self.render_template()
+
+            if self.rendered_body is None:
+                return
+            self.special_response = self.build_special_response()
+            if self.should_write():
+                self.write(self.rendered_body)
+        except NewHTTPError:
             return
-        _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
-        self.internal_endpoint_id = internal_endpoint_id
-        self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
-        self.custom_endpoint_id = _id
-        self.custom_response = response
-        self.custom_params = params
-        self.initial_context = context
-        self.custom_dataset = dataset
-
-        self.populate_context(*args)
-        self.determine_status_code()
-        self.determine_headers()
-        self.log_request()
-
-        self.rendered_body = self.render_template()
-
-        if self.rendered_body is None:
-            return
-        self.special_response = self.build_special_response()
-        if self.should_write():
-            self.write(self.rendered_body)
+        except Exception as e:
+            self.set_status(500)
+            self.write(''.join(traceback.format_tb(e.__traceback__)))
 
     def get(self, *args):
         self.super_verb(*args)
@@ -200,9 +239,9 @@ class GenericHandler(tornado.web.RequestHandler):
     def dynamic_unimplemented_method_guard(self):
         if self.methods is None:
             self.raise_http_error(404)
-            return
         if self.request.method.lower() not in self.methods:
-            self._unimplemented_method()
+            self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
+            self.raise_http_error(405)
 
     def log_request(self):
         logging.debug('Received request:\n%s', self.request.__dict__)
@@ -429,14 +468,14 @@ class GenericHandler(tornado.web.RequestHandler):
             self.respond_cors()
             return ()
 
-        if not self.__class__.__name__ == 'ErrorHandler':
-            if self.methods is None:
-                return ()
-            self.alternatives = self.methods[self.request.method.lower()]
+        if self.methods is None:
+            return ()
+        self.alternatives = self.methods[self.request.method.lower()]
 
         response = None
         params = None
         context = None
+        reason = None
         for alternative in self.alternatives:
             fail = False
 
@@ -447,6 +486,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     if key.title() not in self.request.headers._dict:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = '\'%s\' not in the request headers!' % key.title()
                         break
                     if value == request_header_val:
                         continue
@@ -455,6 +495,11 @@ class GenericHandler(tornado.web.RequestHandler):
                     if match is None:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Request header value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                            request_header_val,
+                            key.title(),
+                            value
+                        )
                         break
                 if fail:
                     continue
@@ -468,10 +513,12 @@ class GenericHandler(tornado.web.RequestHandler):
                     if request_query_val is default:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
                         break
                     if key not in self.request.query_arguments:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
                         break
                     if value == request_query_val:
                         continue
@@ -480,6 +527,11 @@ class GenericHandler(tornado.web.RequestHandler):
                     if match is None:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Request query parameter value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                            request_query_val,
+                            key,
+                            value
+                        )
                         break
                 if fail:
                     continue
@@ -505,6 +557,7 @@ class GenericHandler(tornado.web.RequestHandler):
                         except json.decoder.JSONDecodeError:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
+                            reason = 'JSON decode error of the request body:\n\n%s' % body
                             break
 
                     if json_schema:
@@ -513,6 +566,10 @@ class GenericHandler(tornado.web.RequestHandler):
                         except jsonschema.exceptions.ValidationError:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
+                            reason = 'Request body:\n\n%s\nDoes not match to JSON schema:\n\n%s' % (
+                                json_data,
+                                json_schema
+                            )
                             break
 
                 # Text
@@ -523,6 +580,7 @@ class GenericHandler(tornado.web.RequestHandler):
                         if match is None:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
+                            reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
                             break
 
             if self.should_cors():
@@ -564,8 +622,8 @@ class GenericHandler(tornado.web.RequestHandler):
             internal_endpoint_id = alternative['internalEndpointId']
             return (_id, response, params, context, dataset, internal_endpoint_id)
 
-        if not self.__class__.__name__ == 'ErrorHandler':
-            self.set_status(400)
+        self.write(reason)
+        self.raise_http_error(400)
         self.finish()
 
     def trigger_interceptors(self):
@@ -580,7 +638,12 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.interceptors:
                 self.update_response()
         if self._status_code not in ('RST', 'FIN'):
-            super().finish(chunk)
+            try:
+                int(self._status_code)
+                super().finish(chunk)
+            except ValueError:
+                self._status_code = 500
+                super().finish('Status code is neither an integer nor in \'RST\', \'FIN\'!')
 
     def should_write(self):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
@@ -700,15 +763,30 @@ class GenericHandler(tornado.web.RequestHandler):
         return renderer.render()
 
     def raise_http_error(self, status_code):
-        from mockintosh.overrides import ErrorHandler
-
-        if self.unhandled_data is not None and status_code == 404:
+        if self.unhandled_data is not None:
             identifier = '%s %s' % (self.request.method.upper(), self.request.path)
             if identifier not in self.unhandled_data.requests[self.service_id]:
                 self.unhandled_data.requests[self.service_id][identifier] = []
             self.unhandled_data.requests[self.service_id][identifier].append(self.request)
 
-        return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
+        self.set_status(status_code)
+
+        if status_code == 404:
+            ext = os.path.splitext(self.request.path)[1]
+            parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+            client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+            if (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS:
+                with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
+                    image = file.read()
+                    self.set_header('content-type', 'image/png')
+                    self.write(image)
+                    self.rendered_body = image
+
+        raise NewHTTPError()
+
+
+class NewHTTPError(Exception):
+    pass
 
 
 class NotParsedJSON():

@@ -445,21 +445,26 @@ class TestCore():
 
         resp = requests.get(SRV_8001 + '/method-not-allowed-unless-post')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: POST' == resp.text
 
         resp = requests.post(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.head(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
 
         resp = requests.delete(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.patch(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.put(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
 
         resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
         assert 404 == resp.status_code
@@ -804,6 +809,11 @@ class TestStatus():
         resp = requests.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
         assert 303 == resp.status_code
 
+        query = '?rc=wrong'
+        resp = requests.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        assert 500 == resp.status_code
+        assert 'Status code is neither an integer nor in \'RST\', \'FIN\'!' == resp.text
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/headers/config.json',
@@ -863,25 +873,31 @@ class TestHeaders():
         static_val = 'myValue'
         resp = requests.get(SRV_8001 + '/static-value', headers={"hdrX": static_val})
         assert 400 == resp.status_code
+        assert '\'Hdr1\' not in the request headers!' == resp.text
 
         resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdrX": static_val})
         assert 400 == resp.status_code
+        assert '\'Hdr1\' not in the request headers!' == resp.text
 
     def test_wrong_static_value_should_400(self, config):
         static_val = 'wrongValue'
         resp = requests.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
         assert 400 == resp.status_code
+        assert ('Request header value \'%s\' on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
 
         resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
         assert 400 == resp.status_code
+        assert ('Request header value \'%s\' on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
 
     def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
         resp = requests.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'idefix-%s-suffix' % param})
         assert 400 == resp.status_code
+        assert ('Request header value \'idefix-%s-suffix\' on key \'Hdr1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
         resp = requests.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'idefix-%s-suffix' % param})
         assert 400 == resp.status_code
+        assert ('Request header value \'idefix-%s-suffix\' on key \'Hdr1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
     def test_first_alternative(self, config):
         static_val = 'myValue'
@@ -931,11 +947,13 @@ class TestHeaders():
             "hdr5": static_val
         })
         assert 400 == resp.status_code
+        assert '\'Hdr4\' not in the request headers!' == resp.text
 
         resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr5": static_val
         })
         assert 400 == resp.status_code
+        assert '\'Hdr4\' not in the request headers!' == resp.text
 
     def test_response_headers_in_first_alternative(self, config):
         static_val = 'myValue'
@@ -1229,27 +1247,33 @@ class TestQueryString():
         query = '?paramX=%s' % static_val
         resp = requests.get(SRV_8001 + '/static-value' + query)
         assert 400 == resp.status_code
+        assert 'Key \'param1\' couldn\'t found in the query string!' == resp.text
 
         resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
         assert 400 == resp.status_code
+        assert 'Key \'param1\' couldn\'t found in the query string!' == resp.text
 
     def test_wrong_static_value_should_400(self, config):
         static_val = 'wrong Value'
         query = '?param1=%s' % static_val
         resp = requests.get(SRV_8001 + '/static-value' + query)
         assert 400 == resp.status_code
+        assert ('Request query parameter value \'%s\' on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
 
         resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
         assert 400 == resp.status_code
+        assert ('Request query parameter value \'%s\' on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
 
     def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
         query = '?param1=idefix-%s-suffix' % param
         resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
         assert 400 == resp.status_code
+        assert ('Request query parameter value \'idefix-%s-suffix\' on key \'param1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
         resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
         assert 400 == resp.status_code
+        assert ('Request query parameter value \'idefix-%s-suffix\' on key \'param1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
     def test_first_alternative(self, config):
         static_val = 'my Value'
@@ -1288,9 +1312,11 @@ class TestQueryString():
         query = '?param5=%s' % static_val
         resp = requests.get(SRV_8001 + '/alternative' + query)
         assert 400 == resp.status_code
+        assert 'Key \'param4\' couldn\'t found in the query string!' == resp.text
 
         resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
         assert 400 == resp.status_code
+        assert 'Key \'param4\' couldn\'t found in the query string!' == resp.text
 
 
 @pytest.mark.parametrize(('config'), [
