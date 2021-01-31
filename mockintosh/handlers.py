@@ -23,6 +23,7 @@ from typing import (
 import jsonschema
 import tornado.web
 from tornado.concurrent import Future
+from accept_types import parse_header
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
@@ -38,6 +39,29 @@ ORIGIN = 'Origin'
 AC_REQUEST_HEADERS = 'Access-Control-Request-Headers'
 NON_PREFLIGHT_METHODS = ('GET', 'HEAD', 'POST', 'DELETE', 'PATCH', 'PUT')
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
+IMAGE_MIME_TYPES = [
+    'image/apng',
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/svg+xml',
+    'image/webp',
+    'image/*'
+]
+IMAGE_EXTENSIONS = [
+    '.apng',
+    '.avif',
+    '.gif',
+    '.jpg',
+    '.jpeg',
+    '.jfif',
+    '.pjpeg',
+    '.pjp',
+    '.png',
+    '.svg',
+    '.webp'
+]
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -134,9 +158,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     args = self.custom_args
                 if self.methods is None:
                     self.raise_http_error(404)
-                    return
-                if not self.dynamic_unimplemented_method_guard():
-                    return
+                self.dynamic_unimplemented_method_guard()
 
             match_alternative_return = self.match_alternative()
             if not match_alternative_return:
@@ -162,6 +184,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.special_response = self.build_special_response()
             if self.should_write():
                 self.write(self.rendered_body)
+        except NewHTTPError:
+            return
         except Exception as e:
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
@@ -215,12 +239,9 @@ class GenericHandler(tornado.web.RequestHandler):
     def dynamic_unimplemented_method_guard(self):
         if self.methods is None:
             self.raise_http_error(404)
-            return False
         if self.request.method.lower() not in self.methods:
-            self.set_status(405)
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
-            return False
-        return True
+            self.raise_http_error(405)
 
     def log_request(self):
         logging.debug('Received request:\n%s', self.request.__dict__)
@@ -603,8 +624,8 @@ class GenericHandler(tornado.web.RequestHandler):
             return (_id, response, params, context, dataset, internal_endpoint_id)
 
         if not self.__class__.__name__ == 'ErrorHandler':
-            self.set_status(400)
             self.write(reason)
+            self.raise_http_error(400)
         self.finish()
 
     def trigger_interceptors(self):
@@ -744,15 +765,30 @@ class GenericHandler(tornado.web.RequestHandler):
         return renderer.render()
 
     def raise_http_error(self, status_code):
-        from mockintosh.overrides import ErrorHandler
-
-        if self.unhandled_data is not None and status_code == 404:
+        if self.unhandled_data is not None:
             identifier = '%s %s' % (self.request.method.upper(), self.request.path)
             if identifier not in self.unhandled_data.requests[self.service_id]:
                 self.unhandled_data.requests[self.service_id][identifier] = []
             self.unhandled_data.requests[self.service_id][identifier].append(self.request)
 
-        return self.application.get_handler_delegate(self.request, ErrorHandler, {"status_code": status_code}).execute()
+        self.set_status(status_code)
+
+        if status_code == 404:
+            ext = os.path.splitext(self.request.path)[1]
+            parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+            client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+            if (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS:
+                with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
+                    image = file.read()
+                    self.set_header('content-type', 'image/png')
+                    self.write(image)
+                    self.rendered_body = image
+
+        raise NewHTTPError()
+
+
+class NewHTTPError(Exception):
+    pass
 
 
 class NotParsedJSON():

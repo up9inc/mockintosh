@@ -33,7 +33,6 @@ from mockintosh.management import (
     ManagementServiceOasHandler,
     UnhandledData
 )
-from mockintosh.overrides import Application
 from mockintosh.stats import Stats
 
 stats = Stats()
@@ -315,7 +314,7 @@ class HttpServer:
                 )
             ] + endpoint_handlers
 
-        return Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
+        return tornado.web.Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
     @staticmethod
     def log_merged_endpoints(merged_endpoints):
