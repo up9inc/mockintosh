@@ -361,20 +361,36 @@ class ManagementOasHandler(ManagementBaseHandler):
                 alternative = alternatives[0]
 
                 # requestBody
-                if 'body' in alternative and 'schema' in alternative['body']:
-                    json_schema = alternative['body']['schema']
-                    if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                        json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
-                        with open(json_schema_path, 'r') as file:
-                            json_schema = json.load(file)
-                    method_data['requestBody'] = {
-                        'required': True,
-                        'content': {
-                            'application/json': {
-                                'schema': json_schema
+                if 'body' in alternative:
+
+                    # schema
+                    if 'schema' in alternative['body']:
+                        json_schema = alternative['body']['schema']
+                        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
+                            with open(json_schema_path, 'r') as file:
+                                json_schema = json.load(file)
+                        method_data['requestBody'] = {
+                            'required': True,
+                            'content': {
+                                'application/json': {
+                                    'schema': json_schema
+                                }
                             }
                         }
-                    }
+
+                    # text
+                    if 'text' in alternative['body']:
+                        method_data['requestBody'] = {
+                            'required': True,
+                            'content': {
+                                '*/*': {
+                                    'schema': {
+                                        'type': 'string'
+                                    }
+                                }
+                            }
+                        }
 
                 # path parameters
                 if path_params:
