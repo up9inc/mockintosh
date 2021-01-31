@@ -7,11 +7,13 @@
 """
 
 import os
+import re
 import json
 import copy
 from typing import (
     Union
 )
+from collections import OrderedDict
 
 import jsonschema
 import tornado.web
@@ -20,7 +22,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder
+from mockintosh.methods import _decoder, _safe_path_split
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -285,6 +287,238 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         return endpoints
 
 
+class ManagementOasHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    def get(self):
+        data = {
+            'documents': []
+        }
+
+        services = self.http_server.definition.orig_data['services']
+        for i in range(len(services)):
+            data['documents'].append(self.build_oas(i))
+
+        self.write(data)
+
+    def build_oas(self, service_id):
+        service = self.http_server.definition.orig_data['services'][service_id]
+        ssl = service.get('ssl', False)
+        protocol = 'https' if ssl else 'http'
+        hostname = self.http_server.address if self.http_server.address else (
+            'localhost' if 'hostname' not in service else service['hostname']
+        )
+
+        if 'oas' in service:
+            custom_oas = service['oas']
+            if isinstance(custom_oas, str) and len(custom_oas) > 1 and custom_oas[0] == '@':
+                custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas)
+                with open(custom_oas_path, 'r') as file:
+                    custom_oas = json.load(file)
+            if 'servers' not in custom_oas:
+                custom_oas['servers'] = []
+            custom_oas['servers'].insert(
+                0,
+                {
+                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
+                    'description': service['name'] if 'name' in service else ''
+                }
+            )
+            return custom_oas
+
+        document = {
+            'openapi': '3.0.0',
+            'info': {
+                'title': service['name'] if 'name' in service else '%s://%s:%s' % (protocol, hostname, service['port']),
+                'description': 'Automatically generated Open API Specification.',
+                'version': '0.1.9'
+            },
+            'servers': [
+                {
+                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
+                    'description': service['name'] if 'name' in service else ''
+                }
+            ],
+            'paths': {}
+        }
+
+        endpoints = []
+        for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                endpoints = rule.target_kwargs['endpoints']
+
+        for endpoint in endpoints:
+            original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
+            path, path_params = self.path_handlebars_to_oas(original_path)
+            methods = {}
+            for method, alternatives in endpoint[1].items():
+                if not alternatives:
+                    continue
+
+                method_data = {'responses': {}}
+                alternative = alternatives[0]
+
+                # requestBody
+                if 'body' in alternative:
+
+                    # schema
+                    if 'schema' in alternative['body']:
+                        json_schema = alternative['body']['schema']
+                        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
+                            with open(json_schema_path, 'r') as file:
+                                json_schema = json.load(file)
+                        method_data['requestBody'] = {
+                            'required': True,
+                            'content': {
+                                'application/json': {
+                                    'schema': json_schema
+                                }
+                            }
+                        }
+
+                    # text
+                    if 'text' in alternative['body']:
+                        method_data['requestBody'] = {
+                            'required': True,
+                            'content': {
+                                '*/*': {
+                                    'schema': {
+                                        'type': 'string'
+                                    }
+                                }
+                            }
+                        }
+
+                # path parameters
+                if path_params:
+                    if 'parameters' not in method_data:
+                        method_data['parameters'] = []
+                    for param in path_params:
+                        data = {
+                            'in': 'path',
+                            'name': param,
+                            'required': True,
+                            'schema': {
+                                'type': 'string'
+                            }
+                        }
+                        method_data['parameters'].append(data)
+
+                # header parameters
+                if 'headers' in alternative:
+                    if 'parameters' not in method_data:
+                        method_data['parameters'] = []
+                    for key in alternative['headers'].keys():
+                        data = {
+                            'in': 'header',
+                            'name': key,
+                            'required': True,
+                            'schema': {
+                                'type': 'string'
+                            }
+                        }
+                        method_data['parameters'].append(data)
+
+                # query string parameters
+                if 'queryString' in alternative:
+                    if 'parameters' not in method_data:
+                        method_data['parameters'] = []
+                    for key in alternative['queryString'].keys():
+                        data = {
+                            'in': 'query',
+                            'name': key,
+                            'required': True,
+                            'schema': {
+                                'type': 'string'
+                            }
+                        }
+                        method_data['parameters'].append(data)
+
+                # responses
+                if 'response' in alternative:
+                    response = alternative['response']
+                    status = 200
+                    if 'status' in response:
+                        status = str(response['status'])
+                    if status not in ('RST', 'FIN'):
+                        try:
+                            int(status)
+                        except ValueError:
+                            status = 'default'
+                        status_data = {}
+                        if 'headers' in response:
+                            new_headers = {k.title(): v for k, v in response['headers'].items()}
+                            if 'Content-Type' in new_headers:
+                                if 'application/json' == new_headers['Content-Type']:
+                                    status_data = {
+                                        'content': {
+                                            'application/json': {
+                                                'schema': {}
+                                            }
+                                        }
+                                    }
+                            status_data['headers'] = {}
+                            for key in new_headers.keys():
+                                status_data['headers'][key] = {
+                                    'schema': {
+                                        'type': 'string'
+                                    }
+                                }
+                        status_data['description'] = ''
+                        method_data['responses'][status] = status_data
+
+                if not method_data['responses']:
+                    method_data['responses']['default'] = {
+                        'description': ''
+                    }
+                methods[method.lower()] = method_data
+            document['paths']['%s' % path] = methods
+
+        document['paths'] = OrderedDict(sorted(document['paths'].items(), key=lambda t: t[0]))
+
+        return document
+
+    def path_handlebars_to_oas(self, path):
+        segments = _safe_path_split(path)
+        params = []
+        new_segments = []
+        for segment in segments:
+            match = re.search(r'{{(.*)}}', segment)
+            if match is not None:
+                name = match.group(1).strip()
+                param = None
+                if ' ' not in name:
+                    param = name
+                else:
+                    param = 'param%d' % (len(params) + 1)
+                new_segments.append('{%s}' % param)
+                params.append(param)
+            else:
+                new_segments.append(segment)
+        return '/'.join(new_segments), params
+
+    def resolve_relative_path(self, config_dir, source_text):
+        relative_path = None
+        orig_relative_path = source_text[1:]
+
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        relative_path = os.path.join(config_dir, orig_relative_path)
+        if not os.path.isfile(relative_path):
+            self.send_error(403, message=error_msg)
+            return None
+        relative_path = os.path.abspath(relative_path)
+        if not relative_path.startswith(config_dir):
+            self.send_error(403, message=error_msg)
+            return None
+
+        return relative_path
+
+
 class ManagementServiceRootHandler(ManagementBaseHandler):
 
     def get(self):
@@ -397,6 +631,16 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             return
 
         self.write(data)
+
+
+class ManagementServiceOasHandler(ManagementOasHandler):
+
+    def initialize(self, http_server, service_id):
+        self.http_server = http_server
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.build_oas(self.service_id))
 
 
 class UnhandledData:

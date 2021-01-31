@@ -83,7 +83,8 @@ setup(
             'pytest',
             'coverage',
             'codecov',
-            'requests'
+            'requests',
+            'openapi-spec-validator'
         ]
     },
 

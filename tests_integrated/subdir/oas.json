@@ -1,0 +1,25 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Fake doc",
+    "description": "Fake",
+    "version": "0.1.9"
+  },
+  "servers": [
+    {
+      "url": "https://invalid-url:8005",
+      "description": "should be overridden"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    }
+  }
+}

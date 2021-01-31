@@ -277,7 +277,8 @@
     {
       "name": "Service for management API / Dynamic configs",
       "port": 8006,
-      "managementRoot": "__admin"
+      "managementRoot": "__admin",
+      "oas": "@subdir/oas.json"
     }
   ]
 }

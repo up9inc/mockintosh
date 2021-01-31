@@ -11,7 +11,15 @@
           href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui.css"/>
 
     <title>Mockintosh Management API</title>
-    <style></style>
+    <style>
+        .responses-table .col {
+            width: fit-content;
+        }
+
+        .scheme-container {
+            display: none;
+        }
+    </style>
 </head>
 
 <body>
@@ -40,7 +48,8 @@
                aria-selected="false">Query APIs</a>
         </li>
         <li class="nav-item" role="presentation">
-            <a class="nav-link" id="unhandled-tab" data-toggle="tab" href="#unhandled" role="tab" aria-controls="unhandled"
+            <a class="nav-link" id="unhandled-tab" data-toggle="tab" href="#unhandled" role="tab"
+               aria-controls="unhandled"
                aria-selected="false">Unhandled Requests</a>
         </li>
     </ul>
@@ -124,8 +133,9 @@
             parent.empty();
 
             if (data.openapi) {
-                data['servers'] = [{'url': '', 'description': 'Current mock'}]
                 data = [data];
+            } else {
+                data = data.documents;
             }
 
             for (let i = 0; i < data.length; i++) {
