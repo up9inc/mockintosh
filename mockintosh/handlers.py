@@ -82,7 +82,7 @@ class GenericHandler(tornado.web.RequestHandler):
         super().prepare()
 
     def on_finish(self):
-        if self.get_status() != 500 and not self.__class__.__name__ == 'ErrorHandler' and not self.is_options and self.methods is not None:
+        if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
                 self.set_elapsed_time()
             if not self.dont_add_status_code:
@@ -153,7 +153,7 @@ class GenericHandler(tornado.web.RequestHandler):
         try:
             self.set_default_headers()
 
-            if not self.__class__.__name__ == 'ErrorHandler' and not self.is_options:
+            if not self.is_options:
                 if self.custom_args:
                     args = self.custom_args
                 if self.methods is None:
@@ -468,10 +468,9 @@ class GenericHandler(tornado.web.RequestHandler):
             self.respond_cors()
             return ()
 
-        if not self.__class__.__name__ == 'ErrorHandler':
-            if self.methods is None:
-                return ()
-            self.alternatives = self.methods[self.request.method.lower()]
+        if self.methods is None:
+            return ()
+        self.alternatives = self.methods[self.request.method.lower()]
 
         response = None
         params = None
@@ -623,9 +622,8 @@ class GenericHandler(tornado.web.RequestHandler):
             internal_endpoint_id = alternative['internalEndpointId']
             return (_id, response, params, context, dataset, internal_endpoint_id)
 
-        if not self.__class__.__name__ == 'ErrorHandler':
-            self.write(reason)
-            self.raise_http_error(400)
+        self.write(reason)
+        self.raise_http_error(400)
         self.finish()
 
     def trigger_interceptors(self):
