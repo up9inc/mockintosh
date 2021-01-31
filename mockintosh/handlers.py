@@ -437,6 +437,7 @@ class GenericHandler(tornado.web.RequestHandler):
         response = None
         params = None
         context = None
+        reason = None
         for alternative in self.alternatives:
             fail = False
 
@@ -447,6 +448,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     if key.title() not in self.request.headers._dict:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = '\'%s\' not in the request headers!' % key.title()
                         break
                     if value == request_header_val:
                         continue
@@ -455,6 +457,11 @@ class GenericHandler(tornado.web.RequestHandler):
                     if match is None:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Request header value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                            request_header_val,
+                            key.title(),
+                            value
+                        )
                         break
                 if fail:
                     continue
@@ -468,10 +475,12 @@ class GenericHandler(tornado.web.RequestHandler):
                     if request_query_val is default:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
                         break
                     if key not in self.request.query_arguments:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
                         break
                     if value == request_query_val:
                         continue
@@ -480,6 +489,11 @@ class GenericHandler(tornado.web.RequestHandler):
                     if match is None:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
+                        reason = 'Request query parameter value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                            request_query_val,
+                            key,
+                            value
+                        )
                         break
                 if fail:
                     continue
@@ -505,6 +519,7 @@ class GenericHandler(tornado.web.RequestHandler):
                         except json.decoder.JSONDecodeError:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
+                            reason = 'JSON decode error of the request body:\n\n%s' % body
                             break
 
                     if json_schema:
@@ -513,6 +528,10 @@ class GenericHandler(tornado.web.RequestHandler):
                         except jsonschema.exceptions.ValidationError:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
+                            reason = 'Request body:\n\n%s\nDoes not match to JSON schema:\n\n%s' % (
+                                json_data,
+                                json_schema
+                            )
                             break
 
                 # Text
@@ -523,6 +542,7 @@ class GenericHandler(tornado.web.RequestHandler):
                         if match is None:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
+                            reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
                             break
 
             if self.should_cors():
@@ -566,6 +586,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         if not self.__class__.__name__ == 'ErrorHandler':
             self.set_status(400)
+            self.write(reason)
         self.finish()
 
     def trigger_interceptors(self):
@@ -580,7 +601,12 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.interceptors:
                 self.update_response()
         if self._status_code not in ('RST', 'FIN'):
-            super().finish(chunk)
+            try:
+                int(self._status_code)
+                super().finish(chunk)
+            except ValueError:
+                self._status_code = 500
+                super().finish('Status code is neither an integer nor in \'RST\', \'FIN\'!')
 
     def should_write(self):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
