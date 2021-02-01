@@ -171,9 +171,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_params = params
             self.initial_context = context
             self.custom_dataset = dataset
-
-            if performance_profile is not None:
-                performance_profile.wait()
+            self.performance_profile = performance_profile
 
             self.populate_context(*args)
             self.determine_status_code()
@@ -376,6 +374,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 status_code = self.custom_response['status']
         else:
             status_code = 200
+
+        if self.performance_profile is not None:
+            status_code = self.performance_profile.trigger(status_code)
 
         if isinstance(status_code, str) and status_code.lower() == 'rst':
             self.request.server_connection.stream.socket.setsockopt(

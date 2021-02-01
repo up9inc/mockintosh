@@ -194,10 +194,19 @@
       "type": "object",
       "properties": {
         "ratio": {
-          "type": "integer"
+          "type": "number"
         },
         "delay": {
-          "type": "integer"
+          "type": "number"
+        },
+        "faults": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^\\d+|RST|FIN|PASS$"
+          },
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,
@@ -246,8 +255,10 @@
     },
     "performanceProfiles": {
       "type": "object",
-      "items": {
-        "$ref": "#/definitions/profile_ref"
+      "patternProperties": {
+        ".+": {
+          "$ref": "#/definitions/profile_ref"
+        }
       }
     }
   },

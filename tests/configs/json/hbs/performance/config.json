@@ -2,8 +2,18 @@
   "templatingEngine": "Handlebars",
   "performanceProfiles": {
     "profile1": {
-      "ratio": 0.5,
-      "delay": 1.5
+      "ratio": 1.0,
+      "delay": 1.5,
+      "faults": {
+        "PASS": 0.4,
+        "RST": 0.2,
+        "FIN": 0.1,
+        "200": 0.3,
+        "201": 0.1,
+        "400": 0.1,
+        "500": 0.2,
+        "503": 0.1
+      }
     },
     "profile2": {
       "ratio": 0.3,

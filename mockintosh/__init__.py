@@ -79,7 +79,8 @@ class Definition():
             for key, performance_profile in data['performanceProfiles'].items():
                 ratio = performance_profile.get('ratio')
                 delay = performance_profile.get('delay', 0.0)
-                data['performanceProfiles'][key] = PerformanceProfile(ratio, delay=delay)
+                faults = performance_profile.get('faults', {})
+                data['performanceProfiles'][key] = PerformanceProfile(ratio, delay=delay, faults=faults)
         else:
             data['performanceProfiles'] = {}
 
