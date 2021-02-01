@@ -83,6 +83,10 @@ class Definition():
         else:
             data['performanceProfiles'] = {}
 
+        global_performance_profile = None
+        if 'globals' in data:
+            global_performance_profile = data['globals'].get('performanceProfile', None)
+
         for service in data['services']:
             if 'endpoints' not in service:
                 continue
@@ -90,7 +94,7 @@ class Definition():
                 service,
                 template_engine,
                 performance_profiles=data['performanceProfiles'],
-                global_performance_profile=data.get('performanceProfile', None)
+                global_performance_profile=global_performance_profile
             )
         return data
 

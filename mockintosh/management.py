@@ -566,11 +566,14 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         try:
+            global_performance_profile = None
+            if 'globals' in self.http_server.definition.data:
+                global_performance_profile = self.http_server.definition.data['globals'].get('performanceProfile', None)
             data = mockintosh.Definition.analyze_service(
                 data,
                 self.http_server.definition.template_engine,
                 performance_profiles=self.http_server.definition.data['performanceProfiles'],
-                global_performance_profile=self.http_server.definition.data.get('performanceProfile', None)
+                global_performance_profile=global_performance_profile
             )
             data['internalServiceId'] = self.service_id
             self.update_service(data, self.service_id)

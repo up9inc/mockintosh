@@ -159,6 +159,9 @@
             },
             "templatingEngine": {
               "type": "string"
+            },
+            "performanceProfile": {
+              "type": "string"
             }
           },
           "additionalProperties": false
@@ -246,9 +249,6 @@
       "items": {
         "$ref": "#/definitions/profile_ref"
       }
-    },
-    "performanceProfile": {
-      "type": "string"
     }
   },
   "additionalProperties": false,

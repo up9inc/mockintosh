@@ -18,7 +18,9 @@
       "delay": 13.3
     }
   },
-  "performanceProfile": "profile1",
+  "globals": {
+    "performanceProfile": "profile1"
+  },
   "services": [
     {
       "name": "Mock for Service1",
