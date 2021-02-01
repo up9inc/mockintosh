@@ -25,6 +25,7 @@ from mockintosh.handlers import Request, Response  # noqa: F401
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer, BodyRecognizer
 from mockintosh.servers import HttpServer, TornadoImpl
+from mockintosh.performance import PerformanceProfile
 
 __version__ = "0.6.2"
 __location__ = path.abspath(path.dirname(__file__))
@@ -74,18 +75,36 @@ class Definition():
 
     @staticmethod
     def analyze(data, template_engine):
+        if 'performanceProfiles' in data:
+            for key, performance_profile in data['performanceProfiles'].items():
+                ratio = performance_profile.get('ratio')
+                delay = performance_profile.get('delay', 0.0)
+                data['performanceProfiles'][key] = PerformanceProfile(ratio, delay=delay)
+        else:
+            data['performanceProfiles'] = {}
+
         for service in data['services']:
             if 'endpoints' not in service:
                 continue
-            service = Definition.analyze_service(service, template_engine)
+            service = Definition.analyze_service(
+                service,
+                template_engine,
+                performance_profiles=data['performanceProfiles'],
+                global_performance_profile=data.get('performanceProfile', None)
+            )
         return data
 
     @staticmethod
-    def analyze_service(service, template_engine):
+    def analyze_service(service, template_engine, performance_profiles={}, global_performance_profile=None):
+        service_perfomance_profile = service.get('performanceProfile', global_performance_profile)
         for endpoint in service['endpoints']:
             endpoint['internalOrigPath'] = endpoint['path']
             endpoint['params'] = {}
             endpoint['context'] = OrderedDict()
+            endpoint['performanceProfile'] = performance_profiles.get(
+                endpoint.get('performanceProfile', service_perfomance_profile),
+                None
+            )
 
             path_recognizer = PathRecognizer(
                 endpoint['path'],

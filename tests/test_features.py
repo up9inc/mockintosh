@@ -1840,3 +1840,27 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['info']['title'] == 'Mock for Service1 CUSTOM'
+
+
+class TestPerformanceProfile():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/performance/config.json'
+    ])
+    def test_deterministic_delay(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        start = time.time()
+        resp = requests.get(SRV_8003 + '/service3', headers={'Host': SRV_8003_HOST})
+        end = time.time()
+        delta = end - start
+        assert 200 == resp.status_code
+        assert 'service3' == resp.text
+        assert 7.3 < delta

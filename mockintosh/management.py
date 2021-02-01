@@ -566,7 +566,12 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         try:
-            data = mockintosh.Definition.analyze_service(data, self.http_server.definition.template_engine)
+            data = mockintosh.Definition.analyze_service(
+                data,
+                self.http_server.definition.template_engine,
+                performance_profiles=self.http_server.definition.data['performanceProfiles'],
+                global_performance_profile=self.http_server.definition.data.get('performanceProfile', None)
+            )
             data['internalServiceId'] = self.service_id
             self.update_service(data, self.service_id)
         except Exception as e:

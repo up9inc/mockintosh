@@ -1,0 +1,68 @@
+{
+  "templatingEngine": "Handlebars",
+  "performanceProfiles": {
+    "profile1": {
+      "ratio": 0.5,
+      "delay": 1.5
+    },
+    "profile2": {
+      "ratio": 0.3,
+      "delay": 1.8
+    },
+    "profile3": {
+      "ratio": 1.0,
+      "delay": 7.3
+    },
+    "profile4": {
+      "ratio": 0.5,
+      "delay": 13.3
+    }
+  },
+  "performanceProfile": "profile1",
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/service1",
+          "method": "GET",
+          "response": "service1"
+        }
+      ]
+    },
+    {
+      "performanceProfile": "profile2",
+      "name": "Mock for Service2",
+      "hostname": "service2.example.com",
+      "port": 8002,
+      "endpoints": [
+        {
+          "path": "/service2",
+          "method": "GET",
+          "response": "service2"
+        },
+        {
+          "performanceProfile": "profile4",
+          "path": "/service2-endpoint2",
+          "method": "GET",
+          "response": "service2-endpoint2"
+        }
+      ]
+    },
+    {
+      "name": "Mock for Service3",
+      "hostname": "service3.example.com",
+      "port": 8003,
+      "endpoints": [
+        {
+          "performanceProfile": "profile3",
+          "path": "/service3",
+          "method": "GET",
+          "response": "service3"
+        }
+      ]
+    }
+  ]
+}
