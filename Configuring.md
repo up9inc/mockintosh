@@ -17,8 +17,8 @@ that is used to validate all configuration files. You can use that as a formal s
 ## Defining Services
 
 When defining services, the key property is `port`, which defines on which port the server will be available to
-requests. It is also a good practice to specify `name` property, which is just piece of string. You can configure one or multiple services at once.
-Here's a minimalistic working example:
+requests. It is also a good practice to specify `name` property, which is just piece of string. You can configure one or
+multiple services at once. Here's a minimalistic working example:
 
 ```yaml
 services:
@@ -44,7 +44,9 @@ services:
       - path: /
 ```
 
-_Note: There is special `MOCKINTOSH_FORCE_PORT` environment variable that allows to force all services to have certain port (same for all) listened. This is meant for advanced use when "pick service by name" feature is used (see [here](README.md#command-line-arguments))._
+_Note: There is special `MOCKINTOSH_FORCE_PORT` environment variable that allows to force all services to have certain
+port (same for all) listened. This is meant for advanced use when "pick service by name" feature is used (
+see [here](README.md#command-line-arguments))._
 
 ### SSL Support
 
@@ -134,7 +136,8 @@ services:
 
 ```
 
-_Note: Apart from numeric HTTP status codes, `RST` and `FIN` special values can be set in the `status` field to simulate the behavior of sudden TCP connection reset or close._
+_Note: Apart from numeric HTTP status codes, `RST` and `FIN` special values can be set in the `status` field to simulate
+the behavior of sudden TCP connection reset or close._
 
 ### Multiple Responses
 
@@ -229,15 +232,48 @@ A response example that leverages Jinja2 templating and Faker is shown below:
 
 ## Management API
 
-Can be defined on global level via port (+SSL)
+Mockintosh allows to control it in-flight with several "management API" endpoints. Through requests to those endpoints,
+you can fetch some information about mock service state, as well as change parameters and configuration. This comes
+useful if you want to use Mockintosh as part of test automation, where each test case uses different mock fixture.
 
-Can be defined per-service (to reuse service's port).
+Management API is disabled by default. There are two ways to enable management API: global at separate port, or
+per-service with service's port reused. The latter is convenient when you can't afford exposing another port, for
+example from inside Kubernetes or cloud environment.
 
+To enable global management API, consider this config example with top-level `management` section:
+
+```yaml
+management:
+  port: 8000
+  # ssl: true
+  # sslCertFile: "subdir/cert.pem",
+  # sslKeyFile: "subdir/key.pem",
+```
+
+Uncommenting SSL settings will enable SSL on that port, just like with [service's SSL settings](#ssl-support).
+
+You can access global API of above settings via url like `http://localhost:8000`.
+
+To enable management API on service level, you need to specify `managementRoot` property, which will designate URL path at which management API endpoints will be accessed:
+```yaml
+services:
+  - name: Mgmt demo
+    managementRoot: __admin
+```
+
+You can access service's management API of above settings via url like `http://localhost:8001/__admin`.
+
+### Minimalistic UI
+
+When you open root URL of management API in browser, it displays you a minimalistic HTML page, allowing to access some API actions through UI. 
+
+### Getting and Setting Mock Config
 Management edpoints:
+
 - `/` - opens simple UI
-- `/config` - `GET` to fetch, `POST` to set 
-- `/stats` - `GET` to fetch, `DELETE` to reset 
+- `/config` - `GET` to fetch, `POST` to set
+- `/stats` - `GET` to fetch, `DELETE` to reset
 - `/reset-iterators` to reset dataset/multirequest iterators
-- `/unhandled` to get config proto for unhandled requests  
+- `/unhandled` to get config proto for unhandled requests
 - `/oas` to serve documents for swagger-ui
 
