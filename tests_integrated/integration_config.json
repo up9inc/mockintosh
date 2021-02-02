@@ -7,6 +7,30 @@
     "headers": {
       "global-hdr1": "globalval1",
       "global-hdr2": "globalval2"
+    },
+    "performanceProfile": "never"
+  },
+  "performanceProfiles": {
+    "justDelay": {
+      "ratio": 1.0,
+      "delay": 0.5
+    },
+    "someFaults": {
+      "ratio": 1.0,
+      "faults": {
+        "PASS": 0.5,
+        "503": 0.25,
+        "RST": 0.25
+      }
+    },
+    "dummy": {
+      "ratio": 1.0
+    },
+    "never": {
+      "ratio": 0.0,
+      "faults": {
+        "RST": 0.0
+      }
     }
   },
   "services": [
@@ -18,11 +42,13 @@
         {
           "path": "/",
           "method": "GET",
-          "response": "static response"
+          "response": "static response",
+          "performanceProfile": "justDelay"
         },
         {
           "path": "/parameterized1/{{intoVar}}/subval",
-          "response": "intoVar capture: {{intoVar}}"
+          "response": "intoVar capture: {{intoVar}}",
+          "performanceProfile": "dummy"
         },
         {
           "path": "/parameterized1/staticVal/subval",
@@ -231,6 +257,10 @@
           "response": {
             "status": "FIN"
           }
+        },
+        {
+          "path": "/perf-profile-faults",
+          "performanceProfile": "someFaults"
         }
       ]
     },

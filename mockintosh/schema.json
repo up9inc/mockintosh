@@ -159,9 +159,6 @@
             },
             "templatingEngine": {
               "type": "string"
-            },
-            "performanceProfile": {
-              "type": "string"
             }
           },
           "additionalProperties": false
@@ -242,8 +239,14 @@
       "type": "string"
     },
     "globals": {
-      "headers": {
-        "$ref": "#/definitions/headers_ref"
+      "type": "object",
+      "properties": {
+        "headers": {
+          "$ref": "#/definitions/headers_ref"
+        },
+        "performanceProfile": {
+          "type": "string"
+        }
       }
     },
     "services": {
