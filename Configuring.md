@@ -72,6 +72,21 @@ services:
     sslKeyFile: path/to/cert.key
 ```
 
+### Multiple Services on Same Port (Virtual Hosts)
+
+You can also serve multiple services from the same port number, if you provide them with different hostnames. This is
+handy when you serve multiple microservice mocks from single container:
+
+```yaml
+services:
+  - name: "First service"
+    hostname: "service1.example.com"
+    port: 80
+  - name: "Second service"
+    hostname: "service2.example.com"
+    port: 80
+```
+
 _Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
 
 ## Defining Endpoints
