@@ -329,7 +329,7 @@ class IntegrationTests(unittest.TestCase):
 
         #  {{date.ftimestamp}}
         chunk, resp = resp.split(" ", 1)
-        self.assertTrue(abs((now) - float(chunk)) < 1)
+        self.assertTrue(abs(now - float(chunk)) < 1)
         self.assertIn('.', chunk)
         self.assertTrue(len(chunk.split('.')[1]) <= 3)
 
