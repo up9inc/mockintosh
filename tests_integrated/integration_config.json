@@ -248,6 +248,19 @@
       ]
     },
     {
+      "name": "Service with specified.host",
+      "port": 8002,
+      "hostname": "another.host",
+      "endpoints": [
+        {
+          "id": "some-endpoint-id2",
+          "path": "/",
+          "method": "get",
+          "response": {}
+        }
+      ]
+    },
+    {
       "name": "Service with no endpoints, for bare interceptors",
       "port": 8003,
       "ssl": true

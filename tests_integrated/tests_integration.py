@@ -53,6 +53,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual("some-endpoint-id", resp.headers['x-mockintosh-endpoint-id'])
 
+        resp = requests.get(SRV2 + '/', headers={'Host': 'another.host:8002'})
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("some-endpoint-id", resp.headers['x-mockintosh-endpoint-id2'])
+
     def test_path_parameters(self):
         param = str(int(time.time()))
         resp = requests.get(SRV1 + '/parameterized1/' + param + '/subval')
