@@ -55,7 +55,7 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV2 + '/', headers={'Host': 'another.host:8002'})
         self.assertEqual(200, resp.status_code)
-        self.assertEqual("some-endpoint-id", resp.headers['x-mockintosh-endpoint-id2'])
+        self.assertEqual("some-endpoint-id2", resp.headers['x-mockintosh-endpoint-id'])
 
     def test_path_parameters(self):
         param = str(int(time.time()))
@@ -563,7 +563,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/oas', verify=False)
         resp.raise_for_status()
         docs = resp.json()
-        self.assertEqual(6, len(docs['documents']))
+        self.assertEqual(7, len(docs['documents']))
         self.assertEqual('http://localhost:8006', docs['documents'][5]['servers'][0]['url'])
 
         resp = requests.get(SRV1 + '/__admin/oas')
