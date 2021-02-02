@@ -254,7 +254,9 @@ Uncommenting SSL settings will enable SSL on that port, just like with [service'
 
 You can access global API of above settings via url like `http://localhost:8000`.
 
-To enable management API on service level, you need to specify `managementRoot` property, which will designate URL path at which management API endpoints will be accessed:
+To enable management API on service level, you need to specify `managementRoot` property, which will designate URL path
+at which management API endpoints will be accessed:
+
 ```yaml
 services:
   - name: Mgmt demo
@@ -265,15 +267,42 @@ You can access service's management API of above settings via url like `http://l
 
 ### Minimalistic UI
 
-When you open root URL of management API in browser, it displays you a minimalistic HTML page, allowing to access some API actions through UI. 
+When you open root URL of management API in browser, it displays you a minimalistic HTML page, allowing to access some
+API actions through UI.
 
 ### Getting and Setting Mock Config
-Management edpoints:
 
-- `/` - opens simple UI
-- `/config` - `GET` to fetch, `POST` to set
-- `/stats` - `GET` to fetch, `DELETE` to reset
-- `/reset-iterators` to reset dataset/multirequest iterators
-- `/unhandled` to get config proto for unhandled requests
-- `/oas` to serve documents for swagger-ui
+With management API, you can retrieve current configuration by requesting `config` path.
 
+Also, you can issue a POST call into same endpoint, to dynamically set the config. The format for POST payload is same
+as you retrieve via GET. There are some restrictions on what can be changed live. Generally, you can only
+change `endpoints` contents.
+
+### Getting Service Statistics
+
+By requesting `stats` path of management API, you can get information on how many requests were served by Mockintosh,
+each service and each endpoint inside service. Also, the statistics of response statuses will be available, as well as
+average processing time.
+
+You can reset these stats by issuing `DELETE` call on same path.
+
+### Resetting Iterators
+
+- You can reset positions of [dataset](#datasets) and [multi-response](#multiple-responses) endpoints, by
+  issuing `POST /reset-iterators` request.
+
+### Unhandled Requests
+
+If management API is enabled, Mockintosh will record all requests that are not found in configured endpoints. You can
+get config prototype for these endpoints by querying `GET /unhandled` in management API.
+
+### OAS Serving
+
+Specifically for HTML UI, there is  `GET /oas` to serve documents for swagger-ui
+
+```yaml
+services:
+  - name: Mgmt demo with OAS
+    managementRoot: __admin
+    oas: @path/to/service.oas.json
+```
