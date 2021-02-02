@@ -11,7 +11,13 @@ import re
 from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.templating import TemplateRenderer
-from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
+from mockintosh.params import (
+    PathParam,
+    HeaderParam,
+    QueryStringParam,
+    BodyTextParam,
+    BodyUrlencodedParam
+)
 from mockintosh.methods import _safe_path_split
 
 
@@ -175,7 +181,7 @@ class QueryStringRecognizer():
         return var, compiled, context
 
 
-class BodyRecognizer():
+class BodyTextRecognizer():
 
     def __init__(self, body_text, params, all_contexts, engine):
         self.body_text = body_text
@@ -187,7 +193,7 @@ class BodyRecognizer():
         key = 'bodyText'
         var, compiled, context = self.render_body(key, self.body_text)
         if var is not None:
-            param = BodyParam(key, var)
+            param = BodyTextParam(key, var)
             self.params[var] = param
         self.all_contexts.update(context)
 
@@ -207,6 +213,58 @@ class BodyRecognizer():
             self.engine,
             text,
             inject_objects={'scope': 'bodyText', 'key': 'bodyText'},
+            inject_methods=[reg_ex]
+        )
+        compiled, context = renderer.render()
+        if self.engine == PYBARS:
+            del context['scope']
+            del context['key']
+
+        if not compiled:
+            match = re.search(r'{{(.*)}}', text)
+            if match is not None:
+                name = match.group(1).strip()
+                compiled = '.*'
+                var = name
+            else:
+                compiled = text
+        return var, compiled, context
+
+
+class BodyUrlencodedRecognizer():
+
+    def __init__(self, urlencoded, params, all_contexts, engine):
+        self.urlencoded = urlencoded
+        self.params = params
+        self.all_contexts = all_contexts
+        self.engine = engine
+
+    def recognize(self):
+        new_headers = {}
+        for key, value in self.urlencoded.items():
+            var, new_header, context = self.render_urlencoded_element(key, value)
+            if var is not None:
+                param = BodyUrlencodedParam(key, var)
+                self.params[var] = param
+            new_headers[key] = new_header
+            self.all_contexts.update(context)
+
+        return new_headers
+
+    def render_urlencoded_element(self, key, text):
+        var = None
+
+        if self.engine == PYBARS:
+            from mockintosh.hbs.methods import reg_ex
+        elif self.engine == JINJA:
+            from mockintosh.j2.methods import reg_ex
+        else:
+            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
+
+        renderer = TemplateRenderer(
+            self.engine,
+            text,
+            inject_objects={'scope': 'bodyUrlencoded', 'key': key},
             inject_methods=[reg_ex]
         )
         compiled, context = renderer.render()

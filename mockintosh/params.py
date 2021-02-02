@@ -28,7 +28,14 @@ class QueryStringParam():
         self.value = value
 
 
-class BodyParam():
+class BodyTextParam():
+
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
+
+
+class BodyUrlencodedParam():
 
     def __init__(self, key, value):
         self.key = key

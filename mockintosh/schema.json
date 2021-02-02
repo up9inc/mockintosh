@@ -89,6 +89,9 @@
             },
             "text": {
               "type": "string"
+            },
+            "urlencoded": {
+              "type": "object"
             }
           },
           "additionalProperties": false

@@ -23,7 +23,13 @@ from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.handlers import Request, Response  # noqa: F401
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
-from mockintosh.recognizers import PathRecognizer, HeadersRecognizer, QueryStringRecognizer, BodyRecognizer
+from mockintosh.recognizers import (
+    PathRecognizer,
+    HeadersRecognizer,
+    QueryStringRecognizer,
+    BodyTextRecognizer,
+    BodyUrlencodedRecognizer
+)
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
 
@@ -137,14 +143,25 @@ class Definition():
                 )
                 endpoint['queryString'] = headers_recognizer.recognize()
 
-            if 'body' in endpoint and 'text' in endpoint['body'] and endpoint['body']['text']:
-                body_recognizer = BodyRecognizer(
-                    endpoint['body']['text'],
-                    endpoint['params'],
-                    endpoint['context'],
-                    template_engine
-                )
-                endpoint['body']['text'] = body_recognizer.recognize()
+            if 'body' in endpoint:
+                if 'text' in endpoint['body'] and endpoint['body']['text']:
+                    body_recognizer = BodyTextRecognizer(
+                        endpoint['body']['text'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        template_engine
+                    )
+                    endpoint['body']['text'] = body_recognizer.recognize()
+
+                if 'urlencoded' in endpoint['body'] and endpoint['body']['urlencoded']:
+                    body_recognizer = BodyUrlencodedRecognizer(
+                        endpoint['body']['urlencoded'],
+                        endpoint['params'],
+                        endpoint['context'],
+                        template_engine
+                    )
+                    endpoint['body']['urlencoded'] = body_recognizer.recognize()
+
         return service
 
 
