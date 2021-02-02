@@ -1858,14 +1858,6 @@ class TestPerformanceProfile():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         start = time.time()
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
-        end = time.time()
-        delta = end - start
-        assert 200 == resp.status_code
-        assert 'service1' == resp.text
-        assert 1.5 < delta
-
-        start = time.time()
         resp = requests.get(SRV_8003 + '/service3', headers={'Host': SRV_8003_HOST})
         end = time.time()
         delta = end - start
