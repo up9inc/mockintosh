@@ -72,21 +72,6 @@ services:
     sslKeyFile: path/to/cert.key
 ```
 
-### Multiple Services on Same Port (Virtual Hosts)
-
-You can also serve multiple services from the same port number, if you provide them with different hostnames. This is
-handy when you serve multiple microservice mocks from single container:
-
-```yaml
-services:
-  - name: "First service"
-    hostname: "service1.example.com"
-    port: 80
-  - name: "Second service"
-    hostname: "service2.example.com"
-    port: 80
-```
-
 _Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
 
 ## Defining Endpoints
@@ -241,3 +226,54 @@ Management edpoints:
 - `/unhandled` to get config proto for unhandled requests  
 - `/oas` to serve documents for swagger-ui
 
+## Performance Profiling
+
+It's possible to define probabilistic performance profiles at the global-level to simulate server-side
+outages, response delays or errors. Suppose you have these performance profiles:
+
+```yaml
+performanceProfiles:
+  profile1:
+    ratio: 1
+    delay: 1.5
+    faults:
+      '200': 0.3
+      '201': 0.1
+      '400': 0.1
+      '500': 0.2
+      '503': 0.1
+      PASS: 0.4
+      RST: 0.2
+      FIN: 0.1
+  profile2:
+    ratio: 0.3
+    delay: 4.8
+```
+
+`ratio`: probablity of performance profile trigger to happen; ranges from `0.0` to `1.0`.
+`delay`: reponse delay of the server in seconds.
+`faults`: probabilistic distribution of response status codes, reset connections (`RST`), close connections (`FIN`) and
+default status codes (`PASS` means ignore the fault)
+
+A performance profile can be applied to a service, an endpoint or globally (in [globals](#global-Settings) section)
+like: `performanceProfile: profile1`. `performanceProfile` field **overrides the parent settings**.
+Such that; service-level performance profile overrides the global-level, endpoint-level performance profile
+overrides both the service-level and global-level performance profiles.
+
+If you pick `profile1` for your service:
+
+- With 100% probability a 1.5 seconds delay will be added to all responses for the endpoints under that service.
+- With ~20% probability the responses will have `200` status code.
+- With ~6% probability the responses will have `201` status code.
+- With ~6% probability the responses will have `400` status code.
+- With ~13% probability the responses will have `500` status code.
+- With ~6% probability the responses will have `503` status code.
+- With ~26% probability the responses will have the default status code determined by the endpoint config.
+- With ~13% probability the connections will be resetted.
+- With ~6% probability the connections will be closed.
+
+If you pick `profile2` for your endpoint:
+
+- With 30% probability a 4.8 seconds delay will be added to all responses of that endpoint.
+- With 100% probability the responses will have the default status code determined by the endpoint config
+(since there is no `faults` field present).
