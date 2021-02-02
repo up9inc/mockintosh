@@ -122,6 +122,12 @@
             });
         }).trigger('click');
 
+        $("#config .btn-info").click(function () {
+            $.post("./reset-iterators").done(function (data) {
+                alert("Iterators reset successfully");
+            });
+        });
+
         $("#unhandled button").click(function () {
             $.getJSON("./unhandled").done(function (data) {
                 $("#unhandled pre").text(JSON.stringify(data, null, 2));
