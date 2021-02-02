@@ -589,7 +589,7 @@ class IntegrationTests(unittest.TestCase):
             try:
                 resp = requests.get(SRV1 + '/perf-profile-faults')
                 stats[resp.status_code] += 1
-            except:
+            except BaseException:
                 stats['RST'] += 1
 
         self.assertGreater(stats[200], stats['RST'])
