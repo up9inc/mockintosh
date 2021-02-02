@@ -163,7 +163,7 @@ class GenericHandler(tornado.web.RequestHandler):
             match_alternative_return = self.match_alternative()
             if not match_alternative_return:
                 return
-            _id, response, params, context, dataset, internal_endpoint_id = match_alternative_return
+            _id, response, params, context, dataset, internal_endpoint_id, performance_profile = match_alternative_return
             self.internal_endpoint_id = internal_endpoint_id
             self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
             self.custom_endpoint_id = _id
@@ -171,6 +171,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_params = params
             self.initial_context = context
             self.custom_dataset = dataset
+            self.performance_profile = performance_profile
 
             self.populate_context(*args)
             self.determine_status_code()
@@ -373,6 +374,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 status_code = self.custom_response['status']
         else:
             status_code = 200
+
+        if self.performance_profile is not None:
+            status_code = self.performance_profile.trigger(status_code)
 
         if isinstance(status_code, str) and status_code.lower() == 'rst':
             self.request.server_connection.stream.socket.setsockopt(
@@ -620,7 +624,8 @@ class GenericHandler(tornado.web.RequestHandler):
             params = alternative['params']
             context = alternative['context']
             internal_endpoint_id = alternative['internalEndpointId']
-            return (_id, response, params, context, dataset, internal_endpoint_id)
+            performance_profile = alternative['performanceProfile']
+            return (_id, response, params, context, dataset, internal_endpoint_id, performance_profile)
 
         self.write(reason)
         self.raise_http_error(400)

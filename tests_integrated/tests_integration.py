@@ -3,6 +3,7 @@ import os
 import re
 import time
 import unittest
+from collections import Counter
 from datetime import datetime, timedelta
 
 import requests
@@ -565,7 +566,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/__admin/oas')
         resp.raise_for_status()
         oas = resp.json()
-        self.assertEqual(29, len(oas['paths']))
+        self.assertEqual(30, len(oas['paths']))
         self.assertEqual(3, len(oas['paths']['/qstr-matching1']['get']['parameters']))
         self.assertEqual(3, len(oas['paths']['/header-matching1']['get']['parameters']))
 
@@ -573,3 +574,23 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         oas = resp.json()
         self.assertEqual('http://localhost:8006', oas['servers'][0]['url'])
+
+    def test_perf_profiles(self):
+        accum = 0
+        for _ in range(10):
+            start = time.perf_counter()
+            resp = requests.get(SRV1 + '/')
+            resp.raise_for_status()
+            accum += time.perf_counter() - start
+        self.assertGreater(accum / 10, 0.4)
+
+        stats = Counter()
+        for _ in range(100):
+            try:
+                resp = requests.get(SRV1 + '/perf-profile-faults')
+                stats[resp.status_code] += 1
+            except BaseException:
+                stats['RST'] += 1
+
+        self.assertGreater(stats[200], stats['RST'])
+        self.assertGreater(stats[200], stats[503])

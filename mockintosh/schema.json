@@ -33,6 +33,9 @@
           "items": {
             "$ref": "#/definitions/endpoint_ref"
           }
+        },
+        "performanceProfile": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
@@ -121,6 +124,9 @@
         },
         "datasetLooped": {
           "type": "boolean"
+        },
+        "performanceProfile": {
+          "type": "string"
         }
       },
       "required": [
@@ -180,6 +186,30 @@
           }
         }
       ]
+    },
+    "profile_ref": {
+      "type": "object",
+      "properties": {
+        "ratio": {
+          "type": "number"
+        },
+        "delay": {
+          "type": "number"
+        },
+        "faults": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^\\d+|RST|FIN|PASS$"
+          },
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ratio"
+      ]
     }
   },
   "type": "object",
@@ -209,8 +239,14 @@
       "type": "string"
     },
     "globals": {
-      "headers": {
-        "$ref": "#/definitions/headers_ref"
+      "type": "object",
+      "properties": {
+        "headers": {
+          "$ref": "#/definitions/headers_ref"
+        },
+        "performanceProfile": {
+          "type": "string"
+        }
       }
     },
     "services": {
@@ -218,6 +254,14 @@
       "minItems": 1,
       "items": {
         "$ref": "#/definitions/service_ref"
+      }
+    },
+    "performanceProfiles": {
+      "type": "object",
+      "patternProperties": {
+        ".+": {
+          "$ref": "#/definitions/profile_ref"
+        }
       }
     }
   },
