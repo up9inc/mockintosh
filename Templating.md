@@ -182,6 +182,7 @@ useful attributes:
 - `request.headers.<key>` - A request header e.g. `request.headers.accept`.
 - `request.queryString.<key>` - A query parameter e.g. `request.queryString.a` is `hello world`.
 - `request.body` - The raw request body as a whole. Can be `str`, `bytes` or `dict`.
+- `request.body.<key>` - For urlencoded and multipart POST requests, you can reference value of field by its name.
 - `request.formData.<key>` - The `POST` parameters sent in a `application/x-www-form-urlencoded` request
   e.g. `request.formData.param1` is `value1`.
 - `request.files.<key>` - The fields in a `multipart/form-data` request.

@@ -604,7 +604,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/__admin/oas')
         resp.raise_for_status()
         oas = resp.json()
-        self.assertEqual(30, len(oas['paths']))
+        self.assertGreater(len(oas['paths']), 30)
         self.assertEqual(3, len(oas['paths']['/qstr-matching1']['get']['parameters']))
         self.assertEqual(3, len(oas['paths']['/header-matching1']['get']['parameters']))
 
