@@ -50,7 +50,7 @@ def request_object(req: Request, resp: Response):
         assert req.body == 'hello world'
     elif req.path == '/request2':
         assert req.method == 'POST'
-        assert req.formData['param1'] == 'value1'
-        assert req.formData['param2'] == 'value2'
+        assert req.body['param1'] == 'value1'
+        assert req.body['param2'] == 'value2'
 
     resp.status = 200

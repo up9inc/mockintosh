@@ -1365,10 +1365,10 @@ class TestBody():
         assert 400 == resp.status_code
 
     def test_body_urlencoded(self, config):
-        data = {'key1': 'val1', 'key2': 'prefix-val2-val3-suffix'}
+        data = {'key1': 'constant', 'key2': 'val1', 'key3': 'prefix-val2-val3-suffix'}
         resp = requests.post(SRV_8001 + '/body-urlencoded', data=data)
         assert 200 == resp.status_code
-        assert "body urlencoded matched: val1 val2 val3" == resp.text
+        assert "body urlencoded matched: constant val1 val2 val3" == resp.text
 
         data_wrong = {'key1': 'val1', 'key2': 'prefix-val2-val3-idefix'}
         resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)

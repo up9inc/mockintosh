@@ -16,7 +16,8 @@ from mockintosh.params import (
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
-    BodyUrlencodedParam
+    BodyUrlencodedParam,
+    BodyMultipartParam
 )
 from mockintosh.methods import _safe_path_split
 
@@ -138,16 +139,16 @@ class QueryStringRecognizer():
         self.engine = engine
 
     def recognize(self):
-        new_headers = {}
+        new_params = {}
         for key, value in self.query_string.items():
-            var, new_header, context = self.render_query_element(key, value)
+            var, new_param, context = self.render_query_element(key, value)
             if var is not None:
                 param = QueryStringParam(key, var)
                 self.params[var] = param
-            new_headers[key] = new_header
+            new_params[key] = new_param
             self.all_contexts.update(context)
 
-        return new_headers
+        return new_params
 
     def render_query_element(self, key, text):
         var = None
@@ -240,16 +241,16 @@ class BodyUrlencodedRecognizer():
         self.engine = engine
 
     def recognize(self):
-        new_headers = {}
+        new_params = {}
         for key, value in self.urlencoded.items():
-            var, new_header, context = self.render_urlencoded_element(key, value)
+            var, new_param, context = self.render_urlencoded_element(key, value)
             if var is not None:
                 param = BodyUrlencodedParam(key, var)
                 self.params[var] = param
-            new_headers[key] = new_header
+            new_params[key] = new_param
             self.all_contexts.update(context)
 
-        return new_headers
+        return new_params
 
     def render_urlencoded_element(self, key, text):
         var = None
@@ -265,6 +266,58 @@ class BodyUrlencodedRecognizer():
             self.engine,
             text,
             inject_objects={'scope': 'bodyUrlencoded', 'key': key},
+            inject_methods=[reg_ex]
+        )
+        compiled, context = renderer.render()
+        if self.engine == PYBARS:
+            del context['scope']
+            del context['key']
+
+        if not compiled:
+            match = re.search(r'{{(.*)}}', text)
+            if match is not None:
+                name = match.group(1).strip()
+                compiled = '.*'
+                var = name
+            else:
+                compiled = text
+        return var, compiled, context
+
+
+class BodyMultipartRecognizer():
+
+    def __init__(self, multipart, params, all_contexts, engine):
+        self.multipart = multipart
+        self.params = params
+        self.all_contexts = all_contexts
+        self.engine = engine
+
+    def recognize(self):
+        new_headers = {}
+        for key, value in self.multipart.items():
+            var, new_header, context = self.render_multipart_element(key, value)
+            if var is not None:
+                param = BodyMultipartParam(key, var)
+                self.params[var] = param
+            new_headers[key] = new_header
+            self.all_contexts.update(context)
+
+        return new_headers
+
+    def render_multipart_element(self, key, text):
+        var = None
+
+        if self.engine == PYBARS:
+            from mockintosh.hbs.methods import reg_ex
+        elif self.engine == JINJA:
+            from mockintosh.j2.methods import reg_ex
+        else:
+            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
+
+        renderer = TemplateRenderer(
+            self.engine,
+            text,
+            inject_objects={'scope': 'bodyMultipart', 'key': key},
             inject_methods=[reg_ex]
         )
         compiled, context = renderer.render()

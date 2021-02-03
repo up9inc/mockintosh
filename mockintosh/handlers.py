@@ -36,7 +36,8 @@ from mockintosh.params import (
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
-    BodyUrlencodedParam
+    BodyUrlencodedParam,
+    BodyMultipartParam
 )
 from mockintosh.templating import TemplateRenderer
 
@@ -236,6 +237,7 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_query_string()
         self.analyze_body_text()
         self.analyze_body_urlencoded()
+        self.analyze_body_multipart()
         self.analyze_counters()
 
     def populate_counters(self, context):
@@ -270,6 +272,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 context[key] = _decoder(self.request.body)
             if isinstance(param, BodyUrlencodedParam):
                 context[key] = self.get_body_argument(param.key)
+            if isinstance(param, BodyMultipartParam):
+                context[key] = _decoder(self.request.files[param.key][0].body)
         return context
 
     def render_template(self):
@@ -336,14 +340,20 @@ class GenericHandler(tornado.web.RequestHandler):
                 request.queryString[key] = request.queryString[key][0]
 
         # Body
-        request.body = _decoder(self.request.body)
-        request.files = self.request.files
+        if self.request.body_arguments:
+            for key, value in self.request.body_arguments.items():
+                request.body[key] = [_decoder(x) for x in value]
+                if len(request.body[key]) == 1:
+                    request.body[key] = request.body[key][0]
+        elif self.request.files:
+            for key, value in self.request.files.items():
+                request.body[key] = [_decoder(x.body) for x in value]
+                if len(request.body[key]) == 1:
+                    request.body[key] = request.body[key][0]
+        else:
+            request.body = _decoder(self.request.body)
 
-        # Form Data
-        for key, value in self.request.body_arguments.items():
-            request.formData[key] = [_decoder(x) for x in value]
-            if len(request.formData[key]) == 1:
-                request.formData[key] = request.formData[key][0]
+        request.files = self.request.files
 
         return request
 
@@ -449,6 +459,18 @@ class GenericHandler(tornado.web.RequestHandler):
             if key in self.request.body_arguments:
                 if value['type'] == 'regex':
                     match = re.search(value['regex'], self.get_body_argument(key))
+                    if match is not None:
+                        for i, key in enumerate(value['args']):
+                            self.custom_context[key] = match.group(i + 1)
+
+    def analyze_body_multipart(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'bodyMultipart' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyMultipart'].items():
+            if key in self.request.files:
+                if value['type'] == 'regex':
+                    match = re.search(value['regex'], _decoder(self.request.files[key][0].body))
                     if match is not None:
                         for i, key in enumerate(value['args']):
                             self.custom_context[key] = match.group(i + 1)
@@ -635,6 +657,31 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             reason = 'Form field value \'%s\' on key \'%s\' does not match to regex: %s' % (
                                 body_argument,
+                                key,
+                                value
+                            )
+                            break
+                    if fail:
+                        continue
+
+                # Multipart
+                if 'multipart' in alternative['body']:
+                    for key, value in alternative['body']['multipart'].items():
+                        if key not in self.request.files:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the multipart data!' % key
+                            break
+                        multipart_argument = _decoder(self.request.files[key][0].body)
+                        if value == multipart_argument:
+                            continue
+                        value = '^%s$' % value
+                        match = re.search(value, multipart_argument)
+                        if match is None:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Multipart field value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                                multipart_argument,
                                 key,
                                 value
                             )
@@ -866,10 +913,8 @@ class Request():
         self.path = None
         self.headers = {}
         self.queryString = {}
-        self.body = None
+        self.body = {}
         self._json = NotParsedJSON()
-        self.files = {}
-        self.formData = {}
 
     @property
     def json(self):

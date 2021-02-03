@@ -40,3 +40,10 @@ class BodyUrlencodedParam():
     def __init__(self, key, value):
         self.key = key
         self.value = value
+
+
+class BodyMultipartParam():
+
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value

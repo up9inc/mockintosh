@@ -39,11 +39,24 @@
           "method": "POST",
           "body": {
             "urlencoded": {
-              "key1": "{{var1}}",
-              "key2": "{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}"
+              "key1": "constant",
+              "key2": "{{var1}}",
+              "key3": "{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}"
             }
           },
-          "response": "body urlencoded matched: {{var1}} {{var2}} {{var3}}"
+          "response": "body urlencoded matched: {{request.body.key1}} {{var1}} {{var2}} {{var3}}"
+        },
+        {
+          "path": "/body-multipart",
+          "method": "POST",
+          "body": {
+            "multipart": {
+              "key1": "constant",
+              "key2": "{{var1}}",
+              "key3": "{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}"
+            }
+          },
+          "response": "body multipart matched: {{request.body.key1}} {{var1}} {{var2}} {{var3}}"
         }
       ]
     }
