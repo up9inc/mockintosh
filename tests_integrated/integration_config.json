@@ -67,6 +67,30 @@
           "response": "tricky regex capture: {{varname}}"
         },
         {
+          "path": "/body-urlencoded",
+          "method": "post",
+          "body": {
+            "urlencoded": {
+              "param1": "constant val",
+              "param2": "{{anyValIntoVar}}",
+              "param3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
+            }
+          },
+          "response": "urlencoded match: {{request.body.param1}} {{capturedVar}} {{anyValIntoVar}}"
+        },
+        {
+          "path": "/body-multipart",
+          "method": "post",
+          "body": {
+            "multipart": {
+              "param1": "constant val",
+              "param2": "{{anyValIntoVar}}",
+              "param3": "{{regEx 'prefix-(.+)-suffix' 'capturedVar'}}"
+            }
+          },
+          "response": "multipart match: {{request.body.param1}} {{capturedVar}} {{anyValIntoVar}}"
+        },
+        {
           "path": "/qstr-matching1",
           "queryString": {
             "param1": "constant val",

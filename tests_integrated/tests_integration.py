@@ -103,6 +103,44 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + path)
         self.assertEqual(400, resp.status_code)
 
+    def test_urlencoded(self):
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        path = '/body-urlencoded'
+        resp = requests.post(SRV1 + path, data={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffix" % param3
+        })
+        resp.raise_for_status()
+        self.assertEqual("urlencoded match: constant val " + param3 + ' ' + param2, resp.text)
+
+        resp = requests.post(SRV1 + path, data={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffixz" % param3
+        })
+        self.assertEqual(400, resp.status_code)
+
+    def test_multipart(self):
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        path = '/body-multipart'
+        resp = requests.post(SRV1 + path, files={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffix" % param3
+        })
+        resp.raise_for_status()
+        self.assertEqual("multipart match: constant val " + param3 + ' ' + param2, resp.text)
+
+        resp = requests.post(SRV1 + path, files={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffixz" % param3
+        })
+        self.assertEqual(400, resp.status_code)
+
     def test_headers(self):
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
