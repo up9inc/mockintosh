@@ -1318,9 +1318,9 @@ class TestQueryString():
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/body/config.json',
-    # 'configs/json/j2/body/config.json',
-    # 'configs/yaml/hbs/body/config.yaml',
-    # 'configs/yaml/j2/body/config.yaml'
+    'configs/json/j2/body/config.json',
+    'configs/yaml/hbs/body/config.yaml',
+    'configs/yaml/j2/body/config.yaml'
 ])
 class TestBody():
 
