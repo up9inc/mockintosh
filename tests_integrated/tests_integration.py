@@ -620,6 +620,10 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.post(SRV1 + '/__admin/tag', data="first")
         resp.raise_for_status()
 
+        resp = requests.get(SRV1 + '/__admin/tag')
+        resp.raise_for_status()
+        self.assertEqual("first", resp.text)
+
         resp = requests.get(SRV1 + '/tagged')
         self.assertEqual("3.1", resp.text)
 
@@ -635,7 +639,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/tagged')
         self.assertEqual("3.3", resp.text)
 
-        # first tag set - "first" + untagged responses
+        # first tag set - "second" + untagged responses
         resp = requests.post(SRV1 + '/__admin/tag', data="second")
         resp.raise_for_status()
 
@@ -653,3 +657,7 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV1 + '/tagged')
         self.assertEqual("3.3", resp.text)
+
+        # case of no valid response
+        resp = requests.get(SRV1 + '/tagged-confusing')
+        self.assertEqual(410, resp.status_code)

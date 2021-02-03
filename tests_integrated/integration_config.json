@@ -291,6 +291,14 @@
               "body": "3.3"
             }
           ]
+        },
+        {
+          "path": "/tagged-confusing",
+          "response": [
+            {
+              "tag": "some"
+            }
+          ]
         }
       ]
     },
