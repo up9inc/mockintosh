@@ -598,3 +598,58 @@ class IntegrationTests(unittest.TestCase):
 
         self.assertGreater(stats[200], stats['RST'])
         self.assertGreater(stats[200], stats[503])
+
+    def test_tagged_responses(self):
+        resp = requests.post(SRV1 + '/__admin/reset-iterators')
+        resp.raise_for_status()
+
+        # no tag set - only untagged responses
+        resp = requests.post(SRV1 + '/__admin/tag', data="")
+        resp.raise_for_status()
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.1", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.2", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.3", resp.text)
+
+        # first tag set - "first" + untagged responses
+        resp = requests.post(SRV1 + '/__admin/tag', data="first")
+        resp.raise_for_status()
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.1", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("1.1", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("1.2", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.2", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.3", resp.text)
+
+        # first tag set - "first" + untagged responses
+        resp = requests.post(SRV1 + '/__admin/tag', data="second")
+        resp.raise_for_status()
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.1", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("2.1", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.2", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("2.2", resp.text)
+
+        resp = requests.get(SRV1 + '/tagged')
+        self.assertEqual("3.3", resp.text)
