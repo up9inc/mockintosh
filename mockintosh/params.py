@@ -7,43 +7,44 @@
 """
 
 
-class PathParam():
-
-    def __init__(self, name, index):
-        self.name = name
-        self.index = index
-
-
-class HeaderParam():
+class ParamBase():
 
     def __init__(self, key, value):
         self.key = key
         self.value = value
 
 
-class QueryStringParam():
+class PathParam(ParamBase):
 
     def __init__(self, key, value):
-        self.key = key
-        self.value = value
+        super().__init__(key, value)
 
 
-class BodyTextParam():
-
-    def __init__(self, key, value):
-        self.key = key
-        self.value = value
-
-
-class BodyUrlencodedParam():
+class HeaderParam(ParamBase):
 
     def __init__(self, key, value):
-        self.key = key
-        self.value = value
+        super().__init__(key, value)
 
 
-class BodyMultipartParam():
+class QueryStringParam(ParamBase):
 
     def __init__(self, key, value):
-        self.key = key
-        self.value = value
+        super().__init__(key, value)
+
+
+class BodyTextParam(ParamBase):
+
+    def __init__(self, key, value):
+        super().__init__(key, value)
+
+
+class BodyUrlencodedParam(ParamBase):
+
+    def __init__(self, key, value):
+        super().__init__(key, value)
+
+
+class BodyMultipartParam(ParamBase):
+
+    def __init__(self, key, value):
+        super().__init__(key, value)

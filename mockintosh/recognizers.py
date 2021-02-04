@@ -33,7 +33,7 @@ class RecognizerBase():
 
     def recognize(self):
         if self.scope == 'bodyText':
-            key = 'bodyText'
+            key = self.scope
             var, compiled, context = self.render_part(key, self.payload)
             if var is not None:
                 param = BodyTextParam(key, var)
@@ -59,7 +59,7 @@ class RecognizerBase():
                 if var is not None:
                     param = None
                     if self.scope == 'path':
-                        param = PathParam(var, key)
+                        param = PathParam(key, var)
                     elif self.scope == 'headers':
                         param = HeaderParam(key, var)
                     elif self.scope == 'queryString':

@@ -263,7 +263,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return context
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param.index]
+                context[key] = _safe_path_split(self.request.path)[param.key]
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
