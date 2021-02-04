@@ -171,7 +171,8 @@ class GenericHandler(tornado.web.RequestHandler):
         definition_engine: str,
         interceptors: list,
         stats: Stats,
-        unhandled_data
+        unhandled_data,
+        tag: str
     ) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         try:
@@ -183,6 +184,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
+            self.tag = tag
 
             for path, methods in self.endpoints:
                 if re.fullmatch(path, self.request.path):
@@ -903,15 +905,38 @@ class GenericHandler(tornado.web.RequestHandler):
         else:
             alternative[index_key] += 1
 
+        resetted = False
         if alternative[index_key] > len(alternative[key]) - 1:
             if alternative.get(loop_key, True):
                 alternative[index_key] = 0
+                resetted = True
             else:
                 self.internal_endpoint_id = alternative['internalEndpointId']
                 self.set_status(410)
                 self.finish()
                 return False
-        return alternative[key][alternative[index_key]]
+
+        if 'tag' in alternative[key][alternative[index_key]]:
+            if self.tag is None:
+                if resetted:
+                    self.internal_endpoint_id = alternative['internalEndpointId']
+                    self.set_status(410)
+                    self.finish()
+                    return False
+                else:
+                    return self.loop_alternative(alternative, key, subkey)
+            elif self.tag != alternative[key][alternative[index_key]]['tag']:
+                if resetted:
+                    self.internal_endpoint_id = alternative['internalEndpointId']
+                    self.set_status(410)
+                    self.finish()
+                    return False
+                else:
+                    return self.loop_alternative(alternative, key, subkey)
+            else:
+                return alternative[key][alternative[index_key]]
+        else:
+            return alternative[key][alternative[index_key]]
 
     def common_template_renderer(self, template_engine: str, text: str) -> str:
         """Common method to initialize `TemplateRenderer` and call `render()`."""

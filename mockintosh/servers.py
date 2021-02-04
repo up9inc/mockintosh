@@ -25,6 +25,7 @@ from mockintosh.management import (
     ManagementResetIteratorsHandler,
     ManagementUnhandledHandler,
     ManagementOasHandler,
+    ManagementTagHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
@@ -32,6 +33,7 @@ from mockintosh.management import (
     ManagementServiceResetIteratorsHandler,
     ManagementServiceUnhandledHandler,
     ManagementServiceOasHandler,
+    ManagementServiceTagHandler,
     UnhandledData
 )
 from mockintosh.stats import Stats
@@ -267,7 +269,8 @@ class HttpServer:
                     definition_engine=self.definition.template_engine,
                     interceptors=self.interceptors,
                     stats=self.stats,
-                    unhandled_data=self.unhandled_data if unhandled_enabled else None
+                    unhandled_data=self.unhandled_data if unhandled_enabled else None,
+                    tag=None
                 )
             )
         )
@@ -323,6 +326,14 @@ class HttpServer:
                 (
                     '/%s/oas' % management_root,
                     ManagementServiceOasHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service['internalServiceId']
+                    )
+                ),
+                (
+                    '/%s/tag' % management_root,
+                    ManagementServiceTagHandler,
                     dict(
                         http_server=self,
                         service_id=service['internalServiceId']
@@ -408,6 +419,13 @@ class HttpServer:
                 (
                     '/oas',
                     ManagementOasHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/tag',
+                    ManagementTagHandler,
                     dict(
                         http_server=self
                     )
