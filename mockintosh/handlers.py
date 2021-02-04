@@ -233,11 +233,11 @@ class GenericHandler(tornado.web.RequestHandler):
             else:
                 self.raise_http_error(404)
         self.custom_context.update(self.default_context)
-        self.analyze_headers()
-        self.analyze_query_string()
-        self.analyze_body_text()
-        self.analyze_body_urlencoded()
-        self.analyze_body_multipart()
+        self.analyze_component('headers')
+        self.analyze_component('queryString')
+        self.analyze_component('bodyText')
+        self.analyze_component('bodyUrlencoded')
+        self.analyze_component('bodyMultipart')
         self.analyze_counters()
 
     def populate_counters(self, context):
@@ -415,62 +415,41 @@ class GenericHandler(tornado.web.RequestHandler):
         else:
             self.set_status(status_code)
 
-    def analyze_headers(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'headers' not in self.initial_context[SPECIAL_CONTEXT]:
+    def analyze_component(self, component):
+        if SPECIAL_CONTEXT not in self.initial_context or component not in self.initial_context[SPECIAL_CONTEXT]:
             return
 
-        for header_key, header in self.initial_context[SPECIAL_CONTEXT]['headers'].items():
-            if header_key.title() in self.request.headers._dict:
-                if header['type'] == 'regex':
-                    match = re.search(header['regex'], self.request.headers.get(header_key))
-                    if match is not None:
-                        for i, key in enumerate(header['args']):
-                            self.custom_context[key] = match.group(i + 1)
+        payload = None
+        if component == 'headers':
+            payload = self.request.headers._dict
+        elif component == 'queryString':
+            payload = self.request.query_arguments
+        elif component == 'bodyText':
+            payload = _decoder(self.request.body)
+        elif component == 'bodyUrlencoded':
+            payload = self.request.body_arguments
+        elif component == 'bodyMultipart':
+            payload = self.request.files
 
-    def analyze_query_string(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'queryString' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['queryString'].items():
-            if key in self.request.query_arguments:
+        for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
+            _key = key
+            if component == 'headers':
+                _key = key.title()
+            if _key in payload or component == 'bodyText':
                 if value['type'] == 'regex':
-                    match = re.search(value['regex'], self.get_query_argument(key))
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i + 1)
+                    match_string = None
+                    if component == 'headers':
+                        match_string = self.request.headers.get(key)
+                    elif component == 'queryString':
+                        match_string = self.get_query_argument(key)
+                    elif component == 'bodyText':
+                        match_string = payload
+                    elif component == 'bodyUrlencoded':
+                        match_string = self.get_body_argument(key)
+                    elif component == 'bodyMultipart':
+                        match_string = _decoder(self.request.files[key][0].body)
 
-    def analyze_body_text(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'bodyText' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        body = _decoder(self.request.body)
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyText'].items():
-            if value['type'] == 'regex':
-                match = re.search(value['regex'], body)
-                if match is not None:
-                    for i, key in enumerate(value['args']):
-                        self.custom_context[key] = match.group(i + 1)
-
-    def analyze_body_urlencoded(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'bodyUrlencoded' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyUrlencoded'].items():
-            if key in self.request.body_arguments:
-                if value['type'] == 'regex':
-                    match = re.search(value['regex'], self.get_body_argument(key))
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i + 1)
-
-    def analyze_body_multipart(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'bodyMultipart' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyMultipart'].items():
-            if key in self.request.files:
-                if value['type'] == 'regex':
-                    match = re.search(value['regex'], _decoder(self.request.files[key][0].body))
+                    match = re.search(value['regex'], match_string)
                     if match is not None:
                         for i, key in enumerate(value['args']):
                             self.custom_context[key] = match.group(i + 1)
