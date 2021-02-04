@@ -22,315 +22,141 @@ from mockintosh.params import (
 from mockintosh.methods import _safe_path_split
 
 
-class PathRecognizer():
+class RecognizerBase():
+
+    def __init__(self, payload, params, all_contexts, engine, scope):
+        self.payload = payload
+        self.params = params
+        self.all_contexts = all_contexts
+        self.engine = engine
+        self.scope = scope
+
+    def recognize(self):
+        if self.scope == 'bodyText':
+            key = 'bodyText'
+            var, compiled, context = self.render_part(key, self.payload)
+            if var is not None:
+                param = BodyTextParam(key, var)
+                self.params[var] = param
+            self.all_contexts.update(context)
+
+            return compiled
+        else:
+            parts = None
+            new_parts = None
+
+            if self.scope == 'path':
+                priority = 0
+                parts = _safe_path_split(self.payload)
+                parts = dict(enumerate(parts))
+                new_parts = []
+            else:
+                parts = self.payload
+                new_parts = {}
+
+            for key, value in parts.items():
+                var, new_part, context = self.render_part(key, value)
+                if var is not None:
+                    param = None
+                    if self.scope == 'path':
+                        param = PathParam(var, key)
+                    elif self.scope == 'headers':
+                        param = HeaderParam(key, var)
+                    elif self.scope == 'queryString':
+                        param = QueryStringParam(key, var)
+                    elif self.scope == 'bodyUrlencoded':
+                        param = BodyUrlencodedParam(key, var)
+                    elif self.scope == 'bodyMultipart':
+                        param = BodyMultipartParam(key, var)
+                    self.params[var] = param
+                    if self.scope == 'path':
+                        priority = 2
+                if self.scope == 'path':
+                    if priority == 0 and new_part != value:
+                        priority = 1
+                    new_parts.append(new_part)
+                else:
+                    new_parts[key] = new_part
+                self.all_contexts.update(context)
+
+            if self.scope == 'path':
+                return '/'.join(new_parts), priority
+            else:
+                return new_parts
+
+    def render_part(self, key, text):
+        var = None
+
+        if self.engine == PYBARS:
+            from mockintosh.hbs.methods import reg_ex
+        elif self.engine == JINJA:
+            from mockintosh.j2.methods import reg_ex
+        else:
+            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
+
+        inject_objects = {}
+        if self.scope == 'path':
+            inject_objects = {'scope': self.scope}
+        else:
+            inject_objects = {'scope': self.scope, 'key': key}
+
+        renderer = TemplateRenderer(
+            self.engine,
+            text,
+            inject_objects=inject_objects,
+            inject_methods=[reg_ex]
+        )
+        compiled, context = renderer.render()
+        if self.engine == PYBARS:
+            del context['scope']
+            if 'key' in inject_objects:
+                del context['key']
+
+        if not compiled:
+            match = re.search(r'{{(.*)}}', text)
+            if match is not None:
+                name = match.group(1).strip()
+                if self.scope == 'path':
+                    compiled = '[^/]+'
+                else:
+                    compiled = '.*'
+                var = name
+            else:
+                compiled = text
+        return var, compiled, context
+
+
+class PathRecognizer(RecognizerBase):
 
     def __init__(self, path, params, all_contexts, engine):
-        self.path = path
-        self.params = params
-        self.all_contexts = all_contexts
-        self.engine = engine
-
-    def recognize(self):
-        priority = 0
-        segments = _safe_path_split(self.path)
-        new_segments = []
-        for index, segment in enumerate(segments):
-            var, new_segment, context = self.render_segment(segment)
-            if var is not None:
-                param = PathParam(var, index)
-                self.params[var] = param
-                priority = 2
-            if priority == 0 and new_segment != segment:
-                priority = 1
-            new_segments.append(new_segment)
-            self.all_contexts.update(context)
-
-        return '/'.join(new_segments), priority
-
-    def render_segment(self, text):
-        var = None
-
-        if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
-        elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.engine,
-            text,
-            inject_objects={'scope': 'path'},
-            inject_methods=[reg_ex]
-        )
-        compiled, context = renderer.render()
-        if self.engine == PYBARS:
-            del context['scope']
-
-        if not compiled:
-            match = re.search(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                compiled = '[^/]+'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
+        super().__init__(path, params, all_contexts, engine, 'path')
 
 
-class HeadersRecognizer():
+class HeadersRecognizer(RecognizerBase):
 
     def __init__(self, headers, params, all_contexts, engine):
-        self.headers = headers
-        self.params = params
-        self.all_contexts = all_contexts
-        self.engine = engine
-
-    def recognize(self):
-        new_headers = {}
-        for key, value in self.headers.items():
-            var, new_header, context = self.render_header(key, value)
-            if var is not None:
-                param = HeaderParam(key, var)
-                self.params[var] = param
-            new_headers[key] = new_header
-            self.all_contexts.update(context)
-
-        return new_headers
-
-    def render_header(self, key, text):
-        var = None
-
-        if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
-        elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.engine,
-            text,
-            inject_objects={'scope': 'headers', 'key': key},
-            inject_methods=[reg_ex]
-        )
-        compiled, context = renderer.render()
-        if self.engine == PYBARS:
-            del context['scope']
-            del context['key']
-
-        if not compiled:
-            match = re.search(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                compiled = '.*'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
+        super().__init__(headers, params, all_contexts, engine, 'headers')
 
 
-class QueryStringRecognizer():
+class QueryStringRecognizer(RecognizerBase):
 
     def __init__(self, query_string, params, all_contexts, engine):
-        self.query_string = query_string
-        self.params = params
-        self.all_contexts = all_contexts
-        self.engine = engine
-
-    def recognize(self):
-        new_params = {}
-        for key, value in self.query_string.items():
-            var, new_param, context = self.render_query_element(key, value)
-            if var is not None:
-                param = QueryStringParam(key, var)
-                self.params[var] = param
-            new_params[key] = new_param
-            self.all_contexts.update(context)
-
-        return new_params
-
-    def render_query_element(self, key, text):
-        var = None
-
-        if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
-        elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.engine,
-            text,
-            inject_objects={'scope': 'queryString', 'key': key},
-            inject_methods=[reg_ex]
-        )
-        compiled, context = renderer.render()
-        if self.engine == PYBARS:
-            del context['scope']
-            del context['key']
-
-        if not compiled:
-            match = re.search(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                compiled = '.*'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
+        super().__init__(query_string, params, all_contexts, engine, 'queryString')
 
 
-class BodyTextRecognizer():
+class BodyTextRecognizer(RecognizerBase):
 
     def __init__(self, body_text, params, all_contexts, engine):
-        self.body_text = body_text
-        self.params = params
-        self.all_contexts = all_contexts
-        self.engine = engine
-
-    def recognize(self):
-        key = 'bodyText'
-        var, compiled, context = self.render_body(key, self.body_text)
-        if var is not None:
-            param = BodyTextParam(key, var)
-            self.params[var] = param
-        self.all_contexts.update(context)
-
-        return compiled
-
-    def render_body(self, key, text):
-        var = None
-
-        if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
-        elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.engine,
-            text,
-            inject_objects={'scope': 'bodyText', 'key': 'bodyText'},
-            inject_methods=[reg_ex]
-        )
-        compiled, context = renderer.render()
-        if self.engine == PYBARS:
-            del context['scope']
-            del context['key']
-
-        if not compiled:
-            match = re.search(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                compiled = '.*'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
+        super().__init__(body_text, params, all_contexts, engine, 'bodyText')
 
 
-class BodyUrlencodedRecognizer():
+class BodyUrlencodedRecognizer(RecognizerBase):
 
     def __init__(self, urlencoded, params, all_contexts, engine):
-        self.urlencoded = urlencoded
-        self.params = params
-        self.all_contexts = all_contexts
-        self.engine = engine
-
-    def recognize(self):
-        new_params = {}
-        for key, value in self.urlencoded.items():
-            var, new_param, context = self.render_urlencoded_element(key, value)
-            if var is not None:
-                param = BodyUrlencodedParam(key, var)
-                self.params[var] = param
-            new_params[key] = new_param
-            self.all_contexts.update(context)
-
-        return new_params
-
-    def render_urlencoded_element(self, key, text):
-        var = None
-
-        if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
-        elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.engine,
-            text,
-            inject_objects={'scope': 'bodyUrlencoded', 'key': key},
-            inject_methods=[reg_ex]
-        )
-        compiled, context = renderer.render()
-        if self.engine == PYBARS:
-            del context['scope']
-            del context['key']
-
-        if not compiled:
-            match = re.search(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                compiled = '.*'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
+        super().__init__(urlencoded, params, all_contexts, engine, 'bodyUrlencoded')
 
 
-class BodyMultipartRecognizer():
+class BodyMultipartRecognizer(RecognizerBase):
 
     def __init__(self, multipart, params, all_contexts, engine):
-        self.multipart = multipart
-        self.params = params
-        self.all_contexts = all_contexts
-        self.engine = engine
-
-    def recognize(self):
-        new_headers = {}
-        for key, value in self.multipart.items():
-            var, new_header, context = self.render_multipart_element(key, value)
-            if var is not None:
-                param = BodyMultipartParam(key, var)
-                self.params[var] = param
-            new_headers[key] = new_header
-            self.all_contexts.update(context)
-
-        return new_headers
-
-    def render_multipart_element(self, key, text):
-        var = None
-
-        if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
-        elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-        renderer = TemplateRenderer(
-            self.engine,
-            text,
-            inject_objects={'scope': 'bodyMultipart', 'key': key},
-            inject_methods=[reg_ex]
-        )
-        compiled, context = renderer.render()
-        if self.engine == PYBARS:
-            del context['scope']
-            del context['key']
-
-        if not compiled:
-            match = re.search(r'{{(.*)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                compiled = '.*'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
+        super().__init__(multipart, params, all_contexts, engine, 'bodyMultipart')
