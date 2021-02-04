@@ -17,7 +17,8 @@ import time
 import traceback
 from typing import (
     Union,
-    Optional
+    Optional,
+    Awaitable
 )
 
 import jsonschema
@@ -40,6 +41,7 @@ from mockintosh.params import (
     BodyMultipartParam
 )
 from mockintosh.templating import TemplateRenderer
+from mockintosh.stats import Stats
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -81,14 +83,64 @@ counters = {}
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
 
-class GenericHandler(tornado.web.RequestHandler):
+class NewHTTPError(Exception):
+    """Class as an alternative to raising `HTTPError` (workaround)."""
+    pass
 
-    def prepare(self):
+
+class NotParsedJSON():
+    """Class to determine wheter the request body is parsed into JSON or not."""
+    pass
+
+
+class Request():
+    """Class that defines the `Request` object which is being injected into the response template."""
+
+    def __init__(self) -> None:
+        self.version = None
+        self.remoteIp = None
+        self.protocol = None
+        self.host = None
+        self.hostName = None
+        self.uri = None
+        self.method = None
+        self.path = None
+        self.headers = {}
+        self.queryString = {}
+        self.body = {}
+        self._json = NotParsedJSON()
+
+    @property
+    def json(self) -> [None, dict]:
+        if isinstance(self._json, NotParsedJSON):
+            try:
+                self._json = json.loads(self.body)
+            except json.JSONDecodeError:
+                logging.warning('Failed to decode request body to JSON:\n%s', self.body)
+                self._json = None
+        return self._json
+
+
+class Response():
+    """Class that defines the `Response` object which is being used by the interceptors."""
+
+    def __init__(self) -> None:
+        self.status = None
+        self.headers = {}
+        self.body = None
+
+
+class GenericHandler(tornado.web.RequestHandler):
+    """Class to handle all mocked requests."""
+
+    def prepare(self) -> Optional[Awaitable[None]]:
+        """Overriden method of tornado.web.RequestHandler"""
         self.dont_add_status_code = False
         self.special_request_start_time = time.perf_counter()
         super().prepare()
 
-    def on_finish(self):
+    def on_finish(self) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
                 self.set_elapsed_time()
@@ -103,7 +155,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     )
         super().on_finish()
 
-    def set_elapsed_time(self):
+    def set_elapsed_time(self) -> None:
+        """Method to calculate and store the elapsed time of the request handling to be used in stats."""
         elapsed_time_in_seconds = (time.perf_counter() - self.special_request_start_time) / 1000000
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
             elapsed_time_in_seconds
@@ -111,15 +164,16 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def initialize(
         self,
-        config_dir,
-        service_id,
-        endpoints,
-        _globals,
-        definition_engine,
-        interceptors,
-        stats,
+        config_dir: str,
+        service_id: int,
+        endpoints: list,
+        _globals: dict,
+        definition_engine: str,
+        interceptors: list,
+        stats: Stats,
         unhandled_data
-    ):
+    ) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         try:
             self.config_dir = config_dir
             self.endpoints = endpoints
@@ -157,7 +211,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
 
-    def super_verb(self, *args):
+    def super_verb(self, *args) -> None:
+        """A method to unify all the HTTP verbs under a single flow."""
         try:
             self.set_default_headers()
 
@@ -200,29 +255,37 @@ class GenericHandler(tornado.web.RequestHandler):
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
 
-    def get(self, *args):
+    def get(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.super_verb(*args)
 
-    def post(self, *args):
+    def post(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.super_verb(*args)
 
-    def head(self, *args):
+    def head(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.super_verb(*args)
 
-    def delete(self, *args):
+    def delete(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.super_verb(*args)
 
-    def patch(self, *args):
+    def patch(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.super_verb(*args)
 
-    def put(self, *args):
+    def put(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.super_verb(*args)
 
-    def options(self, *args):
+    def options(self, *args) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         self.is_options = True
         self.super_verb(*args)
 
-    def populate_context(self, *args):
+    def populate_context(self, *args) -> None:
+        """Method to populate the context to be used by the templating engines."""
         self.custom_context = {}
         for key, value in self.custom_dataset.items():
             self.custom_context[key] = value
@@ -233,14 +296,15 @@ class GenericHandler(tornado.web.RequestHandler):
             else:
                 self.raise_http_error(404)
         self.custom_context.update(self.default_context)
-        self.analyze_headers()
-        self.analyze_query_string()
-        self.analyze_body_text()
-        self.analyze_body_urlencoded()
-        self.analyze_body_multipart()
+        self.analyze_component('headers')
+        self.analyze_component('queryString')
+        self.analyze_component('bodyText')
+        self.analyze_component('bodyUrlencoded')
+        self.analyze_component('bodyMultipart')
         self.analyze_counters()
 
-    def populate_counters(self, context):
+    def populate_counters(self, context: [None, dict]) -> None:
+        """Method that retrieves counters from template engine contexts."""
         if context is None:
             return
 
@@ -248,22 +312,25 @@ class GenericHandler(tornado.web.RequestHandler):
             for key, value in context[SPECIAL_CONTEXT]['counters'].items():
                 counters[key] = value
 
-    def dynamic_unimplemented_method_guard(self):
+    def dynamic_unimplemented_method_guard(self) -> None:
+        """Method to handle unimplemented HTTP verbs (`405`)."""
         if self.methods is None:
             self.raise_http_error(404)
         if self.request.method.lower() not in self.methods:
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
             self.raise_http_error(405)
 
-    def log_request(self):
+    def log_request(self) -> None:
+        """Method that logs the request."""
         logging.debug('Received request:\n%s', self.request.__dict__)
 
-    def add_params(self, context):
+    def add_params(self, context: [None, dict]) -> [None, dict]:
+        """Method that injects parameters defined in the config into template engine contexts."""
         if not hasattr(self, 'custom_params'):
             return context
         for key, param in self.custom_params.items():
             if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param.index]
+                context[key] = _safe_path_split(self.request.path)[param.key]
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
@@ -276,7 +343,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 context[key] = _decoder(self.request.files[param.key][0].body)
         return context
 
-    def render_template(self):
+    def render_template(self) -> str:
+        """Method that handles response template rendering."""
         is_binary = False
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
         source_text = self.custom_response['body'] if 'body' in self.custom_response else None
@@ -311,7 +379,8 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return compiled
 
-    def build_special_request(self):
+    def build_special_request(self) -> Request:
+        """Method that builds the `Request` object to be injected into the response templating."""
         request = Request()
 
         # Details
@@ -357,7 +426,8 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return request
 
-    def build_special_response(self):
+    def build_special_response(self) -> Response:
+        """Method that prepares `Response` object to be modified by the interceptors."""
         response = Response()
 
         response.status = self._status_code
@@ -368,7 +438,8 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return response
 
-    def update_response(self):
+    def update_response(self) -> None:
+        """Updates the response according to modifications made in interceptors."""
         self._status_code = self.special_response.status
         self._headers = self.special_response.headers
         self.rendered_body = self.special_response.body
@@ -378,7 +449,8 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.should_write():
             self.write(self.rendered_body)
 
-    def determine_status_code(self):
+    def determine_status_code(self) -> None:
+        """Method to determine the status code of the response."""
         status_code = None
         if 'status' in self.custom_response:
             if isinstance(self.custom_response['status'], str):
@@ -415,71 +487,53 @@ class GenericHandler(tornado.web.RequestHandler):
         else:
             self.set_status(status_code)
 
-    def analyze_headers(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'headers' not in self.initial_context[SPECIAL_CONTEXT]:
+    def analyze_component(self, component: str) -> None:
+        """Method that analyzes various HTTP components."""
+        if SPECIAL_CONTEXT not in self.initial_context or component not in self.initial_context[SPECIAL_CONTEXT]:
             return
 
-        for header_key, header in self.initial_context[SPECIAL_CONTEXT]['headers'].items():
-            if header_key.title() in self.request.headers._dict:
-                if header['type'] == 'regex':
-                    match = re.search(header['regex'], self.request.headers.get(header_key))
-                    if match is not None:
-                        for i, key in enumerate(header['args']):
-                            self.custom_context[key] = match.group(i + 1)
+        payload = None
+        if component == 'headers':
+            payload = self.request.headers._dict
+        elif component == 'queryString':
+            payload = self.request.query_arguments
+        elif component == 'bodyText':
+            payload = _decoder(self.request.body)
+        elif component == 'bodyUrlencoded':
+            payload = self.request.body_arguments
+        elif component == 'bodyMultipart':
+            payload = self.request.files
 
-    def analyze_query_string(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'queryString' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['queryString'].items():
-            if key in self.request.query_arguments:
+        for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
+            _key = key
+            if component == 'headers':
+                _key = key.title()
+            if _key in payload or component == 'bodyText':
                 if value['type'] == 'regex':
-                    match = re.search(value['regex'], self.get_query_argument(key))
+                    match_string = None
+                    if component == 'headers':
+                        match_string = self.request.headers.get(key)
+                    elif component == 'queryString':
+                        match_string = self.get_query_argument(key)
+                    elif component == 'bodyText':
+                        match_string = payload
+                    elif component == 'bodyUrlencoded':
+                        match_string = self.get_body_argument(key)
+                    elif component == 'bodyMultipart':
+                        match_string = _decoder(self.request.files[key][0].body)
+
+                    match = re.search(value['regex'], match_string)
                     if match is not None:
                         for i, key in enumerate(value['args']):
                             self.custom_context[key] = match.group(i + 1)
 
-    def analyze_body_text(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'bodyText' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        body = _decoder(self.request.body)
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyText'].items():
-            if value['type'] == 'regex':
-                match = re.search(value['regex'], body)
-                if match is not None:
-                    for i, key in enumerate(value['args']):
-                        self.custom_context[key] = match.group(i + 1)
-
-    def analyze_body_urlencoded(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'bodyUrlencoded' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyUrlencoded'].items():
-            if key in self.request.body_arguments:
-                if value['type'] == 'regex':
-                    match = re.search(value['regex'], self.get_body_argument(key))
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i + 1)
-
-    def analyze_body_multipart(self):
-        if SPECIAL_CONTEXT not in self.initial_context or 'bodyMultipart' not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyMultipart'].items():
-            if key in self.request.files:
-                if value['type'] == 'regex':
-                    match = re.search(value['regex'], _decoder(self.request.files[key][0].body))
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i + 1)
-
-    def analyze_counters(self):
+    def analyze_counters(self) -> None:
+        """Method that injects counters into template engine contexts."""
         for key, value in counters.items():
             self.custom_context[key] = value
 
-    def determine_headers(self):
+    def determine_headers(self) -> None:
+        """Method to determine the headers of the response."""
         if self.custom_endpoint_id is not None:
             self.set_header('x-%s-endpoint-id' % PROGRAM.lower(), self.custom_endpoint_id)
 
@@ -512,7 +566,13 @@ class GenericHandler(tornado.web.RequestHandler):
                 else:
                     self.set_header(key, value)
 
-    def match_alternative(self):
+    def match_alternative(self) -> tuple:
+        """Method to handles all the request matching logic.
+
+        If the request does not match to any alternatives defined in the config, it returns `400`.
+
+        It also handles the automatic CORS.
+        """
         if self.should_cors():
             self.respond_cors()
             return ()
@@ -733,11 +793,13 @@ class GenericHandler(tornado.web.RequestHandler):
         self.raise_http_error(400)
         self.finish()
 
-    def trigger_interceptors(self):
+    def trigger_interceptors(self) -> None:
+        """Method to trigger the interceptors"""
         for interceptor in self.interceptors:
             interceptor(self.special_request, self.special_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
+        """Overriden method of tornado.web.RequestHandler"""
         if self._status_code not in (204, 500, 'RST', 'FIN'):
             if not hasattr(self, 'special_response'):
                 self.special_response = self.build_special_response()
@@ -752,10 +814,12 @@ class GenericHandler(tornado.web.RequestHandler):
                 self._status_code = 500
                 super().finish('Status code is neither an integer nor in \'RST\', \'FIN\'!')
 
-    def should_write(self):
+    def should_write(self) -> bool:
+        """Method that decides whether if calling `self.write()` is applicable or not."""
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
 
-    def resolve_relative_path(self, source_text):
+    def resolve_relative_path(self, source_text: str) -> [None, str]:
+        """Method to resolve the relative path (relative to the config file)."""
         relative_path = None
         orig_relative_path = source_text[1:]
 
@@ -777,12 +841,14 @@ class GenericHandler(tornado.web.RequestHandler):
         return relative_path
 
     def write_error(self, status_code: int, **kwargs) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
         if 'message' in kwargs and kwargs['message']:
             self.finish(kwargs['message'])
         else:
             self.finish()
 
-    def respond_cors(self):
+    def respond_cors(self) -> None:
+        """Method that handles automatic CORS."""
         if ORIGIN not in self.request.headers._dict:
             # Invalid CORS preflight request
             self.set_status(404)
@@ -791,7 +857,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_status(204)
         self.finish()
 
-    def set_cors_headers(self):
+    def set_cors_headers(self) -> None:
+        """Method that sets the CORS headers."""
         if ORIGIN in self.request.headers._dict:
             self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
             origin = self.request.headers.get(ORIGIN)
@@ -801,19 +868,22 @@ class GenericHandler(tornado.web.RequestHandler):
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
                 self.set_header('access-control-allow-headers', ac_request_headers)
 
-    def set_default_headers(self):
+    def set_default_headers(self) -> None:
+        """Method that sets the default headers."""
         self.set_header('Server', '%s/%s' % (
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
         self.set_cors_headers()
 
-    def should_cors(self):
+    def should_cors(self) -> bool:
+        """Method that decides whether the request is applicable for automatic CORS or not."""
         if self.is_options and self.methods is None:
             self.raise_http_error(404)
         return self.is_options and self.methods is not None and self.request.method.lower() not in self.methods.keys()
 
-    def load_dataset(self, dataset):
+    def load_dataset(self, dataset: [list, str]) -> dict:
+        """Method that loads a dataset."""
         if isinstance(dataset, list):
             return dataset
         else:
@@ -824,7 +894,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 logging.debug('Dataset: %s', data)
                 return data
 
-    def loop_alternative(self, alternative, key, subkey):
+    def loop_alternative(self, alternative: dict, key: str, subkey: str) -> dict:
+        """Method that contains the logic to loop through the alternatives."""
         index_key = '%sIndex' % subkey
         loop_key = '%sLooped' % subkey
         if index_key not in alternative:
@@ -842,7 +913,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 return False
         return alternative[key][alternative[index_key]]
 
-    def common_template_renderer(self, template_engine, text):
+    def common_template_renderer(self, template_engine: str, text: str) -> str:
+        """Common method to initialize `TemplateRenderer` and call `render()`."""
         if template_engine == PYBARS:
             from mockintosh.hbs.methods import fake, counter, json_path, escape_html
             self.custom_context['random'] = hbs_random
@@ -869,7 +941,8 @@ class GenericHandler(tornado.web.RequestHandler):
         )
         return renderer.render()
 
-    def raise_http_error(self, status_code):
+    def raise_http_error(self, status_code: int) -> None:
+        """Method to throw a `NewHTTPError`."""
         if self.unhandled_data is not None:
             identifier = '%s %s' % (self.request.method.upper(), self.request.path)
             if identifier not in self.unhandled_data.requests[self.service_id]:
@@ -890,46 +963,3 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.rendered_body = image
 
         raise NewHTTPError()
-
-
-class NewHTTPError(Exception):
-    pass
-
-
-class NotParsedJSON():
-    pass
-
-
-class Request():
-
-    def __init__(self):
-        self.version = None
-        self.remoteIp = None
-        self.protocol = None
-        self.host = None
-        self.hostName = None
-        self.uri = None
-        self.method = None
-        self.path = None
-        self.headers = {}
-        self.queryString = {}
-        self.body = {}
-        self._json = NotParsedJSON()
-
-    @property
-    def json(self):
-        if isinstance(self._json, NotParsedJSON):
-            try:
-                self._json = json.loads(self.body)
-            except json.JSONDecodeError:
-                logging.warning('Failed to decode request body to JSON:\n%s', self.body)
-                self._json = None
-        return self._json
-
-
-class Response():
-
-    def __init__(self):
-        self.status = None
-        self.headers = {}
-        self.body = None
