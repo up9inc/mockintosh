@@ -161,6 +161,25 @@ response:
 The looping can be disabled with setting `multiResponsesLooped` to `false`, in this case you will start getting HTTP 410
 response after all items in response list are exhausted.
 
+### Tagged Responses
+
+As part of advanced usage of Mockintosh, you can specify "tag" on each of multi-response items. If tag is specified, the response is only considered if corresponding tag is set as "current" via [current tag](#management-api). Responses without `tag` attribute are always selected.
+
+Here's the example:
+```yaml
+services:
+  - port: 8000
+    endpoints:
+      - path: /some/path
+        response:
+          - tag: success-case
+            status: 200
+            body: Me working
+          - tag: failure-case
+            status: 503
+            body: simulated outage
+```
+
 ### Datasets
 
 One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response
@@ -309,6 +328,10 @@ services:
     managementRoot: __admin
     oas: @path/to/service.oas.json
 ```
+
+# Setting Current Tag
+
+For the [tagged responses](#tagged-responses), you can get currently active tag, or set one. Issuing `GET /tag` will report currently active tag, doing `POST /tag` will set one. For `POST`, just place desired name of the tag into raw request body. Empty tag set means "no active tag".
 
 ## Performance/Chaos Profiles
 
