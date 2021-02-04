@@ -79,10 +79,11 @@ endpoints:
 
 ## Headers
 
-Any header specified in the endpoint description is required to exist in the request headers. The syntax of static values, parameters, regex match and regex capture groups, is exactly the same with how it works in [path](#path) matching.
+Any header specified in the endpoint description is required to exist in the request headers. The syntax of static
+values, parameters, regex match and regex capture groups, is exactly the same with how it works in [path](#path)
+matching.
 
-Below is an example
-configuration which demonstrates the how endpoint alternatives recognized in terms of headers:
+Below is an example configuration which demonstrates the how endpoint alternatives recognized in terms of headers:
 
 ```yaml
 services:
@@ -131,19 +132,19 @@ services:
     port: 8001
     endpoints:
       - path: "/alternative"
-      method: GET
-      queryString:
-        param1: my Value
-        param2: "{{myVar}}"
-        param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
-      response:
-        body: 'query string match: {{request.queryString.param1}} {{myVar}} {{myCapturedVar}}'
-        status: 201
-          - path: "/alternative"
+        method: GET
         queryString:
-          param4: another query string
+          param1: my Value
+          param2: "{{myVar}}"
+          param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
         response:
-          body: 'param4 request query string: {{request.queryString.param4}}'
+          body: 'query string match: {{request.queryString.param1}} {{myVar}} {{myCapturedVar}}'
+          status: 201
+      - path: "/alternative"
+          queryString:
+            param4: another query string
+          response:
+            body: 'param4 request query string: {{request.queryString.param4}}'
 ```
 
 and these are the example requests and corresponding responses for such a mock server configuration:
@@ -160,9 +161,33 @@ Response: `201`  with `query string match: mvValue someValue validCapture`
 
 ## Body
 
-There are several ways of matching request body: with `regEx` on `text` or with JSON Schema.
+There are several ways of matching request body: with `regEx` on `text` or with JSON Schema, also you can have criteria
+for urlencoded and multipart request bodies.
+
+To match request by urlencoded or multipart form POST, use `urlencoded` or `multipart` section under `body`. The content of that section is very much like [query string](#query-string) or headers matching by parameter name:
+
+```yaml
+services:
+  - port: 8001
+    endpoints:
+      - path: "/body-urlencoded"
+        method: POST
+        body:
+          urlencoded:
+            param1: myValue
+            param2: "{{myVar}}"
+            param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+      - path: "/body-multipart"
+        method: POST
+        body:
+          multipart:
+            param1: myValue
+            param2: "{{myVar}}"
+            param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+```
 
 To match request body text using `regEx`, just do it like this:
+
 ```yaml
 services:
   - name: Mock for Service1
@@ -173,6 +198,7 @@ services:
         body:
           text: {{regEx '"jsonkey": "expectedval-(.+)"' 'namedValue'}}
 ```
+
 _Note: you can use familiar `regEx` named value capturing for body, as usual._
 
 To do the match against [JSON Schema](https://json-schema.org/), please consider this example:

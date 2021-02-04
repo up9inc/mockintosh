@@ -31,7 +31,14 @@ from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
 from mockintosh.methods import _safe_path_split, _detect_engine, _decoder
-from mockintosh.params import PathParam, HeaderParam, QueryStringParam, BodyParam
+from mockintosh.params import (
+    PathParam,
+    HeaderParam,
+    QueryStringParam,
+    BodyTextParam,
+    BodyUrlencodedParam,
+    BodyMultipartParam
+)
 from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
@@ -148,6 +155,7 @@ class GenericHandler(tornado.web.RequestHandler):
         except Exception as e:
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
+            self.write('%s' % str(e))
 
     def super_verb(self, *args):
         try:
@@ -190,6 +198,7 @@ class GenericHandler(tornado.web.RequestHandler):
         except Exception as e:
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
+            self.write('%s' % str(e))
 
     def get(self, *args):
         self.super_verb(*args)
@@ -227,6 +236,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_headers()
         self.analyze_query_string()
         self.analyze_body_text()
+        self.analyze_body_urlencoded()
+        self.analyze_body_multipart()
         self.analyze_counters()
 
     def populate_counters(self, context):
@@ -257,8 +268,12 @@ class GenericHandler(tornado.web.RequestHandler):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
                 context[key] = self.get_query_argument(param.key)
-            if isinstance(param, BodyParam):
+            if isinstance(param, BodyTextParam):
                 context[key] = _decoder(self.request.body)
+            if isinstance(param, BodyUrlencodedParam):
+                context[key] = self.get_body_argument(param.key)
+            if isinstance(param, BodyMultipartParam):
+                context[key] = _decoder(self.request.files[param.key][0].body)
         return context
 
     def render_template(self):
@@ -325,14 +340,20 @@ class GenericHandler(tornado.web.RequestHandler):
                 request.queryString[key] = request.queryString[key][0]
 
         # Body
-        request.body = _decoder(self.request.body)
-        request.files = self.request.files
+        if self.request.body_arguments:
+            for key, value in self.request.body_arguments.items():
+                request.body[key] = [_decoder(x) for x in value]
+                if len(request.body[key]) == 1:
+                    request.body[key] = request.body[key][0]
+        elif self.request.files:
+            for key, value in self.request.files.items():
+                request.body[key] = [_decoder(x.body) for x in value]
+                if len(request.body[key]) == 1:
+                    request.body[key] = request.body[key][0]
+        else:
+            request.body = _decoder(self.request.body)
 
-        # Form Data
-        for key, value in self.request.body_arguments.items():
-            request.formData[key] = [_decoder(x) for x in value]
-            if len(request.formData[key]) == 1:
-                request.formData[key] = request.formData[key][0]
+        request.files = self.request.files
 
         return request
 
@@ -429,6 +450,30 @@ class GenericHandler(tornado.web.RequestHandler):
                 if match is not None:
                     for i, key in enumerate(value['args']):
                         self.custom_context[key] = match.group(i + 1)
+
+    def analyze_body_urlencoded(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'bodyUrlencoded' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyUrlencoded'].items():
+            if key in self.request.body_arguments:
+                if value['type'] == 'regex':
+                    match = re.search(value['regex'], self.get_body_argument(key))
+                    if match is not None:
+                        for i, key in enumerate(value['args']):
+                            self.custom_context[key] = match.group(i + 1)
+
+    def analyze_body_multipart(self):
+        if SPECIAL_CONTEXT not in self.initial_context or 'bodyMultipart' not in self.initial_context[SPECIAL_CONTEXT]:
+            return
+
+        for key, value in self.initial_context[SPECIAL_CONTEXT]['bodyMultipart'].items():
+            if key in self.request.files:
+                if value['type'] == 'regex':
+                    match = re.search(value['regex'], _decoder(self.request.files[key][0].body))
+                    if match is not None:
+                        for i, key in enumerate(value['args']):
+                            self.custom_context[key] = match.group(i + 1)
 
     def analyze_counters(self):
         for key, value in counters.items():
@@ -586,6 +631,63 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
                             break
+
+                # Urlncoded
+                if 'urlencoded' in alternative['body']:
+                    for key, value in alternative['body']['urlencoded'].items():
+                        # To prevent 400, default=None
+                        default = None
+                        body_argument = self.get_body_argument(key, default=default)
+                        if body_argument is default:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the form data!' % key
+                            break
+                        if key not in self.request.body_arguments:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the form data!' % key
+                            break
+                        if value == body_argument:
+                            continue
+                        value = '^%s$' % value
+                        match = re.search(value, body_argument)
+                        if match is None:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Form field value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                                body_argument,
+                                key,
+                                value
+                            )
+                            break
+                    if fail:
+                        continue
+
+                # Multipart
+                if 'multipart' in alternative['body']:
+                    for key, value in alternative['body']['multipart'].items():
+                        if key not in self.request.files:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the multipart data!' % key
+                            break
+                        multipart_argument = _decoder(self.request.files[key][0].body)
+                        if value == multipart_argument:
+                            continue
+                        value = '^%s$' % value
+                        match = re.search(value, multipart_argument)
+                        if match is None:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Multipart field value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                                multipart_argument,
+                                key,
+                                value
+                            )
+                            break
+                    if fail:
+                        continue
 
             if self.should_cors():
                 self.respond_cors()
@@ -811,10 +913,8 @@ class Request():
         self.path = None
         self.headers = {}
         self.queryString = {}
-        self.body = None
+        self.body = {}
         self._json = NotParsedJSON()
-        self.files = {}
-        self.formData = {}
 
     @property
     def json(self):

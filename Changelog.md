@@ -86,11 +86,14 @@
    - Allows to reset the cursors of datasets/performance profiles
    - A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
      Automatically inject `servers` property of OAS.
+1. Performance Profiles
+   - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
+     ratio” of fuzziness
+1. referencing multipart/urlencoded fields in matchers and templates
 
 ## Milestone N
 
 1. Import from OpenAPI and Postman collections
-1. referencing multipart/urlencoded fields in matchers and templates
 1. Tagging responses of endpoint and switching between current tag via admin API, or header
 1. "Bypass" mode for service to learn configuration   
 1. base64-encoded body strings, for binary responses
@@ -99,16 +102,12 @@
 
 ## Milestone N
 
-1. Performance Profiles
-    - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
-      ratio” of fuzziness
-
 # Ideas
 
 - `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
 - `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - mocks for gRPC servers
-- mocks for Kafka
+- mocks for Kafka & RabbitMQ
 
 ## Config Ideas
 
