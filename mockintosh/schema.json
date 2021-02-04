@@ -89,6 +89,18 @@
             },
             "text": {
               "type": "string"
+            },
+            "urlencoded": {
+              "type": "object",
+              ".+": {
+                "type": "string"
+              }
+            },
+            "multipart": {
+              "type": "object",
+              ".+": {
+                "type": "string"
+              }
             }
           },
           "additionalProperties": false
