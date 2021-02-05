@@ -392,23 +392,6 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
 
-    def test_body_json_schema(self):
-        config = 'configs/json/hbs/core/body_json_schema.json'
-        self.mock_server_process = run_mock_server(get_config_path(config))
-
-        resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey": "valid"})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'endpoint1: body json schema matched'
-
-        resp = requests.post(SRV_8001 + '/endpoint1', json={"somekey2": "invalid"})
-        assert 400 == resp.status_code
-
-        resp = requests.post(SRV_8001 + '/endpoint2')
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'endpoint2'
-
     def test_http_verbs(self):
         config = 'configs/json/hbs/core/http_verbs.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -1363,6 +1346,33 @@ class TestBody():
             assert "body jsonpath matched: {{jsonPath(request.json, '$.key')}} {{jsonPath(request.json, '$.key2')}}" == resp.text
         else:
             assert "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}" == resp.text
+
+    def test_body_json_schema(self, config):
+        resp = requests.post(SRV_8001 + '/body-json-schema', json={"somekey": "valid"})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'body json schema matched'
+
+        resp = requests.post(SRV_8001 + '/body-json-schema', json={"somekey2": "invalid"})
+        assert 400 == resp.status_code
+
+    def test_body_regex(self, config):
+        resp = requests.post(SRV_8001 + '/body-regex', data="somewhere 1-required-2 is present")
+        assert 200 == resp.status_code
+        assert "body regex matched: 1 2" == resp.text
+
+        resp = requests.post(SRV_8001 + '/body-regex', data="somewhere a-required-b is not present")
+        assert 400 == resp.status_code
+
+    def test_body_urlencoded(self, config):
+        data = {'key1': 'constant', 'key2': 'val1', 'key3': 'prefix-val2-val3-suffix'}
+        resp = requests.post(SRV_8001 + '/body-urlencoded', data=data)
+        assert 200 == resp.status_code
+        assert "body urlencoded matched: constant val1 val2 val3" == resp.text
+
+        data_wrong = {'key1': 'val1', 'key2': 'prefix-val2-val3-idefix'}
+        resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
+        assert 400 == resp.status_code
 
 
 class TestManagement():

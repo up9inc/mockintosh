@@ -9,6 +9,54 @@
           "path": "/body-jsonpath-tpl",
           "method": "POST",
           "response": "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}"
+        },
+        {
+          "path": "/body-json-schema",
+          "method": "POST",
+          "body": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "somekey": {}
+              },
+              "required": [
+                "somekey"
+              ]
+            }
+          },
+          "response": "body json schema matched"
+        },
+        {
+          "path": "/body-regex",
+          "method": "POST",
+          "body": {
+            "text": "{{regEx '(\\d)-required-(\\d)' 'val1' 'val2'}}"
+          },
+          "response": "body regex matched: {{val1}} {{val2}}"
+        },
+        {
+          "path": "/body-urlencoded",
+          "method": "POST",
+          "body": {
+            "urlencoded": {
+              "key1": "constant",
+              "key2": "{{var1}}",
+              "key3": "{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}"
+            }
+          },
+          "response": "body urlencoded matched: {{request.body.key1}} {{var1}} {{var2}} {{var3}}"
+        },
+        {
+          "path": "/body-multipart",
+          "method": "POST",
+          "body": {
+            "multipart": {
+              "key1": "constant",
+              "key2": "{{var1}}",
+              "key3": "{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}"
+            }
+          },
+          "response": "body multipart matched: {{request.body.key1}} {{var1}} {{var2}} {{var3}}"
         }
       ]
     }
