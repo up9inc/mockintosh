@@ -430,7 +430,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
 
     def test_management_autotest_usecase(self):
-        resp = requests.get(SRV6 + '/__admin/config')
+        resp = requests.get(SRV6 + '/sub/__admin/config')
         self.assertEqual(200, resp.status_code)
         conf = resp.json()
 
@@ -439,7 +439,7 @@ class IntegrationTests(unittest.TestCase):
             "response": ["1", "2", "3"]
         }]
         conf['endpoints'] = endps1
-        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/sub/__admin/config', json=conf)
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
@@ -455,7 +455,7 @@ class IntegrationTests(unittest.TestCase):
             "response": ["11", "22", "33"]
         }]
         conf['endpoints'] = endps1
-        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/sub/__admin/config', json=conf)
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
@@ -471,7 +471,7 @@ class IntegrationTests(unittest.TestCase):
             "response": "simple"
         }]
         conf['endpoints'] = endps2
-        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/sub/__admin/config', json=conf)
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
