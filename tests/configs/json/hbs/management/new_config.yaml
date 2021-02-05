@@ -1,0 +1,24 @@
+---
+management:
+  port: 9000
+templatingEngine: Handlebars
+services:
+- name: Mock for Service1
+  hostname: service1.example.com
+  port: 8001
+  managementRoot: __admin
+  endpoints:
+  - path: "/service1"
+    method: GET
+    response: service1
+  - path: "/service1-new-config"
+    method: GET
+    response: service1-new-config
+- name: Mock for Service2
+  hostname: service2.example.com
+  port: 8002
+  managementRoot: __admin
+  endpoints:
+  - path: "/service2"
+    method: GET
+    response: service2
