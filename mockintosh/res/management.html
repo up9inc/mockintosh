@@ -67,10 +67,10 @@
             <pre></pre>
         </div>
         <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
-                <button class="btn btn-sm btn-primary">Refresh</button>
-                <button class="btn btn-sm btn-success">Apply Changes</button>
-                <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
-            <pre></pre>
+            <button class="btn btn-sm btn-primary">Load</button>
+            <button class="btn btn-sm btn-success">Apply Changes</button>
+            <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
+            <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em"></pre>
         </div>
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
             <button class="btn btn-sm btn-primary">Refresh</button>
@@ -122,7 +122,7 @@
             $.ajax({
                 url: './stats',
                 type: 'DELETE',
-                success: function() {
+                success: function () {
                     alert("Stats have been reset")
                     $("#stats .btn-primary").trigger('click');
                 }
@@ -134,6 +134,19 @@
                 $("#config pre").text(JSON.stringify(data, null, 2));
             });
         }).trigger('click');
+
+        $("#config .btn-success").click(function () {
+            $.ajax("./config", {
+                'data': $("#config pre").text(),
+                'type': 'POST',
+                'processData': false,
+                'contentType': 'application/x-yaml',
+                success: function () {
+                    alert("Config has been updated");
+                    window.location.reload();
+                }
+            });
+        });
 
         $("#config .btn-info").click(function () {
             $.post("./reset-iterators").done(function (data) {
