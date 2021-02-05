@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 import requests
+import yaml
 
 import mockintosh
 
@@ -463,7 +464,8 @@ class IntegrationTests(unittest.TestCase):
             "response": ["11", "22", "33"]
         }]
         conf['endpoints'] = endps1
-        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/__admin/config', data=yaml.dump(conf),
+                             headers={"Content-Type": "application/x-yaml"})
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
