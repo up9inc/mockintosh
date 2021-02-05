@@ -574,7 +574,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(3, len(oas['paths']['/qstr-matching1']['get']['parameters']))
         self.assertEqual(3, len(oas['paths']['/header-matching1']['get']['parameters']))
 
-        resp = requests.get(SRV6 + '/__admin/oas')
+        resp = requests.get(SRV6 + '/sub/__admin/oas')
         resp.raise_for_status()
         oas = resp.json()
         self.assertEqual('http://localhost:8006', oas['servers'][0]['url'])
