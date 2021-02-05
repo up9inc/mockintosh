@@ -422,12 +422,20 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/config', verify=False)
         self.assertEqual(200, resp.status_code)
 
+        resp = requests.get(SRV1 + '/__admin/config?format=yaml')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("application/x-yaml", resp.headers.get("content-type"))
+
     def test_management_service(self):
         resp = requests.get(SRV1 + '/__admin/')
         self.assertEqual(200, resp.status_code)  # should return a HTML page
 
         resp = requests.get(SRV1 + '/__admin/config')
         self.assertEqual(200, resp.status_code)
+
+        resp = requests.get(SRV1 + '/__admin/config?format=yaml')
+        self.assertEqual(200, resp.status_code)
+        self.assertTrue(resp.text.startswith("name:"))
 
     def test_management_autotest_usecase(self):
         resp = requests.get(SRV6 + '/__admin/config')
