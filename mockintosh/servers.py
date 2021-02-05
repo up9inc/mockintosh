@@ -275,6 +275,8 @@ class HttpServer:
         HttpServer.log_merged_endpoints(merged_endpoints)
 
         if management_root is not None:
+            if management_root and management_root[0] == '/':
+                management_root = management_root[1:]
             endpoint_handlers = [
                 (
                     '/%s/' % management_root,
