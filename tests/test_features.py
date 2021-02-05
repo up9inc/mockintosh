@@ -1769,6 +1769,162 @@ class TestManagement():
                 assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/multiresponse.json',
+    ])
+    def test_tagged_responses(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        # no tag set - only untagged responses
+        resp = requests.post(SRV_8003 + '/__admin/tag', data="")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.3" == resp.text
+
+        # first tag set - "first" + untagged responses
+        resp = requests.post(SRV_8003 + '/__admin/tag', data="first")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8003 + '/__admin/tag')
+        assert 200 == resp.status_code
+        assert "first" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "1.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "1.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.3" == resp.text
+
+        # first tag set - "second" + untagged responses
+        resp = requests.post(SRV_8003 + '/__admin/tag', data="second")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "2.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "2.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.3" == resp.text
+
+        # case of no valid response
+        resp = requests.get(SRV_8003 + '/tagged-confusing')
+        assert 410 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/multiresponse.json',
+    ])
+    def test_tagged_datasets(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        # no tag set - only untagged responses
+        resp = requests.post(SRV_8003 + '/__admin/tag', data="")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.3" == resp.text
+
+        # first tag set - "first" + untagged responses
+        resp = requests.post(SRV_8003 + '/__admin/tag', data="first")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8003 + '/__admin/tag')
+        assert 200 == resp.status_code
+        assert "first" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 1.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 1.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.3" == resp.text
+
+        # first tag set - "second" + untagged responses
+        resp = requests.post(SRV_8003 + '/__admin/tag', data="second")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 2.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 2.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.3" == resp.text
+
+        # case of no valid response
+        resp = requests.get(SRV_8003 + '/tagged-confusing')
+        assert 410 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml'
     ])
