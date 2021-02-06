@@ -13,6 +13,7 @@ import time
 import json
 from datetime import datetime, timedelta
 
+import yaml
 import pytest
 import requests
 from requests.exceptions import ConnectionError
@@ -1411,26 +1412,42 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config.json'), 'r').read()[:-1]
 
+        resp = requests.get(SRV_9000 + '/config?format=yaml')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        assert resp.text == open(get_config_path('configs/stats_config.yaml'), 'r').read()
+
         resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config_service1.json'), 'r').read()[:-1]
+
+        resp = requests.get(SRV_8001 + '/__admin/config?format=yaml', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        assert resp.text == open(get_config_path('configs/stats_config_service1.yaml'), 'r').read()
 
         resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config_service2.json'), 'r').read()[:-1]
 
-    @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        resp = requests.get(SRV_8002 + '/__admin/config?format=yaml', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        assert resp.text == open(get_config_path('configs/stats_config_service2.yaml'), 'r').read()
+
+    @pytest.mark.parametrize(('config', '_format'), [
+        ('configs/json/hbs/management/config.json', 'json'),
+        ('configs/yaml/hbs/management/config.yaml', 'json'),
+        ('configs/json/hbs/management/config.json', 'yaml'),
+        ('configs/yaml/hbs/management/config.yaml', 'yaml')
     ])
-    def test_post_config(self, config):
+    def test_post_config(self, config, _format):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
-            data = json.load(file)
-            resp = requests.post(SRV_9000 + '/config', json=data)
+        with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
+            resp = requests.post(SRV_9000 + '/config', data=file.read())
             assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -1455,9 +1472,15 @@ class TestManagement():
             data = json.load(file)
             assert data == resp.json()
 
-        with open(get_config_path('configs/json/hbs/management/new_service1.json'), 'r') as file:
-            data = json.load(file)
-            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, json=data)
+        resp = requests.get(SRV_9000 + '/config?format=yaml')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        with open(get_config_path('configs/json/hbs/management/new_config.yaml'), 'r') as file:
+            data = yaml.safe_load(file.read())
+            assert data == yaml.safe_load(resp.text)
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read())
             assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -1475,9 +1498,8 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
-        with open(get_config_path('configs/json/hbs/management/new_service2.json'), 'r') as file:
-            data = json.load(file)
-            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, json=data)
+        with open(get_config_path('configs/json/hbs/management/new_service2.%s' % _format), 'r') as file:
+            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, data=file.read())
             assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})

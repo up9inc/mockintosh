@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 import requests
+import yaml
 
 import mockintosh
 
@@ -460,12 +461,20 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/config', verify=False)
         self.assertEqual(200, resp.status_code)
 
+        resp = requests.get(SRV1 + '/__admin/config?format=yaml')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("application/x-yaml", resp.headers.get("content-type"))
+
     def test_management_service(self):
         resp = requests.get(SRV1 + '/__admin/')
         self.assertEqual(200, resp.status_code)  # should return a HTML page
 
         resp = requests.get(SRV1 + '/__admin/config')
         self.assertEqual(200, resp.status_code)
+
+        resp = requests.get(SRV1 + '/__admin/config?format=yaml')
+        self.assertEqual(200, resp.status_code)
+        self.assertTrue(resp.text.startswith("name:"))
 
     def test_management_autotest_usecase(self):
         resp = requests.get(SRV6 + '/sub/__admin/config')
@@ -493,7 +502,8 @@ class IntegrationTests(unittest.TestCase):
             "response": ["11", "22", "33"]
         }]
         conf['endpoints'] = endps1
-        resp = requests.post(SRV6 + '/sub/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/sub/__admin/config', data=yaml.dump(conf),
+                             headers={"Content-Type": "application/x-yaml"})
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')

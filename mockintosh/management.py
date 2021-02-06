@@ -15,6 +15,7 @@ from typing import (
 )
 from collections import OrderedDict
 
+import yaml
 import jsonschema
 import tornado.web
 from tornado.util import unicode_type
@@ -93,15 +94,21 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.http_server = http_server
 
     def get(self):
-        self.write(self.http_server.definition.orig_data)
+        data = self.http_server.definition.orig_data
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
     def post(self):
         body = _decoder(self.request.body)
         try:
-            orig_data = json.loads(body)
+            orig_data = yaml.safe_load(body)
         except json.JSONDecodeError as e:
             self.set_status(400)
-            self.write('JSON decode error:\n%s' % str(e))
+            self.write('JSON/YAML decode error:\n%s' % str(e))
             return
         data = copy.deepcopy(orig_data)
 
@@ -543,15 +550,21 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         self.service_id = service_id
 
     def get(self):
-        self.write(self.http_server.definition.orig_data['services'][self.service_id])
+        data = self.http_server.definition.orig_data['services'][self.service_id]
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
     def post(self):
         body = _decoder(self.request.body)
         try:
-            orig_data = json.loads(body)
+            orig_data = yaml.safe_load(body)
         except json.JSONDecodeError as e:
             self.set_status(400)
-            self.write('JSON decode error:\n%s' % str(e))
+            self.write('JSON/YAML decode error:\n%s' % str(e))
             return
         data = copy.deepcopy(orig_data)
 

@@ -90,22 +90,16 @@
    - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
      ratio” of fuzziness
 1. referencing multipart/urlencoded fields in matchers and templates
-
-## Milestone N
-
-1. Import from OpenAPI and Postman collections
 1. Tagging responses of endpoint and switching between current tag via admin API, or header
-1. "Bypass" mode for service to learn configuration   
-1. base64-encoded body strings, for binary responses
-1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
-   Accept etc)
-
-## Milestone N
 
 # Ideas
 
+1. Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+1. "Bypass" mode for service to learn configuration
+1. base64-encoded body strings, for binary responses
+1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
+   Accept etc)
 - `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
-- `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - mocks for gRPC servers
 - mocks for Kafka & RabbitMQ
 
