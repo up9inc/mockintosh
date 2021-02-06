@@ -171,6 +171,9 @@
             },
             "templatingEngine": {
               "type": "string"
+            },
+            "tag": {
+              "type": "string"
             }
           },
           "additionalProperties": false

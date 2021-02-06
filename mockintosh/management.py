@@ -526,6 +526,33 @@ class ManagementOasHandler(ManagementBaseHandler):
         return relative_path
 
 
+class ManagementTagHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    def get(self):
+        data = {
+            'tags': []
+        }
+
+        for app in self.http_server._apps.apps:
+            for rule in app.default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    data['tags'].append(rule.target_kwargs['tag'])
+
+        self.write(data)
+
+    def post(self):
+        data = _decoder(self.request.body)
+        for app in self.http_server._apps.apps:
+            for rule in app.default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    rule.target_kwargs['tag'] = data
+
+        self.set_status(204)
+
+
 class ManagementServiceRootHandler(ManagementBaseHandler):
 
     def get(self):
@@ -662,6 +689,30 @@ class ManagementServiceOasHandler(ManagementOasHandler):
 
     def get(self):
         self.write(self.build_oas(self.service_id))
+
+
+class ManagementServiceTagHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server, service_id):
+        self.http_server = http_server
+        self.service_id = service_id
+
+    def get(self):
+        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                tag = rule.target_kwargs['tag']
+                if tag is None:
+                    self.set_status(204)
+                else:
+                    self.write(tag)
+
+    def post(self):
+        data = _decoder(self.request.body)
+        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['tag'] = data
+
+        self.set_status(204)
 
 
 class UnhandledData:

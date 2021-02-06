@@ -285,6 +285,44 @@
         {
           "path": "/perf-profile-faults",
           "performanceProfile": "someFaults"
+        },
+        {
+          "path": "/tagged",
+          "response": [
+            {
+              "body": "3.1"
+            },
+            {
+              "tag": "first",
+              "body": "1.1"
+            },
+            {
+              "tag": "second",
+              "body": "2.1"
+            },
+            {
+              "tag": "first",
+              "body": "1.2"
+            },
+            {
+              "body": "3.2"
+            },
+            {
+              "tag": "second",
+              "body": "2.2"
+            },
+            {
+              "body": "3.3"
+            }
+          ]
+        },
+        {
+          "path": "/tagged-confusing",
+          "response": [
+            {
+              "tag": "some"
+            }
+          ]
         }
       ]
     },
