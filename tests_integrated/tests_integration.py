@@ -108,6 +108,44 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + path)
         self.assertEqual(400, resp.status_code)
 
+    def test_urlencoded(self):
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        path = '/body-urlencoded'
+        resp = requests.post(SRV1 + path, data={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffix" % param3
+        })
+        resp.raise_for_status()
+        self.assertEqual("urlencoded match: constant val " + param3 + ' ' + param2, resp.text)
+
+        resp = requests.post(SRV1 + path, data={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffixz" % param3
+        })
+        self.assertEqual(400, resp.status_code)
+
+    def test_multipart(self):
+        param2 = str(int(time.time()))
+        param3 = str(int(time.time() / 2))
+        path = '/body-multipart'
+        resp = requests.post(SRV1 + path, files={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffix" % param3
+        })
+        resp.raise_for_status()
+        self.assertEqual("multipart match: constant val " + param3 + ' ' + param2, resp.text)
+
+        resp = requests.post(SRV1 + path, files={
+            "param1": "constant val",
+            "param2": param2,
+            "param3": "prefix-%s-suffixz" % param3
+        })
+        self.assertEqual(400, resp.status_code)
+
     def test_headers(self):
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
@@ -427,6 +465,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual("application/x-yaml", resp.headers.get("content-type"))
 
+        resp = requests.get(SRV1 + '/__admin/config?format=yaml')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("application/x-yaml", resp.headers.get("content-type"))
+
     def test_management_service(self):
         resp = requests.get(SRV1 + '/__admin/')
         self.assertEqual(200, resp.status_code)  # should return a HTML page
@@ -439,7 +481,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(resp.text.startswith("name:"))
 
     def test_management_autotest_usecase(self):
-        resp = requests.get(SRV6 + '/__admin/config')
+        resp = requests.get(SRV6 + '/sub/__admin/config')
         self.assertEqual(200, resp.status_code)
         conf = resp.json()
 
@@ -448,7 +490,7 @@ class IntegrationTests(unittest.TestCase):
             "response": ["1", "2", "3"]
         }]
         conf['endpoints'] = endps1
-        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/sub/__admin/config', json=conf)
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
@@ -464,7 +506,7 @@ class IntegrationTests(unittest.TestCase):
             "response": ["11", "22", "33"]
         }]
         conf['endpoints'] = endps1
-        resp = requests.post(SRV6 + '/__admin/config', data=yaml.dump(conf),
+        resp = requests.post(SRV6 + '/sub/__admin/config', data=yaml.dump(conf),
                              headers={"Content-Type": "application/x-yaml"})
         self.assertEqual(204, resp.status_code)
 
@@ -481,7 +523,7 @@ class IntegrationTests(unittest.TestCase):
             "response": "simple"
         }]
         conf['endpoints'] = endps2
-        resp = requests.post(SRV6 + '/__admin/config', json=conf)
+        resp = requests.post(SRV6 + '/sub/__admin/config', json=conf)
         self.assertEqual(204, resp.status_code)
 
         resp = requests.get(SRV6 + '/endp1')
@@ -580,11 +622,11 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + '/__admin/oas')
         resp.raise_for_status()
         oas = resp.json()
-        self.assertEqual(30, len(oas['paths']))
+        self.assertGreater(len(oas['paths']), 30)
         self.assertEqual(3, len(oas['paths']['/qstr-matching1']['get']['parameters']))
         self.assertEqual(3, len(oas['paths']['/header-matching1']['get']['parameters']))
 
-        resp = requests.get(SRV6 + '/__admin/oas')
+        resp = requests.get(SRV6 + '/sub/__admin/oas')
         resp.raise_for_status()
         oas = resp.json()
         self.assertEqual('http://localhost:8006', oas['servers'][0]['url'])

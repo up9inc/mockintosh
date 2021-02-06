@@ -36,16 +36,16 @@
 <div class="container-fluid">
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <a class="nav-link active" id="stats-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
+            <a class="nav-link active" id="contact-tab" data-toggle="tab" href="#trynow" role="tab"
+               aria-controls="contact" aria-selected="false">Query APIs</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="stats-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
                aria-selected="true">Statistics</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
                aria-selected="false">Configuration</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" id="contact-tab" data-toggle="tab" href="#trynow" role="tab" aria-controls="contact"
-               aria-selected="false">Query APIs</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="unhandled-tab" data-toggle="tab" href="#unhandled" role="tab"
@@ -54,21 +54,23 @@
         </li>
     </ul>
     <div class="tab-content" id="myTabContent">
-        <div class="tab-pane fade show active" id="stats" role="tabpanel" aria-labelledby="stats-tab">
-            <button class="btn btn-sm btn-primary">Refresh</button>
-            <pre></pre>
-        </div>
-        <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
-            <button class="btn btn-sm btn-primary">Refresh</button>
-            <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
-            <pre></pre>
-        </div>
-        <div class="tab-pane fade" id="trynow" role="tabpanel" aria-labelledby="contact-tab">
+        <div class="tab-pane fade show active" id="trynow" role="tabpanel" aria-labelledby="contact-tab">
             <div id="swagger-ui">
                 <div class="center_progress">
                     <div class="lds-dual-ring"></div>
                 </div>
             </div>
+        </div>
+        <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+            <button class="btn btn-sm btn-primary">Refresh</button>
+            <button class="btn btn-sm btn-danger">Reset Statistics</button>
+            <pre></pre>
+        </div>
+        <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
+            <button class="btn btn-sm btn-primary">Load</button>
+            <button class="btn btn-sm btn-success">Apply Changes</button>
+            <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
+            <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em"></pre>
         </div>
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
             <button class="btn btn-sm btn-primary">Refresh</button>
@@ -110,17 +112,41 @@
     }
 
     $(function () {
-        $("#stats button").click(function () {
+        $("#stats .btn-primary").click(function () {
             $.getJSON("./stats").done(function (data) {
                 $("#stats pre").text(JSON.stringify(data, null, 2));
             });
         }).trigger('click');
 
+        $("#stats .btn-danger").click(function () {
+            $.ajax({
+                url: './stats',
+                type: 'DELETE',
+                success: function () {
+                    alert("Stats have been reset")
+                    $("#stats .btn-primary").trigger('click');
+                }
+            });
+        });
+
         $("#config .btn-primary").click(function () {
-            $.getJSON("./config").done(function (data) {
-                $("#config pre").text(JSON.stringify(data, null, 2));
+            $.get("./config?format=yaml").done(function (data) {
+                $("#config pre").text(data);
             });
         }).trigger('click');
+
+        $("#config .btn-success").click(function () {
+            $.ajax("./config", {
+                'data': $("#config pre").text(),
+                'type': 'POST',
+                'processData': false,
+                'contentType': 'application/x-yaml',
+                success: function () {
+                    alert("Config has been updated");
+                    window.location.reload();
+                }
+            });
+        });
 
         $("#config .btn-info").click(function () {
             $.post("./reset-iterators").done(function (data) {

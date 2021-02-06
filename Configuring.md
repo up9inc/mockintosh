@@ -278,6 +278,8 @@ Also, you can issue a POST call into same endpoint, to dynamically set the confi
 as you retrieve via GET. There are some restrictions on what can be changed live. Generally, you can only
 change `endpoints` contents.
 
+The `/config` endpoint can return YAML format, when queried with `format` parameter `GET /config?format=yaml`. Also, if you want to do `POST /config` with YAML payload, please provide `Content-Type: application/x-yaml` request header.
+
 ### Getting Service Statistics
 
 By requesting `stats` path of management API, you can get information on how many requests were served by Mockintosh,
