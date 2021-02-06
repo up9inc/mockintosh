@@ -1774,6 +1774,35 @@ class TestManagement():
     def test_tagged_responses(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
+        resp = requests.post(SRV_9000 + '/tag', data="first")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_9000 + '/tag')
+        assert 200 == resp.status_code
+        data = resp.json()
+        for tag in data['tags']:
+            assert "first" == tag
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "1.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "1.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.3" == resp.text
+
         # no tag set - only untagged responses
         resp = requests.post(SRV_8003 + '/__admin/tag', data="")
         assert 204 == resp.status_code
@@ -1851,6 +1880,35 @@ class TestManagement():
     ])
     def test_tagged_datasets(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.post(SRV_9000 + '/tag', data="first")
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_9000 + '/tag')
+        assert 200 == resp.status_code
+        data = resp.json()
+        for tag in data['tags']:
+            assert "first" == tag
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 1.1" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 1.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.2" == resp.text
+
+        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        assert 200 == resp.status_code
+        assert "dset: 3.3" == resp.text
 
         # no tag set - only untagged responses
         resp = requests.post(SRV_8003 + '/__admin/tag', data="")
