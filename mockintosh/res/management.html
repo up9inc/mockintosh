@@ -130,8 +130,8 @@
         });
 
         $("#config .btn-primary").click(function () {
-            $.getJSON("./config?format=yaml").done(function (data) {
-                $("#config pre").text(JSON.stringify(data, null, 2));
+            $.get("./config?format=yaml").done(function (data) {
+                $("#config pre").text(data);
             });
         }).trigger('click');
 
