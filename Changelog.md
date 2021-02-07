@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7 - 2021-02-07
+
+1. [Management API](Configuring.md#management-api) to get/set config, see stats, quick trying
+1. [Performance/Chaos Profiles](Configuring.md#performancechaos-profiles)
+1. [Tagging responses](Configuring.md#tagged-responses) of endpoint
+1. referencing multipart/urlencoded fields in matchers and templates
+
 ## v0.6.2 - 2021-01-23
 
 1. Series of bugfixes
@@ -76,21 +83,6 @@
 # Roadmap
 
 ## Next Version
-1. Management API
-   - Global and per-service (reuses same port)
-   - config retrieval
-   - API to modify configuration remotely, maybe programmatically (for UP9 live control)
-   - Ability to get stats on mock items covered
-   - Allows to reload config on the fly Allows to get and reset the stats of the service
-   - Ability to catch unhandled requests and turn those into configuration templates
-   - Allows to reset the cursors of datasets/performance profiles
-   - A way to attach OAS file to a server, so there is page in mgmt UI that opens `Try Now!` for this service.
-     Automatically inject `servers` property of OAS.
-1. Performance Profiles
-   - Performance profile allows injecting faults and delays, round-robining the delays/500/400/RST, offering “profile
-     ratio” of fuzziness
-1. referencing multipart/urlencoded fields in matchers and templates
-1. Tagging responses of endpoint and switching between current tag via admin API, or header
 
 # Ideas
 
@@ -99,6 +91,7 @@
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
+
 - `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
 - mocks for gRPC servers
 - mocks for Kafka & RabbitMQ
