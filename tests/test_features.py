@@ -2144,10 +2144,10 @@ class TestPerformanceProfile():
 
     def test_trigger(self):
         faults = {
-            'PASS' : 0.25,
-            '200'  : 0.25,
-            'RST'  : 0.25,
-            'FIN'  : 0.25
+            'PASS': 0.25,
+            '200': 0.25,
+            'RST': 0.25,
+            'FIN': 0.25
         }
         profile = PerformanceProfile(1.0, delay=0.0, faults=faults)
         for _ in range(50):
