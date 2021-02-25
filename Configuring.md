@@ -331,7 +331,7 @@ services:
     oas: @path/to/service.oas.json
 ```
 
-# Setting Current Tag
+### Setting Current Tag
 
 For the [tagged responses](#tagged-responses), you can get currently active tag, or set one. Issuing `GET /tag` will report currently active tag, doing `POST /tag` will set one. For `POST`, just place desired name of the tag into raw request body. Empty tag set means "no active tag".
 

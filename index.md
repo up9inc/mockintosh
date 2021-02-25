@@ -1,7 +1,9 @@
 # Mockintosh
 _Docker and K8s-friendly mock_
 
-Quick links: [Config Syntax](Configuring.md) | [Request Matching](Matching.md) | [Response Templating](Templating.md) | [Changelog](Changelog.md)
+Quick links: 
+
+[Config Syntax](Configuring.md) | [Request Matching](Matching.md) | [Response Templating](Templating.md) | [Changelog](Changelog.md)
 
 ## About
 
