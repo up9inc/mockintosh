@@ -4,7 +4,7 @@ Mockintosh supports JSON and YAML formats for the mock server configuration file
 
 The most important entities in the config file are: Service, Endpoint, Response:
 
-![Config](MockintoshConfig.png)
+![Config](img/MockintoshConfig.png)
 
 There are two main aspects of endpoint configuration: matching and templating. [Matching](Matching.md) defines how to
 recognize request and pick the corresponding response template. [Templating](Templating.md) gives capabilities to
