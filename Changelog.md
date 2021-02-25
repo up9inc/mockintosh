@@ -83,10 +83,12 @@
 # Roadmap
 
 ## Next Version
+- YAML format for unhandled requests
+1. Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+
 
 # Ideas
 
-1. Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 1. "Bypass" mode for service to learn configuration
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (

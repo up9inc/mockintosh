@@ -70,7 +70,7 @@
             <button class="btn btn-sm btn-primary">Load</button>
             <button class="btn btn-sm btn-success">Apply Changes</button>
             <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
-            <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em"></pre>
+            <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em; padding:0.25em"></pre>
         </div>
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
             <button class="btn btn-sm btn-primary">Refresh</button>
@@ -155,8 +155,8 @@
         });
 
         $("#unhandled button").click(function () {
-            $.getJSON("./unhandled").done(function (data) {
-                $("#unhandled pre").text(JSON.stringify(data, null, 2));
+            $.get("./unhandled?format=yaml").done(function (data) {
+                $("#unhandled pre").text(data);
             });
         }).trigger('click');
 
