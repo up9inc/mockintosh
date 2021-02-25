@@ -20,6 +20,7 @@ from requests.exceptions import ConnectionError
 from openapi_spec_validator import validate_spec
 
 from mockintosh.constants import PROGRAM
+from mockintosh.performance import PerformanceProfile
 from utilities import (
     tcping,
     run_mock_server,
@@ -2140,3 +2141,15 @@ class TestPerformanceProfile():
                 assert msg.startswith('ConnectionResetError') or (
                     msg.startswith('RemoteDisconnected')
                 )
+
+    def test_trigger(self):
+        faults = {
+            'PASS': 0.25,
+            '200': 0.25,
+            'RST': 0.25,
+            'FIN': 0.25
+        }
+        profile = PerformanceProfile(1.0, delay=0.0, faults=faults)
+        for _ in range(50):
+            status_code = profile.trigger(201)
+            assert str(status_code) in faults or status_code == 201

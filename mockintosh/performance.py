@@ -25,5 +25,5 @@ class PerformanceProfile():
                 if chosen == 'PASS':
                     return status_code
                 else:
-                    return int(chosen) if chosen in ('RST', 'FIN') else chosen
+                    return int(chosen) if chosen not in ('RST', 'FIN') else chosen
         return status_code
