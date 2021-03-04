@@ -1,0 +1,28 @@
+{
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "port": 8001,
+      "hostname": "service1.example.com",
+      "endpoints": [
+        {
+          "path": "/service1x",
+          "method": "GET",
+          "response": ""
+        },
+        {
+          "path": "/service1y",
+          "method": "GET",
+          "headers": {
+            "Example-Header": "Example-Value"
+          },
+          "queryString": {
+            "a": "b",
+            "c": "d"
+          },
+          "response": ""
+        }
+      ]
+    }
+  ]
+}
