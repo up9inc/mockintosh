@@ -84,11 +84,12 @@
 
 ## Next Version
 - YAML format for unhandled requests
-1. Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - get rid of default config that runs with no params
+
 - allow editing resource files via mgmt API/UI
-- management UI to give links to individual services
 - fix docs site glitches
+- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+- management UI to give links to individual services
 - exp demo of requests log
 
 # Ideas
