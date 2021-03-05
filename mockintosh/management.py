@@ -24,7 +24,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder, _safe_path_split, _get_dir_structure
+from mockintosh.methods import _decoder, _safe_path_split
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
