@@ -562,8 +562,9 @@ class ManagementResourceHandler(ManagementBaseHandler):
         path = self.get_query_argument('path', default=None)
         orig_path = path
         if path is None:
-            path = os.getcwd()
-            data = _get_dir_structure(cwd)
+            self.set_status(400)
+            self.write('\'path\' parameter is required!')
+            return
         else:
             if not path:
                 self.set_status(400)
@@ -581,7 +582,9 @@ class ManagementResourceHandler(ManagementBaseHandler):
                 return
             # path is OK
             if os.path.isdir(path):
-                data = _get_dir_structure(path)
+                self.set_status(400)
+                self.write('The path %s is a directory!' % orig_path)
+                return
             else:
                 _format = self.get_query_argument('format', default='text')
                 if _format == 'text':
