@@ -20,15 +20,12 @@
 
         <p style="text-align: center; margin-top: 0.5rem">{{ site.description | default: site.github.project_tagline }}</p>
 
-        <p class="view"><a href="/">About</a></p>
-        <p class="view"><a href="/Configuring.html">Config Syntax</a></p>
-        <p class="view"><a href="/Matching.html">Request Matching</a></p>
-        <p class="view"><a href="/Templating.html">Response Templating</a></p>
-        <p class="view"><a href="/Changelog.html">Changelog</a></p>
-
-        {% if site.github.is_project_page %}
-        <p class="view"><a href="{{ site.github.repository_url }}">View the Project on GitHub <small>{{ site.github.repository_nwo }}</small></a></p>
-        {% endif %}
+        <p class="view"><a href="/">&blacksquare; About</a></p>
+        <p class="view"><a href="/Configuring.html">&blacksquare; &blacksquare; Config Syntax</a></p>
+        <p class="view"><a href="/Matching.html">&blacksquare; &blacksquare; Request Matching</a></p>
+        <p class="view"><a href="/Templating.html">&blacksquare; Response Templating</a></p>
+        <p class="view"><a href="/Configuring.html#performancechaos-profiles">&blacksquare; Performance & Chaos Testing</a></p>
+        <p class="view"><a href="/Changelog.html">&blacksquare; Changelog</a></p>
 
         {% if site.github.is_user_page %}
         <p class="view"><a href="{{ site.github.owner_url }}">View My GitHub Profile</a></p>
@@ -51,6 +48,11 @@
         {% if site.github.is_project_page %}
         <p>This project is maintained by <a href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a></p>
         {% endif %}
+
+        {% if site.github.is_project_page %}
+        <p><a href="{{ site.github.repository_url }}">View the Project on GitHub <small>{{ site.github.repository_nwo }}</small></a></p>
+        {% endif %}
+
         <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
     </footer>
 </div>

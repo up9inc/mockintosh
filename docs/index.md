@@ -123,39 +123,3 @@ The `Response` object consists of three fields:
   by [`tornado.web.RequestHandler.write`](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write)
   : `str`, `bytes` or `dict` e.g. `resp.body = 'hello world'`
   or `resp.body = {'hello': 'world'}`
-
----
-
-## Build
-
-Installing it directly:
-
-```bash
-pip3 install .
-```
-
-or as a Docker image:
-
-```bash
-docker build --no-cache -t mockintosh .
-```
-
-To verify the installation run `mockintosh` and visit [http://localhost:8001](http://localhost:8001)
-you should be seeing the `hello world` response.
-
-## Run
-
-Running directly:
-
-```bash
-mockintosh tests/configs/json/hbs/common/config.json
-```
-
-or as a Docker container:
-
-```bash
-docker run -p 8000-8010:8000-8010 -v `pwd`/tests/configs/json/hbs/common/config.json mockintosh /config.json
-# or
-docker run --network host -v `pwd`/tests/configs/json/hbs/common/config.json mockintosh /config.json
-```
-

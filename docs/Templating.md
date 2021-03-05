@@ -84,7 +84,7 @@ For random names, addresses etc, please refer to [Faker's](#faker) functionality
 
 Here is a list of date shifting examples as a Handlebars response template:
 
-```hbs
+```text
 {
   "now": "{{ date.date '%Y-%m-%d %H:%M %f' }}",
   "1_week_back": "{{ date.date '%Y-%m-%d %H:%M %f' -604800 }}",
@@ -104,7 +104,7 @@ Here is a list of date shifting examples as a Handlebars response template:
 It is available as `fake` object. Refer to the [official docs](https://faker.readthedocs.io/en/master/providers.html)
 for all capabilities. Below are some examples (Handlebars):
 
-```hbs
+```text
 {
   "first_name": "{{ fake.first_name }}",
   "first_name_female": "{{ fake.first_name_female }}",
@@ -201,11 +201,11 @@ You can reference certain fields from request's JSON by using `jsonPath` helper 
 
 ### Other Template Helpers
 
-#### `escapeHtml(text)`
+#### escapeHtml(text)
 
 `{{ escapeHtml '& < \" >' }}` a helper to escape HTML special characters. (see [`html.escape`](https://wiki.python.org/moin/EscapingHtml))
 
-#### `tojson(text)` (Handlebars)
+#### tojson(text) (Handlebars only)
 
 The equivalent of [`tojson`](https://jinja.palletsprojects.com/en/2.11.x/templates/#tojson) filter in Jinja2.
 
@@ -213,11 +213,11 @@ Jinja2 usage: `{{ fake.random_letters() | tojson }}`
 
 Handlebars usage: `{{ tojson ( fake.random_letters ) }}`
 
-#### `array(*args)` (Handlebars)
+#### array(*args) (Handlebars only)
 
 Provides array support in parameters. `{{ array 'a' 'b' 'c' 'd' 'e' }}` returns `['a', 'b', 'c', 'd', 'e']`.
 
-#### `replace(text, old, new, count=None)` (Handlebars)
+#### replace(text, old, new, count=None) (Handlebars only)
 
 The equivalent of [`replace`](https://jinja.palletsprojects.com/en/2.11.x/templates/#replace) filter in Jinja2.
 
