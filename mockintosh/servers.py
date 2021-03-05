@@ -26,6 +26,7 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
+    ManagementResourceHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
@@ -431,6 +432,11 @@ class HttpServer:
                     dict(
                         http_server=self
                     )
+                ),
+                (
+                    '/resource',
+                    ManagementResourceHandler,
+                    dict()
                 )
             ])
             server = self.impl.get_server(app, ssl, ssl_options)

@@ -23,7 +23,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder, _safe_path_split
+from mockintosh.methods import _decoder, _safe_path_split, _get_dir_structure
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -551,6 +551,48 @@ class ManagementTagHandler(ManagementBaseHandler):
                     rule.target_kwargs['tag'] = data
 
         self.set_status(204)
+
+
+class ManagementResourceHandler(ManagementBaseHandler):
+
+    def get(self):
+        data = None
+        cwd = os.getcwd()
+        path = self.get_query_argument('path', default=None)
+        if path is None:
+            path = os.getcwd()
+            data = _get_dir_structure(cwd)
+        else:
+            if not path:
+                self.set_status(400)
+                self.write('path cannot be empty!')
+                return
+            if path.startswith('/'):
+                path = path[1:]
+            path = os.path.join(cwd, path)
+            if not os.path.exists(path):
+                self.set_status(400)
+                self.write('path does not exist!')
+                return
+            if os.path.isdir(path):
+                data = _get_dir_structure(path)
+            else:
+                _format = self.get_query_argument('format', default='text')
+                if _format == 'text':
+                    with open(path, 'r') as file:
+                        data = file.read()
+                elif _format == 'stream':
+                    buf_size = 4096
+                    self.set_header('Content-Type', 'application/octet-stream')
+                    self.set_header('Content-Disposition', 'attachment; filename=' + os.path.basename(path))
+                    with open(path, 'r') as f:
+                        while True:
+                            data = f.read(buf_size)
+                            if not data:
+                                break
+                            self.write(data)
+                    return
+        self.write(data)
 
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
