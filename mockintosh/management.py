@@ -10,6 +10,7 @@ import os
 import re
 import json
 import copy
+import shutil
 from typing import (
     Union
 )
@@ -568,12 +569,11 @@ class ManagementResourceHandler(ManagementBaseHandler):
                 self.set_status(400)
                 self.write('\'path\' cannot be empty!')
                 return
-            path = path.lstrip('/')
-            path = os.path.join(cwd, path)
+            path = os.path.join(cwd, path.lstrip('/'))
             if not path.startswith(cwd):
                 self.set_status(403)
                 self.write('Path %s couldn\'t be accessed!' % orig_path)
-                return None
+                return
             # path is SAFE
             if not os.path.exists(path):
                 self.set_status(400)
@@ -609,12 +609,11 @@ class ManagementResourceHandler(ManagementBaseHandler):
                 self.set_status(400)
                 self.write('\'path\' cannot be empty!')
                 return
-            path = path.lstrip('/')
-            path = os.path.join(cwd, path)
+            path = os.path.join(cwd, path.lstrip('/'))
             if not path.startswith(cwd):
                 self.set_status(403)
                 self.write('Path %s couldn\'t be accessed!' % orig_path)
-                return None
+                return
             # path is SAFE
             if os.path.exists(path):
                 self.set_status(400)
@@ -652,6 +651,35 @@ class ManagementResourceHandler(ManagementBaseHandler):
                 return
             with open(path, 'w') as _file:
                 _file.write(file)
+        self.set_status(204)
+
+    def delete(self):
+        cwd = os.getcwd()
+        path = self.get_body_argument('path', default=None)
+        orig_path = path
+        if path is None:
+            self.set_status(400)
+            self.write('\'path\' parameter is required!')
+            return
+        if not path:
+            self.set_status(400)
+            self.write('\'path\' cannot be empty!')
+            return
+        path = os.path.join(cwd, path.lstrip('/'))
+        if not path.startswith(cwd):
+            self.set_status(403)
+            self.write('Path %s couldn\'t be accessed!' % orig_path)
+            return
+        # path is SAFE
+        if not os.path.exists(path):
+            self.set_status(400)
+            self.write('Path %s does not exist!' % orig_path)
+            return
+        # path is OK
+        if os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
         self.set_status(204)
 
 
