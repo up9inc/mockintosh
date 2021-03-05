@@ -5,6 +5,7 @@
 In response template, one can specify `status`, `headers` and `body` of HTTP message. Here's quick example:
 
 ```yaml
+{% raw %}
 services:
   - port: 8080
     endpoints:
@@ -15,11 +16,13 @@ services:
             content-type: application/json
             x-custom-id: 12345
           body: '{"result": "created"}'
+{% endraw %}
 ```
 
 Any of those fields allows using dynamic template that will be evaluated for each request. Like this:
 
 ```yaml
+{% raw %}
 services:
   - port: 8080
     endpoints:
@@ -30,6 +33,7 @@ services:
             content-type: '{{request.headers.accept}}'
             x-custom-id: '{{random.int 0 1000}}'
           body: '{"result": "created", "name": "{{fake.lastname}}" }'
+{% endraw %}
 ```
 
 _Note: for `headers`, only the value part is subject for templating. Mind
@@ -54,7 +58,7 @@ _Note: The template file path has to be relative to the directory of the config 
 ## Dynamic Values
 
 By default, dynamic templates use [Handlebars](https://handlebarsjs.com/guide/) syntax that looks like
-this: `{{namedValue}}` or `{{request.path}}` or `{{fake.address}}` etc.
+this: `{% raw %}{{namedValue}}{% endraw %}` or `{% raw %}{{request.path}}{% endraw %}` or `{% raw %}{{fake.address}}{% endraw %}` etc.
 
 _Note: To switch into [Jinja2](https://jinja.palletsprojects.com/en/2.11.x/) as templating engine, use
 the `templatingEngine` option of [configuration syntax](Configuring.md#advanced-templating-with-jinja2)._
@@ -85,6 +89,7 @@ For random names, addresses etc, please refer to [Faker's](#faker) functionality
 Here is a list of date shifting examples as a Handlebars response template:
 
 ```text
+{% raw %}
 {
   "now": "{{ date.date '%Y-%m-%d %H:%M %f' }}",
   "1_week_back": "{{ date.date '%Y-%m-%d %H:%M %f' -604800 }}",
@@ -96,6 +101,7 @@ Here is a list of date shifting examples as a Handlebars response template:
   "1_minute_back": "{{ date.date '%Y-%m-%d %H:%M %f' -60 }}",
   "1_minute_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 60 }}"
 }
+{% endraw %}
 ```
 
 ### Faker
@@ -105,6 +111,7 @@ It is available as `fake` object. Refer to the [official docs](https://faker.rea
 for all capabilities. Below are some examples (Handlebars):
 
 ```text
+{% raw %}
 {
   "first_name": "{{ fake.first_name }}",
   "first_name_female": "{{ fake.first_name_female }}",
@@ -132,6 +139,7 @@ for all capabilities. Below are some examples (Handlebars):
   "random_sample": {{ tojson ( fake.random_sample elements=( array 'a' 'b' 'c' 'd' 'e' ) ) }},
   "random_uppercase_letter": "{{ fake.random_uppercase_letter }}"
 }
+{% endraw %}
 ```
 
 Rendered:
@@ -170,7 +178,7 @@ An extended list of Faker examples can be found in: [Handlebars](https://github.
 
 ### Counters
 
-There is special kind of template helper, offering named counters like `{{counter 'counterName'}}`. The counters are global and identified by name. You can also refer to last value of counter by its name like this: `{{counterName}}`
+There is special kind of template helper, offering named counters like `{% raw %}{{counter 'counterName'}}{% endraw %}`. The counters are global and identified by name. You can also refer to last value of counter by its name like this: `{% raw %}{{counterName}}{% endraw %}`
 
 ### Request Object
 
@@ -203,24 +211,24 @@ You can reference certain fields from request's JSON by using `jsonPath` helper 
 
 #### escapeHtml(text)
 
-`{{ escapeHtml '& < \" >' }}` a helper to escape HTML special characters. (see [`html.escape`](https://wiki.python.org/moin/EscapingHtml))
+`{% raw %}{{ escapeHtml '& < \" >' }}{% endraw %}` a helper to escape HTML special characters. (see [`html.escape`](https://wiki.python.org/moin/EscapingHtml))
 
 #### tojson(text) (Handlebars only)
 
 The equivalent of [`tojson`](https://jinja.palletsprojects.com/en/2.11.x/templates/#tojson) filter in Jinja2.
 
-Jinja2 usage: `{{ fake.random_letters() | tojson }}`
+Jinja2 usage: `{% raw %}{{ fake.random_letters() | tojson }}{% endraw %}`
 
-Handlebars usage: `{{ tojson ( fake.random_letters ) }}`
+Handlebars usage: `{% raw %}{{ tojson ( fake.random_letters ) }}{% endraw %}`
 
 #### array(*args) (Handlebars only)
 
-Provides array support in parameters. `{{ array 'a' 'b' 'c' 'd' 'e' }}` returns `['a', 'b', 'c', 'd', 'e']`.
+Provides array support in parameters. `{% raw %}{{ array 'a' 'b' 'c' 'd' 'e' }}{% endraw %}` returns `['a', 'b', 'c', 'd', 'e']`.
 
 #### replace(text, old, new, count=None) (Handlebars only)
 
 The equivalent of [`replace`](https://jinja.palletsprojects.com/en/2.11.x/templates/#replace) filter in Jinja2.
 
-Jinja2 usage: `{{ fake.address() | replace('\n','\\n') }}`
+Jinja2 usage: `{% raw %}{{ fake.address() | replace('\n','\\n') }}{% endraw %}`
 
-Handlebars usage: `{{ replace ( fake.address ) old='\n' new='\\n' }}`
+Handlebars usage: `{% raw %}{{ replace ( fake.address ) old='\n' new='\\n' }}{% endraw %}`

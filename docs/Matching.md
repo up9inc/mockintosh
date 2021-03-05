@@ -11,20 +11,24 @@ see [explanation](#static-value-priority) below._
 
 URL `path` is the main criteria of matching endpoint to request, and the only required option in endpoint definition.
 
-You can use `{{varname}}` syntax to specify a path parameter in any segment of your paths and it will become available
+You can use `{% raw %}{{varname}}{% endraw %}` syntax to specify a path parameter in any segment of your paths and it will become available
 for using in the response template:
 
 ```yaml
+{% raw %}
 endpoints:
   - path: "/parameterized/{{myVar}}/someval"
     response: 'Here is: {{myVar}}'
+{% endraw %}
 ```
 
 With Mockintosh it's possible to use regular expressions in path segments:
 
 ```yaml
+{% raw %}
 - path: "/match/{{regEx 'prefix-.*'}}/someval"
   response: 'regex match: {{request.path}}'
+{% endraw %}
 ```
 
 so that a request like `curl http://localhost:8001/match/prefix-hello_world/someval` would
@@ -33,8 +37,10 @@ return `regex match: /match/prefix-hello_world/someval`
 It's also possible to use regular expression capture groups in path segments, as templating items:
 
 ```yaml
+{% raw %}
 - path: "/match/{{regEx 'prefix-(.*)' 'myVar'}}/someval"
   response: 'regex capture group: {{myVar}}'
+{% endraw %}
 ```
 
 so that a request like `curl http://localhost:8001/match/prefix-hello_world/someval` would
@@ -43,8 +49,10 @@ return `regex capture group: hello_world`
 You can use as many path parameters and regex capture groups you want:
 
 ```yaml
+{% raw %}
 - path: "/parameterized5/text/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
   response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
+{% endraw %}
 ```
 
 ### Static Value Priority
@@ -53,11 +61,13 @@ Even if you specified a path parameter for a certain path segment, static values
 parameters and `regEx`:
 
 ```yaml
+{% raw %}
 endpoints:
   - path: "/parameterized/{{myVar}}/someval"
     response: 'Here is: {{myVar}}'
   - path: "/parameterized/staticval/someval"
     response: static path segments have a high priority
+{% endraw %}
 ```
 
 so that a request like `curl http://localhost:8001/parameterized/staticval/someval` would
@@ -86,6 +96,7 @@ matching.
 Below is an example configuration which demonstrates the how endpoint alternatives recognized in terms of headers:
 
 ```yaml
+{% raw %}
 services:
   - port: 8001
     endpoints:
@@ -109,6 +120,7 @@ services:
           body: 'hdr4 request header: {{request.headers.hdr4}}'
           headers:
             hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
+{% endraw %}
 ```
 
 For the above configuration example here are some example requests and their responses:
@@ -127,6 +139,7 @@ The matching logic for query strings is quite similar to [headers](#headers). He
 of the query strings:
 
 ```yaml
+{% raw %}
 services:
   - name: Service1
     port: 8001
@@ -145,6 +158,7 @@ services:
             param4: another query string
           response:
             body: 'param4 request query string: {{request.queryString.param4}}'
+{% endraw %}
 ```
 
 and these are the example requests and corresponding responses for such a mock server configuration:
@@ -167,6 +181,7 @@ for urlencoded and multipart request bodies.
 To match request by urlencoded or multipart form POST, use `urlencoded` or `multipart` section under `body`. The content of that section is very much like [query string](#query-string) or headers matching by parameter name:
 
 ```yaml
+{% raw %}
 services:
   - port: 8001
     endpoints:
@@ -184,11 +199,13 @@ services:
             param1: myValue
             param2: "{{myVar}}"
             param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+{% endraw %}
 ```
 
 To match request body text using `regEx`, just do it like this:
 
 ```yaml
+{% raw %}
 services:
   - name: Mock for Service1
     port: 8001
@@ -197,6 +214,7 @@ services:
         method: POST
         body:
           text: {{regEx '"jsonkey": "expectedval-(.+)"' 'namedValue'}}
+{% endraw %}
 ```
 
 _Note: you can use familiar `regEx` named value capturing for body, as usual._
