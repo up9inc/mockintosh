@@ -189,10 +189,12 @@ This field can be a string that starts with `@` to indicate a path to an externa
 or an array:
 
 ```yaml
+{% raw %}
 dataset:
   - var1: val1
   - var1: val2
 response: 'dataset: {{var1}}'
+{% endraw %}
 ```
 
 This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
@@ -232,6 +234,7 @@ You can specifiy the templating engine on top of the file like `templatingEngine
 A response example that leverages Jinja2 templating and Faker is shown below:
 
 ```j2
+{% raw %}
 {
   "users": [{% for n in range(request.queryString.total) %}
     {
@@ -247,6 +250,7 @@ A response example that leverages Jinja2 templating and Faker is shown below:
   {% endfor %}],
   "total": {{ request.queryString.total }}
 }
+{% endraw %}
 ```
 
 ## Management API
