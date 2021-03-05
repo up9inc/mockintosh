@@ -559,21 +559,27 @@ class ManagementResourceHandler(ManagementBaseHandler):
         data = None
         cwd = os.getcwd()
         path = self.get_query_argument('path', default=None)
+        orig_path = path
         if path is None:
             path = os.getcwd()
             data = _get_dir_structure(cwd)
         else:
             if not path:
                 self.set_status(400)
-                self.write('path cannot be empty!')
+                self.write('\'path\' cannot be empty!')
                 return
-            if path.startswith('/'):
-                path = path[1:]
+            path = path.lstrip('/')
             path = os.path.join(cwd, path)
+            if not path.startswith(cwd):
+                self.set_status(403)
+                self.write('Path %s couldn\'t be accessed!' % orig_path)
+                return None
+            # path is SAFE
             if not os.path.exists(path):
                 self.set_status(400)
-                self.write('path does not exist!')
+                self.write('Path %s does not exist!' % orig_path)
                 return
+            # path is OK
             if os.path.isdir(path):
                 data = _get_dir_structure(path)
             else:
@@ -593,6 +599,60 @@ class ManagementResourceHandler(ManagementBaseHandler):
                             self.write(data)
                     return
         self.write(data)
+
+    def post(self):
+        cwd = os.getcwd()
+        path = self.get_body_argument('path', default=None)
+        orig_path = path
+        if path is not None:
+            if not path:
+                self.set_status(400)
+                self.write('\'path\' cannot be empty!')
+                return
+            path = path.lstrip('/')
+            path = os.path.join(cwd, path)
+            if not path.startswith(cwd):
+                self.set_status(403)
+                self.write('Path %s couldn\'t be accessed!' % orig_path)
+                return None
+            # path is SAFE
+            if os.path.exists(path):
+                self.set_status(400)
+                self.write('A file or directory on path %s is already exist!' % orig_path)
+                return
+            # path is OK
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        if self.request.files:
+            if 'file' not in self.request.files:
+                self.set_status(400)
+                self.write('\'file\' parameter is required!')
+                return
+            file = self.request.files['file'][0]
+            if path is None:
+                path = os.path.join(cwd, file['filename'])
+            # path is SAFE
+            if os.path.exists(path):
+                self.set_status(400)
+                self.write('A file or directory on path %s is already exist!' % orig_path)
+                return
+            # path is OK
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'wb') as _file:
+                _file.write(file['body'])
+        else:
+            file = self.get_body_argument('file', default=None)
+            if file is None:
+                self.set_status(400)
+                self.write('\'file\' parameter is required!')
+                return
+            if path is None:
+                self.set_status(400)
+                self.write('\'path\' parameter is required!')
+                return
+            with open(path, 'w') as _file:
+                _file.write(file)
+        self.set_status(204)
 
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
