@@ -1,9 +1,4 @@
 # Mockintosh
-_Docker and K8s-friendly mock_
-
-Quick links: 
-
-[Config Syntax](Configuring.md) | [Request Matching](Matching.md) | [Response Templating](Templating.md) | [Changelog](Changelog.md)
 
 ## About
 
@@ -16,7 +11,7 @@ Key features:
 - multiple services mocked by a single instance of Mockintosh
 - lenient [configuration syntax](Configuring.md)
 - request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
-- performance testing supported (with [Datasets](Configuring.md#datasets) and low resource footprint)
+- performance testing supported (with [datasets](Configuring.md#datasets) and low resource footprint)
 - [interceptors](#interceptors) support for unlimited customization
 
 ## Quick Start
