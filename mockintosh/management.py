@@ -572,12 +572,12 @@ class ManagementResourceHandler(ManagementBaseHandler):
             path = os.path.join(cwd, path.lstrip('/'))
             if not path.startswith(cwd):
                 self.set_status(403)
-                self.write('Path %s couldn\'t be accessed!' % orig_path)
+                self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
             if not os.path.exists(path):
                 self.set_status(400)
-                self.write('Path %s does not exist!' % orig_path)
+                self.write('The path %s does not exist!' % orig_path)
                 return
             # path is OK
             if os.path.isdir(path):
@@ -612,12 +612,12 @@ class ManagementResourceHandler(ManagementBaseHandler):
             path = os.path.join(cwd, path.lstrip('/'))
             if not path.startswith(cwd):
                 self.set_status(403)
-                self.write('Path %s couldn\'t be accessed!' % orig_path)
+                self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
-            if os.path.exists(path):
+            if os.path.exists(path) and os.path.isdir(path):
                 self.set_status(400)
-                self.write('A file or directory on path %s is already exist!' % orig_path)
+                self.write('The path %s is a directory!' % orig_path)
                 return
             # path is OK
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -631,9 +631,9 @@ class ManagementResourceHandler(ManagementBaseHandler):
             if path is None:
                 path = os.path.join(cwd, file['filename'])
             # path is SAFE
-            if os.path.exists(path):
+            if os.path.exists(path) and os.path.isdir(path):
                 self.set_status(400)
-                self.write('A file or directory on path %s is already exist!' % orig_path)
+                self.write('The path %s is a directory!' % orig_path)
                 return
             # path is OK
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -668,12 +668,12 @@ class ManagementResourceHandler(ManagementBaseHandler):
         path = os.path.join(cwd, path.lstrip('/'))
         if not path.startswith(cwd):
             self.set_status(403)
-            self.write('Path %s couldn\'t be accessed!' % orig_path)
+            self.write('The path %s couldn\'t be accessed!' % orig_path)
             return
         # path is SAFE
         if not os.path.exists(path):
             self.set_status(400)
-            self.write('Path %s does not exist!' % orig_path)
+            self.write('The path %s does not exist!' % orig_path)
             return
         # path is OK
         if os.path.isfile(path):
