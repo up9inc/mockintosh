@@ -10,6 +10,16 @@
     <!--[if lt IE 9]>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
     <![endif]-->
+    <style>
+        a:hover {
+            font-weight: inherit;
+        }
+
+        p.view a {
+            font-size: larger;
+            margin-left: 1rem;
+        }
+    </style>
 </head>
 <body>
 <div class="wrapper">
@@ -20,7 +30,7 @@
 
         <p style="text-align: center; margin-top: 0.5rem">{{ site.description | default: site.github.project_tagline }}</p>
 
-        <p class="view"><a href="/">&blacksquare; About</a></p>
+        <p class="view"><a href="/">&blacksquare; Getting Started</a></p>
         <p class="view"><a href="/Configuring.html">&blacksquare; Config Syntax</a></p>
         <p class="view"><a href="/Matching.html">&blacksquare; Request Matching</a></p>
         <p class="view"><a href="/Templating.html">&blacksquare; Response Templating</a></p>
