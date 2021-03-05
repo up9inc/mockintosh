@@ -123,11 +123,9 @@ class TestCommandLineArguments():
             self.mock_server_process.terminate()
 
     def test_no_arguments(self):
-        self.mock_server_process = run_mock_server()
-        resp = requests.get(SRV_8001 + '/')
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'hello world'
+        with nostderr():
+            self.mock_server_process = run_mock_server()
+        assert self.mock_server_process.is_alive() is False
 
     @pytest.mark.parametrize(('config'), configs)
     def test_quiet(self, config):
