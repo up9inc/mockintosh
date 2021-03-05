@@ -130,7 +130,7 @@ services:
       - path: /api/action2
         response: # detailed specification allows controling status code and headers
           status: 201
-          body: @subdir/response.json
+          body: '@subdir/response.json'
           headers:
             Content-Type: application/json
 
@@ -328,7 +328,7 @@ Also, you can specify existing OAS document for service like this:
 services:
   - name: Mgmt demo with OAS
     managementRoot: __admin
-    oas: @path/to/service.oas.json
+    oas: '@path/to/service.oas.json'
 ```
 
 ### Setting Current Tag
