@@ -236,7 +236,12 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                 self.write('JSON schema validation error:\n%s' % str(e))
                 return
 
-        self.write(data)
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
     def build_unhandled_requests(self, service_id):
         endpoints = []
@@ -811,7 +816,12 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             self.write('JSON schema validation error:\n%s' % str(e))
             return
 
-        self.write(data)
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
 
 class ManagementServiceOasHandler(ManagementOasHandler):

@@ -562,8 +562,13 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + path, headers={"hdr1": "val1", "hdr2": "val2", "hdr3": "val3"})
         self.assertEqual(404, resp.status_code)
 
+        resp = requests.get(MGMT + '/unhandled?format=yaml', verify=False)
+        resp.raise_for_status()
+        self.assertTrue(resp.text.startswith('services:'))
+
         resp = requests.get(MGMT + '/unhandled', verify=False)
         resp.raise_for_status()
+        self.assertEqual('{', resp.text[0])
         config = resp.json()
         self.assertFalse([x for x in config['services'] if not x['endpoints']])
 
@@ -713,3 +718,25 @@ class IntegrationTests(unittest.TestCase):
         # case of no valid response
         resp = requests.get(SRV1 + '/tagged-confusing')
         self.assertEqual(410, resp.status_code)
+
+    def test_resources_global(self):
+        resp = requests.get(MGMT + '/resources', verify=False)
+        resp.raise_for_status()
+        files = resp.json()
+        self.assertIn('subdir/empty_schema.json', files)
+        self.assertIn('cors.html', files)
+        self.assertIn('subdir/image.png', files)
+        self.assertNotIn('/etc/hosts', files)
+        self.assertEqual(len(files), len(set(files)))
+
+        # test fetching content text
+        # test fetching content binary
+        # test posting content text
+        # test posting content binary
+        # test posting forbidden file path
+        # test deleting forbidden file path
+
+    def test_resources_service(self):
+        resp = requests.get(SRV1 + '/__admin/resources', verify=False)
+        resp.raise_for_status()
+        self.assertIn('cors.html', resp.json())
