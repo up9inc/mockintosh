@@ -733,6 +733,21 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
         resp.raise_for_status()
         self.assertIn('<html ', resp.text)
+        orig_content = resp.text
+
+        resp = requests.delete(MGMT + '/resources?path=cors.html', verify=False)
+        resp.raise_for_status()
+        with self.assertRaises(requests.exceptions.HTTPError):
+            resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
+            resp.raise_for_status()
+
+        marker = "<!-- %s -->" % time.time()
+        resp = requests.post(MGMT + '/resources', files={"cors.html": orig_content + marker}, verify=False)
+        resp.raise_for_status()
+
+        resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
+        resp.raise_for_status()
+        self.assertTrue(resp.text.endswith(marker))
 
         with self.assertRaises(requests.exceptions.HTTPError):
             resp = requests.get(MGMT + '/resources?path=/etc/hosts', verify=False)
@@ -741,13 +756,6 @@ class IntegrationTests(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             resp = requests.get(MGMT + '/resources?path=__init__.py', verify=False)
             resp.raise_for_status()
-
-        # test fetching content text
-        # test fetching content binary
-        # test posting content text
-        # test posting content binary
-        # test posting forbidden file path
-        # test deleting forbidden file path
 
     def test_resources_service(self):
         resp = requests.get(SRV1 + '/__admin/resources', verify=False)
