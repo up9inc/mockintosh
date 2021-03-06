@@ -189,10 +189,12 @@ This field can be a string that starts with `@` to indicate a path to an externa
 or an array:
 
 ```yaml
+{% raw %}
 dataset:
   - var1: val1
   - var1: val2
 response: 'dataset: {{var1}}'
+{% endraw %}
 ```
 
 This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
@@ -232,6 +234,7 @@ You can specifiy the templating engine on top of the file like `templatingEngine
 A response example that leverages Jinja2 templating and Faker is shown below:
 
 ```j2
+{% raw %}
 {
   "users": [{% for n in range(request.queryString.total) %}
     {
@@ -247,6 +250,7 @@ A response example that leverages Jinja2 templating and Faker is shown below:
   {% endfor %}],
   "total": {{ request.queryString.total }}
 }
+{% endraw %}
 ```
 
 ## Management API
@@ -297,7 +301,8 @@ Also, you can issue a POST call into same endpoint, to dynamically set the confi
 as you retrieve via GET. There are some restrictions on what can be changed live. Generally, you can only
 change `endpoints` contents.
 
-The `/config` endpoint can return YAML format, when queried with `format` parameter `GET /config?format=yaml`. Also, if you want to do `POST /config` with YAML payload, please provide `Content-Type: application/x-yaml` request header.
+The `/config` endpoint can return YAML format, when queried with `format` parameter `GET /config?format=yaml`.
+`POST /config` endpoint also supports YAML as the payload.
 
 ### Getting Service Statistics
 
@@ -316,6 +321,9 @@ You can reset these stats by issuing `DELETE` call on same path.
 
 If management API is enabled, Mockintosh will record all requests that are not found in configured endpoints. You can
 get config prototype for these endpoints by querying `GET /unhandled` in management API.
+
+The `/unhandled` endpoint can return YAML format, when queried with `format` parameter `GET /unhandled?format=yaml`.
+`POST /unhandled` endpoint also supports YAML as the payload.
 
 ### OAS Serving
 

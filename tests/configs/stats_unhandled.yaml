@@ -1,0 +1,23 @@
+services:
+- name: Mock for Service1
+  port: 8001
+  hostname: service1.example.com
+  endpoints:
+  - path: /service1x
+    method: GET
+    response: ''
+  - path: /service1y
+    method: GET
+    headers:
+      Example-Header: Example-Value
+    queryString:
+      a: b
+      c: d
+    response: ''
+- name: Mock for Service2
+  port: 8002
+  hostname: service2.example.com
+  endpoints:
+  - path: /service2z
+    method: GET
+    response: ''
