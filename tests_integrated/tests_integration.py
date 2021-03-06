@@ -760,4 +760,5 @@ class IntegrationTests(unittest.TestCase):
     def test_resources_service(self):
         resp = requests.get(SRV1 + '/__admin/resources', verify=False)
         resp.raise_for_status()
-        self.assertIn('cors.html', resp.json())
+        files = resp.json()['files']
+        self.assertIn('cors.html', files)
