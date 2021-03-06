@@ -345,7 +345,9 @@ class HttpServer:
                 (
                     '/%s/resources' % management_root,
                     ManagementResourcesHandler,
-                    dict()
+                    dict(
+                        http_server=self
+                    )
                 )
             ] + endpoint_handlers
 
@@ -441,7 +443,9 @@ class HttpServer:
                 (
                     '/resources',
                     ManagementResourcesHandler,
-                    dict()
+                    dict(
+                        http_server=self
+                    )
                 )
             ])
             server = self.impl.get_server(app, ssl, ssl_options)
