@@ -722,12 +722,24 @@ class IntegrationTests(unittest.TestCase):
     def test_resources_global(self):
         resp = requests.get(MGMT + '/resources', verify=False)
         resp.raise_for_status()
-        files = resp.json()
+        files = resp.json()['files']
         self.assertIn('subdir/empty_schema.json', files)
         self.assertIn('cors.html', files)
         self.assertIn('subdir/image.png', files)
         self.assertNotIn('/etc/hosts', files)
         self.assertEqual(len(files), len(set(files)))
+
+        resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
+        resp.raise_for_status()
+        self.assertIn('<html>', resp.text)
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            resp = requests.get(MGMT + '/resources?path=/etc/hosts', verify=False)
+            resp.raise_for_status()
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            resp = requests.get(MGMT + '/resources?path=__init__.py', verify=False)
+            resp.raise_for_status()
 
         # test fetching content text
         # test fetching content binary
