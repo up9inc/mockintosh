@@ -1,0 +1,16 @@
+{
+  "services": [
+    {
+      "name": "Mock for Service2",
+      "port": 8002,
+      "hostname": "service2.example.com",
+      "endpoints": [
+        {
+          "path": "/service2z",
+          "method": "GET",
+          "response": ""
+        }
+      ]
+    }
+  ]
+}
