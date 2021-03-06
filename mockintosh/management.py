@@ -566,7 +566,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
 
     def get(self):
         data = None
-        cwd = os.getcwd()
+        cwd = self.http_server.definition.source_dir
         path = self.get_query_argument('path', default=None)
         orig_path = path
         if path is None:
@@ -650,7 +650,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         self.write(data)
 
     def post(self):
-        cwd = os.getcwd()
+        cwd = self.http_server.definition.source_dir
         path = self.get_body_argument('path', default=None)
         orig_path = path
         if path is not None:
@@ -703,7 +703,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         self.set_status(204)
 
     def delete(self):
-        cwd = os.getcwd()
+        cwd = self.http_server.definition.source_dir
         path = self.get_body_argument('path', default=None)
         orig_path = path
         if path is None:
