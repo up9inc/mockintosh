@@ -718,3 +718,25 @@ class IntegrationTests(unittest.TestCase):
         # case of no valid response
         resp = requests.get(SRV1 + '/tagged-confusing')
         self.assertEqual(410, resp.status_code)
+
+    def test_resources_global(self):
+        resp = requests.get(MGMT + '/resources', verify=False)
+        resp.raise_for_status()
+        files = resp.json()
+        self.assertIn('subdir/empty_schema.json', files)
+        self.assertIn('cors.html', files)
+        self.assertIn('subdir/image.png', files)
+        self.assertNotIn('/etc/hosts', files)
+        self.assertEqual(len(files), len(set(files)))
+
+        # test fetching content text
+        # test fetching content binary
+        # test posting content text
+        # test posting content binary
+        # test posting forbidden file path
+        # test deleting forbidden file path
+
+    def test_resources_service(self):
+        resp = requests.get(SRV1 + '/__admin/resources', verify=False)
+        resp.raise_for_status()
+        self.assertIn('cors.html', resp.json())
