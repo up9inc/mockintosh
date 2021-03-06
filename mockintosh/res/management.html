@@ -94,7 +94,11 @@
         crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-bundle.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-standalone-preset.js"></script>
+<script type="module">
+    import {CodeJar} from "https://medv.io/codejar/codejar.js"
+</script>
 <script>
+    let jar = CodeJar(document.querySelector('#config pre'), Prism.highlightElement);
     function addOAS(config, parent) {
         const el = document.createElement('div');
         el.id = "id_" + Math.random().toString(16).slice(2);
@@ -144,6 +148,9 @@
                 success: function () {
                     alert("Config has been updated");
                     window.location.reload();
+                },
+                error: function (xhr) {
+                    alert("Failed to apply config: " + xhr.responseText);
                 }
             });
         });
