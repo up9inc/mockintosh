@@ -123,11 +123,9 @@ class TestCommandLineArguments():
             self.mock_server_process.terminate()
 
     def test_no_arguments(self):
-        self.mock_server_process = run_mock_server()
-        resp = requests.get(SRV_8001 + '/')
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'hello world'
+        with nostderr():
+            self.mock_server_process = run_mock_server()
+        assert self.mock_server_process.is_alive() is False
 
     @pytest.mark.parametrize(('config'), configs)
     def test_quiet(self, config):
@@ -2030,20 +2028,32 @@ class TestManagement():
         resp = requests.get(SRV_9000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'services': [{'name': 'Mock for Service1', 'port': 8001, 'hostname': 'service1.example.com', 'endpoints': [{'path': '/service1x', 'method': 'GET', 'response': ''}, {'path': '/service1y', 'method': 'GET', 'headers': {'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}, {'name': 'Mock for Service2', 'port': 8002, 'hostname': 'service2.example.com', 'endpoints': [{'path': '/service2z', 'method': 'GET', 'response': ''}]}]}
-        assert expected_data == resp.json()
+        assert resp.text == open(get_config_path('configs/stats_unhandled.json'), 'r').read()[:-1]
+
+        resp = requests.get(SRV_9000 + '/unhandled?format=yaml')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        assert resp.text == open(get_config_path('configs/stats_unhandled.yaml'), 'r').read()
 
         resp = requests.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'services': [{'name': 'Mock for Service1', 'port': 8001, 'hostname': 'service1.example.com', 'endpoints': [{'path': '/service1x', 'method': 'GET', 'response': ''}, {'path': '/service1y', 'method': 'GET', 'headers': {'Example-Header': 'Example-Value'}, 'queryString': {'a': 'b', 'c': 'd'}, 'response': ''}]}]}
-        assert expected_data == resp.json()
+        assert resp.text == open(get_config_path('configs/stats_unhandled_service1.json'), 'r').read()[:-1]
+
+        resp = requests.get(SRV_8001 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        assert resp.text == open(get_config_path('configs/stats_unhandled_service1.yaml'), 'r').read()
 
         resp = requests.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        expected_data = {'services': [{'name': 'Mock for Service2', 'port': 8002, 'hostname': 'service2.example.com', 'endpoints': [{'path': '/service2z', 'method': 'GET', 'response': ''}]}]}
-        assert expected_data == resp.json()
+        assert resp.text == open(get_config_path('configs/stats_unhandled_service2.json'), 'r').read()[:-1]
+
+        resp = requests.get(SRV_8002 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/x-yaml'
+        assert resp.text == open(get_config_path('configs/stats_unhandled_service2.yaml'), 'r').read()
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',

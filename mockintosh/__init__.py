@@ -15,11 +15,11 @@ import sys
 import copy
 from collections import OrderedDict
 from os import path, environ
+from gettext import gettext
 
 import yaml
 from jsonschema import validate
 
-from mockintosh import configs
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.handlers import Request, Response  # noqa: F401
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
@@ -48,10 +48,7 @@ class Definition():
         self.source_dir = path.dirname(path.abspath(source)) if source is not None and is_file else None
         self.data = None
         self.schema = schema
-        if self.source is None:
-            self.data = configs.get_default()
-        else:
-            self.load()
+        self.load()
         self.orig_data = copy.deepcopy(self.data)
         self.validate()
         for service in self.data['services']:
@@ -175,6 +172,13 @@ class Definition():
         return service
 
 
+class CustomArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_help(sys.stderr)
+        args = {'prog': self.prog, 'message': message}
+        self.exit(2, gettext('\n%(prog)s: error: %(message)s\n') % args)
+
+
 def get_schema():
     schema = None
     schema_path = path.join(__location__, 'schema.json')
@@ -251,12 +255,12 @@ def initiate():
     This method parses the command-line arguments and handles the top-level initiations accordingly.
     """
 
-    ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    ap = CustomArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument(
         'source',
         help='Path to configuration file and (optional) a list of the service names\n'
              'to specify the services to be listened.',
-        nargs='*'
+        nargs='+'
     )
     ap.add_argument('-q', '--quiet', help='Less logging messages, only warnings and errors', action='store_true')
     ap.add_argument('-v', '--verbose', help='More logging messages, including debug', action='store_true')
@@ -294,10 +298,7 @@ def initiate():
     if debug_mode:
         logging.debug('Tornado Web Server\'s debug mode is enabled!')
 
-    source = None
-    services_list = []
-    if len(args['source']) > 0:
-        source = args['source'][0]
-        services_list = args['source'][1:]
+    source = args['source'][0]
+    services_list = args['source'][1:]
 
     run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)
