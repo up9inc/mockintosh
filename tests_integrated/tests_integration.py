@@ -723,6 +723,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/resources', verify=False)
         resp.raise_for_status()
         files = resp.json()['files']
+        logging.info("Files: %s", files)
         self.assertIn('subdir/empty_schema.json', files)
         self.assertIn('cors.html', files)
         self.assertIn('subdir/image.png', files)
@@ -731,7 +732,7 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
         resp.raise_for_status()
-        self.assertIn('<html>', resp.text)
+        self.assertIn('<html ', resp.text)
 
         with self.assertRaises(requests.exceptions.HTTPError):
             resp = requests.get(MGMT + '/resources?path=/etc/hosts', verify=False)
