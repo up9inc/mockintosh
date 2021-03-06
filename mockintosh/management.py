@@ -554,7 +554,7 @@ class ManagementTagHandler(ManagementBaseHandler):
         self.set_status(204)
 
 
-class ManagementResourceHandler(ManagementBaseHandler):
+class ManagementResourcesHandler(ManagementBaseHandler):
 
     def get(self):
         data = None

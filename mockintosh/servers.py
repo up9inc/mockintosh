@@ -26,7 +26,7 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
-    ManagementResourceHandler,
+    ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
@@ -341,6 +341,11 @@ class HttpServer:
                         http_server=self,
                         service_id=service['internalServiceId']
                     )
+                ),
+                (
+                    '/%s/resources' % management_root,
+                    ManagementResourcesHandler,
+                    dict()
                 )
             ] + endpoint_handlers
 
@@ -434,8 +439,8 @@ class HttpServer:
                     )
                 ),
                 (
-                    '/resource',
-                    ManagementResourceHandler,
+                    '/resources',
+                    ManagementResourcesHandler,
                     dict()
                 )
             ])

@@ -9,10 +9,8 @@
 import sys
 import io
 import re
-import os
 import logging
 from contextlib import contextmanager
-from functools import reduce
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
