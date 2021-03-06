@@ -562,8 +562,13 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV1 + path, headers={"hdr1": "val1", "hdr2": "val2", "hdr3": "val3"})
         self.assertEqual(404, resp.status_code)
 
+        resp = requests.get(MGMT + '/unhandled?format=yaml', verify=False)
+        resp.raise_for_status()
+        self.assertTrue(resp.text.startswith('services:'))
+
         resp = requests.get(MGMT + '/unhandled', verify=False)
         resp.raise_for_status()
+        self.assertEqual('{', resp.text[0])
         config = resp.json()
         self.assertFalse([x for x in config['services'] if not x['endpoints']])
 
