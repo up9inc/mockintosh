@@ -85,23 +85,27 @@
 ## Next Version
 - YAML format for unhandled requests
 - get rid of default config that runs with no params
-
 - allow editing resource files via mgmt API/UI
-- fix docs site glitches
+
+- "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header
+- mgmt UI change config global section didn't work
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+- "Bypass" mode for service to learn configuration
+- report error in case config apply fails
+
+- bug of applying status change via UI (Alon)
+- \r vs \n problem in mac
 - management UI to give links to individual services
 - exp demo of requests log
 
 # Ideas
 
-1. "Bypass" mode for service to learn configuration
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
-- `mockintosh --cli` to start interactive shell that would allow building the mock configuration interactively
-- mocks for gRPC servers
 - mocks for Kafka & RabbitMQ
+- mocks for gRPC servers
 
 ## Config Ideas
 
