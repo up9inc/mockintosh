@@ -723,6 +723,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
     def delete(self):
         cwd = self.http_server.definition.source_dir
         path = self.get_query_argument('path', default=None)
+        keep = self.get_query_argument('keep', default=False)
         orig_path = path
         if path is None:
             self.set_status(400)
@@ -749,8 +750,13 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         # path is OK
         if os.path.isfile(path):
             os.remove(path)
-            if not os.listdir(os.path.dirname(path)):
-                shutil.rmtree(os.path.dirname(path))
+            if not keep:
+                ref = os.path.dirname(path)
+                while ref:
+                    if os.listdir(ref) or ref == cwd:
+                        break
+                    shutil.rmtree(ref)
+                    ref = os.path.dirname(ref)
         elif os.path.isdir(path):
             shutil.rmtree(path)
         self.set_status(204)
