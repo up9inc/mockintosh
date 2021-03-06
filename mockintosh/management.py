@@ -563,6 +563,44 @@ class ManagementResourcesHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
+        files = []
+        cwd = self.http_server.definition.source_dir
+        for service in self.http_server.definition.orig_data['services']:
+            if 'oas' in service:
+                if service['oas'].startswith('@'):
+                    files.append(service['oas'][1:])
+            if 'endpoints' not in service:
+                continue
+            for endpoint in service['endpoints']:
+                if 'body' in endpoint and 'schema' in endpoint['body'] and (
+                    isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
+                ):
+                    files.append(endpoint['body']['schema'][1:])
+                if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
+                    endpoint['dataset'].startswith('@')
+                ):
+                    files.append(endpoint['dataset'][1:])
+                if 'response' not in endpoint:
+                    continue
+                response = endpoint['response']
+                if isinstance(response, str):
+                    if response.startswith('@'):
+                        files.append(response[1:])
+                elif isinstance(response, dict) and 'body' in response:
+                    if response['body'].startswith('@'):
+                        files.append(response['body'][1:])
+                elif isinstance(response, list):
+                    for el in response:
+                        if isinstance(el, str):
+                            if el.startswith('@'):
+                                files.append(el[1:])
+                        elif isinstance(el, dict) and 'body' in el:
+                            if el['body'].startswith('@'):
+                                files.append(el['body'][1:])
+        files = list(set(files))
+        files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
+        self.files = sorted(files)
+        self.files_abs = [os.path.abspath(os.path.join(cwd, x)) for x in self.files]
 
     def get(self):
         data = None
@@ -570,44 +608,8 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         path = self.get_query_argument('path', default=None)
         orig_path = path
         if path is None:
-            files = []
-            for service in self.http_server.definition.orig_data['services']:
-                if 'oas' in service:
-                    if service['oas'].startswith('@'):
-                        files.append(service['oas'][1:])
-                if 'endpoints' not in service:
-                    continue
-                for endpoint in service['endpoints']:
-                    if 'body' in endpoint and 'schema' in endpoint['body'] and (
-                        isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
-                    ):
-                        files.append(endpoint['body']['schema'][1:])
-                    if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
-                        endpoint['dataset'].startswith('@')
-                    ):
-                        files.append(endpoint['dataset'][1:])
-                    if 'response' not in endpoint:
-                        continue
-                    response = endpoint['response']
-                    if isinstance(response, str):
-                        if response.startswith('@'):
-                            files.append(response[1:])
-                    elif isinstance(response, dict) and 'body' in response:
-                        if response['body'].startswith('@'):
-                            files.append(response['body'][1:])
-                    elif isinstance(response, list):
-                        for el in response:
-                            if isinstance(el, str):
-                                if el.startswith('@'):
-                                    files.append(el[1:])
-                            elif isinstance(el, dict) and 'body' in el:
-                                if el['body'].startswith('@'):
-                                    files.append(el['body'][1:])
-            files = list(set(files))
-            files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
-            files = sorted(files)
             data = {
-                'files': files
+                'files': self.files
             }
             self.write(data)
             return
@@ -616,12 +618,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.set_status(400)
                 self.write('\'path\' cannot be empty!')
                 return
-            path = os.path.join(cwd, path.lstrip('/'))
+            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
             if not path.startswith(cwd):
                 self.set_status(403)
                 self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
+                return
             if not os.path.exists(path):
                 self.set_status(400)
                 self.write('The path %s does not exist!' % orig_path)
@@ -658,12 +664,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.set_status(400)
                 self.write('\'path\' cannot be empty!')
                 return
-            path = os.path.join(cwd, path.lstrip('/'))
+            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
             if not path.startswith(cwd):
                 self.set_status(403)
                 self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
+                return
             if os.path.exists(path) and os.path.isdir(path):
                 self.set_status(400)
                 self.write('The path %s is a directory!' % orig_path)
@@ -714,12 +724,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             self.set_status(400)
             self.write('\'path\' cannot be empty!')
             return
-        path = os.path.join(cwd, path.lstrip('/'))
+        path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
         if not path.startswith(cwd):
             self.set_status(403)
             self.write('The path %s couldn\'t be accessed!' % orig_path)
             return
         # path is SAFE
+        if path not in self.files_abs:
+            self.set_status(400)
+            self.write('The path %s is not defined in the configuration file!' % orig_path)
+            return
         if not os.path.exists(path):
             self.set_status(400)
             self.write('The path %s does not exist!' % orig_path)
