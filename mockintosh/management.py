@@ -640,13 +640,13 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             else:
                 _format = self.get_query_argument('format', default='text')
                 if _format == 'text':
-                    with open(path, 'r') as file:
+                    with open(path, 'rb') as file:
                         data = file.read()
                 elif _format == 'stream':
                     buf_size = 4096
                     self.set_header('Content-Type', 'application/octet-stream')
                     self.set_header('Content-Disposition', 'attachment; filename=' + os.path.basename(path))
-                    with open(path, 'r') as f:
+                    with open(path, 'rb') as f:
                         while True:
                             data = f.read(buf_size)
                             if not data:
