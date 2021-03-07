@@ -139,7 +139,6 @@
 
             select.change(function () {
                 let val = $("#config select").val();
-                console.log("Change: " + val);
 
                 let url;
                 if (val) {
@@ -160,20 +159,43 @@
         });
 
         $("#config .btn-success").click(function () {
-            $.ajax("./config", {
-                'data': $("#config pre").text(),
-                'type': 'POST',
-                'processData': false,
-                'contentType': 'application/x-yaml',
-                success: function () {
-                    alert("Config has been updated");
-                    window.location.reload();
-                }
-            });
+            let val = $("#config select").val();
+
+            if (val) {
+                var data = new FormData();
+                data.append(val, new Blob([$("#config pre").text()]), val);
+                $.ajax("./resources", {
+                    data: data,
+                    type: 'POST',
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    success: function () {
+                        alert("File has been updated");
+                    },
+                    error: function (xhr) {
+                        alert("Failed to apply change: " + xhr.responseText);
+                    }
+                });
+            } else {
+                $.ajax("./config", {
+                    'data': $("#config pre").text(),
+                    'type': 'POST',
+                    'processData': false,
+                    'contentType': 'application/x-yaml',
+                    success: function () {
+                        alert("Config has been updated");
+                        window.location.reload();
+                    },
+                    error: function (xhr) {
+                        alert("Failed to apply config: " + xhr.responseText);
+                    }
+                });
+            }
         });
 
         $("#config .btn-info").click(function () {
-            $.post("./reset-iterators").done(function (data) {
+            $.post("./reset-iterators").done(function () {
                 alert("Iterators reset successfully");
             });
         });
