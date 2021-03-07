@@ -603,7 +603,8 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         for path in files:
             fail = False
             for segment in os.path.split(path):
-                if segment.lstrip().startswith('{{') and segment.rstrip().endswith('}}'):
+                match = re.search(r'{{(.*)}}', segment)
+                if match is not None:
                     fail = True
                     break
             if not fail:
