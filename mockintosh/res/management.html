@@ -10,7 +10,7 @@
     <link rel="stylesheet" type="text/css"
           href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui.css"/>
 
-    <title>Mockintosh Management API</title>
+    <title>Mockintosh Management UI</title>
     <style>
         .responses-table .col {
             width: fit-content;
@@ -25,11 +25,11 @@
 <body>
 
 <div class="pull-right small" style="padding: 0.25rem 0.5rem">
-    <a href="https://github.com/up9inc/mockintosh#about" target="_blank"><i class="fa fa-github"></i> Docs</a><br/>
+    <a href="https://mockintosh.io" target="_blank"><i class="fa fa-github"></i> Docs</a><br/>
 </div>
 <H1 style="text-transform: uppercase; padding: 0.25em 0.5em; font-weight: bold; font-size: 1.5em;">
     <a class="navbar-brand" href="./">
-        <i class="fa fa-folder"></i>
+        <img src="https://mockintosh.io/img/logo_dark.svg" alt=" M " style="height: 1rem; width: 1rem">
     </a>
     Mockintosh Management API</H1>
 
@@ -67,9 +67,10 @@
             <pre></pre>
         </div>
         <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
+            <select></select>
             <button class="btn btn-sm btn-primary">Load</button>
             <button class="btn btn-sm btn-success">Apply Changes</button>
-            <button class="btn btn-info btn-sm">Reset Dataset Iterators</button>
+            <button class="btn btn-info btn-sm pull-right">Reset Dataset Iterators</button>
             <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em; padding:0.25em"></pre>
         </div>
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
@@ -82,7 +83,7 @@
 
 <footer class="text-muted text-center small">
     <hr/>
-    Management API for <a href="https://github.com/up9inc/mockintosh#about" target="_blank">Mockintosh</a>
+    Management API for <a href="https://mockintosh.io" target="_blank">Mockintosh</a>
 </footer>
 
 <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
@@ -129,27 +130,72 @@
             });
         });
 
-        $("#config .btn-primary").click(function () {
-            $.get("./config?format=yaml").done(function (data) {
-                $("#config pre").text(data);
-            });
-        }).trigger('click');
+        $.getJSON('./resources').done(function (resources) {
+            let select = $("#config select");
+            select.empty().append("<option value='' selected> &lt;&lt;&lt; Main Configuration &gt;&gt;&gt;</option>");
+            for (let n = 0; n < resources.files.length; n++) {
+                select.append("<option value='" + resources.files[n] + "'>" + resources.files[n] + "</option>");
+            }
 
-        $("#config .btn-success").click(function () {
-            $.ajax("./config", {
-                'data': $("#config pre").text(),
-                'type': 'POST',
-                'processData': false,
-                'contentType': 'application/x-yaml',
-                success: function () {
-                    alert("Config has been updated");
-                    window.location.reload();
+            select.change(function () {
+                let val = $("#config select").val();
+
+                let url;
+                if (val) {
+                    url = "./resources?path=" + val;
+                } else {
+                    url = "./config?format=yaml";
                 }
+
+                $.get(url).done(function (data) {
+                    $("#config pre").text(data);
+                });
+
+            }).trigger("change");
+
+            $("#config .btn-primary").click(function () {
+                select.trigger('change');
             });
         });
 
+        $("#config .btn-success").click(function () {
+            let val = $("#config select").val();
+
+            if (val) {
+                var data = new FormData();
+                data.append(val, new Blob([$("#config pre").text()]), val);
+                $.ajax("./resources", {
+                    data: data,
+                    type: 'POST',
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    success: function () {
+                        alert("File has been updated");
+                    },
+                    error: function (xhr) {
+                        alert("Failed to apply change: " + xhr.responseText);
+                    }
+                });
+            } else {
+                $.ajax("./config", {
+                    'data': $("#config pre").text(),
+                    'type': 'POST',
+                    'processData': false,
+                    'contentType': 'application/x-yaml',
+                    success: function () {
+                        alert("Config has been updated");
+                        window.location.reload();
+                    },
+                    error: function (xhr) {
+                        alert("Failed to apply config: " + xhr.responseText);
+                    }
+                });
+            }
+        });
+
         $("#config .btn-info").click(function () {
-            $.post("./reset-iterators").done(function (data) {
+            $.post("./reset-iterators").done(function () {
                 alert("Iterators reset successfully");
             });
         });
@@ -172,6 +218,12 @@
 
             for (let i = 0; i < data.length; i++) {
                 addOAS(data[i], parent);
+            }
+        });
+
+        $(".nav-link").map(function (i, obj) {
+            if ($(obj).attr('href') === window.location.hash) {
+                $(obj).click();
             }
         });
     });

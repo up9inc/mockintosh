@@ -2112,6 +2112,106 @@ class TestManagement():
         data = resp.json()
         assert data['info']['title'] == 'Mock for Service1 CUSTOM'
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/resources.json'
+    ])
+    def test_resources(self, config):
+        text_state_1 = 'hello world'
+        text_state_2 = 'hello solar system'
+        text_state_3 = 'hello galaxy'
+        text_state_4 = 'hello universe'
+        text_state_5 = 'hello multiverse'
+        body_txt_rel_path = 'res/body.txt'
+        body_txt_path = get_config_path('configs/json/hbs/management/%s' % body_txt_rel_path)
+        new_body_txt_rel_path = 'new_res/new_body.txt'
+        os.makedirs(os.path.dirname(body_txt_path), exist_ok=True)
+        with open(body_txt_path, 'w') as file:
+            file.write(text_state_1)
+
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == text_state_1
+
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == text_state_1
+
+        resp = requests.get(SRV_9000 + '/resources')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert body_txt_rel_path in data['files']
+
+        resp = requests.get(SRV_8001 + '/__admin/resources', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert body_txt_rel_path in data['files']
+
+        resp = requests.post(SRV_9000 + '/resources', data={'path': body_txt_rel_path, 'file': text_state_2})
+        assert 204 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == text_state_2
+
+        resp = requests.post(
+            SRV_9000 + '/resources',
+            data={'path': os.path.dirname(body_txt_rel_path)},
+            files={os.path.split(body_txt_rel_path)[1]: text_state_3}
+        )
+        assert 204 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == text_state_3
+
+        resp = requests.delete(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        assert 204 == resp.status_code
+        resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
+        assert 403 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        assert 400 == resp.status_code
+
+        with open(get_config_path('configs/json/hbs/management/new_resources.json'), 'r') as file:
+            resp = requests.post(SRV_9000 + '/config', data=file.read())
+            assert 204 == resp.status_code
+        resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
+        assert 404 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        assert 400 == resp.status_code
+        resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
+        assert 403 == resp.status_code
+
+        resp = requests.post(
+            SRV_9000 + '/resources',
+            data={'path': os.path.dirname(new_body_txt_rel_path)},
+            files={os.path.split(new_body_txt_rel_path)[1]: text_state_4}
+        )
+        assert 204 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == text_state_4
+
+        resp = requests.post(SRV_9000 + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5})
+        assert 204 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == text_state_5
+
+        resp = requests.delete(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        assert 204 == resp.status_code
+        resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
+        assert 403 == resp.status_code
+        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        assert 400 == resp.status_code
+
 
 class TestPerformanceProfile():
 

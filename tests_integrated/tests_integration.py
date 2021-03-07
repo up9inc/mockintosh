@@ -718,3 +718,54 @@ class IntegrationTests(unittest.TestCase):
         # case of no valid response
         resp = requests.get(SRV1 + '/tagged-confusing')
         self.assertEqual(410, resp.status_code)
+
+    def test_resources_global(self):
+        resp = requests.get(MGMT + '/resources', verify=False)
+        resp.raise_for_status()
+        files = resp.json()['files']
+        logging.info("Files: %s", files)
+        self.assertIn('subdir/empty_schema.json', files)
+        self.assertIn('cors.html', files)
+        self.assertIn('subdir/image.png', files)
+        self.assertNotIn('/etc/hosts', files)
+        self.assertEqual(len(files), len(set(files)))
+
+        for file in files:  # test that all files reported can be read and written
+            resp = requests.get(MGMT + '/resources?path=%s' % file, verify=False)
+            resp.raise_for_status()
+
+            resp = requests.post(MGMT + '/resources', files={file: resp.content}, verify=False)
+            resp.raise_for_status()
+
+        resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
+        resp.raise_for_status()
+        self.assertIn('<html ', resp.text)
+        orig_content = resp.text
+
+        resp = requests.delete(MGMT + '/resources?path=cors.html', verify=False)
+        resp.raise_for_status()
+        with self.assertRaises(requests.exceptions.HTTPError):
+            resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
+            resp.raise_for_status()
+
+        marker = "<!-- %s -->" % time.time()
+        resp = requests.post(MGMT + '/resources', files={"cors.html": orig_content + marker}, verify=False)
+        resp.raise_for_status()
+
+        resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
+        resp.raise_for_status()
+        self.assertTrue(resp.text.endswith(marker))
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            resp = requests.get(MGMT + '/resources?path=/etc/hosts', verify=False)
+            resp.raise_for_status()
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            resp = requests.get(MGMT + '/resources?path=__init__.py', verify=False)
+            resp.raise_for_status()
+
+    def test_resources_service(self):
+        resp = requests.get(SRV1 + '/__admin/resources', verify=False)
+        resp.raise_for_status()
+        files = resp.json()['files']
+        self.assertIn('cors.html', files)
