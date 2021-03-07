@@ -10,11 +10,11 @@ import json
 import logging
 import os
 import re
-import urllib
 import socket
 import struct
 import time
 import traceback
+import urllib
 from typing import (
     Union,
     Optional,
@@ -23,8 +23,8 @@ from typing import (
 
 import jsonschema
 import tornado.web
-from tornado.concurrent import Future
 from accept_types import parse_header
+from tornado.concurrent import Future
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
@@ -40,8 +40,8 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
-from mockintosh.templating import TemplateRenderer
 from mockintosh.stats import Stats
+from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -876,6 +876,7 @@ class GenericHandler(tornado.web.RequestHandler):
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
+        self.set_header('X-Mockintosh-Prompt', "Hello, I'm Mockintosh.")  # clear signature that it's mock
         self.set_cors_headers()
 
     def should_cors(self) -> bool:

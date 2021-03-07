@@ -10,6 +10,7 @@ import os
 import re
 import json
 import copy
+import shutil
 from typing import (
     Union
 )
@@ -555,6 +556,220 @@ class ManagementTagHandler(ManagementBaseHandler):
                 if rule.target == GenericHandler:
                     rule.target_kwargs['tag'] = data
 
+        self.set_status(204)
+
+
+class ManagementResourcesHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+        files = []
+        cwd = self.http_server.definition.source_dir
+        for service in self.http_server.definition.orig_data['services']:
+            if 'oas' in service:
+                if service['oas'].startswith('@'):
+                    files.append(service['oas'][1:])
+            if 'endpoints' not in service:
+                continue
+            for endpoint in service['endpoints']:
+                if 'body' in endpoint and 'schema' in endpoint['body'] and (
+                    isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
+                ):
+                    files.append(endpoint['body']['schema'][1:])
+                if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
+                    endpoint['dataset'].startswith('@')
+                ):
+                    files.append(endpoint['dataset'][1:])
+                if 'response' not in endpoint:
+                    continue
+                response = endpoint['response']
+                if isinstance(response, str):
+                    if response.startswith('@'):
+                        files.append(response[1:])
+                elif isinstance(response, dict) and 'body' in response:
+                    if response['body'].startswith('@'):
+                        files.append(response['body'][1:])
+                elif isinstance(response, list):
+                    for el in response:
+                        if isinstance(el, str):
+                            if el.startswith('@'):
+                                files.append(el[1:])
+                        elif isinstance(el, dict) and 'body' in el:
+                            if el['body'].startswith('@'):
+                                files.append(el['body'][1:])
+        files = list(set(files))
+        files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
+        new_files = []
+        for path in files:
+            fail = False
+            for segment in os.path.split(path):
+                match = re.search(r'{{(.*)}}', segment)
+                if match is not None:
+                    fail = True
+                    break
+            if not fail:
+                new_files.append(path)
+        files = new_files
+        self.files = sorted(files)
+        self.files_abs = [os.path.abspath(os.path.join(cwd, x)) for x in self.files]
+
+    def get(self):
+        data = None
+        cwd = self.http_server.definition.source_dir
+        path = self.get_query_argument('path', default=None)
+        orig_path = path
+        if path is None:
+            data = {
+                'files': self.files
+            }
+            self.write(data)
+            return
+        else:
+            if not path:
+                self.set_status(400)
+                self.write('\'path\' cannot be empty!')
+                return
+            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+            if not path.startswith(cwd):
+                self.set_status(403)
+                self.write('The path %s couldn\'t be accessed!' % orig_path)
+                return
+            # path is SAFE
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
+                return
+            if not os.path.exists(path):
+                self.set_status(400)
+                self.write('The path %s does not exist!' % orig_path)
+                return
+            # path is OK
+            if os.path.isdir(path):
+                self.set_status(400)
+                self.write('The path %s is a directory!' % orig_path)
+                return
+            else:
+                _format = self.get_query_argument('format', default='text')
+                if _format == 'text':
+                    with open(path, 'rb') as file:
+                        data = file.read()
+                elif _format == 'stream':
+                    buf_size = 4096
+                    self.set_header('Content-Type', 'application/octet-stream')
+                    self.set_header('Content-Disposition', 'attachment; filename=' + os.path.basename(path))
+                    with open(path, 'rb') as f:
+                        while True:
+                            data = f.read(buf_size)
+                            if not data:
+                                break
+                            self.write(data)
+                    return
+        self.write(data)
+
+    def post(self):
+        cwd = self.http_server.definition.source_dir
+        path = self.get_body_argument('path', default=None)
+        orig_path = path
+        if path is not None:
+            if not path:
+                self.set_status(400)
+                self.write('\'path\' cannot be empty!')
+                return
+            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+            if not path.startswith(cwd):
+                self.set_status(403)
+                self.write('The path %s couldn\'t be accessed!' % orig_path)
+                return
+            # path is SAFE
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        if self.request.files:
+            for key, files in self.request.files.items():
+                for file in files:
+                    if path is None:
+                        file_path = os.path.join(cwd, key if key else file['filename'])
+                    else:
+                        file_path = os.path.join(path, key if key else file['filename'])
+                    file_path = os.path.abspath(file_path)
+                    if not file_path.startswith(cwd):
+                        self.set_status(403)
+                        self.write('The path %s couldn\'t be accessed!' % orig_path)
+                        return
+                    # file_path is SAFE
+                    if file_path not in self.files_abs:
+                        self.set_status(400)
+                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
+                        return
+                    if os.path.exists(file_path) and os.path.isdir(file_path):
+                        self.set_status(400)
+                        self.write('The path %s is a directory!' % file_path[len(cwd) + 1:])
+                        return
+                    # file_path is OK
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    with open(file_path, 'wb') as _file:
+                        _file.write(file['body'])
+        else:
+            file = self.get_body_argument('file', default=None)
+            if file is None:
+                self.set_status(400)
+                self.write('\'file\' parameter is required!')
+                return
+            if path is None:
+                self.set_status(400)
+                self.write('\'path\' parameter is required!')
+                return
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
+                return
+            if os.path.exists(path) and os.path.isdir(path):
+                self.set_status(400)
+                self.write('The path %s is a directory!' % orig_path)
+                return
+            # path is OK
+            with open(path, 'w') as _file:
+                _file.write(file)
+        self.set_status(204)
+
+    def delete(self):
+        cwd = self.http_server.definition.source_dir
+        path = self.get_query_argument('path', default=None)
+        keep = self.get_query_argument('keep', default=False)
+        orig_path = path
+        if path is None:
+            self.set_status(400)
+            self.write('\'path\' parameter is required!')
+            return
+        if not path:
+            self.set_status(400)
+            self.write('\'path\' cannot be empty!')
+            return
+        path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+        if not path.startswith(cwd):
+            self.set_status(403)
+            self.write('The path %s couldn\'t be accessed!' % orig_path)
+            return
+        # path is SAFE
+        if path not in self.files_abs:
+            self.set_status(400)
+            self.write('The path %s is not defined in the configuration file!' % orig_path)
+            return
+        if not os.path.exists(path):
+            self.set_status(400)
+            self.write('The path %s does not exist!' % orig_path)
+            return
+        # path is OK
+        if os.path.isfile(path):
+            os.remove(path)
+            if not keep:
+                ref = os.path.dirname(path)
+                while ref:
+                    if os.listdir(ref) or ref == cwd:
+                        break
+                    shutil.rmtree(ref)
+                    ref = os.path.dirname(ref)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
         self.set_status(204)
 
 

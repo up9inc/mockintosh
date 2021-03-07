@@ -339,6 +339,42 @@ services:
     oas: '@path/to/service.oas.json'
 ```
 
+### Resources
+
+It's possible to CRUD the resource files used in the configuration file (the paths starts with `@`) using `/resources`
+endpoint. This endpoint accepts `GET`, `POST` and `DELETE` requests and operates on paths relative to the
+configuration file's parent directory otherwise it return a `4xx`. Also the files referenced in the such requests are
+required to be defined with `@` prefix in the configuration file before hand. The directories are automatically
+created or deleted for the given paths.
+
+#### Reading
+
+`GET /resources` returns the list of paths to the externals files used in the configuration file.
+
+`GET /resources?path=somedir/myfile.txt` reads the files and returns its text.
+
+`GET /resources?path=somedir/myfile.txt&format=stream` returns the file as an octet stream (downloads the file).
+
+#### Creating/Updating
+
+`POST /resources -F 'path=somedir/myfile.txt' -F 'file=hello world'` creates the directory `somedir/` if it
+does not exist, updates the file `myfile.txt` if it exists otherwise creates it and puts `hello world` text
+into that file. `path` and `file` parameters are required in form data requests.
+
+`POST /resources -F 'somedir/myfile.txt=@myfile.txt'` also works in the same way but this time it's a multipart request
+and `path` parameter is not required. If `path` parameter is supplied then it works as a parent directory path
+for the path specified in the files' key: `POST /resources -F 'path=somedir/' -F 'myfile.txt=@myfile.txt'`.
+
+*Note: Leading forward slashes (`/`) are ignored and name-inode maps like `.`, `..` are supported in the path.*
+*But it always operates in paths relative to the configuration file's parent directory.*
+
+#### Deleting
+
+`DELETE /resources?path=somedir/myfile.txt` removes the file `myfile.txt`. Also removes the directory `somedir/`
+if it's empty after the removal of the file. If `keep=true` query argument is supplied then it does not
+remove the parent directories. Otherwise it removes the empty directories by unfolding from the referenced
+file's parent directory to the directory that contains the configuration file.
+
 ### Setting Current Tag
 
 For the [tagged responses](#tagged-responses), you can get currently active tag, or set one. Issuing `GET /tag` will report currently active tag, doing `POST /tag` will set one. For `POST`, just place desired name of the tag into raw request body. Empty tag set means "no active tag".
