@@ -599,6 +599,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                                 files.append(el['body'][1:])
         files = list(set(files))
         files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
+        new_files = []
+        for path in files:
+            fail = False
+            for segment in os.path.split(path):
+                if segment.lstrip().startswith('{{') and segment.rstrip().endswith('}}'):
+                    fail = True
+                    break
+            if not fail:
+                new_files.append(path)
+        files = new_files
         self.files = sorted(files)
         self.files_abs = [os.path.abspath(os.path.join(cwd, x)) for x in self.files]
 
