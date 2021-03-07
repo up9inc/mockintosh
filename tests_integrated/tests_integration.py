@@ -730,6 +730,13 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn('/etc/hosts', files)
         self.assertEqual(len(files), len(set(files)))
 
+        for file in files:  # test that all files reported can be read and written
+            resp = requests.get(MGMT + '/resources?path=%s' % file, verify=False)
+            resp.raise_for_status()
+
+            resp = requests.post(MGMT + '/resources', files={file: resp.content}, verify=False)
+            resp.raise_for_status()
+
         resp = requests.get(MGMT + '/resources?path=cors.html', verify=False)
         resp.raise_for_status()
         self.assertIn('<html ', resp.text)
