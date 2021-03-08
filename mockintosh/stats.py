@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains server classes.
+    :synopsis: module that contains statistics tracking classes.
 """
 
 from collections import Counter
