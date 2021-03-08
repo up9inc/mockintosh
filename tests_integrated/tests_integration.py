@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 import requests
 import yaml
+from jsonschema.validators import validate
 
 import mockintosh
 
@@ -769,3 +770,12 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         files = resp.json()['files']
         self.assertIn('cors.html', files)
+
+    def test_traffic_log(self):
+        self.test_urlencoded()
+        self.test_multipart()
+
+        resp = requests.get(MGMT + '/traffic-log', verify=False)
+        resp.raise_for_status()
+        json = resp.json()
+        validate(json, {"$schema": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
