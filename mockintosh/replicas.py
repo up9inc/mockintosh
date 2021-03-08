@@ -94,7 +94,7 @@ class Request():
             "headers": headers,
             "queryString": query_string,
             "postData": post_data,
-            "headersSize": 0,
+            "headersSize": -1,
             "bodySize": self.bodySize
         }
 
@@ -122,7 +122,6 @@ class Response():
 
         content = {
             "size": self.bodySize,
-            "compression": 0,
             "mimeType": self.headers['Content-Type'] if 'Content-Type' in self.headers else "text/html; charset=utf-8",
             "text": self.body
         }
@@ -135,6 +134,6 @@ class Response():
             "headers": headers,
             "content": content,
             "redirectURL": "",
-            "headersSize": 0,
+            "headersSize": -1,
             "bodySize": self.bodySize
         }
