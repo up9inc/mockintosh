@@ -123,6 +123,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         try:
             data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
             self.http_server.stats.services = []
+            self.http_server.logs.services = []
             for service in data['services']:
                 hint = '%s:%s%s' % (
                     service['hostname'] if 'hostname' in service else (
@@ -132,7 +133,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                     ' - %s' % service['name'] if 'name' in service else ''
                 )
                 self.http_server.stats.add_service(hint)
-                self.http_server.logs.add_service(hint)
+                self.http_server.logs.add_service()
             for i, service in enumerate(data['services']):
                 service['internalServiceId'] = i
                 self.update_service(service, i)
@@ -199,6 +200,19 @@ class ManagementStatsHandler(ManagementBaseHandler):
 
     def delete(self):
         self.stats.reset()
+        self.set_status(204)
+
+
+class ManagementLogsHandler(ManagementBaseHandler):
+
+    def initialize(self, logs):
+        self.logs = logs
+
+    def get(self):
+        self.write(self.logs.json())
+
+    def delete(self):
+        self.logs.reset()
         self.set_status(204)
 
 
@@ -865,6 +879,20 @@ class ManagementServiceStatsHandler(ManagementBaseHandler):
 
     def delete(self):
         self.stats.services[self.service_id].reset()
+        self.set_status(204)
+
+
+class ManagementServiceLogsHandler(ManagementBaseHandler):
+
+    def initialize(self, logs, service_id):
+        self.logs = logs
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.logs.services[self.service_id].json())
+
+    def delete(self):
+        self.logs.services[self.service_id].reset()
         self.set_status(204)
 
 

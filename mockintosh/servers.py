@@ -22,6 +22,7 @@ from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
     ManagementStatsHandler,
+    ManagementLogsHandler,
     ManagementResetIteratorsHandler,
     ManagementUnhandledHandler,
     ManagementOasHandler,
@@ -31,6 +32,7 @@ from mockintosh.management import (
     ManagementServiceRootRedirectHandler,
     ManagementServiceConfigHandler,
     ManagementServiceStatsHandler,
+    ManagementServiceLogsHandler,
     ManagementServiceResetIteratorsHandler,
     ManagementServiceUnhandledHandler,
     ManagementServiceOasHandler,
@@ -109,7 +111,7 @@ class HttpServer:
                 ' - %s' % service['name'] if 'name' in service else ''
             )
             self.stats.add_service(hint)
-            self.logs.add_service(hint)
+            self.logs.add_service()
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
@@ -211,7 +213,7 @@ class HttpServer:
                 ' - %s' % endpoint['id'] if 'id' in endpoint else ''
             )
             stats.services[service['internalServiceId']].add_endpoint(hint)
-            logs.services[service['internalServiceId']].add_endpoint(hint)
+            logs.services[service['internalServiceId']].add_endpoint()
             identifier = endpoint['path']
             extracted_parts = {}
             for key in endpoint:
@@ -274,6 +276,7 @@ class HttpServer:
                     interceptors=self.interceptors,
                     stats=self.stats,
                     logs=self.logs,
+                    port=service['port'],
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     tag=None
                 )
@@ -311,6 +314,14 @@ class HttpServer:
                     ManagementServiceStatsHandler,
                     dict(
                         stats=stats,
+                        service_id=service['internalServiceId']
+                    )
+                ),
+                (
+                    '/%s/logs' % management_root,
+                    ManagementServiceLogsHandler,
+                    dict(
+                        logs=logs,
                         service_id=service['internalServiceId']
                     )
                 ),
@@ -414,6 +425,13 @@ class HttpServer:
                     ManagementStatsHandler,
                     dict(
                         stats=stats
+                    )
+                ),
+                (
+                    '/logs',
+                    ManagementLogsHandler,
+                    dict(
+                        logs=logs
                     )
                 ),
                 (

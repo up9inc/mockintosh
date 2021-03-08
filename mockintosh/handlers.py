@@ -15,6 +15,7 @@ import struct
 import time
 import traceback
 import urllib
+from datetime import datetime
 from typing import (
     Union,
     Optional,
@@ -96,6 +97,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def prepare(self) -> Optional[Awaitable[None]]:
         """Overriden method of tornado.web.RequestHandler"""
         self.dont_add_status_code = False
+        self.special_request_start_datetime = datetime.utcnow()
         self.special_request_start_time = time.perf_counter()
         super().prepare()
 
@@ -105,7 +107,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if self.get_status() != 405:
                 elapsed_time_in_seconds = self.get_elapsed_time()
                 self.set_elapsed_time(elapsed_time_in_seconds)
-                self.add_log_record(elapsed_time_in_seconds)
+                self.add_log_record(int(round(elapsed_time_in_seconds * 1000)))
             if not self.dont_add_status_code:
                 if self.get_status() == 405:
                     self.stats.services[self.service_id].add_status_code(
@@ -118,21 +120,22 @@ class GenericHandler(tornado.web.RequestHandler):
         super().on_finish()
 
     def get_elapsed_time(self) -> str:
-        return (time.perf_counter() - self.special_request_start_time) / 1000000
+        return (time.perf_counter() - self.special_request_start_time)
 
-    def set_elapsed_time(self, elapsed_time_in_seconds: int) -> None:
+    def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
         """Method to calculate and store the elapsed time of the request handling to be used in stats."""
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
             elapsed_time_in_seconds
         )
 
-    def add_log_record(self, elapsed_time_in_seconds: int) -> None:
+    def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
         """Method that creates a log record and inserts it to log tracking system."""
         log_record = LogRecord(
-            self.special_request_start_time,
-            elapsed_time_in_seconds,
+            self.special_request_start_datetime,
+            elapsed_time_in_milliseconds,
             self.special_request,
-            self.special_response
+            self.special_response,
+            self.port
         )
         self.logs.services[self.service_id].endpoints[self.internal_endpoint_id].add_record(log_record)
 
@@ -146,6 +149,7 @@ class GenericHandler(tornado.web.RequestHandler):
         interceptors: list,
         stats: Stats,
         logs: Logs,
+        port: int,
         unhandled_data,
         tag: str
     ) -> None:
@@ -157,6 +161,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_args = ()
             self.stats = stats
             self.logs = logs
+            self.port = port
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
