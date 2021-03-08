@@ -276,7 +276,6 @@ class HttpServer:
                     interceptors=self.interceptors,
                     stats=self.stats,
                     logs=self.logs,
-                    port=service['port'],
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     tag=None
                 )

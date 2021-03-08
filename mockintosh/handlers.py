@@ -119,6 +119,11 @@ class GenericHandler(tornado.web.RequestHandler):
                     )
         super().on_finish()
 
+    def write(self, chunk: Union[str, bytes, dict]) -> None:
+        super().write(chunk)
+        if hasattr(self, 'special_response'):
+            self.special_response.bodySize = len(b"".join(self._write_buffer))
+
     def get_elapsed_time(self) -> str:
         return (time.perf_counter() - self.special_request_start_time)
 
@@ -135,7 +140,7 @@ class GenericHandler(tornado.web.RequestHandler):
             elapsed_time_in_milliseconds,
             self.special_request,
             self.special_response,
-            self.port
+            self.request.server_connection
         )
         self.logs.services[self.service_id].endpoints[self.internal_endpoint_id].add_record(log_record)
 
@@ -149,7 +154,6 @@ class GenericHandler(tornado.web.RequestHandler):
         interceptors: list,
         stats: Stats,
         logs: Logs,
-        port: int,
         unhandled_data,
         tag: str
     ) -> None:
@@ -161,7 +165,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_args = ()
             self.stats = stats
             self.logs = logs
-            self.port = port
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
@@ -404,6 +407,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     request.body[key] = request.body[key][0]
         else:
             request.body = _decoder(self.request.body)
+        request.bodySize = len(self.request.body)
 
         request.files = self.request.files
 

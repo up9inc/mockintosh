@@ -32,6 +32,7 @@ class Request():
         self.headers = {}
         self.queryString = {}
         self.body = {}
+        self.bodySize = 0
         self._json = _NotParsedJSON()
 
     @property
@@ -94,8 +95,7 @@ class Request():
             "queryString": query_string,
             "postData": post_data,
             "headersSize": 0,
-            "bodySize": 0,
-            "comment": ""
+            "bodySize": self.bodySize
         }
 
 
@@ -106,6 +106,7 @@ class Response():
         self.status = None
         self.headers = {}
         self.body = None
+        self.bodySize = 0
 
     def _har(self) -> dict:
         extracted_keys = []
@@ -120,7 +121,7 @@ class Response():
             })
 
         content = {
-            "size": 0,
+            "size": self.bodySize,
             "compression": 0,
             "mimeType": self.headers['Content-Type'] if 'Content-Type' in self.headers else "text/html; charset=utf-8",
             "text": self.body
@@ -135,5 +136,5 @@ class Response():
             "content": content,
             "redirectURL": "",
             "headersSize": 0,
-            "bodySize": 0
+            "bodySize": self.bodySize
         }

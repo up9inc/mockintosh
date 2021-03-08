@@ -6,7 +6,7 @@
     :synopsis: module that contains logging related classes.
 """
 
-import socket
+from tornado.http1connection import HTTP1ServerConnection
 
 import mockintosh
 from mockintosh.constants import PROGRAM
@@ -20,13 +20,13 @@ class LogRecord:
         elapsed_time_in_milliseconds: int,
         request: Request,
         response: Response,
-        port: int
+        server_connection: HTTP1ServerConnection
     ):
         self.request_start_time = request_start_time
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
         self.response = response
-        self.port = port
+        self.server_connection = server_connection
 
     def json(self):
         data = {
@@ -42,8 +42,8 @@ class LogRecord:
                 'connect': self.elapsed_time_in_milliseconds,
                 'ssl': self.elapsed_time_in_milliseconds,
             },
-            'serverIPAddress': str(socket.gethostbyname(self.request.hostName)),
-            'connection': str(self.port)
+            'serverIPAddress': self.server_connection.stream.socket.getsockname()[0],
+            'connection': str(self.server_connection.stream.socket.getsockname()[1])
         }
         return data
 
