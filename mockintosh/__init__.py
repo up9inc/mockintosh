@@ -21,7 +21,7 @@ import yaml
 from jsonschema import validate
 
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
-from mockintosh.handlers import Request, Response  # noqa: F401
+from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import (
     PathRecognizer,

@@ -6,7 +6,7 @@
     :synopsis: module that contains logging related classes.
 """
 
-from mockintosh.handlers import Request, Response
+from mockintosh.replicas import Request, Response
 
 
 class LogRecord:
@@ -43,7 +43,7 @@ class BaseLogs():
 class EndpointLogs(BaseLogs):
     def __init__(self, hint: str):
         self.records = []
-        super().__init__()
+        super().__init__(hint)
 
     def add_record(self, record: LogRecord):
         self.records.append(record)

@@ -124,15 +124,15 @@ class ManagementConfigHandler(ManagementBaseHandler):
             data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
             self.http_server.stats.services = []
             for service in data['services']:
-                self.http_server.stats.add_service(
-                    '%s:%s%s' % (
-                        service['hostname'] if 'hostname' in service else (
-                            self.http_server.address if self.http_server.address else 'localhost'
-                        ),
-                        service['port'],
-                        ' - %s' % service['name'] if 'name' in service else ''
-                    )
+                hint = '%s:%s%s' % (
+                    service['hostname'] if 'hostname' in service else (
+                        self.http_server.address if self.http_server.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
                 )
+                self.http_server.stats.add_service(hint)
+                self.http_server.logs.add_service(hint)
             for i, service in enumerate(data['services']):
                 service['internalServiceId'] = i
                 self.update_service(service, i)
@@ -142,6 +142,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             return
 
         self.http_server.stats.reset()
+        self.http_server.logs.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
@@ -151,9 +152,14 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.check_restricted_fields(service, service_index)
         endpoints = []
         self.http_server.stats.services[service_index].endpoints = []
+        self.http_server.logs.services[service_index].endpoints = []
 
         if 'endpoints' in service:
-            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service, self.http_server.stats)
+            endpoints = mockintosh.servers.HttpServer.merge_alternatives(
+                service,
+                self.http_server.stats,
+                self.http_server.logs
+            )
         merged_endpoints = []
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
@@ -843,6 +849,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         self.http_server.stats.reset()
+        self.http_server.logs.reset()
 
         self.set_status(204)
 

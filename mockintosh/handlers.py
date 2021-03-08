@@ -28,6 +28,7 @@ from tornado.concurrent import Future
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
+from mockintosh.replicas import Request, Response
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
@@ -41,6 +42,7 @@ from mockintosh.params import (
     BodyMultipartParam
 )
 from mockintosh.stats import Stats
+from mockintosh.logs import Logs, LogRecord
 from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
@@ -88,48 +90,6 @@ class NewHTTPError(Exception):
     pass
 
 
-class NotParsedJSON():
-    """Class to determine wheter the request body is parsed into JSON or not."""
-    pass
-
-
-class Request():
-    """Class that defines the `Request` object which is being injected into the response template."""
-
-    def __init__(self) -> None:
-        self.version = None
-        self.remoteIp = None
-        self.protocol = None
-        self.host = None
-        self.hostName = None
-        self.uri = None
-        self.method = None
-        self.path = None
-        self.headers = {}
-        self.queryString = {}
-        self.body = {}
-        self._json = NotParsedJSON()
-
-    @property
-    def json(self) -> [None, dict]:
-        if isinstance(self._json, NotParsedJSON):
-            try:
-                self._json = json.loads(self.body)
-            except json.JSONDecodeError:
-                logging.warning('Failed to decode request body to JSON:\n%s', self.body)
-                self._json = None
-        return self._json
-
-
-class Response():
-    """Class that defines the `Response` object which is being used by the interceptors."""
-
-    def __init__(self) -> None:
-        self.status = None
-        self.headers = {}
-        self.body = None
-
-
 class GenericHandler(tornado.web.RequestHandler):
     """Class to handle all mocked requests."""
 
@@ -143,7 +103,9 @@ class GenericHandler(tornado.web.RequestHandler):
         """Overriden method of tornado.web.RequestHandler"""
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
-                self.set_elapsed_time()
+                elapsed_time_in_seconds = self.get_elapsed_time()
+                self.set_elapsed_time(elapsed_time_in_seconds)
+                self.add_log_record(elapsed_time_in_seconds)
             if not self.dont_add_status_code:
                 if self.get_status() == 405:
                     self.stats.services[self.service_id].add_status_code(
@@ -155,12 +117,24 @@ class GenericHandler(tornado.web.RequestHandler):
                     )
         super().on_finish()
 
-    def set_elapsed_time(self) -> None:
+    def get_elapsed_time(self) -> str:
+        return (time.perf_counter() - self.special_request_start_time) / 1000000
+
+    def set_elapsed_time(self, elapsed_time_in_seconds: int) -> None:
         """Method to calculate and store the elapsed time of the request handling to be used in stats."""
-        elapsed_time_in_seconds = (time.perf_counter() - self.special_request_start_time) / 1000000
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
             elapsed_time_in_seconds
         )
+
+    def add_log_record(self, elapsed_time_in_seconds: int) -> None:
+        """Method that creates a log record and inserts it to log tracking system."""
+        log_record = LogRecord(
+            self.special_request_start_time,
+            elapsed_time_in_seconds,
+            self.special_request,
+            self.special_response
+        )
+        self.logs.services[self.service_id].endpoints[self.internal_endpoint_id].add_record(log_record)
 
     def initialize(
         self,
@@ -171,6 +145,7 @@ class GenericHandler(tornado.web.RequestHandler):
         definition_engine: str,
         interceptors: list,
         stats: Stats,
+        logs: Logs,
         unhandled_data,
         tag: str
     ) -> None:
@@ -181,6 +156,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.methods = None
             self.custom_args = ()
             self.stats = stats
+            self.logs = logs
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
@@ -480,7 +456,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 struct.pack('ii', 1, 0)
             )
             self.request.server_connection.stream.close()
-            self.set_elapsed_time()
+            self.set_elapsed_time(self.get_elapsed_time())
             self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('RST')
         if isinstance(status_code, str) and status_code.lower() == 'fin':
             self.request.server_connection.stream.close()
