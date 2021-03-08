@@ -36,11 +36,11 @@ class LogRecord:
             'response': self.response._har(),
             'cache': {},
             'timings': {
-                'send': self.elapsed_time_in_milliseconds,
-                'receive': self.elapsed_time_in_milliseconds,
+                'send': 0,
+                'receive': 0,
                 'wait': self.elapsed_time_in_milliseconds,
-                'connect': self.elapsed_time_in_milliseconds,
-                'ssl': self.elapsed_time_in_milliseconds,
+                'connect': 0,
+                'ssl': 0
             },
             'serverIPAddress': self.server_connection.stream.socket.getsockname()[0],
             'connection': str(self.server_connection.stream.socket.getsockname()[1])
