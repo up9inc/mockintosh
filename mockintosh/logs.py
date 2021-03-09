@@ -94,6 +94,10 @@ class ServiceLogs():
 
         return data
 
+    def reset(self):
+        for endpoint in self.endpoints:
+            endpoint.records = []
+
 
 class Logs():
     def __init__(self):
