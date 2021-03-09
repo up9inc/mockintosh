@@ -45,7 +45,7 @@ class LogRecord:
 
     def json(self):
         data = {
-            'startedDateTime': self.request_start_time.isoformat(),
+            'startedDateTime': self.request_start_time.astimezone().isoformat(),
             'time': self.elapsed_time_in_milliseconds,
             'request': self.request._har(),
             'response': self.response._har(),
