@@ -212,7 +212,9 @@ class ManagementLogsHandler(ManagementBaseHandler):
         self.write(self.logs.json())
 
     def post(self):
-        self.logs.enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        for service in self.logs.services:
+            service.enabled = enabled
         self.set_status(204)
 
     def delete(self):
@@ -896,7 +898,9 @@ class ManagementServiceLogsHandler(ManagementBaseHandler):
         self.write(self.logs.services[self.service_id].json())
 
     def post(self):
-        self.logs.enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        self.logs.services[self.service_id].enabled = not (
+            self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        )
         self.set_status(204)
 
     def delete(self):
