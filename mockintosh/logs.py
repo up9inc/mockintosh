@@ -100,11 +100,21 @@ class Logs():
 
     def json(self):
         data = {
-            'services': []
+            "log": {
+                "version": "1.2",
+                "creator": {
+                    "name": "%s" % PROGRAM.capitalize(),
+                    "version": "%s" % mockintosh.__version__
+                },
+                "entries": []
+            }
         }
 
         for service in self.services:
-            data['services'].append(service.json())
+            for endpoint in service.endpoints:
+                data['log']['entries'] += endpoint.json()
+
+        data['log']['entries'] = sorted(data['log']['entries'], key=lambda x: x['startedDateTime'], reverse=False)
 
         return data
 
