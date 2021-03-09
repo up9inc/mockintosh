@@ -69,8 +69,19 @@ class Request():
                 'value': value
             })
 
-        post_data = {}
+        data = {
+            "method": self.method,
+            "url": "%s://%s:%s%s%s" % (self.protocol, self.hostName, 80, self.path, '?' + qs if qs else ''),
+            "httpVersion": "HTTP/1.1",
+            "cookies": [],
+            "headers": headers,
+            "queryString": query_string,
+            "headersSize": -1,
+            "bodySize": self.bodySize
+        }
+
         if self.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            post_data = {}
             if isinstance(self.body, dict):
                 post_data = {
                     "mimeType": self.mimeType,
@@ -89,17 +100,9 @@ class Request():
                     "text": self.body
                 }
 
-        return {
-            "method": self.method,
-            "url": "%s://%s:%s%s%s" % (self.protocol, self.hostName, 80, self.path, '?' + qs if qs else ''),
-            "httpVersion": "HTTP/1.1",
-            "cookies": [],
-            "headers": headers,
-            "queryString": query_string,
-            "postData": post_data,
-            "headersSize": -1,
-            "bodySize": self.bodySize
-        }
+            data['postData'] = post_data
+
+        return data
 
 
 class Response():
