@@ -780,21 +780,17 @@ class IntegrationTests(unittest.TestCase):
 
         # clear log
         resp = requests.delete(root + '/traffic-log', verify=False)
-        resp.raise_for_status()
-        json = resp.json()
-        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        json = self._valid_har(resp)
         self.assertFalse(json['log']['entries'])
         self.assertFalse(json['log']['_enabled'])
 
         # enable log
-        resp = requests.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
+        resp = requests.post(root + '/traffic-log', data={"enable": True}, verify=False)
         resp.raise_for_status()
 
         # check
         resp = requests.get(root + '/traffic-log', verify=False)
-        resp.raise_for_status()
-        json = resp.json()
-        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        json = self._valid_har(resp)
         self.assertFalse(json['log']['entries'])
         self.assertTrue(json['log']['_enabled'])
 
@@ -803,9 +799,7 @@ class IntegrationTests(unittest.TestCase):
 
         # fetch log
         resp = requests.get(root + '/traffic-log', verify=False)
-        resp.raise_for_status()
-        json = resp.json()
-        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        json = self._valid_har(resp)
         self.assertTrue(json['log']['entries'])
 
         # clear
@@ -818,5 +812,11 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(json['log']['entries'])
 
         # disable log
-        resp = requests.post(MGMT + '/traffic-log', data={"enable": False}, verify=False)
+        resp = requests.post(root + '/traffic-log', data={"enable": False}, verify=False)
         resp.raise_for_status()
+
+    def _valid_har(self, resp):
+        resp.raise_for_status()
+        json = resp.json()
+        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        return json
