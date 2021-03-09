@@ -11,14 +11,18 @@ import random
 import re
 import time
 import json
-from datetime import datetime, timedelta
+import socket
+from urllib.parse import urlparse
+from datetime import datetime, timedelta, timezone
 
 import yaml
 import pytest
 import requests
 from requests.exceptions import ConnectionError
 from openapi_spec_validator import validate_spec
+from jsonschema.validators import validate as jsonschema_validate
 
+import mockintosh
 from mockintosh.constants import PROGRAM
 from mockintosh.performance import PerformanceProfile
 from utilities import (
@@ -51,6 +55,8 @@ SRV_8003_HOST = 'service3.example.com'
 SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
 SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
+
+HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -2211,6 +2217,186 @@ class TestManagement():
         assert 403 == resp.status_code
         resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
         assert 400 == resp.status_code
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', SRV_9000, {}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_9000, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_traffic_log(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        test_start_time = datetime.fromtimestamp(time.time()).replace(tzinfo=timezone(timedelta(seconds=10800)))
+        service1_response = 'service1'
+        service2_response = 'service2'
+
+        for _ in range(2):
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert not data['log']['_enabled']
+            assert data['log']['version'] == '1.2'
+            assert data['log']['creator']['name'] == PROGRAM.capitalize()
+            assert data['log']['creator']['version'] == mockintosh.__version__
+            assert len(data['log']['entries']) == 0
+
+            resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == service1_response
+
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert not data['log']['_enabled']
+            assert len(data['log']['entries']) == 0
+
+            resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers)
+            assert 204 == resp.status_code
+
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert data['log']['_enabled']
+            assert len(data['log']['entries']) == 0
+
+            for _ in range(3):
+                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == service1_response
+
+            for _ in range(2):
+                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == service2_response
+
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert data['log']['_enabled']
+            if admin_headers:
+                assert len(data['log']['entries']) == 3
+            else:
+                assert len(data['log']['entries']) == 5
+
+            url_parsed1 = urlparse(SRV_8001)
+            for entry in data['log']['entries'][0:2]:
+                assert datetime.fromisoformat(entry['startedDateTime']) > test_start_time
+                assert entry['time'] > 0
+
+                assert entry['request']['method'] == 'GET'
+                assert entry['request']['url'] == '%s://%s/service1' % (url_parsed1.scheme, '%s:80' % SRV_8001_HOST)
+                assert entry['request']['httpVersion'] == 'HTTP/1.1'
+                assert not entry['request']['cookies']
+                request_headers = {x['name']: x['value'] for x in entry['request']['headers']}
+                assert request_headers['User-Agent'] == 'python-requests/%s' % requests.__version__
+                assert request_headers['Accept-Encoding'] == 'gzip, deflate'
+                assert request_headers['Accept'] == '*/*'
+                assert request_headers['Connection'] == 'keep-alive'
+                assert request_headers['Host'] == SRV_8001_HOST
+                assert not entry['request']['queryString']
+                assert entry['request']['headersSize'] == -1
+                assert entry['request']['bodySize'] == 0
+
+                assert entry['response']['status'] == 200
+                assert entry['response']['statusText'] == 'OK'
+                assert entry['response']['httpVersion'] == 'HTTP/1.1'
+                assert not entry['response']['cookies']
+                response_headers = {x['name']: x['value'] for x in entry['response']['headers']}
+                assert response_headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
+                assert response_headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert response_headers['Content-Type'] == entry['response']['content']['mimeType'] == 'text/html; charset=UTF-8'
+                assert 'Date' in response_headers
+                assert response_headers['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+                assert 'Etag' in response_headers
+                assert int(response_headers['Content-Length']) == entry['response']['content']['size'] == 8
+                assert entry['response']['content']['text'] == service1_response
+                assert entry['response']['redirectURL'] == ''
+                assert entry['response']['headersSize'] == -1
+
+                assert entry['cache'] == {}
+                assert entry['timings']['send'] == 0
+                assert entry['timings']['receive'] == 0
+                assert entry['timings']['wait'] == entry['time']
+                assert entry['timings']['connect'] == 0
+                assert entry['timings']['ssl'] == 0
+
+                addr = socket.gethostbyname(url_parsed1.hostname)
+                assert entry['serverIPAddress'] == addr
+                assert int(entry['connection']) == url_parsed1.port
+
+            if not admin_headers:
+                url_parsed2 = urlparse(SRV_8002)
+                for entry in data['log']['entries'][3:4]:
+                    assert datetime.fromisoformat(entry['startedDateTime']) > test_start_time
+                    assert entry['time'] > 0
+
+                    assert entry['request']['method'] == 'GET'
+                    assert entry['request']['url'] == '%s://%s/service2' % (url_parsed2.scheme, '%s:80' % SRV_8002_HOST)
+                    assert entry['response']['content']['text'] == service2_response
+
+            resp = requests.post(admin_url + '/traffic-log', data={"enable": False}, headers=admin_headers)
+            assert 204 == resp.status_code
+
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert not data['log']['_enabled']
+            if admin_headers:
+                assert len(data['log']['entries']) == 3
+            else:
+                assert len(data['log']['entries']) == 5
+
+            for _ in range(1):
+                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == service1_response
+
+            for _ in range(1):
+                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == service2_response
+
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert not data['log']['_enabled']
+            if admin_headers:
+                assert len(data['log']['entries']) == 3
+            else:
+                assert len(data['log']['entries']) == 5
+
+            resp = requests.delete(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert not data['log']['_enabled']
+            assert len(data['log']['entries']) == 0
+
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            data = resp.json()
+            jsonschema_validate(data, HAR_JSON_SCHEMA)
+            assert not data['log']['_enabled']
+            assert len(data['log']['entries']) == 0
 
 
 class TestPerformanceProfile():
