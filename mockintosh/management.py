@@ -212,7 +212,7 @@ class ManagementLogsHandler(ManagementBaseHandler):
         self.write(self.logs.json())
 
     def post(self):
-        self.logs.enabled = bool(self.get_body_argument('enabled', False))
+        self.logs.enabled = bool(self.get_body_argument('enable', False))
         self.set_status(204)
 
     def delete(self):
@@ -896,7 +896,7 @@ class ManagementServiceLogsHandler(ManagementBaseHandler):
         self.write(self.logs.services[self.service_id].json())
 
     def post(self):
-        self.logs.enabled = bool(self.get_body_argument('enabled', False))
+        self.logs.enabled = bool(self.get_body_argument('enable', False))
         self.set_status(204)
 
     def delete(self):
