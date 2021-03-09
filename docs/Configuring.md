@@ -375,6 +375,19 @@ if it's empty after the removal of the file. If `keep=true` query argument is su
 remove the parent directories. Otherwise it removes the empty directories by unfolding from the referenced
 file's parent directory to the directory that contains the configuration file.
 
+### Traffic Logs
+
+Traffic logging records the details of every incoming requests and their corresponding responses. Traffic logging
+is disabled by default. To enable it; send the request `POST /traffic-log -F 'enable=true'` to the related service-level
+or global-level management endpoint.
+
+To access the logs one can send a `GET` request to `/traffic-log` management endpoint. This endpoint returns the logs
+in **HTTP Archive 1.2 (HAR)** format. The logs can be retrieved separately based on service-level or as a whole on
+global-level based on the management endpoint that you're requesting to.
+
+To clean up the logs; simply send a `DELETE` request to `/traffic-log` management endpoint. Similar to `GET` request,
+`DELETE` also operates on both service-level and global-level.
+
 ### Setting Current Tag
 
 For the [tagged responses](#tagged-responses), you can get currently active tag, or set one. Issuing `GET /tag` will report currently active tag, doing `POST /tag` will set one. For `POST`, just place desired name of the tag into raw request body. Empty tag set means "no active tag".
