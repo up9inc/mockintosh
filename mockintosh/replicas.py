@@ -36,6 +36,7 @@ class Request():
         self.body = {}
         self.bodySize = 0
         self._json = _NotParsedJSON()
+        self.mimeType = None
 
     @property
     def json(self) -> [None, dict]:
@@ -72,7 +73,7 @@ class Request():
         if self.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
             if isinstance(self.body, dict):
                 post_data = {
-                    "mimeType": "application/x-www-form-urlencoded",
+                    "mimeType": self.mimeType,
                     "params": [],
                     "text": ""
                 }
@@ -83,7 +84,7 @@ class Request():
                     })
             elif isinstance(self.body, str):
                 post_data = {
-                    "mimeType": "text/plain",
+                    "mimeType": self.mimeType,
                     "params": [],
                     "text": self.body
                 }

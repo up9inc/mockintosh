@@ -395,16 +395,19 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Body
         if self.request.body_arguments:
+            request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
                 request.body[key] = [_decoder(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
+            request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
                 request.body[key] = [_decoder(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
+            request.mimeType = 'text/plain'
             request.body = _decoder(self.request.body)
         request.bodySize = len(self.request.body)
 
