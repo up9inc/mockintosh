@@ -15,6 +15,7 @@ import struct
 import traceback
 import urllib
 from datetime import datetime, timezone
+from base64 import b64encode
 from typing import (
     Union,
     Optional,
@@ -32,7 +33,7 @@ from mockintosh.replicas import Request, Response
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _decoder
+from mockintosh.methods import _safe_path_split, _detect_engine, _decoder, _is_mostly_bin
 from mockintosh.params import (
     PathParam,
     HeaderParam,
@@ -399,37 +400,33 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.request.body_arguments:
             request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
-                try:
-                    for x in value:
-                        x.decode('utf-8')
-                    request.bodyType[key] = 'str'
-                except (UnicodeDecodeError, AttributeError):
+                if any(_is_mostly_bin(x) for x in value):
                     request.bodyType[key] = 'base64'
-
-                request.body[key] = [_decoder(x) for x in value]
+                    request.body[key] = [b64encode(x).decode() for x in value]
+                else:
+                    request.bodyType[key] = 'str'
+                    request.body[key] = [_decoder(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
             request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
-                try:
-                    for x in value:
-                        x.decode('utf-8')
-                    request.bodyType[key] = 'str'
-                except (UnicodeDecodeError, AttributeError):
+                if any(_is_mostly_bin(x.body) for x in value):
                     request.bodyType[key] = 'base64'
-
-                request.body[key] = [_decoder(x.body) for x in value]
+                    request.body[key] = [b64encode(x.body).decode() for x in value]
+                else:
+                    request.bodyType[key] = 'str'
+                    request.body[key] = [_decoder(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
             request.mimeType = 'text/plain'
-            try:
-                self.request.body.decode('utf-8')
-                request.bodyType = 'str'
-            except (UnicodeDecodeError, AttributeError):
+            if _is_mostly_bin(request.body):
                 request.bodyType = 'base64'
-            request.body = _decoder(self.request.body)
+                request.body = b64encode(_decoder(self.request.body)).decode()
+            else:
+                request.bodyType = 'str'
+                request.body = _decoder(self.request.body)
         request.bodySize = len(self.request.body)
 
         request.files = self.request.files
