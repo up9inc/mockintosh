@@ -80,6 +80,10 @@ class EndpointLogs():
 class ServiceLogs():
     def __init__(self):
         self.endpoints = []
+        self.enabled = False
+
+    def is_enabled(self):
+        return self.enabled
 
     def add_endpoint(self):
         endpoint_logs = EndpointLogs()
@@ -87,7 +91,7 @@ class ServiceLogs():
         self.endpoints.append(endpoint_logs)
 
     def json(self):
-        data = _get_log_root(self.parent.enabled)
+        data = _get_log_root(self.is_enabled())
 
         for endpoint in self.endpoints:
             data['log']['entries'] += endpoint.json()
@@ -102,7 +106,9 @@ class ServiceLogs():
 class Logs():
     def __init__(self):
         self.services = []
-        self.enabled = False
+
+    def is_enabled(self):
+        return any(service.is_enabled() for service in self.services)
 
     def add_service(self):
         service_logs = ServiceLogs()
@@ -110,7 +116,7 @@ class Logs():
         self.services.append(service_logs)
 
     def json(self):
-        data = _get_log_root(self.enabled)
+        data = _get_log_root(self.is_enabled())
 
         for service in self.services:
             for endpoint in service.endpoints:
