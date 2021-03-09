@@ -122,13 +122,15 @@ class Response():
                 'value': value
             })
 
-        body = _decoder(self.body) if isinstance(self.body, (bytes, bytearray)) else self.body
-        body = '' if body is None else body
+        body = '' if self.body is None else self.body
         content = {
             "size": self.bodySize,
             "mimeType": self.headers['Content-Type'] if 'Content-Type' in self.headers else "text/html; charset=utf-8",
             "text": body
         }
+        if isinstance(content['text'], (bytes, bytearray)):
+            content['text'] = _decoder(content['text'])
+            content['encoding'] = 'base64'
 
         return {
             "status": self.status,
