@@ -41,8 +41,12 @@
             cursor: pointer;
         }
 
-        .traffic-items .list-group-item.selected{
+        .traffic-items .list-group-item.selected {
             background-color: aliceblue;
+        }
+
+        .traffic-details .headers .list-group-item {
+            padding: 0.25rem;
         }
     </style>
 </head>
@@ -118,44 +122,45 @@
                         <ul class="traffic-items list-group small" style="margin-top: 1rem">
                         </ul>
                     </td>
-                    <td class="col-md-8" style="border-top: none">
-                        <small class="text-muted">+2s</small>
-                        <small class="text-muted pull-right">The service name</small><br/>
-                        <span class="text-success">GET</span>
-                        https://localhost:8000/path/subpath?query=val&query=val
+                    <td class="col-md-8 traffic-details" style="border-top: none">
+                        <span class="text-muted">Select traffic entry from the left sidebar...</span>
+                        <div style="display: none">
+                            <small class="text-muted ts"></small>
+                            <small class="text-muted pull-right"></small><br/>
+                            <span class="method"></span>
+                            <a href="#" class="url text-dark" target="_blank"></a>
 
-                        <ul class="list-group small" style="margin-top: 1rem">
-                            <li class="list-group-item"
-                                style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
-                                Request Headers
-                            </li>
-                            <li class="list-group-item" style="cursor: pointer">Content-Type: application/json</li>
-                        </ul>
-                        <ul class="list-group small" style="margin-top: 1rem">
-                            <li class="list-group-item"
-                                style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
-                                Request Body
-                                <a href="#">{&lt;/&gt;}</a>
-                            </li>
-                            <li class="list-group-item" style="cursor: pointer">{"some": "json"}</li>
-                        </ul>
-                        <br/>
-                        <span>Response: <span class="badge badge-success">200</span></span>
+                            <ul class="list-group small headers" style="margin-top: 1rem">
+                                <li class="list-group-item header"
+                                    style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                    Request Headers
+                                </li>
+                            </ul>
+                            <ul class="list-group small" style="margin-top: 1rem">
+                                <li class="list-group-item"
+                                    style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                    Request Body
+                                    <a href="#">{&lt;/&gt;}</a>
+                                </li>
+                                <li class="list-group-item" style="cursor: pointer">{"some": "json"}</li>
+                            </ul>
+                            <br/>
+                            <span>Response: <span class="badge badge-success">200</span></span>
 
-                        <table class="table table-striped table-bordered" style="font-size: 0.8rem">
-                            <caption style="caption-side: top; text-align: center">Response Headers</caption>
-                            <tbody>
-                            <tr>
-                                <td class="text-nowrap">Content-Type</td>
-                                <td class="w-100">application/json</td>
-                            </tr>
-                            <tr>
-                                <td>Content-Length</td>
-                                <td>1212</td>
-                            </tr>
-                            </tbody>
-                        </table>
-
+                            <table class="table table-striped table-bordered" style="font-size: 0.8rem">
+                                <caption style="caption-side: top; text-align: center">Response Headers</caption>
+                                <tbody>
+                                <tr>
+                                    <td class="text-nowrap">Content-Type</td>
+                                    <td class="w-100">application/json</td>
+                                </tr>
+                                <tr>
+                                    <td>Content-Length</td>
+                                    <td>1212</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </td>
                 </tr>
             </table>
@@ -250,7 +255,23 @@
     function details(item) {
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
-        console.log(item);
+        const entry = item.data("obj");
+        $(".traffic-details>span").hide();
+        $(".traffic-details>div").show();
+        $(".traffic-details .ts").text(entry.startedDateTime);
+        $(".traffic-details .text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        $(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
+        let method = $(".traffic-details .method");
+        method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
+
+        const label=$(".traffic-details .headers .header");
+        $(".traffic-details .headers").empty().append(label);
+        for (let n = 0; n < entry.request.headers.length; n++) {
+            const hdr = entry.request.headers[n];
+            $(".traffic-details .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+        }
+
+
     }
 
     function traffic_log() {
@@ -268,7 +289,7 @@
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
                     li.append($('<span class="badge">' + entry.response.status + '</span>').addClass("badge-" + status_color(entry.response.status)));
                     const url = new URL(entry.request.url);
-                    li.append($('<span class="url">' + url.pathname + new Option(url.search).innerHTML + '</span>'));
+                    li.append($('<span class="url"></span>').text(url.pathname + url.search));
 
                     li.click(function () {
                         details($(this));
@@ -396,6 +417,8 @@
 
         $("#reqlog .btn-info").click(function () {
             $("#reqlog .traffic-items").empty();
+            $(".traffic-items>span").show();
+            $(".traffic-items>div").hide();
         });
 
         $("#reqlog input").change(function () {
