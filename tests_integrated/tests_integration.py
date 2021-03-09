@@ -810,6 +810,8 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.post(root + '/traffic-log', data={"enable": "false"}, verify=False)
         resp.raise_for_status()
 
+        self.test_urlencoded()  # ensure requests are made
+
         # validate cleared
         resp = requests.get(root + '/traffic-log', verify=False)
         json = self._valid_har(resp)

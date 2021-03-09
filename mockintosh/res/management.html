@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
+    <link rel="icon" href="https://mockintosh.io/favicon.ico"/>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"/>
@@ -90,17 +90,7 @@
                             <input type="checkbox"/> Enable Traffic Log
                             <button class="btn btn-sm btn-info pull-right">Clear</button>
                         </div>
-                        <ul class="list-group small" style="margin-top: 1rem">
-                            <li class="list-group-item" style="cursor: pointer">
-                                <span class="small text-muted" style="position: absolute; top:0;left: 0">+2s</span>
-                                <span class="text-success pull-left" style="margin-right: 0.25rem">GET</span>
-                                <span class="badge badge-success" style="position:absolute; top:0; right:0">200</span>
-                                https://localhost:8000/path/subpath?query=val&query=val
-                            </li>
-                            <li class="list-group-item selected" style="background-color: aliceblue"><span
-                                    class="text-success">GET</span>
-                                https://localhost:8000/path/subpath?query=val&query=val <span
-                                        class="badge badge-success">200</span></li>
+                        <ul class="traffic-items list-group small" style="margin-top: 1rem">
                         </ul>
                     </td>
                     <td class="col-md-8" style="border-top: none">
@@ -178,6 +168,32 @@
             ]
         });
         return el;
+    }
+
+    function traffic_log() {
+        $.ajax({
+            url: '/traffic-log',
+            type: 'GET',
+            success: function (result) {
+                $("#reqlog input").prop('checked', result['log']['_enabled']);
+
+                for (let n = 0; n < result.log.entries.length; n++) {
+                    const entry = result.log.entries[n];
+                    const li = $("<li></li>").addClass('list-group-item');
+                    li.append('<span class="small text-muted" style="position: absolute; top:0;left: 0">+2s</span>');
+                    li.append('<span class="text-success pull-left" style="margin-right: 0.25rem">GET</span>');
+                    li.append('<span class="badge badge-success" style="position:absolute; top:0; right:0">' + entry.response.status + '</span>');
+                    li.append('https://localhost:8000/path/subpath?query=val&query=val');
+                    li.click();
+                    $("#reqlog .traffic-items").append(li);
+                }
+            },
+            complete: function () {
+                if ($("#reqlog input").prop('checked')) {
+                    window.setTimeout(traffic_log, 1000);
+                }
+            }
+        });
     }
 
     $(function () {
@@ -288,6 +304,21 @@
                 addOAS(data[i], parent);
             }
         });
+
+        $("#reqlog .btn-info").click(function () {
+            $("#reqlog .traffic-items").empty();
+        });
+
+        $("#reqlog input").change(function () {
+            $.post("/traffic-log", {"enabled": this.checked ? 'True' : 'False'}).fail(function () {
+                $("#reqlog input").prop('checked', '')
+            });
+            if (this.checked) {
+                traffic_log();
+            }
+        });
+
+        traffic_log();
 
         $(".nav-link").map(function (i, obj) {
             if ($(obj).attr('href') === window.location.hash) {
