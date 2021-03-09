@@ -111,7 +111,7 @@ class HttpServer:
                 ' - %s' % service['name'] if 'name' in service else ''
             )
             self.stats.add_service(hint)
-            self.logs.add_service(hint)
+            self.logs.add_service(service['name'] if 'name' in service else '')
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
