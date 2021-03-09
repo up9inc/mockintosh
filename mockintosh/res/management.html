@@ -45,7 +45,7 @@
             background-color: aliceblue;
         }
 
-        .traffic-details .headers .list-group-item {
+        .traffic-details .list-group-item {
             padding: 0.25rem;
         }
     </style>
@@ -127,39 +127,44 @@
                         <div style="display: none">
                             <small class="text-muted ts"></small>
                             <small class="text-muted pull-right"></small><br/>
-                            <span class="method"></span>
-                            <a href="#" class="url text-dark" target="_blank"></a>
+                            <div class="request">
+                                <span class="method"></span>
+                                <a href="#" class="url text-dark" target="_blank"></a>
 
-                            <ul class="list-group small headers" style="margin-top: 1rem">
-                                <li class="list-group-item header"
-                                    style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
-                                    Request Headers
-                                </li>
-                            </ul>
-                            <ul class="list-group small" style="margin-top: 1rem">
-                                <li class="list-group-item"
-                                    style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
-                                    Request Body
-                                    <a href="#">{&lt;/&gt;}</a>
-                                </li>
-                                <li class="list-group-item" style="cursor: pointer">{"some": "json"}</li>
-                            </ul>
+                                <ul class="list-group small headers" style="margin-top: 1rem">
+                                    <li class="list-group-item header"
+                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                        Request Headers
+                                    </li>
+                                </ul>
+                                <ul class="list-group small body" style="margin-top: 1rem">
+                                    <li class="list-group-item header"
+                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                        Request Body
+                                        <a class="pull-right" href="#" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                    </li>
+                                    <li class="list-group-item actual-body" style="white-space: pre-wrap"></li>
+                                </ul>
+                            </div>
                             <br/>
-                            <span>Response: <span class="badge badge-success">200</span></span>
+                            <div class="response">
+                                <span>Response: <span class="badge badge-success">200</span></span>
 
-                            <table class="table table-striped table-bordered" style="font-size: 0.8rem">
-                                <caption style="caption-side: top; text-align: center">Response Headers</caption>
-                                <tbody>
-                                <tr>
-                                    <td class="text-nowrap">Content-Type</td>
-                                    <td class="w-100">application/json</td>
-                                </tr>
-                                <tr>
-                                    <td>Content-Length</td>
-                                    <td>1212</td>
-                                </tr>
-                                </tbody>
-                            </table>
+                                <ul class="list-group small headers" style="margin-top: 1rem">
+                                    <li class="list-group-item header"
+                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                        Response Headers
+                                    </li>
+                                </ul>
+                                <ul class="list-group small body" style="margin-top: 1rem">
+                                    <li class="list-group-item header"
+                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                        Response Body
+                                        <a class="pull-right" href="." title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                    </li>
+                                    <li class="list-group-item actual-body" style="white-space: pre-wrap"></li>
+                                </ul>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -264,14 +269,36 @@
         let method = $(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
 
-        const label=$(".traffic-details .headers .header");
-        $(".traffic-details .headers").empty().append(label);
+        const label = $(".traffic-details .request .headers .header");
+        $(".traffic-details .request .headers").empty().append(label);
         for (let n = 0; n < entry.request.headers.length; n++) {
             const hdr = entry.request.headers[n];
-            $(".traffic-details .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            $(".traffic-details .request .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
         }
 
+        if (entry.request.postData && entry.request.postData.text) {
+            $(".traffic-details .request .actual-body").text(entry.request.postData.text);
+            $(".traffic-details .request .body").show();
+        } else {
+            $(".traffic-details .request .body").hide();
+        }
 
+        // Response
+        $(".traffic-details .response > span >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
+            .text(entry.response.status + " " + entry.response.statusText);
+        const rlabel = $(".traffic-details .response .headers .header");
+        $(".traffic-details .response .headers").empty().append(rlabel);
+        for (let n = 0; n < entry.response.headers.length; n++) {
+            const hdr = entry.response.headers[n];
+            $(".traffic-details .response .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+        }
+
+        if (entry.response.content && entry.response.content.text) {
+            $(".traffic-details .response .actual-body").text(entry.response.content.text);
+            $(".traffic-details .response .body").show();
+        } else {
+            $(".traffic-details .response .body").hide();
+        }
     }
 
     function traffic_log() {
@@ -419,6 +446,15 @@
             $("#reqlog .traffic-items").empty();
             $(".traffic-items>span").show();
             $(".traffic-items>div").hide();
+        });
+
+        $("#reqlog .header a").click(function () {
+            const body = $(this).parent().parent().find(".actual-body");
+            try {
+                body.text(JSON.stringify(JSON.parse(body.text()), null, 2));
+            } catch (error) {
+            }
+            return false;
         });
 
         $("#reqlog input").change(function () {
