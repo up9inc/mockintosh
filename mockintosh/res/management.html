@@ -19,6 +19,26 @@
         .scheme-container {
             display: none;
         }
+
+        .traffic-items .list-group-item .small {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .traffic-items .list-group-item .pull-left {
+            margin-right: 0.25rem
+        }
+
+        .traffic-items .list-group-item .badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+        .traffic-items .list-group-item .url {
+        }
+
     </style>
 </head>
 
@@ -170,22 +190,78 @@
         return el;
     }
 
+    function timediff(val) {
+        if (val < 100) {
+            return val + "ms"
+        }
+        if (val < 10000) {
+            return (val / 1000).toFixed(1) + "s"
+        }
+        return Math.round(val / 1000) + "s"
+    }
+
+    function status_color(status) {
+        if (status >= 500) {
+            return "danger";
+        }
+
+        if (status >= 400) {
+            return "warning";
+        }
+
+        if (status >= 300) {
+            return "primary";
+        }
+
+        if (status >= 200) {
+            return "success";
+        }
+
+        return "secondary";
+    }
+
+    function method_color(method) {
+        if (method === 'GET') {
+            return 'info'
+        }
+        if (method === 'POST') {
+            return 'success'
+        }
+        if (method === 'DELETE') {
+            return 'danger'
+        }
+        if (method === 'PUT') {
+            return 'warning'
+        }
+        if (method === 'PATCH') {
+            return 'primary'
+        }
+        if (method === 'HEAD') {
+            return 'secondary'
+        }
+        return "dark";
+    }
+
     function traffic_log() {
         $.ajax({
             url: '/traffic-log',
-            type: 'GET',
+            type: 'GET', // FIXME: DELETE
             success: function (result) {
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
-
+                let prev = 0;
                 for (let n = 0; n < result.log.entries.length; n++) {
                     const entry = result.log.entries[n];
-                    const li = $("<li></li>").addClass('list-group-item');
-                    li.append('<span class="small text-muted" style="position: absolute; top:0;left: 0">+2s</span>');
-                    li.append('<span class="text-success pull-left" style="margin-right: 0.25rem">GET</span>');
-                    li.append('<span class="badge badge-success" style="position:absolute; top:0; right:0">' + entry.response.status + '</span>');
-                    li.append('https://localhost:8000/path/subpath?query=val&query=val');
-                    li.click();
+                    const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
+                    const ts = new Date(entry.startedDateTime);
+                    li.append('<span class="small text-muted">+' + timediff(prev ? (ts - prev) : 0) + '</span>');
+                    li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
+                    li.append($('<span class="badge">' + entry.response.status + '</span>').addClass("badge-" + status_color(entry.response.status)));
+                    li.append($('<span class="url">' + entry.request.url + '</span>'));
+
+                    li.click(function () {
+                    });
                     $("#reqlog .traffic-items").append(li);
+                    prev = ts;
                 }
             },
             complete: function () {
@@ -310,7 +386,7 @@
         });
 
         $("#reqlog input").change(function () {
-            $.post("/traffic-log", {"enabled": this.checked ? 'True' : 'False'}).fail(function () {
+            $.post("/traffic-log", {"enable": this.checked ? 'True' : 'False'}).fail(function () {
                 $("#reqlog input").prop('checked', '')
             });
             if (this.checked) {
