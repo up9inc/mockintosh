@@ -84,7 +84,8 @@ setup(
             'coverage',
             'codecov',
             'requests',
-            'openapi-spec-validator'
+            'openapi-spec-validator',
+            'backports-datetime-fromisoformat'
         ]
     },
 
