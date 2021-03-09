@@ -135,6 +135,7 @@ class GenericHandler(tornado.web.RequestHandler):
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
         request_start_datetime.replace(tzinfo=timezone.utc)
         log_record = LogRecord(
+            self.logs.services[self.service_id].hint,
             request_start_datetime,
             elapsed_time_in_milliseconds,
             self.special_request,
@@ -374,6 +375,7 @@ class GenericHandler(tornado.web.RequestHandler):
         request.protocol = self.request.protocol
         request.host = self.request.host
         request.hostName = self.request.host_name
+        request.port = self.request.server_connection.stream.socket.getsockname()[1]
         request.uri = self.request.uri
 
         # Method

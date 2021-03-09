@@ -30,12 +30,14 @@ def _get_log_root(enabled):
 class LogRecord:
     def __init__(
         self,
+        hint: str,
         request_start_time: int,
         elapsed_time_in_milliseconds: int,
         request: Request,
         response: Response,
         server_connection: HTTP1ServerConnection
     ):
+        self.hint = hint
         self.request_start_time = request_start_time
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
@@ -45,6 +47,7 @@ class LogRecord:
 
     def json(self):
         data = {
+            '_service_name': self.hint,
             'startedDateTime': self.request_start_time.astimezone().isoformat(),
             'time': self.elapsed_time_in_milliseconds,
             'request': self.request._har(),
@@ -78,9 +81,10 @@ class EndpointLogs():
 
 
 class ServiceLogs():
-    def __init__(self):
+    def __init__(self, hint):
         self.endpoints = []
         self.enabled = False
+        self.hint = hint
 
     def is_enabled(self):
         return self.enabled
@@ -110,8 +114,8 @@ class Logs():
     def is_enabled(self):
         return any(service.is_enabled() for service in self.services)
 
-    def add_service(self):
-        service_logs = ServiceLogs()
+    def add_service(self, hint):
+        service_logs = ServiceLogs(hint)
         service_logs.parent = self
         self.services.append(service_logs)
 

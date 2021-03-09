@@ -28,6 +28,7 @@ class Request():
         self.protocol = None
         self.host = None
         self.hostName = None
+        self.port = None
         self.uri = None
         self.method = None
         self.path = None
@@ -71,7 +72,7 @@ class Request():
 
         data = {
             "method": self.method,
-            "url": "%s://%s:%s%s%s" % (self.protocol, self.hostName, 80, self.path, '?' + qs if qs else ''),
+            "url": "%s://%s:%s%s%s" % (self.protocol, self.hostName, self.port, self.path, '?' + qs if qs else ''),
             "httpVersion": "HTTP/1.1",
             "cookies": [],
             "headers": headers,
