@@ -13,6 +13,20 @@ from mockintosh.constants import PROGRAM
 from mockintosh.replicas import Request, Response
 
 
+def _get_log_root(enabled):
+    return {
+        "log": {
+            "_enabled": enabled,
+            "version": "1.2",
+            "creator": {
+                "name": "%s" % PROGRAM.capitalize(),
+                "version": "%s" % mockintosh.__version__
+            },
+            "entries": []
+        }
+    }
+
+
 class LogRecord:
     def __init__(
         self,
@@ -31,7 +45,7 @@ class LogRecord:
 
     def json(self):
         data = {
-            'startedDateTime': self.request_start_time.isoformat(),
+            'startedDateTime': self.request_start_time.astimezone().isoformat(),
             'time': self.elapsed_time_in_milliseconds,
             'request': self.request._har(),
             'response': self.response._har(),
@@ -73,26 +87,22 @@ class ServiceLogs():
         self.endpoints.append(endpoint_logs)
 
     def json(self):
-        data = {
-            "log": {
-                "version": "1.2",
-                "creator": {
-                    "name": "%s" % PROGRAM.capitalize(),
-                    "version": "%s" % mockintosh.__version__
-                },
-                "entries": []
-            }
-        }
+        data = _get_log_root(self.parent.enabled)
 
         for endpoint in self.endpoints:
             data['log']['entries'] += endpoint.json()
 
         return data
 
+    def reset(self):
+        for endpoint in self.endpoints:
+            endpoint.records = []
+
 
 class Logs():
     def __init__(self):
         self.services = []
+        self.enabled = False
 
     def add_service(self):
         service_logs = ServiceLogs()
@@ -100,16 +110,7 @@ class Logs():
         self.services.append(service_logs)
 
     def json(self):
-        data = {
-            "log": {
-                "version": "1.2",
-                "creator": {
-                    "name": "%s" % PROGRAM.capitalize(),
-                    "version": "%s" % mockintosh.__version__
-                },
-                "entries": []
-            }
-        }
+        data = _get_log_root(self.enabled)
 
         for service in self.services:
             for endpoint in service.endpoints:

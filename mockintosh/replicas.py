@@ -11,6 +11,8 @@ import logging
 from urllib.parse import urlencode
 from http.client import responses
 
+from mockintosh.methods import _decoder
+
 
 class _NotParsedJSON():
     """Class to determine wheter the request body is parsed into JSON or not."""
@@ -120,10 +122,12 @@ class Response():
                 'value': value
             })
 
+        body = _decoder(self.body) if isinstance(self.body, (bytes, bytearray)) else self.body
+        body = '' if body is None else body
         content = {
             "size": self.bodySize,
             "mimeType": self.headers['Content-Type'] if 'Content-Type' in self.headers else "text/html; charset=utf-8",
-            "text": self.body
+            "text": body
         }
 
         return {

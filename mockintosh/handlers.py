@@ -12,10 +12,9 @@ import os
 import re
 import socket
 import struct
-import time
 import traceback
 import urllib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Union,
     Optional,
@@ -97,17 +96,15 @@ class GenericHandler(tornado.web.RequestHandler):
     def prepare(self) -> Optional[Awaitable[None]]:
         """Overriden method of tornado.web.RequestHandler"""
         self.dont_add_status_code = False
-        self.special_request_start_datetime = datetime.utcnow()
-        self.special_request_start_time = time.perf_counter()
         super().prepare()
 
     def on_finish(self) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
-                elapsed_time_in_seconds = self.get_elapsed_time()
-                self.set_elapsed_time(elapsed_time_in_seconds)
-                self.add_log_record(int(round(elapsed_time_in_seconds * 1000)))
+                elapsed_time = self.request.request_time()
+                self.set_elapsed_time(elapsed_time)
+                self.add_log_record(int(round(elapsed_time * 1000)))
             if not self.dont_add_status_code:
                 if self.get_status() == 405:
                     self.stats.services[self.service_id].add_status_code(
@@ -124,9 +121,6 @@ class GenericHandler(tornado.web.RequestHandler):
         if hasattr(self, 'special_response'):
             self.special_response.bodySize = len(b"".join(self._write_buffer))
 
-    def get_elapsed_time(self) -> str:
-        return (time.perf_counter() - self.special_request_start_time)
-
     def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
         """Method to calculate and store the elapsed time of the request handling to be used in stats."""
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
@@ -135,8 +129,13 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
         """Method that creates a log record and inserts it to log tracking system."""
+        if not self.logs.enabled:
+            return
+
+        request_start_datetime = datetime.fromtimestamp(self.request._start_time)
+        request_start_datetime.replace(tzinfo=timezone.utc)
         log_record = LogRecord(
-            self.special_request_start_datetime,
+            request_start_datetime,
             elapsed_time_in_milliseconds,
             self.special_request,
             self.special_response,
@@ -465,7 +464,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 struct.pack('ii', 1, 0)
             )
             self.request.server_connection.stream.close()
-            self.set_elapsed_time(self.get_elapsed_time())
+            self.set_elapsed_time(self.request.request_time())
             self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('RST')
         if isinstance(status_code, str) and status_code.lower() == 'fin':
             self.request.server_connection.stream.close()
