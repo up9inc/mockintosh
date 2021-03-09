@@ -22,7 +22,6 @@ from requests.exceptions import ConnectionError
 from openapi_spec_validator import validate_spec
 from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
-MonkeyPatch.patch_fromisoformat()
 
 import mockintosh
 from mockintosh.constants import PROGRAM
@@ -34,6 +33,8 @@ from utilities import (
     nostdout,
     nostderr
 )
+
+MonkeyPatch.patch_fromisoformat()
 
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
