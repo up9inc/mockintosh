@@ -772,10 +772,51 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('cors.html', files)
 
     def test_traffic_log(self):
-        self.test_urlencoded()
-        self.test_multipart()
+        self._test_traffic_log(MGMT)
+        self._test_traffic_log(SRV1 + '/__admin')
 
-        resp = requests.get(MGMT + '/traffic-log', verify=False)
+    def _test_traffic_log(self, root):
+        self.test_urlencoded()  # ensure requests are there
+
+        # clear log
+        resp = requests.delete(root + '/traffic-log', verify=False)
         resp.raise_for_status()
         json = resp.json()
-        validate(json, {"$schema": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        self.assertFalse(json['entries'])
+        self.assertFalse(json['log']['_enabled'])
+
+        # enable log
+        resp = requests.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
+        resp.raise_for_status()
+
+        # check
+        resp = requests.get(root + '/traffic-log', verify=False)
+        resp.raise_for_status()
+        json = resp.json()
+        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        self.assertFalse(json['entries'])
+        self.assertTrue(json['log']['_enabled'])
+
+        # make requests
+        self.test_multipart()
+
+        # fetch log
+        resp = requests.get(root + '/traffic-log', verify=False)
+        resp.raise_for_status()
+        json = resp.json()
+        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        self.assertTrue(json['entries'])
+
+        # clear
+        resp = requests.delete(root + '/traffic-log', verify=False)
+        resp.raise_for_status()
+
+        # validate cleared
+        resp = requests.delete(root + '/traffic-log', verify=False)
+        resp.raise_for_status()
+        self.assertFalse(json['entries'])
+
+        # disable log
+        resp = requests.post(MGMT + '/traffic-log', data={"enable": False}, verify=False)
+        resp.raise_for_status()
