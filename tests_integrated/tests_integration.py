@@ -783,7 +783,7 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         json = resp.json()
         validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
-        self.assertFalse(json['entries'])
+        self.assertFalse(json['log']['entries'])
         self.assertFalse(json['log']['_enabled'])
 
         # enable log
@@ -795,7 +795,7 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         json = resp.json()
         validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
-        self.assertFalse(json['entries'])
+        self.assertFalse(json['log']['entries'])
         self.assertTrue(json['log']['_enabled'])
 
         # make requests
@@ -806,7 +806,7 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         json = resp.json()
         validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
-        self.assertTrue(json['entries'])
+        self.assertTrue(json['log']['entries'])
 
         # clear
         resp = requests.delete(root + '/traffic-log', verify=False)
@@ -815,7 +815,7 @@ class IntegrationTests(unittest.TestCase):
         # validate cleared
         resp = requests.delete(root + '/traffic-log', verify=False)
         resp.raise_for_status()
-        self.assertFalse(json['entries'])
+        self.assertFalse(json['log']['entries'])
 
         # disable log
         resp = requests.post(MGMT + '/traffic-log', data={"enable": False}, verify=False)
