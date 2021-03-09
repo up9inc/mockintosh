@@ -2294,7 +2294,7 @@ class TestManagement():
 
             url_parsed1 = urlparse(SRV_8001)
             for entry in data['log']['entries'][0:2]:
-                assert entry['_service_name'] == '%s:%s - Mock for Service1' % (SRV_8001_HOST, url_parsed1.port)
+                assert entry['_serviceName'] == 'Mock for Service1'
                 assert datetime.fromisoformat(entry['startedDateTime']) > test_start_time
                 assert entry['time'] > 0
 
@@ -2342,7 +2342,7 @@ class TestManagement():
             if not admin_headers:
                 url_parsed2 = urlparse(SRV_8002)
                 for entry in data['log']['entries'][3:4]:
-                    assert entry['_service_name'] == '%s:%s - Mock for Service2' % (SRV_8002_HOST, url_parsed2.port)
+                    assert entry['_serviceName'] == 'Mock for Service2'
                     assert datetime.fromisoformat(entry['startedDateTime']) > test_start_time
                     assert entry['time'] > 0
 

@@ -76,3 +76,13 @@ def _decoder(string):
         return string.decode('utf-8')
     except UnicodeDecodeError:
         return string.decode('latin-1')
+
+
+def _is_mostly_bin(s: bytes) -> bool:
+    if not s or len(s) == 0:
+        return False
+
+    return sum(
+        i < 9 or 13 < i < 32 or 126 < i
+        for i in s[:100]
+    ) / len(s[:100]) > 0.3

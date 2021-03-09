@@ -133,7 +133,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                     ' - %s' % service['name'] if 'name' in service else ''
                 )
                 self.http_server.stats.add_service(hint)
-                self.http_server.logs.add_service(hint)
+                self.http_server.logs.add_service(service['name'] if 'name' in service else '')
             for i, service in enumerate(data['services']):
                 service['internalServiceId'] = i
                 self.update_service(service, i)
