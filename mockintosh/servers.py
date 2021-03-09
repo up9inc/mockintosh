@@ -317,7 +317,7 @@ class HttpServer:
                     )
                 ),
                 (
-                    '/%s/logs' % management_root,
+                    '/%s/traffic-log' % management_root,
                     ManagementServiceLogsHandler,
                     dict(
                         logs=logs,
@@ -427,7 +427,7 @@ class HttpServer:
                     )
                 ),
                 (
-                    '/logs',
+                    '/traffic-log',
                     ManagementLogsHandler,
                     dict(
                         logs=logs
