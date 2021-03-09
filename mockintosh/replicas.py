@@ -13,6 +13,8 @@ from http.client import responses
 
 from mockintosh.methods import _decoder
 
+BASE64 = 'base64'
+
 
 class _NotParsedJSON():
     """Class to determine wheter the request body is parsed into JSON or not."""
@@ -35,6 +37,7 @@ class Request():
         self.headers = {}
         self.queryString = {}
         self.body = {}
+        self.bodyType = {}
         self.bodySize = 0
         self._json = _NotParsedJSON()
         self.mimeType = None
@@ -90,16 +93,21 @@ class Request():
                     "text": ""
                 }
                 for key, value in self.body.items():
-                    post_data['params'].append({
+                    row = {
                         'name': key,
                         'value': value
-                    })
+                    }
+                    if self.bodyType[key] == BASE64:
+                        row['_encoding'] = BASE64
+                    post_data['params'].append(row)
             elif isinstance(self.body, str):
                 post_data = {
                     "mimeType": self.mimeType,
                     "params": [],
                     "text": self.body
                 }
+                if self.bodyType == BASE64:
+                    post_data['_encoding'] = BASE64
 
             data['postData'] = post_data
 
