@@ -36,9 +36,14 @@
             right: 0;
         }
 
-        .traffic-items .list-group-item .url {
+        .traffic-items .list-group-item {
+            padding: 0.9rem 0.25rem 0.25rem 0.25rem;
+            cursor: pointer;
         }
 
+        .traffic-items .list-group-item.selected{
+            background-color: aliceblue;
+        }
     </style>
 </head>
 
@@ -242,6 +247,12 @@
         return "dark";
     }
 
+    function details(item) {
+        $(".traffic-items .selected").removeClass('selected');
+        item.addClass('selected');
+        console.log(item);
+    }
+
     function traffic_log() {
         $.ajax({
             url: '/traffic-log',
@@ -256,9 +267,11 @@
                     li.append('<span class="small text-muted">+' + timediff(prev ? (ts - prev) : 0) + '</span>');
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
                     li.append($('<span class="badge">' + entry.response.status + '</span>').addClass("badge-" + status_color(entry.response.status)));
-                    li.append($('<span class="url">' + entry.request.url + '</span>'));
+                    const url = new URL(entry.request.url);
+                    li.append($('<span class="url">' + url.pathname + new Option(url.search).innerHTML + '</span>'));
 
                     li.click(function () {
+                        details($(this));
                     });
                     $("#reqlog .traffic-items").append(li);
                     prev = ts;
