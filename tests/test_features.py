@@ -2294,11 +2294,12 @@ class TestManagement():
 
             url_parsed1 = urlparse(SRV_8001)
             for entry in data['log']['entries'][0:2]:
+                assert entry['_service_name'] == '%s:%s - Mock for Service1' % (SRV_8001_HOST, url_parsed1.port)
                 assert datetime.fromisoformat(entry['startedDateTime']) > test_start_time
                 assert entry['time'] > 0
 
                 assert entry['request']['method'] == 'GET'
-                assert entry['request']['url'] == '%s://%s/service1' % (url_parsed1.scheme, '%s:80' % SRV_8001_HOST)
+                assert entry['request']['url'] == '%s://%s:%s/service1' % (url_parsed1.scheme, SRV_8001_HOST, url_parsed1.port)
                 assert entry['request']['httpVersion'] == 'HTTP/1.1'
                 assert not entry['request']['cookies']
                 request_headers = {x['name']: x['value'] for x in entry['request']['headers']}
@@ -2341,11 +2342,12 @@ class TestManagement():
             if not admin_headers:
                 url_parsed2 = urlparse(SRV_8002)
                 for entry in data['log']['entries'][3:4]:
+                    assert entry['_service_name'] == '%s:%s - Mock for Service2' % (SRV_8002_HOST, url_parsed2.port)
                     assert datetime.fromisoformat(entry['startedDateTime']) > test_start_time
                     assert entry['time'] > 0
 
                     assert entry['request']['method'] == 'GET'
-                    assert entry['request']['url'] == '%s://%s/service2' % (url_parsed2.scheme, '%s:80' % SRV_8002_HOST)
+                    assert entry['request']['url'] == '%s://%s:%s/service2' % (url_parsed2.scheme, SRV_8002_HOST, url_parsed2.port)
                     assert entry['response']['content']['text'] == service2_response
 
             resp = requests.post(admin_url + '/traffic-log', data={"enable": False}, headers=admin_headers)

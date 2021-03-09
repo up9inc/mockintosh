@@ -135,6 +135,7 @@ class GenericHandler(tornado.web.RequestHandler):
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
         request_start_datetime.replace(tzinfo=timezone.utc)
         log_record = LogRecord(
+            self.logs.services[self.service_id].hint,
             request_start_datetime,
             elapsed_time_in_milliseconds,
             self.special_request,
@@ -374,6 +375,7 @@ class GenericHandler(tornado.web.RequestHandler):
         request.protocol = self.request.protocol
         request.host = self.request.host
         request.hostName = self.request.host_name
+        request.port = self.request.server_connection.stream.socket.getsockname()[1]
         request.uri = self.request.uri
 
         # Method
@@ -397,17 +399,36 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.request.body_arguments:
             request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
+                try:
+                    for x in value:
+                        x.decode('utf-8')
+                    request.bodyType[key] = 'str'
+                except (UnicodeDecodeError, AttributeError):
+                    request.bodyType[key] = 'base64'
+
                 request.body[key] = [_decoder(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
             request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
+                try:
+                    for x in value:
+                        x.decode('utf-8')
+                    request.bodyType[key] = 'str'
+                except (UnicodeDecodeError, AttributeError):
+                    request.bodyType[key] = 'base64'
+
                 request.body[key] = [_decoder(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
             request.mimeType = 'text/plain'
+            try:
+                self.request.body.decode('utf-8')
+                request.bodyType = 'str'
+            except (UnicodeDecodeError, AttributeError):
+                request.bodyType = 'base64'
             request.body = _decoder(self.request.body)
         request.bodySize = len(self.request.body)
 

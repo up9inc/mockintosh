@@ -13,6 +13,8 @@ from http.client import responses
 
 from mockintosh.methods import _decoder
 
+BASE64 = 'base64'
+
 
 class _NotParsedJSON():
     """Class to determine wheter the request body is parsed into JSON or not."""
@@ -28,12 +30,14 @@ class Request():
         self.protocol = None
         self.host = None
         self.hostName = None
+        self.port = None
         self.uri = None
         self.method = None
         self.path = None
         self.headers = {}
         self.queryString = {}
         self.body = {}
+        self.bodyType = {}
         self.bodySize = 0
         self._json = _NotParsedJSON()
         self.mimeType = None
@@ -71,7 +75,7 @@ class Request():
 
         data = {
             "method": self.method,
-            "url": "%s://%s:%s%s%s" % (self.protocol, self.hostName, 80, self.path, '?' + qs if qs else ''),
+            "url": "%s://%s:%s%s%s" % (self.protocol, self.hostName, self.port, self.path, '?' + qs if qs else ''),
             "httpVersion": "HTTP/1.1",
             "cookies": [],
             "headers": headers,
@@ -89,16 +93,21 @@ class Request():
                     "text": ""
                 }
                 for key, value in self.body.items():
-                    post_data['params'].append({
+                    row = {
                         'name': key,
                         'value': value
-                    })
+                    }
+                    if self.bodyType[key] == BASE64:
+                        row['_encoding'] = BASE64
+                    post_data['params'].append(row)
             elif isinstance(self.body, str):
                 post_data = {
                     "mimeType": self.mimeType,
                     "params": [],
                     "text": self.body
                 }
+                if self.bodyType == BASE64:
+                    post_data['_encoding'] = BASE64
 
             data['postData'] = post_data
 
