@@ -123,6 +123,7 @@ class Response():
             })
 
         body = _decoder(self.body) if isinstance(self.body, (bytes, bytearray)) else self.body
+        body = '' if body is None else body
         content = {
             "size": self.bodySize,
             "mimeType": self.headers['Content-Type'] if 'Content-Type' in self.headers else "text/html; charset=utf-8",
