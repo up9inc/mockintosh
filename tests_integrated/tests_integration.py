@@ -785,7 +785,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(json['log']['_enabled'])
 
         # enable log
-        resp = requests.post(root + '/traffic-log', data={"enable": True}, verify=False)
+        resp = requests.post(root + '/traffic-log', data={"enable": "true"}, verify=False)
         resp.raise_for_status()
 
         # check
@@ -806,14 +806,15 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.delete(root + '/traffic-log', verify=False)
         resp.raise_for_status()
 
-        # validate cleared
-        resp = requests.delete(root + '/traffic-log', verify=False)
-        resp.raise_for_status()
-        self.assertFalse(json['log']['entries'])
-
         # disable log
-        resp = requests.post(root + '/traffic-log', data={"enable": False}, verify=False)
+        resp = requests.post(root + '/traffic-log', data={"enable": "false"}, verify=False)
         resp.raise_for_status()
+
+        # validate cleared
+        resp = requests.get(root + '/traffic-log', verify=False)
+        json = self._valid_har(resp)
+        self.assertFalse(json['log']['entries'])
+        self.assertFalse(json['log']['_enabled'])
 
     def _valid_har(self, resp):
         resp.raise_for_status()
