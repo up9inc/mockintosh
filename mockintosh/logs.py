@@ -26,7 +26,8 @@ class LogRecord:
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
         self.response = response
-        self.server_connection = server_connection
+        self.server_ip_address = server_connection.stream.socket.getsockname()[0]
+        self.connection = str(server_connection.stream.socket.getsockname()[1])
 
     def json(self):
         data = {
@@ -42,8 +43,8 @@ class LogRecord:
                 'connect': 0,
                 'ssl': 0
             },
-            'serverIPAddress': self.server_connection.stream.socket.getsockname()[0],
-            'connection': str(self.server_connection.stream.socket.getsockname()[1])
+            'serverIPAddress': self.server_ip_address,
+            'connection': self.connection
         }
         return data
 
