@@ -757,6 +757,9 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertTrue(resp.text.endswith(marker))
 
+        resp = requests.post(MGMT + '/resources', files={"cors.html": orig_content}, verify=False)
+        resp.raise_for_status()
+
         with self.assertRaises(requests.exceptions.HTTPError):
             resp = requests.get(MGMT + '/resources?path=/etc/hosts', verify=False)
             resp.raise_for_status()

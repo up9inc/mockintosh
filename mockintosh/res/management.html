@@ -47,6 +47,19 @@
 
         .traffic-details .list-group-item {
             padding: 0.25rem;
+            background-color: #F6F6F6;
+        }
+
+        .actual-body {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.75rem;
+        }
+
+        .traffic-details .list-group-item.header {
+            padding-bottom: 0;
+            padding-top: 0;
+            background-color: #DDD;
+            text-align: center
         }
     </style>
 </head>
@@ -132,16 +145,15 @@
                                 <a href="#" class="url text-dark" target="_blank"></a>
 
                                 <ul class="list-group small headers" style="margin-top: 1rem">
-                                    <li class="list-group-item header"
-                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                    <li class="list-group-item header">
                                         Request Headers
                                     </li>
                                 </ul>
                                 <ul class="list-group small body" style="margin-top: 1rem">
-                                    <li class="list-group-item header"
-                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                    <li class="list-group-item header">
                                         Request Body
                                         <a class="pull-right" href="#" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                        <a class="pull-left" href="#" title="Collapse view">[-]</a>
                                     </li>
                                     <li class="list-group-item actual-body" style="white-space: pre-wrap"></li>
                                 </ul>
@@ -151,18 +163,20 @@
                                 <span>Response: <span class="badge badge-success">200</span></span>
 
                                 <ul class="list-group small headers" style="margin-top: 1rem">
-                                    <li class="list-group-item header"
-                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                    <li class="list-group-item header">
                                         Response Headers
                                     </li>
                                 </ul>
                                 <ul class="list-group small body" style="margin-top: 1rem">
-                                    <li class="list-group-item header"
-                                        style="padding-bottom: 0; padding-top: 0; background-color: #EEE; text-align: center">
+                                    <li class="list-group-item header">
                                         Response Body
-                                        <a class="pull-right" href="." title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                        <a class="pull-right" href="#" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                        <a class="pull-left" data-toggle="collapse" href="#collapseRespBody"
+                                           title="Collapse view" role="button" aria-expanded="true"
+                                           aria-controls="collapseRespBody">[+]</a>
                                     </li>
-                                    <li class="list-group-item actual-body" style="white-space: pre-wrap"></li>
+                                    <li class="list-group-item actual-body collapse show" id="collapseRespBody"
+                                        style="white-space: pre-wrap"></li>
                                 </ul>
                             </div>
                         </div>
@@ -257,10 +271,19 @@
         return "dark";
     }
 
+    function is_img(response) {
+        if (response.content.mimeType.startsWith('image/')) {
+            return "data:" + response.content.mimeType + ";" + (response.content.encoding ? 'base64' : '') + "," + response.content.text;
+        } else {
+            return null;
+        }
+    }
+
     function details(item) {
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
         const entry = item.data("obj");
+        console.log(entry)
         $(".traffic-details>span").hide();
         $(".traffic-details>div").show();
         $(".traffic-details .ts").text(entry.startedDateTime);
@@ -294,7 +317,13 @@
         }
 
         if (entry.response.content && entry.response.content.text) {
-            $(".traffic-details .response .actual-body").text(entry.response.content.text);
+            const img = is_img(entry.response);
+            if (img) {
+                $(".traffic-details .response .actual-body").empty().append("<img src='" + img + "' alt='Response Image'/>");
+            } else {
+                $(".traffic-details .response .actual-body").empty().text(entry.response.content.text);
+            }
+
             $(".traffic-details .response .body").show();
         } else {
             $(".traffic-details .response .body").hide();
