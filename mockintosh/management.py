@@ -215,8 +215,8 @@ class ManagementLogsHandler(ManagementBaseHandler):
         self.set_status(204)
 
     def delete(self):
-        self.logs.reset()
         self.write(self.logs.json())
+        self.logs.reset()
 
 
 class ManagementResetIteratorsHandler(ManagementBaseHandler):
@@ -900,8 +900,8 @@ class ManagementServiceLogsHandler(ManagementBaseHandler):
         self.set_status(204)
 
     def delete(self):
-        self.logs.services[self.service_id].reset()
         self.write(self.logs.services[self.service_id].json())
+        self.logs.services[self.service_id].reset()
 
 
 class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
