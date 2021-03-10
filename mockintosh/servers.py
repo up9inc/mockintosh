@@ -213,7 +213,6 @@ class HttpServer:
                 ' - %s' % endpoint['id'] if 'id' in endpoint else ''
             )
             stats.services[service['internalServiceId']].add_endpoint(hint)
-            logs.services[service['internalServiceId']].add_endpoint()
             identifier = endpoint['path']
             extracted_parts = {}
             for key in endpoint:
