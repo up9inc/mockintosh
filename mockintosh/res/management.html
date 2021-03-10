@@ -111,7 +111,15 @@
         <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab">
             <button class="btn btn-sm btn-primary">Refresh</button>
             <button class="btn btn-sm btn-danger">Reset Statistics</button>
-            <pre></pre>
+            <table class="table table-striped table-hover">
+                <thead>
+                <th></th>
+                <th>Request Count</th>
+                <th>Avg. Response Time</th>
+                <th>Response Codes</th>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
         <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
             <select></select>
@@ -362,10 +370,35 @@
         });
     }
 
+    function stats_row(data_row, label) {
+        const row = $("<tr><td>" + label + "</td><td>" + data_row.request_counter + "</td><td>" + data_row.avg_resp_time.toFixed(3) + "</td></tr>");
+        const td = $("<td></td>");
+        for (let code in data_row.status_code_distribution) {
+            td.append("<span class='badge badge-" + status_color(code) + "' title='" + data_row.status_code_distribution[code] + " responses'>" + code + "</span>");
+        }
+        row.append(td);
+        return row;
+    }
+
+    function stats(data) {
+        let tbody = $("#stats table tbody");
+        tbody.empty();
+        tbody.append(stats_row(data.global, "Overall").addClass('font-weight-bold font-italic'));
+        for (let s = 0; s < data.services.length; s++) {
+            let svc = data.services[s];
+            tbody.append(stats_row(svc, svc.hint).addClass('font-weight-bold'));
+
+            for (let e = 0; e < svc.endpoints.length; e++) {
+                let endp = svc.endpoints[e];
+                tbody.append(stats_row(endp, endp.hint).addClass('small'));
+            }
+        }
+    }
+
     $(function () {
         $("#stats .btn-primary").click(function () {
             $.getJSON("./stats").done(function (data) {
-                $("#stats pre").text(JSON.stringify(data, null, 2));
+                stats(data);
             });
         }).trigger('click');
 
