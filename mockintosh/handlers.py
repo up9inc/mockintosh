@@ -129,7 +129,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
         """Method that creates a log record and inserts it to log tracking system."""
-        if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection is None:
+        if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
             return
 
         if not hasattr(self, 'special_response'):
