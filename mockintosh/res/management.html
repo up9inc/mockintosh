@@ -82,6 +82,11 @@
                aria-controls="contact" aria-selected="false">Query APIs</a>
         </li>
         <li class="nav-item" role="presentation">
+            <a class="nav-link" id="reqlog-tab" data-toggle="tab" href="#reqlog" role="tab"
+               aria-controls="reqlog"
+               aria-selected="false">Traffic Log</a>
+        </li>
+        <li class="nav-item" role="presentation">
             <a class="nav-link" id="stats-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
                aria-selected="true">Statistics</a>
         </li>
@@ -93,11 +98,6 @@
             <a class="nav-link" id="unhandled-tab" data-toggle="tab" href="#unhandled" role="tab"
                aria-controls="unhandled"
                aria-selected="false">Unhandled Requests</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" id="reqlog-tab" data-toggle="tab" href="#reqlog" role="tab"
-               aria-controls="reqlog"
-               aria-selected="false">Traffic Log</a>
         </li>
     </ul>
     <div class="tab-content" id="myTabContent">
@@ -309,6 +309,9 @@
 
         if (entry.request.postData && entry.request.postData.text) {
             $(".traffic-details .request .actual-body").text(entry.request.postData.text);
+            if (entry.request.postData._encoding) {
+                $(".traffic-details .request .actual-body").prepend("Base64 Encoded:\n");
+            }
             $(".traffic-details .request .body").show();
         } else {
             $(".traffic-details .request .body").hide();
@@ -330,6 +333,9 @@
                 $(".traffic-details .response .actual-body").empty().append("<img src='" + img + "' alt='Response Image'/>");
             } else {
                 $(".traffic-details .response .actual-body").empty().text(entry.response.content.text);
+                if (entry.response.content.encoding) {
+                    $(".traffic-details .response .actual-body").prepend("Base64 Encoded:\n");
+                }
             }
 
             $(".traffic-details .response .body").show();
@@ -341,7 +347,7 @@
     function traffic_log() {
         $.ajax({
             url: '/traffic-log',
-            type: 'GET', // FIXME: DELETE
+            type: 'DELETE',
             success: function (result) {
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
                 let prev = 0;
@@ -371,7 +377,7 @@
     }
 
     function stats_row(data_row, label) {
-        const row = $("<tr><td>" + label + "</td><td>" + data_row.request_counter + "</td><td>" + data_row.avg_resp_time.toFixed(3) + "</td></tr>");
+        const row = $("<tr><td>" + label + "</td><td>" + data_row.request_counter + "</td><td>" + data_row.avg_resp_time.toFixed(3) + "s</td></tr>");
         const td = $("<td></td>");
         for (let code in data_row.status_code_distribution) {
             td.append("<span class='badge badge-" + status_color(code) + "' title='" + data_row.status_code_distribution[code] + " responses'>" + code + "</span>");
