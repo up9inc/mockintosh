@@ -129,8 +129,11 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
         """Method that creates a log record and inserts it to log tracking system."""
-        if not self.logs.services[self.service_id].is_enabled():
+        if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection is None:
             return
+
+        if not hasattr(self, 'special_response'):
+            self.special_response = self.build_special_response()
 
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
         request_start_datetime.replace(tzinfo=timezone.utc)
