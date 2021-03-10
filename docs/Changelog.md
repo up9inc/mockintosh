@@ -86,8 +86,9 @@
 - YAML format for unhandled requests
 - get rid of default config that runs with no params
 - allow editing resource files via mgmt API/UI
-
 - "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header
+- traffic log API & viewer
+
 - mgmt UI change config global section didn't work
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - "Bypass" mode for service to learn configuration

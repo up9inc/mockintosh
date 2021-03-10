@@ -124,15 +124,14 @@ class ManagementConfigHandler(ManagementBaseHandler):
             data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
             self.http_server.stats.services = []
             for service in data['services']:
-                self.http_server.stats.add_service(
-                    '%s:%s%s' % (
-                        service['hostname'] if 'hostname' in service else (
-                            self.http_server.address if self.http_server.address else 'localhost'
-                        ),
-                        service['port'],
-                        ' - %s' % service['name'] if 'name' in service else ''
-                    )
+                hint = '%s:%s%s' % (
+                    service['hostname'] if 'hostname' in service else (
+                        self.http_server.address if self.http_server.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
                 )
+                self.http_server.stats.add_service(hint)
             for i, service in enumerate(data['services']):
                 service['internalServiceId'] = i
                 self.update_service(service, i)
@@ -151,9 +150,14 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.check_restricted_fields(service, service_index)
         endpoints = []
         self.http_server.stats.services[service_index].endpoints = []
+        self.http_server.logs.services[service_index].name = service['name'] if 'name' in service else ''
 
         if 'endpoints' in service:
-            endpoints = mockintosh.servers.HttpServer.merge_alternatives(service, self.http_server.stats)
+            endpoints = mockintosh.servers.HttpServer.merge_alternatives(
+                service,
+                self.http_server.stats,
+                self.http_server.logs
+            )
         merged_endpoints = []
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
@@ -194,6 +198,25 @@ class ManagementStatsHandler(ManagementBaseHandler):
     def delete(self):
         self.stats.reset()
         self.set_status(204)
+
+
+class ManagementLogsHandler(ManagementBaseHandler):
+
+    def initialize(self, logs):
+        self.logs = logs
+
+    def get(self):
+        self.write(self.logs.json())
+
+    def post(self):
+        enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        for service in self.logs.services:
+            service.enabled = enabled
+        self.set_status(204)
+
+    def delete(self):
+        self.write(self.logs.json())
+        self.logs.reset()
 
 
 class ManagementResetIteratorsHandler(ManagementBaseHandler):
@@ -859,6 +882,26 @@ class ManagementServiceStatsHandler(ManagementBaseHandler):
     def delete(self):
         self.stats.services[self.service_id].reset()
         self.set_status(204)
+
+
+class ManagementServiceLogsHandler(ManagementBaseHandler):
+
+    def initialize(self, logs, service_id):
+        self.logs = logs
+        self.service_id = service_id
+
+    def get(self):
+        self.write(self.logs.services[self.service_id].json())
+
+    def post(self):
+        self.logs.services[self.service_id].enabled = not (
+            self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        )
+        self.set_status(204)
+
+    def delete(self):
+        self.write(self.logs.services[self.service_id].json())
+        self.logs.services[self.service_id].reset()
 
 
 class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):

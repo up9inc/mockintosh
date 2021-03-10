@@ -12,9 +12,9 @@ import os
 import re
 import socket
 import struct
-import time
 import traceback
 import urllib
+from datetime import datetime, timezone
 from typing import (
     Union,
     Optional,
@@ -28,10 +28,11 @@ from tornado.concurrent import Future
 
 import mockintosh
 from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
+from mockintosh.replicas import Request, Response
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _decoder
+from mockintosh.methods import _safe_path_split, _detect_engine, _decoder, _is_mostly_bin, _b64encode
 from mockintosh.params import (
     PathParam,
     HeaderParam,
@@ -41,6 +42,7 @@ from mockintosh.params import (
     BodyMultipartParam
 )
 from mockintosh.stats import Stats
+from mockintosh.logs import Logs, LogRecord
 from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
@@ -88,62 +90,21 @@ class NewHTTPError(Exception):
     pass
 
 
-class NotParsedJSON():
-    """Class to determine wheter the request body is parsed into JSON or not."""
-    pass
-
-
-class Request():
-    """Class that defines the `Request` object which is being injected into the response template."""
-
-    def __init__(self) -> None:
-        self.version = None
-        self.remoteIp = None
-        self.protocol = None
-        self.host = None
-        self.hostName = None
-        self.uri = None
-        self.method = None
-        self.path = None
-        self.headers = {}
-        self.queryString = {}
-        self.body = {}
-        self._json = NotParsedJSON()
-
-    @property
-    def json(self) -> [None, dict]:
-        if isinstance(self._json, NotParsedJSON):
-            try:
-                self._json = json.loads(self.body)
-            except json.JSONDecodeError:
-                logging.warning('Failed to decode request body to JSON:\n%s', self.body)
-                self._json = None
-        return self._json
-
-
-class Response():
-    """Class that defines the `Response` object which is being used by the interceptors."""
-
-    def __init__(self) -> None:
-        self.status = None
-        self.headers = {}
-        self.body = None
-
-
 class GenericHandler(tornado.web.RequestHandler):
     """Class to handle all mocked requests."""
 
     def prepare(self) -> Optional[Awaitable[None]]:
         """Overriden method of tornado.web.RequestHandler"""
         self.dont_add_status_code = False
-        self.special_request_start_time = time.perf_counter()
         super().prepare()
 
     def on_finish(self) -> None:
         """Overriden method of tornado.web.RequestHandler"""
+        elapsed_time = self.request.request_time()
+        self.add_log_record(int(round(elapsed_time * 1000)))
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
-                self.set_elapsed_time()
+                self.set_elapsed_time(elapsed_time)
             if not self.dont_add_status_code:
                 if self.get_status() == 405:
                     self.stats.services[self.service_id].add_status_code(
@@ -155,12 +116,36 @@ class GenericHandler(tornado.web.RequestHandler):
                     )
         super().on_finish()
 
-    def set_elapsed_time(self) -> None:
+    def write(self, chunk: Union[str, bytes, dict]) -> None:
+        super().write(chunk)
+        if hasattr(self, 'special_response'):
+            self.special_response.bodySize = len(b"".join(self._write_buffer))
+
+    def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
         """Method to calculate and store the elapsed time of the request handling to be used in stats."""
-        elapsed_time_in_seconds = (time.perf_counter() - self.special_request_start_time) / 1000000
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
             elapsed_time_in_seconds
         )
+
+    def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
+        """Method that creates a log record and inserts it to log tracking system."""
+        if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
+            return
+
+        if not hasattr(self, 'special_response'):
+            self.special_response = self.build_special_response()
+
+        request_start_datetime = datetime.fromtimestamp(self.request._start_time)
+        request_start_datetime.replace(tzinfo=timezone.utc)
+        log_record = LogRecord(
+            self.logs.services[self.service_id].name,
+            request_start_datetime,
+            elapsed_time_in_milliseconds,
+            self.special_request,
+            self.special_response,
+            self.request.server_connection
+        )
+        self.logs.services[self.service_id].add_record(log_record)
 
     def initialize(
         self,
@@ -171,6 +156,7 @@ class GenericHandler(tornado.web.RequestHandler):
         definition_engine: str,
         interceptors: list,
         stats: Stats,
+        logs: Logs,
         unhandled_data,
         tag: str
     ) -> None:
@@ -181,6 +167,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.methods = None
             self.custom_args = ()
             self.stats = stats
+            self.logs = logs
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
@@ -391,6 +378,7 @@ class GenericHandler(tornado.web.RequestHandler):
         request.protocol = self.request.protocol
         request.host = self.request.host
         request.hostName = self.request.host_name
+        request.port = self.request.server_connection.stream.socket.getsockname()[1]
         request.uri = self.request.uri
 
         # Method
@@ -412,17 +400,36 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Body
         if self.request.body_arguments:
+            request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
-                request.body[key] = [_decoder(x) for x in value]
+                if any(_is_mostly_bin(x) for x in value):
+                    request.bodyType[key] = 'base64'
+                    request.body[key] = [_b64encode(x) for x in value]
+                else:
+                    request.bodyType[key] = 'str'
+                    request.body[key] = [_decoder(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
+            request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
-                request.body[key] = [_decoder(x.body) for x in value]
+                if any(_is_mostly_bin(x.body) for x in value):
+                    request.bodyType[key] = 'base64'
+                    request.body[key] = [_b64encode(x.body) for x in value]
+                else:
+                    request.bodyType[key] = 'str'
+                    request.body[key] = [_decoder(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
-            request.body = _decoder(self.request.body)
+            request.mimeType = 'text/plain'
+            if _is_mostly_bin(request.body):
+                request.bodyType = 'base64'
+                request.body = _b64encode(self.request.body)
+            else:
+                request.bodyType = 'str'
+                request.body = _decoder(self.request.body)
+        request.bodySize = len(self.request.body)
 
         request.files = self.request.files
 
@@ -480,7 +487,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 struct.pack('ii', 1, 0)
             )
             self.request.server_connection.stream.close()
-            self.set_elapsed_time()
+            self.set_elapsed_time(self.request.request_time())
             self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code('RST')
         if isinstance(status_code, str) and status_code.lower() == 'fin':
             self.request.server_connection.stream.close()

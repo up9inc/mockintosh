@@ -20,8 +20,9 @@ from gettext import gettext
 import yaml
 from jsonschema import validate
 
+from mockintosh.constants import PROGRAM
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
-from mockintosh.handlers import Request, Response  # noqa: F401
+from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.methods import _detect_engine, _nostderr, _import_from
 from mockintosh.recognizers import (
     PathRecognizer,
@@ -292,7 +293,7 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    logging.info("Mockintosh v%s is starting..." % __version__)
+    logging.info("%s v%s is starting..." % (PROGRAM.capitalize(), __version__))
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 import requests
 import yaml
+from jsonschema.validators import validate
 
 import mockintosh
 
@@ -756,6 +757,9 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertTrue(resp.text.endswith(marker))
 
+        resp = requests.post(MGMT + '/resources', files={"cors.html": orig_content}, verify=False)
+        resp.raise_for_status()
+
         with self.assertRaises(requests.exceptions.HTTPError):
             resp = requests.get(MGMT + '/resources?path=/etc/hosts', verify=False)
             resp.raise_for_status()
@@ -769,3 +773,56 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         files = resp.json()['files']
         self.assertIn('cors.html', files)
+
+    def test_traffic_log(self):
+        self._test_traffic_log(MGMT)
+        self._test_traffic_log(SRV1 + '/__admin')
+
+    def _test_traffic_log(self, root):
+        self.test_urlencoded()  # ensure requests are there
+
+        # clear log
+        resp = requests.delete(root + '/traffic-log', verify=False)
+        json = self._valid_har(resp)
+        self.assertFalse(json['log']['entries'])
+        self.assertFalse(json['log']['_enabled'])
+
+        # enable log
+        resp = requests.post(root + '/traffic-log', data={"enable": "true"}, verify=False)
+        resp.raise_for_status()
+
+        # check
+        resp = requests.get(root + '/traffic-log', verify=False)
+        json = self._valid_har(resp)
+        self.assertFalse(json['log']['entries'])
+        self.assertTrue(json['log']['_enabled'])
+
+        # make requests
+        self.test_multipart()
+
+        # fetch log
+        resp = requests.get(root + '/traffic-log', verify=False)
+        json = self._valid_har(resp)
+        self.assertTrue(json['log']['entries'])
+
+        # clear
+        resp = requests.delete(root + '/traffic-log', verify=False)
+        resp.raise_for_status()
+
+        # disable log
+        resp = requests.post(root + '/traffic-log', data={"enable": "false"}, verify=False)
+        resp.raise_for_status()
+
+        self.test_urlencoded()  # ensure requests are made
+
+        # validate cleared
+        resp = requests.get(root + '/traffic-log', verify=False)
+        json = self._valid_har(resp)
+        self.assertFalse(json['log']['entries'])
+        self.assertFalse(json['log']['_enabled'])
+
+    def _valid_har(self, resp):
+        resp.raise_for_status()
+        json = resp.json()
+        validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
+        return json
