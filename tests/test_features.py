@@ -2393,7 +2393,10 @@ class TestManagement():
             data = resp.json()
             jsonschema_validate(data, HAR_JSON_SCHEMA)
             assert not data['log']['_enabled']
-            assert len(data['log']['entries']) == 0
+            if admin_headers:
+                assert len(data['log']['entries']) == 3
+            else:
+                assert len(data['log']['entries']) == 5
 
             resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
             assert 200 == resp.status_code
