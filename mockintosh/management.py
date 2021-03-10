@@ -123,7 +123,6 @@ class ManagementConfigHandler(ManagementBaseHandler):
         try:
             data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
             self.http_server.stats.services = []
-            self.http_server.logs.services = []
             for service in data['services']:
                 hint = '%s:%s%s' % (
                     service['hostname'] if 'hostname' in service else (
@@ -133,7 +132,6 @@ class ManagementConfigHandler(ManagementBaseHandler):
                     ' - %s' % service['name'] if 'name' in service else ''
                 )
                 self.http_server.stats.add_service(hint)
-                self.http_server.logs.add_service(service['name'] if 'name' in service else '')
             for i, service in enumerate(data['services']):
                 service['internalServiceId'] = i
                 self.update_service(service, i)
@@ -143,7 +141,6 @@ class ManagementConfigHandler(ManagementBaseHandler):
             return
 
         self.http_server.stats.reset()
-        self.http_server.logs.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
@@ -153,7 +150,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.check_restricted_fields(service, service_index)
         endpoints = []
         self.http_server.stats.services[service_index].endpoints = []
-        self.http_server.logs.services[service_index].endpoints = []
+        self.http_server.logs.services[service_index].name = service['name'] if 'name' in service else ''
 
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(
@@ -869,7 +866,6 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         self.http_server.stats.reset()
-        self.http_server.logs.reset()
 
         self.set_status(204)
 
