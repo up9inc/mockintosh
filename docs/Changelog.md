@@ -88,16 +88,15 @@
 - allow editing resource files via mgmt API/UI
 - "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header
 - traffic log API & viewer
-
 - mgmt UI change config global section didn't work
-- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
-- "Bypass" mode for service to learn configuration
 - report error in case config apply fails
+
+- "Bypass" mode for service to learn configuration
+- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
 - management UI to give links to individual services
-- exp demo of requests log
 
 # Ideas
 
