@@ -11,6 +11,7 @@ import io
 import re
 import logging
 from contextlib import contextmanager
+from base64 import b64encode
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
@@ -86,3 +87,7 @@ def _is_mostly_bin(s: bytes) -> bool:
         i < 9 or 13 < i < 32 or 126 < i
         for i in s[:100]
     ) / len(s[:100]) > 0.3
+
+
+def _b64encode(s: bytes) -> str:
+    return b64encode(s).decode()
