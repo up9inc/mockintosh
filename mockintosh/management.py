@@ -144,6 +144,8 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
+        self.update_globals()
+
         self.set_status(204)
 
     def update_service(self, service, service_index):
@@ -185,6 +187,15 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 )
             ):
                 raise Exception('%s field is restricted!' % field)
+
+    def update_globals(self):
+        for i, _ in enumerate(self.http_server.definition.data['services']):
+            self.http_server.globals = self.http_server.definition.data['globals'] if (
+                'globals' in self.http_server.definition.data
+            ) else {}
+            for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    rule.target_kwargs['_globals'] = self.http_server.globals
 
 
 class ManagementStatsHandler(ManagementBaseHandler):
@@ -477,7 +488,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                 if 'response' in alternative:
                     response = alternative['response']
                     status = 200
-                    if 'status' in response:
+                    if isinstance(response, dict) and 'status' in response:
                         status = str(response['status'])
                     if status not in ('RST', 'FIN'):
                         try:
@@ -485,7 +496,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                         except ValueError:
                             status = 'default'
                         status_data = {}
-                        if 'headers' in response:
+                        if isinstance(response, dict) and 'headers' in response:
                             new_headers = {k.title(): v for k, v in response['headers'].items()}
                             if 'Content-Type' in new_headers:
                                 if 'application/json' == new_headers['Content-Type']:

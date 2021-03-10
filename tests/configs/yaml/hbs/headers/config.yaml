@@ -1,5 +1,7 @@
 ---
 templatingEngine: Handlebars
+management:
+  port: 9000
 globals:
   headers:
     global-hdr1: globalval1
