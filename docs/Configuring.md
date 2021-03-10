@@ -386,7 +386,8 @@ in **HTTP Archive 1.2 (HAR)** format. The logs can be retrieved separately based
 global-level based on the management endpoint that you're requesting to.
 
 To clean up the logs; simply send a `DELETE` request to `/traffic-log` management endpoint. Similar to `GET` request,
-`DELETE` also operates on both service-level and global-level.
+`DELETE` also operates on both service-level and global-level. `DELETE` endpoint returns the logs just before the
+clean up operation is performed.
 
 ### Setting Current Tag
 
