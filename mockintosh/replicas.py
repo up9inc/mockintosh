@@ -11,7 +11,7 @@ import logging
 from urllib.parse import urlencode
 from http.client import responses
 
-from mockintosh.methods import _decoder
+from mockintosh.methods import _b64encode
 
 BASE64 = 'base64'
 
@@ -142,7 +142,7 @@ class Response():
             "text": body
         }
         if isinstance(content['text'], (bytes, bytearray)):
-            content['text'] = _decoder(content['text'])
+            content['text'] = _b64encode(content['text'])
             content['encoding'] = 'base64'
 
         return {
