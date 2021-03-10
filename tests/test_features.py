@@ -2406,6 +2406,54 @@ class TestManagement():
             assert not data['log']['_enabled']
             assert len(data['log']['entries']) == 0
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/headers/config.json',
+        'configs/yaml/hbs/headers/config.yaml'
+    ])
+    def test_update_global_headers(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/global-headers')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['global-hdr1'] == 'globalval1'
+        assert resp.headers['global-hdr2'] == 'globalval2'
+
+        with open(get_config_path(config), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['globals']['headers']['global-hdr1'] = 'globalvalX'
+            data['globals']['headers']['global-hdr2'] = 'globalvalY'
+            resp = requests.post(SRV_9000 + '/config', data=json.dumps(data))
+            assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/global-headers')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.headers['global-hdr1'] == 'globalvalX'
+        assert resp.headers['global-hdr2'] == 'globalvalY'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/performance/config.json'
+    ])
+    def test_update_performance_profile(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/config')
+        assert 200 == resp.status_code
+        data = resp.json()
+        assert data['globals']['performanceProfile'] == 'profile1'
+
+        with open(get_config_path(config), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['globals']['performanceProfile'] = 'profile2'
+            resp = requests.post(SRV_9000 + '/config', data=json.dumps(data))
+            assert 204 == resp.status_code
+
+        resp = requests.get(SRV_9000 + '/config')
+        assert 200 == resp.status_code
+        data = resp.json()
+        assert data['globals']['performanceProfile'] == 'profile2'
+
 
 class TestPerformanceProfile():
 

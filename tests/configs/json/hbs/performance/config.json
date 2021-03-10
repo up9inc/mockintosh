@@ -1,5 +1,8 @@
 {
   "templatingEngine": "Handlebars",
+  "management": {
+    "port": 9000
+  },
   "performanceProfiles": {
     "profile1": {
       "ratio": 1.0,
