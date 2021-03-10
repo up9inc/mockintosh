@@ -49,6 +49,9 @@ change `endpoints` contents.
 The `/config` endpoint can return YAML format, when queried with `format` parameter `GET /config?format=yaml`.
 `POST /config` endpoint also supports YAML as the payload.
 
+`POST /config` endpoint not only supports changing how the services respond to the requests but also supports changing
+the [global settings](Configuring.md#global-settings) of the configuration file.
+
 ## Getting Service Statistics
 
 By requesting `stats` path of management API, you can get information on how many requests were served by Mockintosh,
