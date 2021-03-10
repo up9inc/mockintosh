@@ -66,45 +66,28 @@ class LogRecord:
         return data
 
 
-class EndpointLogs():
-    def __init__(self):
-        self.records = []
-
-    def add_record(self, record: LogRecord):
-        self.records.append(record)
-
-    def json(self):
-        data = []
-        for record in self.records:
-            data.append(record.json())
-        return data
-
-
 class ServiceLogs():
     def __init__(self, name):
-        self.endpoints = []
+        self.records = []
         self.enabled = False
         self.name = name
 
     def is_enabled(self):
         return self.enabled
 
-    def add_endpoint(self):
-        endpoint_logs = EndpointLogs()
-        endpoint_logs.parent = self
-        self.endpoints.append(endpoint_logs)
+    def add_record(self, record: LogRecord):
+        self.records.append(record)
 
     def json(self):
         data = _get_log_root(self.is_enabled())
 
-        for endpoint in self.endpoints:
-            data['log']['entries'] += endpoint.json()
+        for record in self.records:
+            data['log']['entries'].append(record.json())
 
         return data
 
     def reset(self):
-        for endpoint in self.endpoints:
-            endpoint.records = []
+        self.records = []
 
 
 class Logs():
@@ -123,8 +106,8 @@ class Logs():
         data = _get_log_root(self.is_enabled())
 
         for service in self.services:
-            for endpoint in service.endpoints:
-                data['log']['entries'] += endpoint.json()
+            for record in service.records:
+                data['log']['entries'].append(record.json())
 
         data['log']['entries'] = sorted(data['log']['entries'], key=lambda x: x['startedDateTime'], reverse=False)
 
@@ -132,5 +115,4 @@ class Logs():
 
     def reset(self):
         for service in self.services:
-            for endpoint in service.endpoints:
-                endpoint.records = []
+            service.records = []

@@ -100,11 +100,11 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def on_finish(self) -> None:
         """Overriden method of tornado.web.RequestHandler"""
+        elapsed_time = self.request.request_time()
+        self.add_log_record(int(round(elapsed_time * 1000)))
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
-                elapsed_time = self.request.request_time()
                 self.set_elapsed_time(elapsed_time)
-                self.add_log_record(int(round(elapsed_time * 1000)))
             if not self.dont_add_status_code:
                 if self.get_status() == 405:
                     self.stats.services[self.service_id].add_status_code(
@@ -142,7 +142,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.special_response,
             self.request.server_connection
         )
-        self.logs.services[self.service_id].endpoints[self.internal_endpoint_id].add_record(log_record)
+        self.logs.services[self.service_id].add_record(log_record)
 
     def initialize(
         self,
