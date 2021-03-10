@@ -53,6 +53,7 @@
         .actual-body {
             font-family: "Courier New", Courier, monospace;
             font-size: 0.75rem;
+            white-space: pre-wrap;
         }
 
         .traffic-details .list-group-item.header {
@@ -60,6 +61,10 @@
             padding-top: 0;
             background-color: #DDD;
             text-align: center
+        }
+
+        .header a {
+            cursor: pointer
         }
     </style>
 </head>
@@ -160,10 +165,13 @@
                                 <ul class="list-group small body" style="margin-top: 1rem">
                                     <li class="list-group-item header">
                                         Request Body
-                                        <a class="pull-right" href="#" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
-                                        <a class="pull-left" href="#" title="Collapse view">[-]</a>
+                                        <a class="pull-right text-muted" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                        <a class="pull-left text-muted pointer" data-toggle="collapse"
+                                           data-target="#collapseReqBody"
+                                           title="Collapse/expand view" role="button" aria-expanded="true"
+                                           aria-controls="collapseReqBody">[+/-]</a>
                                     </li>
-                                    <li class="list-group-item actual-body" style="white-space: pre-wrap"></li>
+                                    <li class="list-group-item actual-body collapse show" id="collapseReqBody"></li>
                                 </ul>
                             </div>
                             <br/>
@@ -178,13 +186,13 @@
                                 <ul class="list-group small body" style="margin-top: 1rem">
                                     <li class="list-group-item header">
                                         Response Body
-                                        <a class="pull-right" href="#" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
-                                        <a class="pull-left" data-toggle="collapse" href="#collapseRespBody"
-                                           title="Collapse view" role="button" aria-expanded="true"
-                                           aria-controls="collapseRespBody">[+]</a>
+                                        <a class="pull-right text-muted" title="Pretty-print body (if possible)">{&lt;/&gt;}</a>
+                                        <a class="pull-left text-muted pointer" data-toggle="collapse"
+                                           data-target="#collapseRespBody"
+                                           title="Collapse/expand view" role="button" aria-expanded="true"
+                                           aria-controls="collapseRespBody">[+/-]</a>
                                     </li>
-                                    <li class="list-group-item actual-body collapse show" id="collapseRespBody"
-                                        style="white-space: pre-wrap"></li>
+                                    <li class="list-group-item actual-body collapse show" id="collapseRespBody"></li>
                                 </ul>
                             </div>
                         </div>
@@ -291,11 +299,11 @@
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
         const entry = item.data("obj");
-        console.log(entry)
+        // console.log(entry)
         $(".traffic-details>span").hide();
         $(".traffic-details>div").show();
         $(".traffic-details .ts").text(entry.startedDateTime);
-        $(".traffic-details .text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        $(".traffic-details > div > .text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
         $(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
         let method = $(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
@@ -516,7 +524,7 @@
             $(".traffic-items>div").hide();
         });
 
-        $("#reqlog .header a").click(function () {
+        $("#reqlog .header a.pull-right").click(function () {
             const body = $(this).parent().parent().find(".actual-body");
             try {
                 body.text(JSON.stringify(JSON.parse(body.text()), null, 2));
