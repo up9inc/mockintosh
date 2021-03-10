@@ -15,7 +15,6 @@ import struct
 import traceback
 import urllib
 from datetime import datetime, timezone
-from base64 import b64encode
 from typing import (
     Union,
     Optional,
@@ -33,7 +32,7 @@ from mockintosh.replicas import Request, Response
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _decoder, _is_mostly_bin
+from mockintosh.methods import _safe_path_split, _detect_engine, _decoder, _is_mostly_bin, _b64encode
 from mockintosh.params import (
     PathParam,
     HeaderParam,
@@ -402,7 +401,7 @@ class GenericHandler(tornado.web.RequestHandler):
             for key, value in self.request.body_arguments.items():
                 if any(_is_mostly_bin(x) for x in value):
                     request.bodyType[key] = 'base64'
-                    request.body[key] = [b64encode(x).decode() for x in value]
+                    request.body[key] = [_b64encode(x) for x in value]
                 else:
                     request.bodyType[key] = 'str'
                     request.body[key] = [_decoder(x) for x in value]
@@ -413,7 +412,7 @@ class GenericHandler(tornado.web.RequestHandler):
             for key, value in self.request.files.items():
                 if any(_is_mostly_bin(x.body) for x in value):
                     request.bodyType[key] = 'base64'
-                    request.body[key] = [b64encode(x.body).decode() for x in value]
+                    request.body[key] = [_b64encode(x.body) for x in value]
                 else:
                     request.bodyType[key] = 'str'
                     request.body[key] = [_decoder(x.body) for x in value]
@@ -423,7 +422,7 @@ class GenericHandler(tornado.web.RequestHandler):
             request.mimeType = 'text/plain'
             if _is_mostly_bin(request.body):
                 request.bodyType = 'base64'
-                request.body = b64encode(_decoder(self.request.body)).decode()
+                request.body = _b64encode(self.request.body)
             else:
                 request.bodyType = 'str'
                 request.body = _decoder(self.request.body)

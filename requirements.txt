@@ -6,3 +6,4 @@ jsonschema==3.2.0
 pybars4>=0.9.11
 accept-types==0.4.1
 jsonpath-ng==1.5.2
+python-magic>=0.4.22

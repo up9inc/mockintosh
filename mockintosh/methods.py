@@ -11,6 +11,9 @@ import io
 import re
 import logging
 from contextlib import contextmanager
+from base64 import b64encode
+
+import magic
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
@@ -86,3 +89,8 @@ def _is_mostly_bin(s: bytes) -> bool:
         i < 9 or 13 < i < 32 or 126 < i
         for i in s[:100]
     ) / len(s[:100]) > 0.3
+
+
+def _b64encode(s: bytes) -> str:
+    mime_type = magic.from_buffer(s, mime=True)
+    return 'data:%s;base64,%s' % (mime_type, b64encode(s).decode())
