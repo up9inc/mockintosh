@@ -178,6 +178,7 @@ Response: `201`  with `query string match: mvValue someValue validCapture`
 There are several ways of matching request body: with `regEx` on `text` or with JSON Schema, also you can have criteria
 for urlencoded and multipart request bodies.
 
+### Multipart & URL-encoded
 To match request by urlencoded or multipart form POST, use `urlencoded` or `multipart` section under `body`. The content of that section is very much like [query string](#query-string) or headers matching by parameter name:
 
 ```yaml
@@ -202,6 +203,7 @@ services:
 {% endraw %}
 ```
 
+### RegEx
 To match request body text using `regEx`, just do it like this:
 
 ```yaml
@@ -219,6 +221,7 @@ services:
 
 _Note: you can use familiar `regEx` named value capturing for body, as usual._
 
+### JSONSchema
 To do the match against [JSON Schema](https://json-schema.org/), please consider this example:
 
 ```yaml
@@ -258,4 +261,17 @@ curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
      -d '{"somekey2": "invalid"}'
 ```
 
-Response: `404`
+Response: `400`
+
+If you want to reference JSONSchema from external file, use it like this:
+
+```yaml
+services:
+  - name: Mock for Service1
+    port: 8001
+    endpoints:
+      - path: "/endpoint1"
+        method: POST
+        body:
+          schema: "@path/to/schema.json"
+```
