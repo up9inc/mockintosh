@@ -19,6 +19,7 @@ SRV3 = os.environ.get('SRV3', 'https://localhost:8003')
 SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
+SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -826,3 +827,22 @@ class IntegrationTests(unittest.TestCase):
         json = resp.json()
         validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
         return json
+
+    def test_fallback(self):
+        resp = requests.delete(SRV7 + '/__admin/unhandled')
+        resp.raise_for_status()
+
+        resp = requests.get(SRV7 + '/')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("no fallback", resp.text)
+
+        resp = requests.get(SRV7 + '/parameterized1/fallback/subval')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("intoVar capture: fallback", resp.text)
+
+        resp = requests.get(SRV7 + '/not-exists')
+        self.assertEqual(404, resp.status_code)
+
+        resp = requests.get(SRV7 + '/__admin/unhandled')
+        resp.raise_for_status()
+        self.assertEqual({}, resp.json())  # TODO: turn into correct expectation

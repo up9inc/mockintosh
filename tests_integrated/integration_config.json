@@ -384,6 +384,18 @@
       "port": 8006,
       "managementRoot": "/sub/__admin",
       "oas": "@subdir/oas.json"
+    },
+    {
+      "name": "Service with fallback",
+      "port": 8007,
+      "managementRoot": "/sub/__admin",
+      "fallbackTo": "http://localhost:8001",
+      "endpoints": [
+        {
+          "path": "/",
+          "response": "no fallback"
+        }
+      ]
     }
   ]
 }
