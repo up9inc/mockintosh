@@ -9,6 +9,7 @@
       "hostname": "service1.example.com",
       "port": 8001,
       "managementRoot": "__admin",
+      "fallbackTo": "https://gorest.co.in/public-api/",
       "endpoints": [
         {
           "path": "/service1",
