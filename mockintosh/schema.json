@@ -36,6 +36,9 @@
         },
         "performanceProfile": {
           "type": "string"
+        },
+        "fallbackTo": {
+          "type": "string"
         }
       },
       "additionalProperties": false,

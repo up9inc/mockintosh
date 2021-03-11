@@ -284,7 +284,8 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             if not requests:
                 continue
 
-            request = requests[-1]
+            request = requests[-1][0]
+            response = requests[-1][1]
             config_template = {}
 
             # Path
@@ -298,9 +299,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                 continue_parent = False
                 for _request in requests:
                     if (
-                        (key.title() not in _request.headers._dict)
+                        (key.title() not in _request[0].headers._dict)
                         or  # noqa: W504, W503
-                        (key.title() in _request.headers._dict and value != _request.headers._dict[key.title()])
+                        (key.title() in _request[0].headers._dict and value != _request[0].headers._dict[key.title()])
                     ):
                         continue_parent = True
                         break
@@ -328,7 +329,14 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = _decoder(value[0])
 
-            config_template['response'] = ''
+            if response is None:
+                config_template['response'] = ''
+            else:
+                config_template['response'] = {
+                    'status': response.status,
+                    'headers': response.headers,
+                    'body': response.body
+                }
             endpoints.append(config_template)
 
         return endpoints

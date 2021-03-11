@@ -9,6 +9,7 @@
       "hostname": "service1.example.com",
       "port": 8001,
       "managementRoot": "__admin",
+      "fallbackTo": "https://webhook.site/ceaf102f-6ad8-4cdc-b756-6011f5e6bb9e",
       "endpoints": [
         {
           "path": "/service1",

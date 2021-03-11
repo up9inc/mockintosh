@@ -21,6 +21,7 @@ from typing import (
     Awaitable
 )
 
+import requests
 import jsonschema
 import tornado.web
 from accept_types import parse_header
@@ -158,7 +159,8 @@ class GenericHandler(tornado.web.RequestHandler):
         stats: Stats,
         logs: Logs,
         unhandled_data,
-        tag: str
+        fallback_to: Union[str, None],
+        tag: Union[str, None]
     ) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         try:
@@ -171,6 +173,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
+            self.fallback_to = fallback_to
             self.tag = tag
 
             for path, methods in self.endpoints:
@@ -980,7 +983,10 @@ class GenericHandler(tornado.web.RequestHandler):
             identifier = '%s %s' % (self.request.method.upper(), self.request.path)
             if identifier not in self.unhandled_data.requests[self.service_id]:
                 self.unhandled_data.requests[self.service_id][identifier] = []
-            self.unhandled_data.requests[self.service_id][identifier].append(self.request)
+            result = self.resolve_unhandled_request()
+            self.unhandled_data.requests[self.service_id][identifier].append(result)
+            if result[1] is not None:
+                raise NewHTTPError()
 
         self.set_status(status_code)
 
@@ -996,3 +1002,46 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.rendered_body = image
 
         raise NewHTTPError()
+
+    def resolve_unhandled_request(self) -> tuple:
+        if self.fallback_to is None:
+            return (self.request, None)
+
+        # Headers
+        headers = {}
+        for key, value in self.request.headers._dict.items():
+            headers[key] = value
+
+        # Query String
+        query_string = ''
+        for key, value in self.request.query_arguments.items():
+            if not query_string:
+                query_string = '?'
+            query_string += '%s=%s' % (key, [_decoder(x) for x in value][0])
+
+        # Body
+        body = None
+        if self.request.body_arguments:
+            body = {}
+            for key, value in self.request.body_arguments.items():
+                body[key] = [_decoder(x) for x in value][0]
+        elif self.request.files:
+            body = {}
+            for key, value in self.request.files.items():
+                body[key] = [_decoder(x.body) for x in value][0]
+        else:
+            body = _decoder(self.request.body)
+
+        url = self.fallback_to.rstrip('/') + self.request.path + query_string
+
+        http_verb = getattr(requests, self.request.method.lower())
+        resp = http_verb(url, headers=headers, data=body)
+
+        self.set_status(resp.status_code)
+        for key, value in resp.headers.items():
+            self.set_header(key, value)
+
+        self.write(resp.content)
+        self.special_response = self.build_special_response()
+
+        return (self.request, self.special_response)
