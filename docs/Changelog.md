@@ -93,17 +93,21 @@
 - report error in case config apply fails
 
 - "Bypass" mode for service to learn configuration
-- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 
-- bug of applying status change via UI (Alon)
-- \r vs \n problem in mac
-- management UI to give links to individual services
+- change config editor component
+
 
 # Ideas
 
+- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
 - mocks for Kafka & RabbitMQ
+  - on schedule producer
+  - on demand producer
+  - reactive consumer+producer
+  - consumer fact validation
+  - avro + grpc + JSON 
 - mocks for gRPC servers
