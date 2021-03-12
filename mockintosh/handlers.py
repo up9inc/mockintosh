@@ -1058,8 +1058,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 logging.info('Redirecting the unhandled request to internal: %s %s' % (self.request.method, url))
                 for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
                     if rule.target == GenericHandler:
-                        rule.target_kwargs['is_unhandled_request'] = True
-                        rule.target.initialize(self, *rule.target_kwargs.values())
+                        new_target_kwargs = rule.target_kwargs
+                        new_target_kwargs['is_unhandled_request'] = True
+                        rule.target.initialize(self, *new_target_kwargs.values())
                         rule.target.super_verb(self, *self.args_backup)
                 logging.info('Returned back from the internal redirected request.')
                 raise NewHTTPError()

@@ -278,7 +278,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             self.write(data)
 
     def delete(self):
-        self.http_server.unhandled_data.requests = []
+        for i, _ in enumerate(self.http_server.unhandled_data.requests):
+            for j, _ in self.http_server.unhandled_data.requests[i]:
+                self.http_server.unhandled_data.requests[i][j] = []
         self.set_status(204)
 
     def build_unhandled_requests(self, service_id):
@@ -980,7 +982,9 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             self.write(data)
 
     def delete(self):
-        self.http_server.unhandled_data.requests = []
+        for i, _ in enumerate(self.http_server.unhandled_data.requests):
+            for j, _ in self.http_server.unhandled_data.requests[i]:
+                self.http_server.unhandled_data.requests[i][j] = []
         self.set_status(204)
 
 
