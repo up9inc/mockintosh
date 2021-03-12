@@ -277,6 +277,10 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         else:
             self.write(data)
 
+    def delete(self):
+        self.http_server.unhandled_data.requests = []
+        self.set_status(204)
+
     def build_unhandled_requests(self, service_id):
         endpoints = []
 
@@ -974,6 +978,10 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             self.write(yaml.dump(data, sort_keys=False))
         else:
             self.write(data)
+
+    def delete(self):
+        self.http_server.unhandled_data.requests = []
+        self.set_status(204)
 
 
 class ManagementServiceOasHandler(ManagementOasHandler):
