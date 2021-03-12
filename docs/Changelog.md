@@ -91,20 +91,19 @@
 - traffic log API & viewer
 - mgmt UI change config global section didn't work
 - report error in case config apply fails
+- "fallback" mode for service to learn configuration
 
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
-- management UI to give links to individual services
-- exp demo of requests log
 - change config editor component
-- don't clear traffic log on page reload
-- "Bypass" mode for service to learn configuration
 
-- change config editor component
+- don't clear traffic log on page reload
 
 
 # Ideas
 
+- Nicer formatted error pages for known errors
+- admin UI to show available tags and allow switching  
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
