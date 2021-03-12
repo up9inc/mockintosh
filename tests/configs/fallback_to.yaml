@@ -21,7 +21,7 @@ services:
   hostname: service2.example.com
   port: 8002
   managementRoot: __admin
-  fallbackTo: http://service1.example.com:8001/service1
+  fallbackTo: http://service1.example.com:8001
   endpoints:
   - path: "/service2"
     method: GET

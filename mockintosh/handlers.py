@@ -1008,6 +1008,11 @@ class GenericHandler(tornado.web.RequestHandler):
             self.insert_unhandled_data((self.request, None))
             return
 
+        if self.is_unhandled_request:
+            self.set_status(408)
+            self.write('Internal circular \'fallbackTo\' definition error! Fix your configuration file.')
+            raise NewHTTPError()
+
         # Headers
         headers = {}
         for key, value in self.request.headers._dict.items():
