@@ -1060,6 +1060,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     if rule.target == GenericHandler:
                         new_target_kwargs = rule.target_kwargs
                         new_target_kwargs['is_unhandled_request'] = True
+                        new_target_kwargs['service_id'] = self.service_id
                         rule.target.initialize(self, *new_target_kwargs.values())
                         rule.target.super_verb(self, *self.args_backup)
                 logging.info('Returned back from the internal redirected request.')
