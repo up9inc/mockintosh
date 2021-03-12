@@ -838,7 +838,10 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV7 + '/Changelog.html') # '/parameterized1/fallback/subval'
         self.assertEqual(200, resp.status_code)
-        self.assertEqual("intoVar capture: fallback", resp.text)
+
+        resp = requests.get(SRV7 + '/img/logo.png')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual('image/png', resp.headers.get('content-type'))
 
         resp = requests.get(SRV7 + '/not-exists')
         self.assertEqual(404, resp.status_code)
