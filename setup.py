@@ -83,7 +83,6 @@ setup(
             'pytest',
             'coverage',
             'codecov',
-            'requests',
             'openapi-spec-validator',
             'backports-datetime-fromisoformat'
         ]

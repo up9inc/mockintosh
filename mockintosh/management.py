@@ -24,7 +24,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder, _safe_path_split
+from mockintosh.methods import _decoder, _safe_path_split, _b64encode
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -277,6 +277,12 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         else:
             self.write(data)
 
+    def delete(self):
+        for i, _ in enumerate(self.http_server.unhandled_data.requests):
+            for j, _ in self.http_server.unhandled_data.requests[i]:
+                self.http_server.unhandled_data.requests[i][j] = []
+        self.set_status(204)
+
     def build_unhandled_requests(self, service_id):
         endpoints = []
 
@@ -284,7 +290,8 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             if not requests:
                 continue
 
-            request = requests[-1]
+            request = requests[-1][0]
+            response = requests[-1][1]
             config_template = {}
 
             # Path
@@ -298,9 +305,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                 continue_parent = False
                 for _request in requests:
                     if (
-                        (key.title() not in _request.headers._dict)
+                        (key.title() not in _request[0].headers._dict)
                         or  # noqa: W504, W503
-                        (key.title() in _request.headers._dict and value != _request.headers._dict[key.title()])
+                        (key.title() in _request[0].headers._dict and value != _request[0].headers._dict[key.title()])
                     ):
                         continue_parent = True
                         break
@@ -328,7 +335,31 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = _decoder(value[0])
 
-            config_template['response'] = ''
+            if response is None:
+                config_template['response'] = ''
+            else:
+                config_template['response'] = {
+                    'status': response.status,
+                    'headers': {},
+                    'body': ''
+                }
+                for key, value in response.headers.items():
+                    try:
+                        config_template['response']['headers'][key] = value.decode()
+                    except (AttributeError, UnicodeDecodeError):
+                        config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
+                if isinstance(response.body, dict):
+                    config_template['response']['body'] = {}
+                    for key, value in response.body.items():
+                        try:
+                            config_template['response']['body'][key] = value.decode()
+                        except (AttributeError, UnicodeDecodeError):
+                            config_template['response']['body'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
+                elif response.body is not None:
+                    try:
+                        config_template['response']['body'] = response.body.decode()
+                    except (AttributeError, UnicodeDecodeError):
+                        config_template['response']['body'] = _b64encode(response.body) if isinstance(response.body, (bytes, bytearray)) else response.body
             endpoints.append(config_template)
 
         return endpoints
@@ -958,6 +989,12 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             self.write(yaml.dump(data, sort_keys=False))
         else:
             self.write(data)
+
+    def delete(self):
+        for i, _ in enumerate(self.http_server.unhandled_data.requests):
+            for key, _ in self.http_server.unhandled_data.requests[i].items():
+                self.http_server.unhandled_data.requests[i][key] = []
+        self.set_status(204)
 
 
 class ManagementServiceOasHandler(ManagementOasHandler):

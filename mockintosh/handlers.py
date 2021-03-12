@@ -13,7 +13,7 @@ import re
 import socket
 import struct
 import traceback
-import urllib
+from urllib.parse import quote_plus, urlparse
 from datetime import datetime, timezone
 from typing import (
     Union,
@@ -21,6 +21,7 @@ from typing import (
     Awaitable
 )
 
+import requests
 import jsonschema
 import tornado.web
 from accept_types import parse_header
@@ -114,6 +115,8 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
                         str(self.get_status())
                     )
+        if self.is_unhandled_request:
+            self.insert_unhandled_data((self.request, self.special_response))
         super().on_finish()
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
@@ -149,6 +152,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def initialize(
         self,
+        http_server,
         config_dir: str,
         service_id: int,
         endpoints: list,
@@ -158,10 +162,13 @@ class GenericHandler(tornado.web.RequestHandler):
         stats: Stats,
         logs: Logs,
         unhandled_data,
-        tag: str
+        fallback_to: Union[str, None],
+        tag: Union[str, None],
+        is_unhandled_request: bool
     ) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         try:
+            self.http_server = http_server
             self.config_dir = config_dir
             self.endpoints = endpoints
             self.methods = None
@@ -171,7 +178,9 @@ class GenericHandler(tornado.web.RequestHandler):
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
+            self.fallback_to = fallback_to
             self.tag = tag
+            self.is_unhandled_request = is_unhandled_request
 
             for path, methods in self.endpoints:
                 if re.fullmatch(path, self.request.path):
@@ -203,6 +212,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def super_verb(self, *args) -> None:
         """A method to unify all the HTTP verbs under a single flow."""
         try:
+            self.args_backup = args
             self.set_default_headers()
 
             if not self.is_options:
@@ -570,7 +580,7 @@ class GenericHandler(tornado.web.RequestHandler):
             for value in new_value_list:
                 if key.title() == 'Set-Cookie':
                     value_splitted = value.split('=')
-                    value_splitted[1] = urllib.parse.quote_plus(value_splitted[1])
+                    value_splitted[1] = quote_plus(value_splitted[1])
                     self.set_cookie(value_splitted[0], value_splitted[1])
                 else:
                     self.set_header(key, value)
@@ -869,13 +879,13 @@ class GenericHandler(tornado.web.RequestHandler):
     def set_cors_headers(self) -> None:
         """Method that sets the CORS headers."""
         if ORIGIN in self.request.headers._dict:
-            self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
+            self.set_header('Access-Control-Allow-Methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
             origin = self.request.headers.get(ORIGIN)
-            self.set_header('access-control-allow-origin', origin)
+            self.set_header('Access-Control-Allow-Origin', origin)
 
             if AC_REQUEST_HEADERS in self.request.headers._dict:
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
-                self.set_header('access-control-allow-headers', ac_request_headers)
+                self.set_header('Access-Control-Allow-Headers', ac_request_headers)
 
     def set_default_headers(self) -> None:
         """Method that sets the default headers."""
@@ -976,11 +986,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""
-        if self.unhandled_data is not None:
-            identifier = '%s %s' % (self.request.method.upper(), self.request.path)
-            if identifier not in self.unhandled_data.requests[self.service_id]:
-                self.unhandled_data.requests[self.service_id][identifier] = []
-            self.unhandled_data.requests[self.service_id][identifier].append(self.request)
+        self.resolve_unhandled_request()
 
         self.set_status(status_code)
 
@@ -996,3 +1002,110 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.rendered_body = image
 
         raise NewHTTPError()
+
+    def resolve_unhandled_request(self) -> None:
+        if self.fallback_to is None:
+            self.insert_unhandled_data((self.request, None))
+            return
+
+        if self.is_unhandled_request:
+            self.set_status(408)
+            self.write('Internal circular \'fallbackTo\' definition error! Fix your configuration file.')
+            raise NewHTTPError()
+
+        # Headers
+        headers = {}
+        for key, value in self.request.headers._dict.items():
+            if key.title() in (
+                'Host'
+            ):
+                continue
+            headers[key] = value
+        headers['Cache-Control'] = 'no-cache'
+        headers['If-None-Match'] = '0'
+
+        # Query String
+        query_string = ''
+        for key, value in self.request.query_arguments.items():
+            if not query_string:
+                query_string = '?'
+            values = [_decoder(x) for x in value]
+            if len(values) == 1:
+                query_string += '%s=%s' % (key, values[0])
+            else:
+                for _value in values:
+                    query_string += '%s[]=%s' % (key, _value)
+
+        # Body
+        body = None
+        if self.request.body_arguments:
+            body = {}
+            for key, value in self.request.body_arguments.items():
+                body[key] = [_decoder(x) for x in value]
+                if len(body[key]) == 1:
+                    body[key] = body[key][0]
+        elif self.request.files:
+            body = {}
+            for key, value in self.request.files.items():
+                body[key] = [_decoder(x.body) for x in value]
+                if len(body[key]) == 1:
+                    body[key] = body[key][0]
+        else:
+            body = _decoder(self.request.body)
+
+        url = self.fallback_to.rstrip('/') + self.request.path + query_string
+        url_parsed = urlparse(url)
+
+        for i, app in enumerate(self.http_server._apps.apps):
+            listener = self.http_server._apps.listeners[i]
+            if (
+                listener.hostname == url_parsed.hostname or listener.address == url_parsed.hostname
+            ) and listener.port == url_parsed.port:
+                # Found the service internally
+                logging.info('Redirecting the unhandled request to internal: %s %s' % (self.request.method, url))
+                for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
+                    if rule.target == GenericHandler:
+                        new_target_kwargs = rule.target_kwargs
+                        new_target_kwargs['is_unhandled_request'] = True
+                        new_target_kwargs['service_id'] = self.service_id
+                        rule.target.initialize(self, *new_target_kwargs.values())
+                        rule.target.super_verb(self, *self.args_backup)
+                logging.info('Returned back from the internal redirected request.')
+                raise NewHTTPError()
+
+        # The service is external
+        logging.info('Redirecting the unhandled request to external: %s %s' % (self.request.method, url))
+
+        http_verb = getattr(requests, self.request.method.lower())
+        resp = http_verb(url, headers=headers, timeout=5)
+
+        logging.info('Returned back from the external redirected request.')
+
+        self.set_status(resp.status_code if resp.status_code != 304 else 200)
+        for key, value in resp.headers.items():
+            if key.title() in (
+                'Server',
+                'Transfer-Encoding',
+                'Content-Length',
+                'Content-Encoding',
+                'Access-Control-Allow-Methods',
+                'Access-Control-Allow-Origin'
+            ):
+                continue
+            self.set_header(key, value)
+
+        self.write(resp.content)
+        self.special_response = self.build_special_response()
+        self.special_response.body = resp.content
+
+        self.insert_unhandled_data((self.request, self.special_response))
+        raise NewHTTPError()
+
+    def insert_unhandled_data(self, row: tuple) -> None:
+        if self.unhandled_data is None:
+            return
+
+        identifier = '%s %s' % (self.request.method.upper(), self.request.path)
+        if identifier not in self.unhandled_data.requests[self.service_id]:
+            self.unhandled_data.requests[self.service_id][identifier] = []
+        self.unhandled_data.requests[self.service_id][identifier].append(row)

@@ -2454,6 +2454,82 @@ class TestManagement():
         data = resp.json()
         assert data['globals']['performanceProfile'] == 'profile2'
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json',
+        'configs/fallback_to.yaml'
+    ])
+    def test_fallback_to(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_9000 + '/unhandled')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        expected_data = {'services': []}
+        assert expected_data == resp.json()
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_9000 + '/unhandled')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        expected_data = {'services': []}
+        assert expected_data == resp.json()
+
+        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+        assert resp.headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
+        assert resp.headers['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert resp.headers['X-Content-Type-Options'] == 'nosniff'
+        data = resp.json()
+
+        assert data['code'] == 200
+        assert type(data['meta']['pagination']['total']) is int
+        assert data['meta']['pagination']['limit'] == 20
+        assert len(data['data']) <= 20
+        assert data['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
+
+        resp = requests.get(SRV_9000 + '/unhandled')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert data['services'][0]['name'] == 'Mock for Service1'
+        assert data['services'][0]['port'] == 8001
+        assert data['services'][0]['endpoints'][0]['path'] == '/users'
+        assert data['services'][0]['endpoints'][0]['method'] == 'GET'
+        assert data['services'][0]['endpoints'][0]['response']['status'] == 200
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/json; charset=utf-8'
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
+        assert data['services'][0]['endpoints'][0]['response']['headers']['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert data['services'][0]['endpoints'][0]['response']['headers']['X-Content-Type-Options'] == 'nosniff'
+        body = json.loads(data['services'][0]['endpoints'][0]['response']['body'])
+
+        assert body['code'] == 200
+        assert type(body['meta']['pagination']['total']) is int
+        assert body['meta']['pagination']['limit'] == 20
+        assert len(body['data']) <= 20
+        assert body['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
+
+        resp = requests.get(SRV_8002 + '/service1', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/internal_circular_fallback_to.json'
+    ])
+    def test_internal_circular_fallback_to(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST})
+        assert 408 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Internal circular \'fallbackTo\' definition error! Fix your configuration file.'
+
 
 class TestPerformanceProfile():
 

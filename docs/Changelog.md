@@ -2,7 +2,7 @@
 
 ## v0.7 - 2021-02-07
 
-1. [Management API](Configuring.md#management-api) to get/set config, see stats, quick trying
+1. [Management API](Management.md) to get/set config, see stats, quick trying
 1. [Performance/Chaos Profiles](Configuring.md#performancechaos-profiles)
 1. [Tagging responses](Configuring.md#tagged-responses) of endpoint
 1. referencing multipart/urlencoded fields in matchers and templates
@@ -92,6 +92,12 @@
 - mgmt UI change config global section didn't work
 - report error in case config apply fails
 
+- bug of applying status change via UI (Alon)
+- \r vs \n problem in mac
+- management UI to give links to individual services
+- exp demo of requests log
+- change config editor component
+- don't clear traffic log on page reload
 - "Bypass" mode for service to learn configuration
 
 - change config editor component
@@ -105,6 +111,7 @@
    Accept etc)
 
 - mocks for Kafka & RabbitMQ
+  - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
   - on schedule producer
   - on demand producer
   - reactive consumer+producer
