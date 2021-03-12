@@ -836,7 +836,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual("no fallback", resp.text)
 
-        resp = requests.get(SRV7 + '/Changelog.html') # '/parameterized1/fallback/subval'
+        resp = requests.get(SRV7 + '/Changelog.html')  # '/parameterized1/fallback/subval'
         self.assertEqual(200, resp.status_code)
 
         resp = requests.get(SRV7 + '/img/logo.png')
@@ -848,11 +848,24 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV7 + '/sub/__admin/unhandled')
         resp.raise_for_status()
-        exp = {
-            'services': [{
-                'endpoints': [{}],
-                'name': 'Service with fallback',
-                'port': 8007
-            }]
-        }
-        self.assertEqual(exp, resp.json())  # TODO: turn into correct expectation
+        exp = {'services': [{'endpoints': [
+            {'method': 'GET',
+             'path': '/Changelog.html',
+             'response': {'status': 200}},
+            {'method': 'GET',
+             'path': '/img/logo.png',
+             'response': {'status': 200}},
+            {'method': 'GET',
+             'path': '/not-exists',
+             'response': {'status': 404}}],
+            'name': 'Service with fallback',
+            'port': 8007}]}
+        rdata = resp.json()
+        endps = rdata['services'][0]['endpoints']
+        self.assertIn('<html', endps[0]['response'].pop('body'))
+        endps[1]['response'].pop('body')
+        endps[2]['response'].pop('body')
+        endps[0]['response'].pop('headers')
+        endps[1]['response'].pop('headers')
+        endps[2]['response'].pop('headers')
+        self.assertEqual(exp, rdata)
