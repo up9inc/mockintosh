@@ -97,10 +97,10 @@ The redirect in here does not mean returning `3xx` but instead doing a server-si
 response to the original requester. Such that the response of `http://localhost:8001/somepath` reflects
 the response of `http://example.com/somepath`.
 
+_Note: Timeout for such redirected requests is 5 seconds and internal circular `fallbackTo` can lead to unresponsive states._
+
 If the [management API](Management.md#unhandled-requests) is enabled, redirected requests are also logged as
 unhandled requests.
-
-Note: Timeout for such redirected requests is 5 seconds.
 
 _Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
 
