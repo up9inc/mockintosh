@@ -623,7 +623,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/oas', verify=False)
         resp.raise_for_status()
         docs = resp.json()
-        self.assertEqual(7, len(docs['documents']))
+        self.assertEqual(8, len(docs['documents']))
         self.assertEqual('http://localhost:8006', docs['documents'][6]['servers'][0]['url'])
 
         resp = requests.get(SRV1 + '/__admin/oas')
@@ -829,7 +829,7 @@ class IntegrationTests(unittest.TestCase):
         return json
 
     def test_fallback(self):
-        resp = requests.delete(SRV7 + '/__admin/unhandled')
+        resp = requests.delete(SRV7 + '/sub/__admin/unhandled')
         resp.raise_for_status()
 
         resp = requests.get(SRV7 + '/')
@@ -843,6 +843,6 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(SRV7 + '/not-exists')
         self.assertEqual(404, resp.status_code)
 
-        resp = requests.get(SRV7 + '/__admin/unhandled')
+        resp = requests.get(SRV7 + '/sub/__admin/unhandled')
         resp.raise_for_status()
         self.assertEqual({}, resp.json())  # TODO: turn into correct expectation
