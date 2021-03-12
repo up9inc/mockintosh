@@ -24,7 +24,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder, _safe_path_split
+from mockintosh.methods import _decoder, _safe_path_split, _b64encode
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -344,13 +344,22 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     'body': ''
                 }
                 for key, value in response.headers.items():
-                    config_template['response']['headers'][key] = value
+                    try:
+                        config_template['response']['headers'][key] = value.decode()
+                    except (AttributeError, UnicodeDecodeError):
+                        config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
                 if isinstance(response.body, dict):
                     config_template['response']['body'] = {}
                     for key, value in response.body.items():
-                        config_template['response']['body'][key] = value
+                        try:
+                            config_template['response']['body'][key] = value.decode()
+                        except (AttributeError, UnicodeDecodeError):
+                            config_template['response']['body'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
                 elif response.body is not None:
-                    config_template['response']['body'] = response.body
+                    try:
+                        config_template['response']['body'] = response.body.decode()
+                    except (AttributeError, UnicodeDecodeError):
+                        config_template['response']['body'] = _b64encode(response.body) if isinstance(response.body, (bytes, bytearray)) else response.body
             endpoints.append(config_template)
 
         return endpoints
@@ -983,8 +992,8 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
 
     def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
-            for j, _ in self.http_server.unhandled_data.requests[i]:
-                self.http_server.unhandled_data.requests[i][j] = []
+            for key, _ in self.http_server.unhandled_data.requests[i].items():
+                self.http_server.unhandled_data.requests[i][key] = []
         self.set_status(204)
 
 

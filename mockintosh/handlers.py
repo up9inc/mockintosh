@@ -1016,6 +1016,8 @@ class GenericHandler(tornado.web.RequestHandler):
             ):
                 continue
             headers[key] = value
+        headers['Cache-Control'] = 'no-cache'
+        headers['If-None-Match'] = '0'
 
         # Query String
         query_string = ''
@@ -1079,6 +1081,7 @@ class GenericHandler(tornado.web.RequestHandler):
             if key.title() in (
                 'Server',
                 'Transfer-Encoding',
+                'Content-Length',
                 'Content-Encoding',
                 'Access-Control-Allow-Methods',
                 'Access-Control-Allow-Origin'
@@ -1086,9 +1089,9 @@ class GenericHandler(tornado.web.RequestHandler):
                 continue
             self.set_header(key, value)
 
-        self.write(resp.text)
+        self.write(resp.content)
         self.special_response = self.build_special_response()
-        self.special_response.body = resp.text
+        self.special_response.body = resp.content
 
         self.insert_unhandled_data((self.request, self.special_response))
         raise NewHTTPError()
