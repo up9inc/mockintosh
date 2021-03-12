@@ -2519,6 +2519,17 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/internal_circular_fallback_to.json'
+    ])
+    def test_internal_circular_fallback_to(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST})
+        assert 408 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Internal circular \'fallbackTo\' definition error! Fix your configuration file.'
+
 
 class TestPerformanceProfile():
 
