@@ -19,6 +19,7 @@ SRV3 = os.environ.get('SRV3', 'https://localhost:8003')
 SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
+SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -622,7 +623,7 @@ class IntegrationTests(unittest.TestCase):
         resp = requests.get(MGMT + '/oas', verify=False)
         resp.raise_for_status()
         docs = resp.json()
-        self.assertEqual(7, len(docs['documents']))
+        self.assertEqual(8, len(docs['documents']))
         self.assertEqual('http://localhost:8006', docs['documents'][6]['servers'][0]['url'])
 
         resp = requests.get(SRV1 + '/__admin/oas')
@@ -826,3 +827,45 @@ class IntegrationTests(unittest.TestCase):
         json = resp.json()
         validate(json, {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"})
         return json
+
+    def test_fallback(self):
+        resp = requests.delete(SRV7 + '/sub/__admin/unhandled')
+        resp.raise_for_status()
+
+        resp = requests.get(SRV7 + '/')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual("no fallback", resp.text)
+
+        resp = requests.get(SRV7 + '/Changelog.html')  # '/parameterized1/fallback/subval'
+        self.assertEqual(200, resp.status_code)
+
+        resp = requests.get(SRV7 + '/img/logo.png')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual('image/png', resp.headers.get('content-type'))
+
+        resp = requests.get(SRV7 + '/not-exists')
+        self.assertEqual(404, resp.status_code)
+
+        resp = requests.get(SRV7 + '/sub/__admin/unhandled')
+        resp.raise_for_status()
+        exp = {'services': [{'endpoints': [
+            {'method': 'GET',
+             'path': '/Changelog.html',
+             'response': {'status': 200}},
+            {'method': 'GET',
+             'path': '/img/logo.png',
+             'response': {'status': 200}},
+            {'method': 'GET',
+             'path': '/not-exists',
+             'response': {'status': 404}}],
+            'name': 'Service with fallback',
+            'port': 8007}]}
+        rdata = resp.json()
+        endps = rdata['services'][0]['endpoints']
+        self.assertIn('<html', endps[0]['response'].pop('body'))
+        endps[1]['response'].pop('body')
+        endps[2]['response'].pop('body')
+        endps[0]['response'].pop('headers')
+        endps[1]['response'].pop('headers')
+        endps[2]['response'].pop('headers')
+        self.assertEqual(exp, rdata)

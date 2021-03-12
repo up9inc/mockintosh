@@ -11,6 +11,7 @@ import sys
 from abc import abstractmethod
 from os import path, environ
 from collections import OrderedDict
+from typing import Union
 
 import tornado.ioloop
 import tornado.web
@@ -71,9 +72,17 @@ class TornadoImpl(Impl):
         tornado.ioloop.IOLoop.current().start()
 
 
+class _Listener:
+    def __init__(self, hostname: Union[str, None], port: int, address: Union[str, None]):
+        self.hostname = hostname
+        self.port = port
+        self.address = address
+
+
 class _Apps:
     def __init__(self):
         self.apps = []
+        self.listeners = []
 
 
 class HttpServer:
@@ -161,6 +170,13 @@ class HttpServer:
 
                 app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
                 self._apps.apps.append(app)
+                self._apps.listeners.append(
+                    _Listener(
+                        service['hostname'] if 'hostname' in service else None,
+                        service['port'],
+                        self.address if self.address else 'localhost'
+                    )
+                )
 
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
@@ -267,6 +283,7 @@ class HttpServer:
                 r'.*',
                 GenericHandler,
                 dict(
+                    http_server=self,
                     config_dir=self.definition.source_dir,
                     service_id=service['internalServiceId'],
                     endpoints=merged_endpoints,
@@ -276,7 +293,9 @@ class HttpServer:
                     stats=self.stats,
                     logs=self.logs,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
-                    tag=None
+                    fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
+                    tag=None,
+                    is_unhandled_request=False
                 )
             )
         )
