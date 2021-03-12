@@ -389,7 +389,7 @@
       "name": "Service with fallback",
       "port": 8007,
       "managementRoot": "/sub/__admin",
-      "fallbackTo": "http://localhost:8001",
+      "fallbackTo": "https://mockintosh.io",
       "endpoints": [
         {
           "path": "/",

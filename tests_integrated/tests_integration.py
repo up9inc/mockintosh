@@ -836,7 +836,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual("no fallback", resp.text)
 
-        resp = requests.get(SRV7 + '/parameterized1/fallback/subval')
+        resp = requests.get(SRV7 + '/Changelog.html') # '/parameterized1/fallback/subval'
         self.assertEqual(200, resp.status_code)
         self.assertEqual("intoVar capture: fallback", resp.text)
 
@@ -845,4 +845,11 @@ class IntegrationTests(unittest.TestCase):
 
         resp = requests.get(SRV7 + '/sub/__admin/unhandled')
         resp.raise_for_status()
-        self.assertEqual({}, resp.json())  # TODO: turn into correct expectation
+        exp = {
+            'services': [{
+                'endpoints': [{}],
+                'name': 'Service with fallback',
+                'port': 8007
+            }]
+        }
+        self.assertEqual(exp, resp.json())  # TODO: turn into correct expectation
