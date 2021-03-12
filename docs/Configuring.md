@@ -100,9 +100,7 @@ the response of `http://example.com/somepath`.
 If the [management API](Management.md#unhandled-requests) is enabled, redirected requests are also logged as
 unhandled requests.
 
-> Note: Since Mockintosh is based on Tornado Web Server and Tornado is unable to handle two requests simultaneously,
-> specifying an internal URL as `fallbackTo` (another service or path handled by Mockintosh) makes Mockintosh
-> unresponsive and gives a timeout error after 5 seconds. Specifying external URLs is perfectly fine.
+Note: Timeout for such redirected requests is 5 seconds.
 
 _Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
 
