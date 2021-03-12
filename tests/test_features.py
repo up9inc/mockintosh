@@ -2514,6 +2514,11 @@ class TestManagement():
         assert len(body['data']) <= 20
         assert body['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
 
+        resp = requests.get(SRV_8002 + '/service1', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
 
 class TestPerformanceProfile():
 
