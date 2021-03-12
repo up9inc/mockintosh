@@ -872,13 +872,13 @@ class GenericHandler(tornado.web.RequestHandler):
     def set_cors_headers(self) -> None:
         """Method that sets the CORS headers."""
         if ORIGIN in self.request.headers._dict:
-            self.set_header('access-control-allow-methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
+            self.set_header('Access-Control-Allow-Methods', 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT')
             origin = self.request.headers.get(ORIGIN)
-            self.set_header('access-control-allow-origin', origin)
+            self.set_header('Access-Control-Allow-Origin', origin)
 
             if AC_REQUEST_HEADERS in self.request.headers._dict:
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
-                self.set_header('access-control-allow-headers', ac_request_headers)
+                self.set_header('Access-Control-Allow-Headers', ac_request_headers)
 
     def set_default_headers(self) -> None:
         """Method that sets the default headers."""
@@ -979,11 +979,11 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""
+        result = self.resolve_unhandled_request()
         if self.unhandled_data is not None:
             identifier = '%s %s' % (self.request.method.upper(), self.request.path)
             if identifier not in self.unhandled_data.requests[self.service_id]:
                 self.unhandled_data.requests[self.service_id][identifier] = []
-            result = self.resolve_unhandled_request()
             self.unhandled_data.requests[self.service_id][identifier].append(result)
             if result[1] is not None:
                 raise NewHTTPError()
@@ -1010,6 +1010,10 @@ class GenericHandler(tornado.web.RequestHandler):
         # Headers
         headers = {}
         for key, value in self.request.headers._dict.items():
+            if key.title() in (
+                'Host'
+            ):
+                continue
             headers[key] = value
 
         # Query String
@@ -1017,31 +1021,53 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, value in self.request.query_arguments.items():
             if not query_string:
                 query_string = '?'
-            query_string += '%s=%s' % (key, [_decoder(x) for x in value][0])
+            values = [_decoder(x) for x in value]
+            if len(values) == 1:
+                query_string += '%s=%s' % (key, values[0])
+            else:
+                for _value in values:
+                    query_string += '%s[]=%s' % (key, _value)
 
         # Body
         body = None
         if self.request.body_arguments:
             body = {}
             for key, value in self.request.body_arguments.items():
-                body[key] = [_decoder(x) for x in value][0]
+                body[key] = [_decoder(x) for x in value]
+                if len(body[key]) == 1:
+                    body[key] = body[key][0]
         elif self.request.files:
             body = {}
             for key, value in self.request.files.items():
-                body[key] = [_decoder(x.body) for x in value][0]
+                body[key] = [_decoder(x.body) for x in value]
+                if len(body[key]) == 1:
+                    body[key] = body[key][0]
         else:
             body = _decoder(self.request.body)
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
-        http_verb = getattr(requests, self.request.method.lower())
-        resp = http_verb(url, headers=headers, data=body)
+        logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
 
-        self.set_status(resp.status_code)
+        http_verb = getattr(requests, self.request.method.lower())
+        resp = http_verb(url, headers=headers, timeout=5)
+
+        logging.info('Returned back from the redirected request.')
+
+        self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():
+            if key.title() in (
+                'Server',
+                'Transfer-Encoding',
+                'Content-Encoding',
+                'Access-Control-Allow-Methods',
+                'Access-Control-Allow-Origin'
+            ):
+                continue
             self.set_header(key, value)
 
-        self.write(resp.content)
+        self.write(resp.text)
         self.special_response = self.build_special_response()
+        self.special_response.body = resp.text
 
         return (self.request, self.special_response)

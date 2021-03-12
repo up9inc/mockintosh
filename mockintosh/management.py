@@ -334,9 +334,17 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             else:
                 config_template['response'] = {
                     'status': response.status,
-                    'headers': response.headers,
-                    'body': response.body
+                    'headers': {},
+                    'body': ''
                 }
+                for key, value in response.headers.items():
+                    config_template['response']['headers'][key] = value
+                if isinstance(response.body, dict):
+                    config_template['response']['body'] = {}
+                    for key, value in response.body.items():
+                        config_template['response']['body'][key] = value
+                elif response.body is not None:
+                    config_template['response']['body'] = response.body
             endpoints.append(config_template)
 
         return endpoints
