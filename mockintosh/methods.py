@@ -52,8 +52,6 @@ def _jinja_add_to_context(context, scope, key, value):
 
 
 def _jinja_add_varname(context, varname):
-    if JINJA_VARNAME_DICT not in context.environment.globals:
-        context.environment.globals[JINJA_VARNAME_DICT] = {}
     context.environment.globals[JINJA_VARNAME_DICT][varname] = None
 
 

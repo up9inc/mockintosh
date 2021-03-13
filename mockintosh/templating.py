@@ -84,10 +84,6 @@ class TemplateRenderer():
         else:
             env = Environment()
 
-        if JINJA_VARNAME_DICT in env.globals:
-            env.globals[JINJA_VARNAME_DICT] = {}
-        if SPECIAL_CONTEXT in env.globals:
-            env.globals[SPECIAL_CONTEXT] = {}
         self.add_globals(env)
         if JINJA_VARNAME_DICT not in env.globals:
             env.globals[JINJA_VARNAME_DICT] = {}
