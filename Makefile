@@ -7,7 +7,7 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-test: test-integration
+test: test-integration copy-certs
 	flake8 && \
 	pytest tests -s -vv --log-level=DEBUG
 
@@ -23,7 +23,7 @@ test-integration: build
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
-test-with-coverage:
+test-with-coverage: copy-certs
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --quiet && \
@@ -49,3 +49,9 @@ cert:
 		-subj "/C=US/ST=California/L=San Francisco/O=UP9.com/CN=Mockintosh" \
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
+
+copy-certs:
+	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
+	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/management/key.pem && \
+	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/management/cert.pem && \
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem

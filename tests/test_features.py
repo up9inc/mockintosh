@@ -49,10 +49,10 @@ configs = [
 ]
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
+SRV_8000 = os.environ.get('SRV1', 'http://localhost:8000')
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
-SRV_9000 = os.environ.get('SRV2', 'http://localhost:9000')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
@@ -1475,11 +1475,11 @@ class TestManagement():
     def test_get_root(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/')
+        resp = requests.get(MGMT + '/', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
-        resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
@@ -1490,32 +1490,32 @@ class TestManagement():
     def test_get_config(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = requests.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_9000 + '/config?format=yaml')
+        resp = requests.get(MGMT + '/config?format=yaml', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_config.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config_service1.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8001 + '/__admin/config?format=yaml', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/__admin/config?format=yaml', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_config_service1.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config_service2.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8002 + '/__admin/config?format=yaml', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/__admin/config?format=yaml', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_config_service2.yaml'), 'r').read()
@@ -1530,32 +1530,32 @@ class TestManagement():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
-            resp = requests.post(SRV_9000 + '/config', data=file.read())
+            resp = requests.post(MGMT + '/config', data=file.read(), verify=False)
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-config'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = requests.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
             assert data == resp.json()
 
-        resp = requests.get(SRV_9000 + '/config?format=yaml')
+        resp = requests.get(MGMT + '/config?format=yaml', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         with open(get_config_path('configs/json/hbs/management/new_config.yaml'), 'r') as file:
@@ -1563,40 +1563,40 @@ class TestManagement():
             assert data == yaml.safe_load(resp.text)
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
-            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read())
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-service'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
         with open(get_config_path('configs/json/hbs/management/new_service2.%s' % _format), 'r') as file:
-            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, data=file.read())
+            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, data=file.read(), verify=False)
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-service'
 
         param = str(int(time.time()))
-        resp = requests.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var: %s' % param
@@ -1610,7 +1610,7 @@ class TestManagement():
         param = str(int(time.time()))
 
         for _ in range(2):
-            resp = requests.get(SRV_9000 + '/stats')
+            resp = requests.get(MGMT + '/stats', verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1648,33 +1648,33 @@ class TestManagement():
             assert data['services'][1]['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(5):
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST})
+                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 201 == resp.status_code
                 assert resp.text == 'service1-second: %s' % param
 
             for _ in range(2):
-                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST})
+                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST}, verify=False)
                 except ConnectionError as e:
                     assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST})
+                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST}, verify=False)
                 except ConnectionError as e:
                     assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
                 assert 200 == resp.status_code
 
-            resp = requests.get(SRV_9000 + '/stats')
+            resp = requests.get(MGMT + '/stats', verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1703,7 +1703,7 @@ class TestManagement():
             assert data['services'][1]['status_code_distribution']['RST'] == 2
             assert data['services'][1]['status_code_distribution']['FIN'] == 2
 
-            resp = requests.delete(SRV_9000 + '/stats')
+            resp = requests.delete(MGMT + '/stats', verify=False)
             assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
@@ -1715,7 +1715,7 @@ class TestManagement():
         param = str(int(time.time()))
 
         for _ in range(2):
-            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1733,15 +1733,15 @@ class TestManagement():
             assert data['endpoints'][1]['status_code_distribution'] == {}
 
             for _ in range(5):
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST})
+                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 201 == resp.status_code
                 assert resp.text == 'service1-second: %s' % param
 
-            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1758,11 +1758,11 @@ class TestManagement():
             assert data['endpoints'][0]['status_code_distribution']['200'] == 5
             assert data['endpoints'][1]['status_code_distribution']['201'] == 3
 
-            resp = requests.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = requests.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST}, verify=False)
             assert 204 == resp.status_code
 
         for _ in range(2):
-            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1784,24 +1784,24 @@ class TestManagement():
             assert data['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(2):
-                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST})
+                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST}, verify=False)
                 except ConnectionError as e:
                     assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST})
+                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST}, verify=False)
                 except ConnectionError as e:
                     assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
                 assert 200 == resp.status_code
 
-            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1818,7 +1818,7 @@ class TestManagement():
             assert data['status_code_distribution']['RST'] == 2
             assert data['status_code_distribution']['FIN'] == 2
 
-            resp = requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config, level'), [
@@ -1870,7 +1870,7 @@ class TestManagement():
                 assert 204 == resp.status_code
 
             if level == 'global':
-                resp = requests.post(SRV_9000 + '/reset-iterators')
+                resp = requests.post(MGMT + '/reset-iterators', verify=False)
                 assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
@@ -1879,10 +1879,10 @@ class TestManagement():
     def test_tagged_responses(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.post(SRV_9000 + '/tag', data="first")
+        resp = requests.post(MGMT + '/tag', data="first", verify=False)
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/tag')
+        resp = requests.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code
         data = resp.json()
         for tag in data['tags']:
@@ -1986,10 +1986,10 @@ class TestManagement():
     def test_tagged_datasets(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.post(SRV_9000 + '/tag', data="first")
+        resp = requests.post(MGMT + '/tag', data="first", verify=False)
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/tag')
+        resp = requests.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code
         data = resp.json()
         for tag in data['tags']:
@@ -2094,47 +2094,47 @@ class TestManagement():
     def test_get_unhandled(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = requests.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
         assert expected_data == resp.json()
 
-        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
+        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1y?a=b&c=d', headers={'Host': SRV_8001_HOST, 'Example-Header': 'Example-Value', 'User-Agent': 'mockintosh-test'})
+        resp = requests.get(SRV_8001 + '/service1y?a=b&c=d', headers={'Host': SRV_8001_HOST, 'Example-Header': 'Example-Value', 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'})
+        resp = requests.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = requests.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_unhandled.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_9000 + '/unhandled?format=yaml')
+        resp = requests.get(MGMT + '/unhandled?format=yaml', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_unhandled.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service1.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8001 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8001_HOST})
+        resp = requests.get(SRV_8001 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service1.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service2.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8002 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8002_HOST})
+        resp = requests.get(SRV_8002 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service2.yaml'), 'r').read()
@@ -2153,10 +2153,7 @@ class TestManagement():
         self.mock_server_process = run_mock_server(config_path)
 
         resp = None
-        if config.startswith('tests_integrated'):
-            resp = requests.get(MGMT + '/oas', verify=False)
-        else:
-            resp = requests.get(SRV_9000 + '/oas')
+        resp = requests.get(MGMT + '/oas', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -2167,13 +2164,13 @@ class TestManagement():
         if config.startswith('tests_integrated'):
             resp = requests.get(SRV_8001 + '/__admin/oas')
         else:
-            resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+            resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         validate_spec(resp.json())
 
         if not config.startswith('tests_integrated'):
-            resp = requests.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST})
+            resp = requests.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             validate_spec(resp.json())
@@ -2184,7 +2181,7 @@ class TestManagement():
     def test_get_oas_custom(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/oas')
+        resp = requests.get(MGMT + '/oas', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -2219,12 +2216,12 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_1
 
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_1
 
-        resp = requests.get(SRV_9000 + '/resources')
+        resp = requests.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -2236,69 +2233,71 @@ class TestManagement():
         data = resp.json()
         assert body_txt_rel_path in data['files']
 
-        resp = requests.post(SRV_9000 + '/resources', data={'path': body_txt_rel_path, 'file': text_state_2})
+        resp = requests.post(MGMT + '/resources', data={'path': body_txt_rel_path, 'file': text_state_2}, verify=False)
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_2
 
         resp = requests.post(
-            SRV_9000 + '/resources',
+            MGMT + '/resources',
             data={'path': os.path.dirname(body_txt_rel_path)},
-            files={os.path.split(body_txt_rel_path)[1]: text_state_3}
+            files={os.path.split(body_txt_rel_path)[1]: text_state_3},
+            verify=False
         )
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_3
 
-        resp = requests.delete(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = requests.delete(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
         assert 403 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
         with open(get_config_path('configs/json/hbs/management/new_resources.json'), 'r') as file:
-            resp = requests.post(SRV_9000 + '/config', data=file.read())
+            resp = requests.post(MGMT + '/config', data=file.read(), verify=False)
             assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
         assert 404 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
         assert 403 == resp.status_code
 
         resp = requests.post(
-            SRV_9000 + '/resources',
+            MGMT + '/resources',
             data={'path': os.path.dirname(new_body_txt_rel_path)},
-            files={os.path.split(new_body_txt_rel_path)[1]: text_state_4}
+            files={os.path.split(new_body_txt_rel_path)[1]: text_state_4},
+            verify=False
         )
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_4
 
-        resp = requests.post(SRV_9000 + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5})
+        resp = requests.post(MGMT + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5}, verify=False)
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_5
 
-        resp = requests.delete(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = requests.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
         assert 403 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
-        ('configs/json/hbs/management/config.json', SRV_9000, {}),
-        ('configs/yaml/hbs/management/config.yaml', SRV_9000, {}),
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
         ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
         ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
     ])
@@ -2309,7 +2308,7 @@ class TestManagement():
         service2_response = 'service2'
 
         for _ in range(2):
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2325,7 +2324,7 @@ class TestManagement():
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == service1_response
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2333,10 +2332,10 @@ class TestManagement():
             assert not data['log']['_enabled']
             assert len(data['log']['entries']) == 0
 
-            resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers)
+            resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
             assert 204 == resp.status_code
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2356,7 +2355,7 @@ class TestManagement():
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == service2_response
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2425,10 +2424,10 @@ class TestManagement():
                     assert entry['request']['url'] == '%s://%s:%s/service2' % (url_parsed2.scheme, SRV_8002_HOST, url_parsed2.port)
                     assert entry['response']['content']['text'] == service2_response
 
-            resp = requests.post(admin_url + '/traffic-log', data={"enable": False}, headers=admin_headers)
+            resp = requests.post(admin_url + '/traffic-log', data={"enable": False}, headers=admin_headers, verify=False)
             assert 204 == resp.status_code
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2451,7 +2450,7 @@ class TestManagement():
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == service2_response
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2462,7 +2461,7 @@ class TestManagement():
             else:
                 assert len(data['log']['entries']) == 5
 
-            resp = requests.delete(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.delete(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2473,7 +2472,7 @@ class TestManagement():
             else:
                 assert len(data['log']['entries']) == 5
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2498,7 +2497,7 @@ class TestManagement():
             data = yaml.safe_load(file.read())
             data['globals']['headers']['global-hdr1'] = 'globalvalX'
             data['globals']['headers']['global-hdr2'] = 'globalvalY'
-            resp = requests.post(SRV_9000 + '/config', data=json.dumps(data))
+            resp = requests.post(SRV_8000 + '/config', data=json.dumps(data))
             assert 204 == resp.status_code
 
         resp = requests.get(SRV_8001 + '/global-headers')
@@ -2513,7 +2512,7 @@ class TestManagement():
     def test_update_performance_profile(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = requests.get(SRV_8000 + '/config')
         assert 200 == resp.status_code
         data = resp.json()
         assert data['globals']['performanceProfile'] == 'profile1'
@@ -2521,10 +2520,10 @@ class TestManagement():
         with open(get_config_path(config), 'r') as file:
             data = yaml.safe_load(file.read())
             data['globals']['performanceProfile'] = 'profile2'
-            resp = requests.post(SRV_9000 + '/config', data=json.dumps(data))
+            resp = requests.post(SRV_8000 + '/config', data=json.dumps(data))
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = requests.get(SRV_8000 + '/config')
         assert 200 == resp.status_code
         data = resp.json()
         assert data['globals']['performanceProfile'] == 'profile2'
@@ -2536,7 +2535,7 @@ class TestManagement():
     def test_fallback_to(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = requests.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
@@ -2547,7 +2546,7 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = requests.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
@@ -2567,7 +2566,7 @@ class TestManagement():
         assert len(data['data']) <= 20
         assert data['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = requests.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()

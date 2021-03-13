@@ -1,5 +1,8 @@
 management:
-  port: 9000
+  port: 8000
+  ssl: true
+  sslCertFile: cert.pem
+  sslKeyFile: key.pem
 templatingEngine: Handlebars
 services:
 - name: Mock for Service1
