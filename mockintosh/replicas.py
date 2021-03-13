@@ -12,8 +12,7 @@ from urllib.parse import urlencode
 from http.client import responses
 
 from mockintosh.methods import _b64encode
-
-BASE64 = 'base64'
+from mockintosh.constants import BASE64
 
 
 class _NotParsedJSON():
@@ -143,7 +142,7 @@ class Response():
         }
         if isinstance(content['text'], (bytes, bytearray)):
             content['text'] = _b64encode(content['text'])
-            content['encoding'] = 'base64'
+            content['encoding'] = BASE64
 
         return {
             "status": self.status,

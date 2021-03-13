@@ -70,15 +70,5 @@ def _import_from(module, name):
     return getattr(module, name)
 
 
-def _is_mostly_bin(s: bytes) -> bool:
-    if not s or len(s) == 0:
-        return False
-
-    return sum(
-        i < 9 or 13 < i < 32 or 126 < i
-        for i in s[:100]
-    ) / len(s[:100]) > 0.3
-
-
 def _b64encode(s: bytes) -> str:
     return b64encode(s).decode()

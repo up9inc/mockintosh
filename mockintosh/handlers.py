@@ -28,11 +28,11 @@ from accept_types import parse_header
 from tornado.concurrent import Future
 
 import mockintosh
-from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _is_mostly_bin, _b64encode
+from mockintosh.methods import _safe_path_split, _detect_engine, _b64encode
 from mockintosh.params import (
     PathParam,
     HeaderParam,
@@ -133,6 +133,9 @@ class GenericHandler(tornado.web.RequestHandler):
         """Method that creates a log record and inserts it to log tracking system."""
         if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
             return
+
+        if not hasattr(self, 'special_request'):
+            self.special_request = self.build_special_request()
 
         if not hasattr(self, 'special_response'):
             self.special_response = self.build_special_response()
@@ -358,7 +361,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 logging.debug('Reading external file from path: %s', template_path)
                 source_text = file.read()
                 try:
-                    source_text = source_text.decode('utf-8')
+                    source_text = source_text.decode()
                     logging.debug('Template file text: %s', source_text)
                 except UnicodeDecodeError:
                     is_binary = True
@@ -411,33 +414,33 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.request.body_arguments:
             request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
-                if any(_is_mostly_bin(x) for x in value):
-                    request.bodyType[key] = 'base64'
-                    request.body[key] = [_b64encode(x) for x in value]
-                else:
+                try:
                     request.bodyType[key] = 'str'
                     request.body[key] = [x.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    request.bodyType[key] = BASE64
+                    request.body[key] = [_b64encode(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
             request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
-                if any(_is_mostly_bin(x.body) for x in value):
-                    request.bodyType[key] = 'base64'
-                    request.body[key] = [_b64encode(x.body) for x in value]
-                else:
+                try:
                     request.bodyType[key] = 'str'
                     request.body[key] = [x.body.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    request.bodyType[key] = BASE64
+                    request.body[key] = [_b64encode(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
             request.mimeType = 'text/plain'
-            if _is_mostly_bin(request.body):
-                request.bodyType = 'base64'
-                request.body = _b64encode(self.request.body)
-            else:
+            try:
                 request.bodyType = 'str'
                 request.body = self.request.body.decode()
+            except (AttributeError, UnicodeDecodeError):
+                request.bodyType = BASE64
+                request.body = _b64encode(self.request.body)
         request.bodySize = len(self.request.body)
 
         request.files = self.request.files

@@ -24,7 +24,7 @@ from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
-from mockintosh.constants import PROGRAM
+from mockintosh.constants import PROGRAM, BASE64
 from mockintosh.performance import PerformanceProfile
 from mockintosh.methods import _b64encode
 from utilities import (
@@ -2479,6 +2479,116 @@ class TestManagement():
             jsonschema_validate(data, HAR_JSON_SCHEMA)
             assert not data['log']['_enabled']
             assert len(data['log']['entries']) == 0
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_traffic_log_query_string(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        somekey = 'somekey'
+        somevalue = 'somevalue'
+
+        resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/service1?%s=%s' % (somekey, somevalue), headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 1
+        assert len(data['log']['entries'][0]['request']['queryString']) == 1
+        assert data['log']['entries'][0]['request']['queryString'][0]['name'] == somekey
+        assert data['log']['entries'][0]['request']['queryString'][0]['value'] == somevalue
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_traffic_log_post_data(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        somekey = 'somekey'
+        somevalue = 'somevalue'
+        service1_response = 'service1'
+
+        resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
+        assert 204 == resp.status_code
+
+        # POST form data
+        resp = requests.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data={somekey: somevalue})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == service1_response
+
+        # POST multipart binary
+        image_file = None
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            resp = requests.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, files={somekey: image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == service1_response
+
+        # POST plain text
+        resp = requests.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data=somevalue)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == service1_response
+
+        # POST binary
+        resp = requests.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data=image_file)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == service1_response
+
+        resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 4
+
+        # POST form data
+        assert data['log']['entries'][0]['request']['bodySize'] == 17
+        assert len(data['log']['entries'][0]['request']['postData']['params']) == 1
+        assert data['log']['entries'][0]['request']['postData']['mimeType'] == 'application/x-www-form-urlencoded'
+        assert data['log']['entries'][0]['request']['postData']['params'][0]['name'] == somekey
+        assert data['log']['entries'][0]['request']['postData']['params'][0]['value'] == somevalue
+        assert not data['log']['entries'][0]['request']['postData']['text']
+
+        # POST multipart binary
+        assert data['log']['entries'][1]['request']['bodySize'] == 757
+        assert len(data['log']['entries'][1]['request']['postData']['params']) == 1
+        assert data['log']['entries'][1]['request']['postData']['mimeType'] == 'multipart/form-data'
+        assert data['log']['entries'][1]['request']['postData']['params'][0]['name'] == somekey
+        assert data['log']['entries'][1]['request']['postData']['params'][0]['value'] == _b64encode(image_file)
+        assert data['log']['entries'][1]['request']['postData']['params'][0]['_encoding'] == BASE64
+        assert not data['log']['entries'][1]['request']['postData']['text']
+
+        # POST plain text
+        assert data['log']['entries'][2]['request']['bodySize'] == 9
+        assert len(data['log']['entries'][2]['request']['postData']['params']) == 0
+        assert data['log']['entries'][2]['request']['postData']['mimeType'] == 'text/plain'
+        assert data['log']['entries'][2]['request']['postData']['text'] == somevalue
+
+        # POST binary
+        assert data['log']['entries'][3]['request']['bodySize'] == 611
+        assert len(data['log']['entries'][3]['request']['postData']['params']) == 0
+        assert data['log']['entries'][3]['request']['postData']['mimeType'] == 'text/plain'
+        assert data['log']['entries'][3]['request']['postData']['text'] == _b64encode(image_file)
+        assert data['log']['entries'][3]['request']['postData']['_encoding'] == BASE64
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/headers/config.json',

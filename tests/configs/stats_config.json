@@ -25,6 +25,11 @@
             "status": 201,
             "body": "service1-second: {{var}}"
           }
+        },
+        {
+          "path": "/service1-post",
+          "method": "POST",
+          "response": "service1"
         }
       ]
     },

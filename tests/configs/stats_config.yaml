@@ -18,6 +18,9 @@ services:
     response:
       status: 201
       body: 'service1-second: {{var}}'
+  - path: /service1-post
+    method: POST
+    response: service1
 - name: Mock for Service2
   hostname: service2.example.com
   port: 8002
