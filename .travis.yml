@@ -10,4 +10,4 @@ script:
   - export TRAVIS_TAG=0.7
   - git checkout $TRAVIS_TAG
 after_success:
-  - if [[ $TRAVIS_TAG =~ ^(\d+\.?)+$ ]]; then git push origin gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
+  - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force origin gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
