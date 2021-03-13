@@ -2590,6 +2590,34 @@ class TestManagement():
         assert data['log']['entries'][3]['request']['postData']['text'] == _b64encode(image_file)
         assert data['log']['entries'][3]['request']['postData']['_encoding'] == BASE64
 
+    def test_traffic_log_binary_response(self):
+        config = 'configs/json/hbs/core/binary_response.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.post(SRV_8000 + '/traffic-log', data={"enable": True})
+        assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/image')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'image/png'
+        image_file = None
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            assert resp.content == image_file
+
+        resp = requests.get(SRV_8000 + '/traffic-log')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 1
+
+        assert data['log']['entries'][0]['response']['content']['size'] == 611
+        assert data['log']['entries'][0]['response']['content']['mimeType'] == 'image/png'
+        assert data['log']['entries'][0]['response']['content']['text'] == _b64encode(image_file)
+        assert data['log']['entries'][0]['response']['content']['encoding'] == BASE64
+
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/headers/config.json',
         'configs/yaml/hbs/headers/config.yaml'
