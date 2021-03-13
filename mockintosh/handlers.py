@@ -33,7 +33,7 @@ from mockintosh.replicas import Request, Response
 from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _decoder, _is_mostly_bin, _b64encode
+from mockintosh.methods import _safe_path_split, _detect_engine, _is_mostly_bin, _b64encode
 from mockintosh.params import (
     PathParam,
     HeaderParam,
@@ -335,11 +335,11 @@ class GenericHandler(tornado.web.RequestHandler):
             if isinstance(param, QueryStringParam):
                 context[key] = self.get_query_argument(param.key)
             if isinstance(param, BodyTextParam):
-                context[key] = _decoder(self.request.body)
+                context[key] = self.request.body.decode()
             if isinstance(param, BodyUrlencodedParam):
                 context[key] = self.get_body_argument(param.key)
             if isinstance(param, BodyMultipartParam):
-                context[key] = _decoder(self.request.files[param.key][0].body)
+                context[key] = self.request.files[param.key][0].body.decode()
         return context
 
     def render_template(self) -> str:
@@ -404,7 +404,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            request.queryString[key] = [_decoder(x) for x in value]
+            request.queryString[key] = [x.decode() for x in value]
             if len(request.queryString[key]) == 1:
                 request.queryString[key] = request.queryString[key][0]
 
@@ -417,7 +417,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     request.body[key] = [_b64encode(x) for x in value]
                 else:
                     request.bodyType[key] = 'str'
-                    request.body[key] = [_decoder(x) for x in value]
+                    request.body[key] = [x.decode() for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
@@ -428,7 +428,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     request.body[key] = [_b64encode(x.body) for x in value]
                 else:
                     request.bodyType[key] = 'str'
-                    request.body[key] = [_decoder(x.body) for x in value]
+                    request.body[key] = [x.body.decode() for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
@@ -438,7 +438,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 request.body = _b64encode(self.request.body)
             else:
                 request.bodyType = 'str'
-                request.body = _decoder(self.request.body)
+                request.body = self.request.body.decode()
         request.bodySize = len(self.request.body)
 
         request.files = self.request.files
@@ -517,7 +517,7 @@ class GenericHandler(tornado.web.RequestHandler):
         elif component == 'queryString':
             payload = self.request.query_arguments
         elif component == 'bodyText':
-            payload = _decoder(self.request.body)
+            payload = self.request.body.decode()
         elif component == 'bodyUrlencoded':
             payload = self.request.body_arguments
         elif component == 'bodyMultipart':
@@ -539,7 +539,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     elif component == 'bodyUrlencoded':
                         match_string = self.get_body_argument(key)
                     elif component == 'bodyMultipart':
-                        match_string = _decoder(self.request.files[key][0].body)
+                        match_string = self.request.files[key][0].body.decode()
 
                     match = re.search(value['regex'], match_string)
                     if match is not None:
@@ -666,7 +666,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
             # Body
             if 'body' in alternative:
-                body = _decoder(self.request.body)
+                body = self.request.body.decode()
 
                 # Schema
                 if 'schema' in alternative['body']:
@@ -751,7 +751,7 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             reason = 'Key \'%s\' couldn\'t found in the multipart data!' % key
                             break
-                        multipart_argument = _decoder(self.request.files[key][0].body)
+                        multipart_argument = self.request.files[key][0].body.decode()
                         if value == multipart_argument:
                             continue
                         value = '^%s$' % value
@@ -1029,7 +1029,7 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, value in self.request.query_arguments.items():
             if not query_string:
                 query_string = '?'
-            values = [_decoder(x) for x in value]
+            values = [x.decode() for x in value]
             if len(values) == 1:
                 query_string += '%s=%s' % (key, values[0])
             else:
@@ -1041,17 +1041,17 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.request.body_arguments:
             body = {}
             for key, value in self.request.body_arguments.items():
-                body[key] = [_decoder(x) for x in value]
+                body[key] = [x.decode() for x in value]
                 if len(body[key]) == 1:
                     body[key] = body[key][0]
         elif self.request.files:
             body = {}
             for key, value in self.request.files.items():
-                body[key] = [_decoder(x.body) for x in value]
+                body[key] = [x.body.decode() for x in value]
                 if len(body[key]) == 1:
                     body[key] = body[key][0]
         else:
-            body = _decoder(self.request.body)
+            body = self.request.body.decode()
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
         url_parsed = urlparse(url)

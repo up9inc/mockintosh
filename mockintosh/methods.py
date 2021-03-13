@@ -70,13 +70,6 @@ def _import_from(module, name):
     return getattr(module, name)
 
 
-def _decoder(string):
-    try:
-        return string.decode('utf-8')
-    except UnicodeDecodeError:
-        return string.decode('latin-1')
-
-
 def _is_mostly_bin(s: bytes) -> bool:
     if not s or len(s) == 0:
         return False

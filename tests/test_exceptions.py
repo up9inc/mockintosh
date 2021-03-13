@@ -6,6 +6,7 @@
     :synopsis: Contains classes that tests the exceptions thrown by the mock server.
 """
 
+import sys
 import pytest
 from jsonschema.exceptions import ValidationError
 
@@ -13,6 +14,7 @@ from mockintosh import Definition, get_schema
 from mockintosh.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine, CertificateLoadingError
 from mockintosh.templating import TemplateRenderer
 from mockintosh.servers import HttpServer, TornadoImpl
+from mockintosh.methods import _nostderr
 from utilities import get_config_path
 
 schema = get_schema()
@@ -60,3 +62,7 @@ class TestExceptions():
                 definition,
                 TornadoImpl()
             )
+
+    def test_nostderr(self):
+        with _nostderr():
+            sys.stderr.write('don\'t print this')

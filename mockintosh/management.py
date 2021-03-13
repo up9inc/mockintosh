@@ -24,7 +24,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder, _safe_path_split, _b64encode
+from mockintosh.methods import _safe_path_split, _b64encode
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -104,7 +104,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self.write(data)
 
     def post(self):
-        body = _decoder(self.request.body)
+        body = self.request.body.decode()
         try:
             orig_data = yaml.safe_load(body)
         except json.JSONDecodeError as e:
@@ -333,7 +333,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     continue
                 if 'queryString' not in config_template:
                     config_template['queryString'] = {}
-                config_template['queryString'][key] = _decoder(value[0])
+                config_template['queryString'][key] = value[0].decode()
 
             if response is None:
                 config_template['response'] = ''
@@ -615,7 +615,7 @@ class ManagementTagHandler(ManagementBaseHandler):
         self.write(data)
 
     def post(self):
-        data = _decoder(self.request.body)
+        data = self.request.body.decode()
         for app in self.http_server._apps.apps:
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
@@ -871,7 +871,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             self.write(data)
 
     def post(self):
-        body = _decoder(self.request.body)
+        body = self.request.body.decode()
         try:
             orig_data = yaml.safe_load(body)
         except json.JSONDecodeError as e:
@@ -1023,7 +1023,7 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
                     self.write(tag)
 
     def post(self):
-        data = _decoder(self.request.body)
+        data = self.request.body.decode()
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 rule.target_kwargs['tag'] = data
