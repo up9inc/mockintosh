@@ -5,23 +5,7 @@ branches:
     - /(\d+\.?)+/
 services:
   - docker
-install:
-  - travis_fold start "Install.Pip.Package" && pip3 install -e .[dev] && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
-  - travis_fold start "Build.Image" && docker build . -t mockintosh && docker image ls mockintosh && travis_fold end "Build.Image"
 script:
-  - stty cols 120
-  - travis_fold start "Unit.Tests" && coverage run --parallel -m pytest tests/test_exceptions.py -v --log-level=DEBUG && COVERAGE_PROCESS_START=.coveragerc pytest tests/test_features.py -v --log-level=DEBUG && travis_fold end "Unit.Tests"
-  - travis_fold start "Integration.Tests" && docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated -e PYTHONPATH=/tmp/tests_integrated mockintosh -v -l /tmp/tests_integrated/server.log --interceptor=custom_interceptors.intercept_for_logging --interceptor=custom_interceptors.intercept_for_modifying /tmp/tests_integrated/integration_config.json && sleep 5 && pytest -v --log-level=DEBUG tests_integrated/tests_integration.py && travis_fold end "Integration.Tests"
   - flake8
 after_success:
-  - coverage combine
-  - coverage report -m
-  - codecov
-after_failure:
-  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
-deploy:
-  edge: true  # use latest v2 deploy
-  provider: pypi
-  #  skip_cleanup: true
-  on:
-    tags: true
+  - if [[ $TRAVIS_TAG =~ ^(\d+\.?)+$ ]]; then git push origin gh-pages; fi
