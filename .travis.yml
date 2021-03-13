@@ -14,6 +14,7 @@ script:
   - travis_fold start "Integration.Tests" && docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated -e PYTHONPATH=/tmp/tests_integrated mockintosh -v -l /tmp/tests_integrated/server.log --interceptor=custom_interceptors.intercept_for_logging --interceptor=custom_interceptors.intercept_for_modifying /tmp/tests_integrated/integration_config.json && sleep 5 && pytest -v --log-level=DEBUG tests_integrated/tests_integration.py && travis_fold end "Integration.Tests"
   - flake8
 after_success:
+  - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force https://${GH_TOKEN}@github.com/up9inc/mockintosh.git HEAD:gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
   - coverage combine
   - coverage report -m
   - codecov
