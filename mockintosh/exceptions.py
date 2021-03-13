@@ -18,19 +18,6 @@ class UnrecognizedConfigFileFormat(Exception):
         super().__init__(message)
 
 
-class UnsupportedTemplateEngine(Exception):
-    """Raised in case of an unsupported template engine is detected.
-    """
-
-    def __init__(self, engine, supported_engines):
-        super().__init__(
-            '\nUnsupported template engine: %s\nSupported template engines: %s' % (
-                engine,
-                ', '.join(supported_engines)
-            )
-        )
-
-
 class CertificateLoadingError(Exception):
     """Raised in case of a certificate file is not found or in a forbidden path.
     """

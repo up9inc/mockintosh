@@ -11,8 +11,7 @@ import pytest
 from jsonschema.exceptions import ValidationError
 
 from mockintosh import Definition, get_schema
-from mockintosh.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine, CertificateLoadingError
-from mockintosh.templating import TemplateRenderer
+from mockintosh.exceptions import UnrecognizedConfigFileFormat, CertificateLoadingError
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.methods import _nostderr
 from utilities import get_config_path
@@ -42,14 +41,6 @@ class TestExceptions():
             match=r"Configuration file is neither a JSON file nor a YAML file!"
         ):
             Definition(get_config_path(config), schema)
-
-    def test_unsupported_template_engine_error(self):
-        engine = 'not existing engine'
-        with pytest.raises(
-            UnsupportedTemplateEngine,
-            match=r"Unsupported template engine"
-        ):
-            TemplateRenderer(engine, '')
 
     def test_certificate_loading_error(self):
         config = 'configs/missing_ssl_cert_file.json'

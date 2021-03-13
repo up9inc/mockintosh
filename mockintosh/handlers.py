@@ -28,9 +28,8 @@ from accept_types import parse_header
 from tornado.concurrent import Future
 
 import mockintosh
-from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.replicas import Request, Response
-from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
 from mockintosh.methods import _safe_path_split, _detect_engine, _is_mostly_bin, _b64encode
@@ -966,8 +965,6 @@ class GenericHandler(tornado.web.RequestHandler):
             from mockintosh.j2.methods import fake, counter, json_path, escape_html
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
-        else:
-            raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 
         renderer = TemplateRenderer(
             template_engine,
