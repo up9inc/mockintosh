@@ -1,23 +1,43 @@
-test:
+build:
+	docker build . -t mockintosh
+
+install:
+	pip3 install .
+
+install-dev:
+	pip3 install -e .[dev]
+
+test: test-integration
 	flake8 && \
-	pytest tests -s -vv --log-level=DEBUG && \
-	docker build . -t mockintosh && \
-	docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated -e PYTHONPATH=/tmp/tests_integrated mockintosh -v -l /tmp/tests_integrated/server.log --interceptor=custom_interceptors.intercept_for_logging --interceptor=custom_interceptors.intercept_for_modifying /tmp/tests_integrated/integration_config.json && \
-	pytest -s -vv --log-level=DEBUG tests_integrated/tests_integration.py && \
+	pytest tests -s -vv --log-level=DEBUG
+
+test-integration: build
+	docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
+		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
+		-v \
+		-l /tmp/tests_integrated/server.log \
+		--interceptor=custom_interceptors.intercept_for_logging \
+		--interceptor=custom_interceptors.intercept_for_modifying \
+		/tmp/tests_integrated/integration_config.json && \
+	sleep 5 && \
+	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
 test-with-coverage:
-	coverage run --parallel -m pytest tests/test_exceptions.py -v --log-level=DEBUG && \
+	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --quiet && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --verbose && \
-	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --logfile dummy.log && \
+	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json \
+		--logfile dummy.log && \
 	COVERAGE_NO_RUN=true DEBUG=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
-	COVERAGE_PROCESS_START=.coveragerc pytest tests/test_features.py -v --log-level=DEBUG
+	COVERAGE_PROCESS_START=.coveragerc pytest tests/test_features.py -s -vv --log-level=DEBUG
 
-coverage:
+coverage-after:
 	coverage combine && \
 	coverage report -m
+
+coverage: test-with-coverage coverage-after
 
 cert:
 	openssl req \
