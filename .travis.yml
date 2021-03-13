@@ -6,6 +6,8 @@ branches:
 services:
   - docker
 script:
-  - flake8
+  - echo Script
+  - export $TRAVIS_TAG=0.7
+  - git checkout $TRAVIS_TAG
 after_success:
   - if [[ $TRAVIS_TAG =~ ^(\d+\.?)+$ ]]; then git push origin gh-pages; fi
