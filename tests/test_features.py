@@ -26,6 +26,7 @@ from backports.datetime_fromisoformat import MonkeyPatch
 import mockintosh
 from mockintosh.constants import PROGRAM
 from mockintosh.performance import PerformanceProfile
+from mockintosh.methods import _b64encode
 from utilities import (
     tcping,
     run_mock_server,
@@ -525,6 +526,17 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'image/png'
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             assert resp.content == file.read()
+
+    def test_binary_request_body(self):
+        config = 'configs/yaml/hbs/core/binary_request_body.yaml'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            resp = requests.post(SRV_8001 + '/endpoint1', files={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == _b64encode(image_file)
 
     def test_ssl_true(self):
         config = 'configs/json/hbs/core/ssl_true.json'
