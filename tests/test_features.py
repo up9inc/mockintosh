@@ -1452,6 +1452,12 @@ class TestBody():
         resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
         assert 400 == resp.status_code
 
+    def test_body_text(self, config):
+        data = 'hello world'
+        resp = requests.post(SRV_8001 + '/body-text', data=data)
+        assert 200 == resp.status_code
+        assert "body text matched: %s" % data == resp.text
+
 
 class TestManagement():
 
