@@ -39,6 +39,7 @@ __version__ = "0.7"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
+cov_no_run = environ.get('COVERAGE_NO_RUN', False)
 
 
 class Definition():
@@ -302,4 +303,5 @@ def initiate():
     source = args['source'][0]
     services_list = args['source'][1:]
 
-    run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)
+    if not cov_no_run:
+        run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)

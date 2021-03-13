@@ -10,8 +10,9 @@ import pytest
 from jsonschema.exceptions import ValidationError
 
 from mockintosh import Definition, get_schema
-from mockintosh.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine
+from mockintosh.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine, CertificateLoadingError
 from mockintosh.templating import TemplateRenderer
+from mockintosh.servers import HttpServer, TornadoImpl
 from utilities import get_config_path
 
 schema = get_schema()
@@ -47,3 +48,15 @@ class TestExceptions():
             match=r"Unsupported template engine"
         ):
             TemplateRenderer(engine, '')
+
+    def test_certificate_loading_error(self):
+        config = 'configs/missing_ssl_cert_file.json'
+        with pytest.raises(
+            CertificateLoadingError,
+            match=r"Certificate loading error: File not found on path `missing_dir/cert.pem`"
+        ):
+            definition = Definition(get_config_path(config), schema)
+            HttpServer(
+                definition,
+                TornadoImpl()
+            )

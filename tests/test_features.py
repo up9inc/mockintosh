@@ -31,7 +31,9 @@ from utilities import (
     run_mock_server,
     get_config_path,
     nostdout,
-    nostderr
+    nostderr,
+    is_valid_uuid,
+    is_ascii
 )
 
 MonkeyPatch.patch_fromisoformat()
@@ -137,6 +139,18 @@ class TestCommandLineArguments():
         assert self.mock_server_process.is_alive() is False
 
     @pytest.mark.parametrize(('config'), configs)
+    def test_wrong_argument(self, config):
+        with nostderr():
+            self.mock_server_process = run_mock_server(get_config_path(config), '--wrong-option', wait=1)
+        assert self.mock_server_process.is_alive() is False
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_missing_config_file(self, config):
+        with nostderr():
+            self.mock_server_process = run_mock_server('missing_file.json', wait=1)
+        assert self.mock_server_process.is_alive() is False
+
+    @pytest.mark.parametrize(('config'), configs)
     def test_quiet(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--quiet')
         TestCommon.test_users(TestCommon, config)
@@ -144,6 +158,11 @@ class TestCommandLineArguments():
     @pytest.mark.parametrize(('config'), configs)
     def test_verbose(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--verbose')
+        TestCommon.test_users(TestCommon, config)
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_bind_address(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config), '--bind', '127.0.0.1')
         TestCommon.test_users(TestCommon, config)
 
     @pytest.mark.parametrize(('config'), configs)
@@ -617,6 +636,44 @@ class TestCore():
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'Hello %d world' % i
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/random.yaml',
+        'configs/yaml/j2/core/random.yaml'
+    ])
+    def test_random(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/int')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert str(int(resp.text)) == resp.text
+
+        resp = requests.get(SRV_8001 + '/float')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert re.match(r'^-?\d+(?:\.\d+)?$', resp.text)
+
+        resp = requests.get(SRV_8001 + '/alphanum')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert len(resp.text) == 7
+
+        resp = requests.get(SRV_8001 + '/hex')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert int(resp.text, 16)
+
+        resp = requests.get(SRV_8001 + '/uuid4')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert is_valid_uuid(resp.text)
+
+        resp = requests.get(SRV_8001 + '/ascii')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert len(resp.text) == 11
+        assert is_ascii(resp.text)
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/subexpression.yaml',
