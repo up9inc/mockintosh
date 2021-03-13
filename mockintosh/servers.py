@@ -394,9 +394,9 @@ class HttpServer:
 
     def resolve_cert_path(self, cert_path):
         relative_path = path.join(self.definition.source_dir, cert_path)
+        relative_path = path.abspath(relative_path)
         if not path.isfile(relative_path):
             raise CertificateLoadingError('File not found on path `%s`' % cert_path)
-        relative_path = path.abspath(relative_path)
         if not relative_path.startswith(self.definition.source_dir):
             raise CertificateLoadingError('Path `%s` is inaccessible!' % cert_path)
 

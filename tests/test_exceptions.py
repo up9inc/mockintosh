@@ -42,11 +42,23 @@ class TestExceptions():
         ):
             Definition(get_config_path(config), schema)
 
-    def test_certificate_loading_error(self):
+    def test_certificate_loading_error_1(self):
         config = 'configs/missing_ssl_cert_file.json'
         with pytest.raises(
             CertificateLoadingError,
             match=r"Certificate loading error: File not found on path `missing_dir/cert.pem`"
+        ):
+            definition = Definition(get_config_path(config), schema)
+            HttpServer(
+                definition,
+                TornadoImpl()
+            )
+
+    def test_certificate_loading_error_2(self):
+        config = 'configs/inaccessible_ssl_cert_file.json'
+        with pytest.raises(
+            CertificateLoadingError,
+            match=r"Certificate loading error: Path `../../tests_integrated/subdir/cert.pem` is inaccessible!"
         ):
             definition = Definition(get_config_path(config), schema)
             HttpServer(

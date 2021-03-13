@@ -24,6 +24,17 @@
           "response": "service2"
         }
       ]
+    },
+    {
+      "hostname": "service3.example.com",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/service3",
+          "method": "GET",
+          "response": "service3"
+        }
+      ]
     }
   ]
 }
