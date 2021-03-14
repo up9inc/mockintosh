@@ -11,6 +11,7 @@ import re
 import json
 import copy
 import shutil
+import logging
 from typing import (
     Union
 )
@@ -79,6 +80,10 @@ class ManagementBaseHandler(tornado.web.RequestHandler):
             self.set_header("Content-Type", "application/json; charset=UTF-8")
         chunk = utf8(chunk)
         self._write_buffer.append(chunk)
+
+    def _log(self) -> None:
+        if logging.DEBUG >= logging.root.level:
+            self.application.log_request(self)
 
 
 class ManagementRootHandler(ManagementBaseHandler):
