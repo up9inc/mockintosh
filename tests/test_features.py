@@ -2859,10 +2859,17 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1q?a=b&a=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json',
+        'configs/fallback_to.yaml'
+    ])
+    def test_fallback_to_query_string(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/service1q?a=b&a=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1q?a[]=b&a[]=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        resp = requests.get(SRV_8001 + '/service1q?a[]=b&a[]=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
