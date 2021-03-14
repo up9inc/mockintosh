@@ -115,13 +115,13 @@ class GenericHandler(tornado.web.RequestHandler):
                         str(self.get_status())
                     )
         if self.is_unhandled_request:
-            self.insert_unhandled_data((self.request, self.special_response))
+            self.insert_unhandled_data((self.request, self.replica_response))
         super().on_finish()
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         super().write(chunk)
-        if hasattr(self, 'special_response'):
-            self.special_response.bodySize = len(b"".join(self._write_buffer))
+        if hasattr(self, 'replica_response'):
+            self.replica_response.bodySize = len(b"".join(self._write_buffer))
 
     def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
         """Method to calculate and store the elapsed time of the request handling to be used in stats."""
@@ -134,11 +134,11 @@ class GenericHandler(tornado.web.RequestHandler):
         if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
             return
 
-        if not hasattr(self, 'special_request'):
-            self.special_request = self.build_special_request()
+        if not hasattr(self, 'replica_request'):
+            self.replica_request = self.build_replica_request()
 
-        if not hasattr(self, 'special_response'):
-            self.special_response = self.build_special_response()
+        if not hasattr(self, 'replica_response'):
+            self.replica_response = self.build_replica_response()
 
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
         request_start_datetime.replace(tzinfo=timezone.utc)
@@ -146,8 +146,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.logs.services[self.service_id].name,
             request_start_datetime,
             elapsed_time_in_milliseconds,
-            self.special_request,
-            self.special_response,
+            self.replica_request,
+            self.replica_response,
             self.request.server_connection
         )
         self.logs.services[self.service_id].add_record(log_record)
@@ -201,9 +201,9 @@ class GenericHandler(tornado.web.RequestHandler):
             self.is_options = False
             self.custom_dataset = {}
 
-            self.special_request = self.build_special_request()
+            self.replica_request = self.build_replica_request()
             self.default_context = {
-                'request': self.special_request
+                'request': self.replica_request
             }
             self.custom_context = {}
         except Exception as e:
@@ -246,7 +246,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
             if self.rendered_body is None:
                 return
-            self.special_response = self.build_special_response()
+            self.replica_response = self.build_replica_response()
             if self.should_write():
                 self.write(self.rendered_body)
         except NewHTTPError:
@@ -372,7 +372,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return compiled
 
-    def build_special_request(self) -> Request:
+    def build_replica_request(self) -> Request:
         """Method that builds the `Request` object to be injected into the response templating."""
         request = Request()
 
@@ -439,7 +439,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return request
 
-    def build_special_response(self) -> Response:
+    def build_replica_response(self) -> Response:
         """Method that prepares `Response` object to be modified by the interceptors."""
         response = Response()
 
@@ -453,9 +453,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def update_response(self) -> None:
         """Updates the response according to modifications made in interceptors."""
-        self._status_code = self.special_response.status
-        self._headers = self.special_response.headers
-        self.rendered_body = self.special_response.body
+        self._status_code = self.replica_response.status
+        self._headers = self.replica_response.headers
+        self.rendered_body = self.replica_response.body
         self._write_buffer = []
         if self.rendered_body is None:
             self.rendered_body = ''
@@ -794,13 +794,13 @@ class GenericHandler(tornado.web.RequestHandler):
     def trigger_interceptors(self) -> None:
         """Method to trigger the interceptors"""
         for interceptor in self.interceptors:
-            interceptor(self.special_request, self.special_response)
+            interceptor(self.replica_request, self.replica_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
         """Overriden method of tornado.web.RequestHandler"""
         if self._status_code not in (204, 500, 'RST', 'FIN'):
-            if not hasattr(self, 'special_response'):
-                self.special_response = self.build_special_response()
+            if not hasattr(self, 'replica_response'):
+                self.replica_response = self.build_replica_response()
             self.trigger_interceptors()
             if self.interceptors:
                 self.update_response()
@@ -1064,10 +1064,10 @@ class GenericHandler(tornado.web.RequestHandler):
             self.set_header(key, value)
 
         self.write(resp.content)
-        self.special_response = self.build_special_response()
-        self.special_response.body = resp.content
+        self.replica_response = self.build_replica_response()
+        self.replica_response.body = resp.content
 
-        self.insert_unhandled_data((self.request, self.special_response))
+        self.insert_unhandled_data((self.request, self.replica_response))
         raise NewHTTPError()
 
     def insert_unhandled_data(self, row: tuple) -> None:
