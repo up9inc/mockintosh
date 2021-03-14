@@ -921,15 +921,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 return False
 
         if 'tag' in alternative[key][alternative[index_key]]:
-            if self.tag is None:
-                if resetted:
-                    self.internal_endpoint_id = alternative['internalEndpointId']
-                    self.set_status(410)
-                    self.finish()
-                    return False
-                else:
-                    return self.loop_alternative(alternative, key, subkey)
-            elif self.tag != alternative[key][alternative[index_key]]['tag']:
+            if self.tag is None or not self.tag or self.tag != alternative[key][alternative[index_key]]['tag']:
                 if resetted:
                     self.internal_endpoint_id = alternative['internalEndpointId']
                     self.set_status(410)
