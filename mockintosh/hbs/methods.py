@@ -26,7 +26,7 @@ from mockintosh.methods import _handlebars_add_to_context
 
 def fake():
     # Fake fake :)
-    pass
+    raise NotImplementedError
 
 
 def reg_ex(this, regex, *args, **kwargs):

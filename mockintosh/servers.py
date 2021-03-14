@@ -52,11 +52,11 @@ __location__ = path.abspath(path.dirname(__file__))
 class Impl:
     @abstractmethod
     def get_server(self, app, is_ssl, ssl_options):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def serve(self):
-        pass
+        raise NotImplementedError
 
 
 class TornadoImpl(Impl):
