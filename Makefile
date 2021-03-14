@@ -35,6 +35,8 @@ test-with-coverage: copy-certs
 	COVERAGE_NO_RUN=true DEBUG=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel \
 		-m mockintosh tests/configs/json/hbs/core/multiple_services_on_same_port.json && \
+	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg && \
+	COVERAGE_NO_RUN=true coverage run --parallel mockintosh not_existing_file.json || \
 	COVERAGE_PROCESS_START=.coveragerc pytest tests/test_features.py -s -vv --log-level=DEBUG
 
 coverage-after:
