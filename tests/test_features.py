@@ -1509,6 +1509,20 @@ class TestBody():
         resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
         assert 400 == resp.status_code
 
+    def test_body_multipart(self, config):
+        files = {'key1': 'constant', 'key2': 'val1', 'key3': 'prefix-val2-val3-suffix'}
+        resp = requests.post(SRV_8001 + '/body-multipart', files=files)
+        assert 200 == resp.status_code
+        assert "body multipart matched: constant val1 val2 val3" == resp.text
+
+        files_wrong = {'key1': 'val1', 'key2': 'prefix-val2-val3-idefix'}
+        resp = requests.post(SRV_8001 + '/body-multipart', files=files_wrong)
+        assert 400 == resp.status_code
+
+        files_wrong = {'key2': 'val1', 'key3': 'prefix-val2-val3-idefix'}
+        resp = requests.post(SRV_8001 + '/body-multipart', files=files_wrong)
+        assert 400 == resp.status_code
+
     def test_body_text(self, config):
         data = 'hello world'
         resp = requests.post(SRV_8001 + '/body-text', data=data)
