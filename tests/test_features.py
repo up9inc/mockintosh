@@ -2846,6 +2846,12 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
+        resp = requests.get(SRV_8001 + '/service1q?a=b&a=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/service1q?a[]=b&a[]=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
     @pytest.mark.parametrize(('config'), [
         'configs/internal_circular_fallback_to.json'
     ])
