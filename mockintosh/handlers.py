@@ -677,7 +677,14 @@ class GenericHandler(tornado.web.RequestHandler):
                         json_schema_path = self.resolve_relative_path(json_schema)
                         with open(json_schema_path, 'r') as file:
                             logging.info('Reading JSON schema file from path: %s', json_schema_path)
-                            json_schema = json.load(file)
+                            try:
+                                json_schema = json.load(file)
+                            except json.decoder.JSONDecodeError:
+                                self.send_error(
+                                    500,
+                                    message='JSON decode error of the JSON schema file: %s' % json_schema
+                                )
+                                return
                             logging.debug('JSON schema: %s', json_schema)
                     json_data = None
 

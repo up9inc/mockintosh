@@ -27,6 +27,22 @@
           "response": "body json schema matched"
         },
         {
+          "path": "/body-json-schema-file",
+          "method": "POST",
+          "body": {
+            "schema": "@body_schema.json"
+          },
+          "response": "body json schema matched"
+        },
+        {
+          "path": "/body-json-schema-file-error",
+          "method": "POST",
+          "body": {
+            "schema": "@body_schema_error.json"
+          },
+          "response": "body json schema matched"
+        },
+        {
           "path": "/body-regex",
           "method": "POST",
           "body": {

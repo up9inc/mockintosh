@@ -1426,13 +1426,25 @@ class TestBody():
             assert "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}" == resp.text
 
     def test_body_json_schema(self, config):
-        resp = requests.post(SRV_8001 + '/body-json-schema', json={"somekey": "valid"})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'body json schema matched'
+        paths = ['/body-json-schema', '/body-json-schema-file']
+        for path in paths:
+            resp = requests.post(SRV_8001 + path, json={"somekey": "valid"})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'body json schema matched'
 
-        resp = requests.post(SRV_8001 + '/body-json-schema', json={"somekey2": "invalid"})
-        assert 400 == resp.status_code
+            resp = requests.post(SRV_8001 + path, json={"somekey2": "invalid"})
+            assert 400 == resp.status_code
+
+            data = 'hello world'
+            resp = requests.post(SRV_8001 + path, data=data)
+            assert 400 == resp.status_code
+            assert resp.text == 'JSON decode error of the request body:\n\n%s' % data
+
+        resp = requests.post(SRV_8001 + '/body-json-schema-file-error', json={"somekey": "valid"})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'JSON decode error of the JSON schema file: @body_schema_error.json'
 
     def test_body_regex(self, config):
         resp = requests.post(SRV_8001 + '/body-regex', data="somewhere 1-required-2 is present")
