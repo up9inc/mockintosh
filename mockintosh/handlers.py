@@ -854,16 +854,16 @@ class GenericHandler(tornado.web.RequestHandler):
         orig_relative_path, context = self.common_template_renderer(self.definition_engine, orig_relative_path)
         self.populate_counters(context)
 
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         relative_path = os.path.join(self.config_dir, orig_relative_path)
         if not os.path.isfile(relative_path):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
         relative_path = os.path.abspath(relative_path)
         if not relative_path.startswith(self.config_dir):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
 
         return relative_path

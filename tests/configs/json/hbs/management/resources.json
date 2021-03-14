@@ -33,6 +33,22 @@
             "status": 200,
             "body": "@res/body.txt"
           }
+        },
+        {
+          "path": "/service1-file2",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@/res/body.txt"
+          }
+        },
+        {
+          "path": "/service1-file-forbidden-path",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@../body/config.json"
+          }
         }
       ]
     },

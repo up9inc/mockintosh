@@ -2267,7 +2267,17 @@ class TestManagement():
         resp = requests.delete(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
-        assert 403 == resp.status_code
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'External template file \'res/body.txt\' couldn\'t be accessed or found!'
+        resp = requests.get(SRV_8001 + '/service1-file2', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'External template file \'res/body.txt\' couldn\'t be accessed or found!'
+        resp = requests.get(SRV_8001 + '/service1-file-forbidden-path', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'External template file \'../body/config.json\' couldn\'t be accessed or found!'
         resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
@@ -2279,7 +2289,7 @@ class TestManagement():
         resp = requests.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
-        assert 403 == resp.status_code
+        assert 500 == resp.status_code
 
         resp = requests.post(
             MGMT + '/resources',
@@ -2303,7 +2313,7 @@ class TestManagement():
         resp = requests.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
-        assert 403 == resp.status_code
+        assert 500 == resp.status_code
         resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
