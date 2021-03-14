@@ -209,6 +209,9 @@ class TestCommandLineArguments():
         resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 404 == resp.status_code
 
+        resp = requests.get(SRV_8001 + '/service3', headers={'Host': SRV_8003_HOST})
+        assert 404 == resp.status_code
+
     def test_port_override(self):
         os.environ['MOCKINTOSH_FORCE_PORT'] = '8002'
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'

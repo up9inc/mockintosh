@@ -26,6 +26,18 @@
       ]
     },
     {
+      "hostname": "service4.example.com",
+      "port": 8001,
+      "endpoints": [
+        {
+          "path": "/service4",
+          "method": "GET",
+          "response": "service4"
+        }
+      ]
+    },
+    {
+      "name": "Mock for Service3",
       "hostname": "service3.example.com",
       "port": 8001,
       "endpoints": [
@@ -35,6 +47,6 @@
           "response": "service3"
         }
       ]
-    }
+    },
   ]
 }
