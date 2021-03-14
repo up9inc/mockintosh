@@ -1912,6 +1912,11 @@ class TestManagement():
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'dset: val%d' % (i + 1)
 
+                resp = requests.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'dset: val%d' % (i + 1)
+
                 resp = requests.get(SRV_8001 + '/service1-dataset-fromfile', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -1923,6 +1928,14 @@ class TestManagement():
             assert resp.text == 'resp%d' % 3
 
             resp = requests.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
+            assert 410 == resp.status_code
+
+            resp = requests.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'dset: val%d' % 3
+
+            resp = requests.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
             assert 410 == resp.status_code
 
             if level == 'service':

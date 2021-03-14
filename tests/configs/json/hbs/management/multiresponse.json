@@ -53,6 +53,22 @@
           "response": "dset: {{var1}}"
         },
         {
+          "path": "/service1-dataset-inline-nonlooped",
+          "datasetLooped": false,
+          "dataset": [
+            {
+              "var1": "val1"
+            },
+            {
+              "var1": "val2"
+            },
+            {
+              "var1": "val3"
+            }
+          ],
+          "response": "dset: {{var1}}"
+        },
+        {
           "path": "/service1-dataset-fromfile",
           "dataset": "@dataset.json",
           "response": "dset: {{var1}}"
