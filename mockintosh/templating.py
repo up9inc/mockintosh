@@ -59,7 +59,7 @@ class TemplateRenderer():
         except (PybarsError, TypeError, SyntaxError) as e:
             if self.fill_undefineds:
                 if debug_mode:
-                    raise e
+                    raise NotImplementedError
                 else:
                     logging.warning('Handlebars: %s' % e)
                 compiled = self.text
@@ -88,7 +88,7 @@ class TemplateRenderer():
             compiled = template.render()
         except (TemplateSyntaxError, TypeError, UndefinedError) as e:
             if self.fill_undefineds and debug_mode:
-                raise e
+                raise NotImplementedError
             else:
                 logging.warning('Jinja2: %s' % e)
             compiled = self.text
