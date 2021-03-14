@@ -291,11 +291,8 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, value in self.custom_dataset.items():
             self.custom_context[key] = value
         if args:
-            if len(args) >= len(self.initial_context):
-                for i, key in enumerate(self.initial_context):
-                    self.custom_context[key] = args[i]
-            else:
-                self.raise_http_error(404)
+            for i, key in enumerate(self.initial_context):
+                self.custom_context[key] = args[i]
         self.custom_context.update(self.default_context)
         self.analyze_component('headers')
         self.analyze_component('queryString')
@@ -306,17 +303,12 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def populate_counters(self, context: [None, dict]) -> None:
         """Method that retrieves counters from template engine contexts."""
-        if context is None:
-            return
-
         if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
             for key, value in context[SPECIAL_CONTEXT]['counters'].items():
                 counters[key] = value
 
     def dynamic_unimplemented_method_guard(self) -> None:
         """Method to handle unimplemented HTTP verbs (`405`)."""
-        if self.methods is None:
-            self.raise_http_error(404)
         if self.request.method.lower() not in self.methods:
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
             self.raise_http_error(405)
@@ -598,8 +590,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.respond_cors()
             return ()
 
-        if self.methods is None:
-            return ()
         self.alternatives = self.methods[self.request.method.lower()]
 
         response = None
@@ -641,11 +631,6 @@ class GenericHandler(tornado.web.RequestHandler):
                     default = None
                     request_query_val = self.get_query_argument(key, default=default)
                     if request_query_val is default:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
-                        break
-                    if key not in self.request.query_arguments:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
                         reason = 'Key \'%s\' couldn\'t found in the query string!' % key
