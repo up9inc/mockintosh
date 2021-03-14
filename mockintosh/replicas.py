@@ -127,12 +127,8 @@ class Response():
         self.bodySize = 0
 
     def _har(self) -> dict:
-        extracted_keys = []
         headers = []
         for key, value in self.headers.items():
-            if key.lower() in extracted_keys:
-                continue
-            extracted_keys.append(key.lower())
             headers.append({
                 'name': key.title(),
                 'value': value
