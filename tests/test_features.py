@@ -2171,6 +2171,12 @@ class TestManagement():
         resp = requests.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
+        resp = requests.get(SRV_8002 + '/service2q?a=b&a=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = requests.get(SRV_8002 + '/service2q?a[]=b&a[]=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
         resp = requests.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
