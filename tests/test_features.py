@@ -1902,6 +1902,11 @@ class TestManagement():
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'dset: val%d' % (i + 1)
 
+                resp = requests.get(SRV_8001 + '/service1-dataset-fromfile', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'dset: val%d' % (i + 1)
+
             if level == 'service':
                 resp = requests.post(SRV_8001 + '/__admin/reset-iterators', headers={'Host': SRV_8001_HOST})
                 assert 204 == resp.status_code
