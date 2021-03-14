@@ -852,6 +852,36 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == '&amp; &lt; &quot; &gt;'
 
+    def test_cors(self):
+        config = 'tests_integrated/integration_config.json'
+        config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
+        self.mock_server_process = run_mock_server(config_path)
+
+        hdr = {
+            "origin": "http://someorigin",
+            "Access-Control-Request-Headers": "authorization, x-api-key"
+        }
+        resp = requests.options(SRV_8001 + '/cors-request', headers=hdr)
+        assert 204 == resp.status_code
+        assert hdr['origin'] == resp.headers.get("access-control-allow-origin")
+        assert hdr['Access-Control-Request-Headers'] == resp.headers.get("Access-Control-Allow-Headers")
+        assert "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT" == resp.headers.get("access-control-allow-methods")
+
+        resp = requests.post(SRV_8001 + '/cors-request', json={}, headers=hdr)
+        assert hdr['origin'] == resp.headers.get("access-control-allow-origin")
+        assert hdr['Access-Control-Request-Headers'] == resp.headers.get("Access-Control-Allow-Headers")
+        assert "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT" == resp.headers.get("access-control-allow-methods")
+        assert 201 == resp.status_code
+
+        resp = requests.options(SRV_8001 + '/cors-request-overridden', headers=hdr)
+        assert 401 == resp.status_code
+
+        resp = requests.options(SRV_8001 + '/nonexistent', headers=hdr)
+        assert 404 == resp.status_code
+
+        resp = requests.options(SRV_8001 + '/cors-request')
+        assert 404 == resp.status_code
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
