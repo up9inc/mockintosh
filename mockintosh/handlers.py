@@ -757,9 +757,6 @@ class GenericHandler(tornado.web.RequestHandler):
                     if fail:
                         continue
 
-            if self.should_cors():
-                self.respond_cors()
-
             # Multiple responses
             if 'response' in alternative:
                 response = alternative['response']

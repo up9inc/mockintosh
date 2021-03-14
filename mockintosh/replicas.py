@@ -67,10 +67,14 @@ class Request():
 
         query_string = []
         for key, value in self.queryString.items():
-            query_string.append({
-                'name': key,
-                'value': value
-            })
+            value_list = value
+            if not isinstance(value_list, list):
+                value_list = [value_list]
+            for _value in value_list:
+                query_string.append({
+                    'name': key,
+                    'value': _value
+                })
 
         data = {
             "method": self.method,

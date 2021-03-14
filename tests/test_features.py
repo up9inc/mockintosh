@@ -2546,6 +2546,7 @@ class TestManagement():
         self.mock_server_process = run_mock_server(get_config_path(config))
         somekey = 'somekey'
         somevalue = 'somevalue'
+        somevalue2 = 'somevalue2'
 
         resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
         assert 204 == resp.status_code
@@ -2565,6 +2566,24 @@ class TestManagement():
         assert len(data['log']['entries'][0]['request']['queryString']) == 1
         assert data['log']['entries'][0]['request']['queryString'][0]['name'] == somekey
         assert data['log']['entries'][0]['request']['queryString'][0]['value'] == somevalue
+
+        resp = requests.get(SRV_8001 + '/service1?%s=%s&%s=%s' % (somekey, somevalue, somekey, somevalue2), headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 2
+        assert len(data['log']['entries'][1]['request']['queryString']) == 2
+        assert data['log']['entries'][1]['request']['queryString'][0]['name'] == somekey
+        assert data['log']['entries'][1]['request']['queryString'][0]['value'] == somevalue
+        assert data['log']['entries'][1]['request']['queryString'][1]['name'] == somekey
+        assert data['log']['entries'][1]['request']['queryString'][1]['value'] == somevalue2
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
         ('configs/json/hbs/management/config.json', MGMT, {}),
