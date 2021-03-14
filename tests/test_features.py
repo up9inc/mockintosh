@@ -1892,6 +1892,16 @@ class TestManagement():
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'resp%d' % (i + 1)
 
+                resp = requests.get(SRV_8001 + '/service1-multi-response-looped-empty-list', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert not resp.text
+
+                resp = requests.get(SRV_8001 + '/service1-no-response', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert not resp.text
+
                 resp = requests.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'

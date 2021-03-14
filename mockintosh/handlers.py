@@ -762,21 +762,15 @@ class GenericHandler(tornado.web.RequestHandler):
                 response = alternative['response']
                 if isinstance(alternative['response'], list):
                     if not len(alternative['response']) > 0:
-                        response = {
-                            'body': None
-                        }
+                        response = {'body': None}
                     else:
                         response = self.loop_alternative(alternative, 'response', 'multiResponses')
                         if not response:
                             return ()
 
-                response = response if isinstance(response, dict) else {
-                    'body': response
-                }
+                response = response if isinstance(response, dict) else {'body': response}
             else:
-                response = {
-                    'body': None
-                }
+                response = {'body': None}
 
             # Dataset
             dataset = {}
@@ -796,7 +790,6 @@ class GenericHandler(tornado.web.RequestHandler):
 
         self.write(reason)
         self.raise_http_error(400)
-        self.finish()
 
     def trigger_interceptors(self) -> None:
         """Method to trigger the interceptors"""
