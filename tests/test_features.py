@@ -882,6 +882,17 @@ class TestCore():
         resp = requests.options(SRV_8001 + '/cors-request')
         assert 404 == resp.status_code
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/random.yaml'
+    ])
+    def test_404_image(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8001 + '/404-img.png')
+        assert 404 == resp.status_code
+        assert b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A' == resp.content[:8]
+        assert resp.headers['Content-Type'] == 'image/png'
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/status/status_code.json',
