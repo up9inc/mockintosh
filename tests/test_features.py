@@ -1464,6 +1464,10 @@ class TestBody():
         resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
         assert 400 == resp.status_code
 
+        data_wrong = {'key2': 'val1', 'key3': 'prefix-val2-val3-idefix'}
+        resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
+        assert 400 == resp.status_code
+
     def test_body_text(self, config):
         data = 'hello world'
         resp = requests.post(SRV_8001 + '/body-text', data=data)

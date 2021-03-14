@@ -705,18 +705,13 @@ class GenericHandler(tornado.web.RequestHandler):
                             reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
                             break
 
-                # Urlncoded
+                # Urlencoded
                 if 'urlencoded' in alternative['body']:
                     for key, value in alternative['body']['urlencoded'].items():
                         # To prevent 400, default=None
                         default = None
                         body_argument = self.get_body_argument(key, default=default)
                         if body_argument is default:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Key \'%s\' couldn\'t found in the form data!' % key
-                            break
-                        if key not in self.request.body_arguments:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
                             reason = 'Key \'%s\' couldn\'t found in the form data!' % key
