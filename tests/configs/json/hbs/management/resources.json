@@ -43,6 +43,14 @@
           }
         },
         {
+          "path": "/service1-file3",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@../common/config.json"
+          }
+        },
+        {
           "path": "/service1-file-forbidden-path",
           "method": "GET",
           "response": {

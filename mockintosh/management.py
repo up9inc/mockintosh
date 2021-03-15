@@ -721,10 +721,6 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
-                return
             if not os.path.exists(path):
                 self.set_status(400)
                 self.write('The path %s does not exist!' % orig_path)
@@ -733,6 +729,10 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             if os.path.isdir(path):
                 self.set_status(400)
                 self.write('The path %s is a directory!' % orig_path)
+                return
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
                 return
             else:
                 _format = self.get_query_argument('format', default='text')
@@ -767,7 +767,6 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
-            os.makedirs(os.path.dirname(path), exist_ok=True)
 
         if self.request.files:
             for key, files in self.request.files.items():
@@ -782,13 +781,13 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                         self.write('The path %s couldn\'t be accessed!' % orig_path)
                         return
                     # file_path is SAFE
-                    if file_path not in self.files_abs:
-                        self.set_status(400)
-                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
-                        return
                     if os.path.exists(file_path) and os.path.isdir(file_path):
                         self.set_status(400)
                         self.write('The path %s is a directory!' % file_path[len(cwd) + 1:])
+                        return
+                    if file_path not in self.files_abs:
+                        self.set_status(400)
+                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
                         return
                     # file_path is OK
                     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -804,15 +803,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.set_status(400)
                 self.write('\'path\' parameter is required!')
                 return
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
-                return
             if os.path.exists(path) and os.path.isdir(path):
                 self.set_status(400)
                 self.write('The path %s is a directory!' % orig_path)
                 return
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
+                return
             # path is OK
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w') as _file:
                 _file.write(file)
         self.set_status(204)
@@ -836,13 +836,13 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             self.write('The path %s couldn\'t be accessed!' % orig_path)
             return
         # path is SAFE
-        if path not in self.files_abs:
-            self.set_status(400)
-            self.write('The path %s is not defined in the configuration file!' % orig_path)
-            return
         if not os.path.exists(path):
             self.set_status(400)
             self.write('The path %s does not exist!' % orig_path)
+            return
+        if path not in self.files_abs:
+            self.set_status(400)
+            self.write('The path %s is not defined in the configuration file!' % orig_path)
             return
         # path is OK
         if os.path.isfile(path):

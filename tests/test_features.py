@@ -2463,6 +2463,11 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_1
 
+        resp = requests.get(MGMT + '/resources?path=%s&format=stream' % body_txt_rel_path, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/octet-stream'
+        assert resp.text == text_state_1
+
         resp = requests.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -2540,11 +2545,79 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_5
 
-        resp = requests.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
+        resp = requests.delete(MGMT + '/resources?path=%s' % os.path.dirname(new_body_txt_rel_path), verify=False)
         assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
         assert 500 == resp.status_code
         resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
+        assert 400 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/resources.json'
+    ])
+    def test_resources_bad(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(MGMT + '/resources?path=', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.get(MGMT + '/resources?path=../common/config.json', verify=False)
+        assert 403 == resp.status_code
+
+        resp = requests.get(MGMT + '/resources?path=not/defined/path', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.get(MGMT + '/resources?path=oas_documents/not_existing_file.txt', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.get(MGMT + '/resources?path=oas_documents', verify=False)
+        assert 400 == resp.status_code
+
+        text = 'hello world'
+
+        resp = requests.post(MGMT + '/resources', data={'path': '', 'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'path': '../common/config.json', 'file': text}, verify=False)
+        assert 403 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'path': 'somepath'}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'path': 'not/defined/path', 'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'path': 'oas_documents', 'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', files={'somepath': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'path': 'oas_documents/'}, files={'../../common/config.json': text}, verify=False)
+        assert 403 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', data={'path': 'not/defined'}, files={'path': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.post(MGMT + '/resources', files={'oas_documents': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.delete(MGMT + '/resources', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.delete(MGMT + '/resources?path=', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.delete(MGMT + '/resources?path=../common/config.json', verify=False)
+        assert 403 == resp.status_code
+
+        resp = requests.delete(MGMT + '/resources?path=not/defined/path', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.delete(MGMT + '/resources?path=dataset.json', verify=False)
         assert 400 == resp.status_code
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
