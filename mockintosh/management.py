@@ -97,28 +97,16 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
     def get(self):
         data = self.http_server.definition.orig_data
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def post(self):
-        body = self.request.body.decode()
-        try:
-            orig_data = yaml.safe_load(body)
-        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
-            self.set_status(400)
-            self.write('JSON/YAML decode error:\n%s' % str(e))
+        orig_data = self.decode()
+        if orig_data is None:
             return
+
         data = copy.deepcopy(orig_data)
 
-        try:
-            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
+        if not self.validate(data):
             return
 
         data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
@@ -134,11 +122,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self.http_server.stats.add_service(hint)
         for i, service in enumerate(data['services']):
             service['internalServiceId'] = i
-            try:
-                self.update_service(service, i)
-            except RestrictedFieldError as e:
-                self.set_status(500)
-                self.write(str(e))
+            if not self.update_service(service, i):
                 return
 
         self.http_server.stats.reset()
@@ -149,7 +133,16 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
         self.set_status(204)
 
-    def update_service(self, service, service_index):
+    def update_service(self, service, service_index) -> bool:
+        try:
+            self._update_service(service, service_index)
+            return True
+        except RestrictedFieldError as e:
+            self.set_status(500)
+            self.write(str(e))
+            return False
+
+    def _update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
         self.http_server.stats.services[service_index].endpoints = []
@@ -193,6 +186,32 @@ class ManagementConfigHandler(ManagementBaseHandler):
             for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['_globals'] = self.http_server.globals
+
+    def decode(self) -> Union[dict, None]:
+        body = self.request.body.decode()
+        try:
+            return yaml.safe_load(body)
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
+            self.set_status(400)
+            self.write('JSON/YAML decode error:\n%s' % str(e))
+            return None
+
+    def validate(self, data) -> bool:
+        try:
+            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return False
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
 
 class ManagementStatsHandler(ManagementBaseHandler):
@@ -259,20 +278,10 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             new_service['endpoints'] = endpoints
             data['services'].append(new_service)
 
-        if data['services']:
-            try:
-                jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
-            except jsonschema.exceptions.ValidationError as e:
-                self.set_status(400)
-                self.write('JSON schema validation error:\n%s' % str(e))
-                return
+        if data['services'] and not self.validate(data):
+            return
 
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
@@ -360,6 +369,23 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             endpoints.append(config_template)
 
         return endpoints
+
+    def validate(self, data) -> bool:
+        try:
+            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return False
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
 
 class ManagementOasHandler(ManagementBaseHandler):
@@ -860,31 +886,19 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
 
     def get(self):
         data = self.http_server.definition.orig_data['services'][self.service_id]
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def post(self):
-        body = self.request.body.decode()
-        try:
-            orig_data = yaml.safe_load(body)
-        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
-            self.set_status(400)
-            self.write('JSON/YAML decode error:\n%s' % str(e))
+        orig_data = self.decode()
+        if orig_data is None:
             return
+
         data = copy.deepcopy(orig_data)
 
         imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
         imaginary_config['services'][self.service_id] = data
 
-        try:
-            jsonschema.validate(instance=imaginary_config, schema=self.http_server.definition.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
+        if not self.validate(imaginary_config):
             return
 
         global_performance_profile = None
@@ -897,11 +911,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             global_performance_profile=global_performance_profile
         )
         data['internalServiceId'] = self.service_id
-        try:
-            self.update_service(data, self.service_id)
-        except RestrictedFieldError as e:
-            self.set_status(500)
-            self.write(str(e))
+        if not self.update_service(data, self.service_id):
             return
 
         self.http_server.stats.reset()
@@ -973,19 +983,10 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
         imaginary_config['services'] = data['services']
 
-        try:
-            jsonschema.validate(instance=imaginary_config, schema=self.http_server.definition.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
+        if not self.validate(imaginary_config):
             return
 
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
