@@ -134,12 +134,6 @@ class GenericHandler(tornado.web.RequestHandler):
         if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
             return
 
-        if not hasattr(self, 'replica_request'):
-            self.replica_request = self.build_replica_request()
-
-        if not hasattr(self, 'replica_response'):
-            self.replica_response = self.build_replica_response()
-
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
         request_start_datetime.replace(tzinfo=timezone.utc)
         log_record = LogRecord(
