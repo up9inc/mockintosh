@@ -842,7 +842,7 @@ class GenericHandler(tornado.web.RequestHandler):
         """Overriden method of tornado.web.RequestHandler"""
         if 'message' in kwargs and kwargs['message']:
             self.finish(kwargs['message'])
-        else:
+        else:  # pragma: no cover
             self.finish()
 
     def respond_cors(self) -> None:

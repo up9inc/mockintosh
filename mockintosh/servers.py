@@ -157,8 +157,8 @@ class HttpServer:
                     if 'name' in service:
                         if service['name'] not in self.services_list:
                             continue
-                    else:
-                        continue
+                    else:  # pragma: no cover
+                        continue  # https://github.com/nedbat/coveragepy/issues/198
 
                 endpoints = []
                 if 'endpoints' in service:
