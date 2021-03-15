@@ -64,9 +64,9 @@ def _reset_iterators(app):
 class ManagementBaseHandler(tornado.web.RequestHandler):
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
-        if self._finished:
+        if self._finished:  # pragma: no cover
             raise RuntimeError("Cannot write() after finish()")
-        if not isinstance(chunk, (bytes, unicode_type, dict)):
+        if not isinstance(chunk, (bytes, unicode_type, dict)):  # pragma: no cover
             message = "write() only accepts bytes, unicode, and dict objects"
             if isinstance(chunk, list):
                 message += (
@@ -120,25 +120,20 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self.write('JSON schema validation error:\n%s' % str(e))
             return
 
-        try:
-            data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
-            self.http_server.stats.services = []
-            for service in data['services']:
-                hint = '%s:%s%s' % (
-                    service['hostname'] if 'hostname' in service else (
-                        self.http_server.address if self.http_server.address else 'localhost'
-                    ),
-                    service['port'],
-                    ' - %s' % service['name'] if 'name' in service else ''
-                )
-                self.http_server.stats.add_service(hint)
-            for i, service in enumerate(data['services']):
-                service['internalServiceId'] = i
-                self.update_service(service, i)
-        except Exception as e:
-            self.set_status(400)
-            self.write('Something bad happened:\n%s' % str(e))
-            return
+        data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
+        self.http_server.stats.services = []
+        for service in data['services']:
+            hint = '%s:%s%s' % (
+                service['hostname'] if 'hostname' in service else (
+                    self.http_server.address if self.http_server.address else 'localhost'
+                ),
+                service['port'],
+                ' - %s' % service['name'] if 'name' in service else ''
+            )
+            self.http_server.stats.add_service(hint)
+        for i, service in enumerate(data['services']):
+            service['internalServiceId'] = i
+            self.update_service(service, i)
 
         self.http_server.stats.reset()
         self.http_server.definition.orig_data = orig_data
@@ -164,14 +159,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
 
-        endpoints_setted = False
         for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 rule.target_kwargs['endpoints'] = merged_endpoints
-                endpoints_setted = True
                 break
-        if not endpoints_setted:
-            raise Exception('Target handler couldn\'t found.')
 
         mockintosh.servers.HttpServer.log_merged_endpoints(merged_endpoints)
 
@@ -890,22 +881,17 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             self.write('JSON schema validation error:\n%s' % str(e))
             return
 
-        try:
-            global_performance_profile = None
-            if 'globals' in self.http_server.definition.data:
-                global_performance_profile = self.http_server.definition.data['globals'].get('performanceProfile', None)
-            data = mockintosh.Definition.analyze_service(
-                data,
-                self.http_server.definition.template_engine,
-                performance_profiles=self.http_server.definition.data['performanceProfiles'],
-                global_performance_profile=global_performance_profile
-            )
-            data['internalServiceId'] = self.service_id
-            self.update_service(data, self.service_id)
-        except Exception as e:
-            self.set_status(400)
-            self.write('Something bad happened:\n%s' % str(e))
-            return
+        global_performance_profile = None
+        if 'globals' in self.http_server.definition.data:
+            global_performance_profile = self.http_server.definition.data['globals'].get('performanceProfile', None)
+        data = mockintosh.Definition.analyze_service(
+            data,
+            self.http_server.definition.template_engine,
+            performance_profiles=self.http_server.definition.data['performanceProfiles'],
+            global_performance_profile=global_performance_profile
+        )
+        data['internalServiceId'] = self.service_id
+        self.update_service(data, self.service_id)
 
         self.http_server.stats.reset()
 
