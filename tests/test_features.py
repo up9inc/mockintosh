@@ -2888,6 +2888,9 @@ class TestManagement():
     def test_fallback_to_query_string(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
+        resp = requests.get(SRV_8001 + '/service1q?a=b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
+        assert 404 == resp.status_code
+
         resp = requests.get(SRV_8001 + '/service1q?a=b&a=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
         assert 404 == resp.status_code
 
