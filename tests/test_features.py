@@ -1680,6 +1680,50 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var: %s' % param
 
+        # Bad requests
+        resp = requests.post(MGMT + '/config', data='hello: world:', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text.startswith('JSON/YAML decode error')
+
+        resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data='hello: world:', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text.startswith('JSON/YAML decode error')
+
+        with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['incorrectKey'] = ''
+            resp = requests.post(MGMT + '/config', data=json.dumps(data), verify=False)
+            assert 400 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text.startswith('JSON schema validation error:')
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['incorrectKey'] = ''
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
+            assert 400 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text.startswith('JSON schema validation error:')
+
+        # Restricted field
+        with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['services'][0]['port'] = 42
+            resp = requests.post(MGMT + '/config', data=json.dumps(data), verify=False)
+            assert 500 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == "'port' field is restricted!"
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['port'] = 42
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
+            assert 500 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == "'port' field is restricted!"
+
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml'

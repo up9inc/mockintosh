@@ -25,6 +25,7 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.methods import _safe_path_split, _b64encode
+from mockintosh.exceptions import RestrictedFieldError
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -107,7 +108,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         body = self.request.body.decode()
         try:
             orig_data = yaml.safe_load(body)
-        except json.JSONDecodeError as e:
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
             self.set_status(400)
             self.write('JSON/YAML decode error:\n%s' % str(e))
             return
@@ -133,7 +134,12 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self.http_server.stats.add_service(hint)
         for i, service in enumerate(data['services']):
             service['internalServiceId'] = i
-            self.update_service(service, i)
+            try:
+                self.update_service(service, i)
+            except RestrictedFieldError as e:
+                self.set_status(500)
+                self.write(str(e))
+                return
 
         self.http_server.stats.reset()
         self.http_server.definition.orig_data = orig_data
@@ -177,7 +183,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                     service[field] != self.http_server.definition.orig_data['services'][service_index][field]
                 )
             ):
-                raise Exception('%s field is restricted!' % field)
+                raise RestrictedFieldError(field)
 
     def update_globals(self):
         for i, _ in enumerate(self.http_server.definition.data['services']):
@@ -865,17 +871,17 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         body = self.request.body.decode()
         try:
             orig_data = yaml.safe_load(body)
-        except json.JSONDecodeError as e:
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
             self.set_status(400)
             self.write('JSON/YAML decode error:\n%s' % str(e))
             return
         data = copy.deepcopy(orig_data)
 
+        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config['services'][self.service_id] = data
+
         try:
-            jsonschema.validate(
-                instance=data,
-                schema=self.http_server.definition.schema['definitions']['service_ref']['properties']
-            )
+            jsonschema.validate(instance=imaginary_config, schema=self.http_server.definition.schema)
         except jsonschema.exceptions.ValidationError as e:
             self.set_status(400)
             self.write('JSON schema validation error:\n%s' % str(e))
@@ -891,7 +897,12 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             global_performance_profile=global_performance_profile
         )
         data['internalServiceId'] = self.service_id
-        self.update_service(data, self.service_id)
+        try:
+            self.update_service(data, self.service_id)
+        except RestrictedFieldError as e:
+            self.set_status(500)
+            self.write(str(e))
+            return
 
         self.http_server.stats.reset()
 
@@ -959,11 +970,11 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
         data['services'][0]['endpoints'] = self.build_unhandled_requests(self.service_id)
 
+        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config['services'] = data['services']
+
         try:
-            jsonschema.validate(
-                instance=data,
-                schema=self.http_server.definition.schema['definitions']['service_ref']['properties']
-            )
+            jsonschema.validate(instance=imaginary_config, schema=self.http_server.definition.schema)
         except jsonschema.exceptions.ValidationError as e:
             self.set_status(400)
             self.write('JSON schema validation error:\n%s' % str(e))

@@ -24,3 +24,11 @@ class CertificateLoadingError(Exception):
 
     def __init__(self, reason):
         super().__init__('\nCertificate loading error: %s' % reason)
+
+
+class RestrictedFieldError(Exception):
+    """Raised in case of a restricted field is tried to be changed during config update.
+    """
+
+    def __init__(self, field):
+        super().__init__('\'%s\' field is restricted!' % field)
