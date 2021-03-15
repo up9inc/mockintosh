@@ -541,6 +541,11 @@ class TestCore():
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == _b64encode(image_file)
 
+            resp = requests.post(SRV_8001 + '/endpoint1', data={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == _b64encode(image_file)
+
     def test_ssl_true(self):
         config = 'configs/json/hbs/core/ssl_true.json'
         self.mock_server_process = run_mock_server(get_config_path(config), wait=20)
