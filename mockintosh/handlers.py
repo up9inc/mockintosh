@@ -74,6 +74,8 @@ IMAGE_EXTENSIONS = [
     '.webp'
 ]
 
+FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
+
 hbs_random = hbs_Random()
 j2_random = j2_Random()
 
@@ -1004,13 +1006,19 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.request.body_arguments:
             body = {}
             for key, value in self.request.body_arguments.items():
-                body[key] = [x.decode() for x in value]
+                try:
+                    body[key] = [x.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    body[key] = [x for x in value]
                 if len(body[key]) == 1:
                     body[key] = body[key][0]
         elif self.request.files:
             body = {}
             for key, value in self.request.files.items():
-                body[key] = [x.body.decode() for x in value]
+                try:
+                    body[key] = [x.body.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    body[key] = [x.body for x in value]
                 if len(body[key]) == 1:
                     body[key] = body[key][0]
         else:
@@ -1040,7 +1048,12 @@ class GenericHandler(tornado.web.RequestHandler):
         logging.info('Redirecting the unhandled request to external: %s %s' % (self.request.method, url))
 
         http_verb = getattr(requests, self.request.method.lower())
-        resp = http_verb(url, headers=headers, timeout=5)
+        try:
+            resp = http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
+        except requests.exceptions.Timeout:
+            self.set_status(504)
+            self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
+            raise NewHTTPError()
 
         logging.info('Returned back from the external redirected request.')
 

@@ -2898,6 +2898,35 @@ class TestManagement():
         assert 404 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json'
+    ])
+    def test_fallback_to_body_param(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        error_msg = 'Redirected request to: POST https://gorest.co.in/public-api/service1b is timed out!'
+        resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': 'example'})
+        assert 504 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == error_msg
+
+        resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': 'example'})
+        assert 504 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == error_msg
+
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': image_file})
+            assert 504 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == error_msg
+
+            resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': image_file})
+            assert 504 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == error_msg
+
+    @pytest.mark.parametrize(('config'), [
         'configs/internal_circular_fallback_to.json'
     ])
     def test_internal_circular_fallback_to(self, config):
