@@ -2400,7 +2400,8 @@ class TestManagement():
             validate_spec(resp.json())
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config_custom_oas.json'
+        'configs/json/hbs/management/config_custom_oas.json',
+        'configs/json/hbs/management/config_custom_oas2.json'
     ])
     def test_get_oas_custom(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2416,6 +2417,23 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['info']['title'] == 'Mock for Service1 CUSTOM'
+
+    @pytest.mark.parametrize(('config', 'path'), [
+        ('configs/json/hbs/management/config_custom_oas3.json', 'oas_documents/not_existing_file.json'),
+        ('configs/json/hbs/management/config_custom_oas4.json', '../common/config.json')
+    ])
+    def test_get_oas_custom_wrong_path(self, config, path):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(MGMT + '/oas', verify=False)
+        assert 500 == resp.status_code
+        # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        # assert resp.text == 'External OAS document \'%s\' couldn\'t be accessed or found!' % path
+
+        resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        # assert resp.text == 'External OAS document \'%s\' couldn\'t be accessed or found!' % path
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/resources.json'

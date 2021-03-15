@@ -372,7 +372,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         try:
             jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
             return True
-        except jsonschema.exceptions.ValidationError as e:
+        except jsonschema.exceptions.ValidationError as e:  # pragma: no cover
             self.set_status(400)
             self.write('JSON schema validation error:\n%s' % str(e))
             return False
@@ -453,8 +453,8 @@ class ManagementOasHandler(ManagementBaseHandler):
             path, path_params = self.path_handlebars_to_oas(original_path)
             methods = {}
             for method, alternatives in endpoint[1].items():
-                if not alternatives:
-                    continue
+                if not alternatives:  # pragma: no cover
+                    continue  # https://github.com/nedbat/coveragepy/issues/198
 
                 method_data = {'responses': {}}
                 alternative = alternatives[0]
@@ -603,16 +603,16 @@ class ManagementOasHandler(ManagementBaseHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        error_msg = 'External OAS document \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
         relative_path = os.path.join(config_dir, orig_relative_path)
         if not os.path.isfile(relative_path):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
         relative_path = os.path.abspath(relative_path)
         if not relative_path.startswith(config_dir):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
 
         return relative_path
