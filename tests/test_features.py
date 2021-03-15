@@ -2305,6 +2305,65 @@ class TestManagement():
         assert resp.text == open(get_config_path('configs/stats_unhandled_service2.yaml'), 'r').read()
 
     @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/no_endpoints.json'
+    ])
+    def test_get_unhandled_no_endpoints(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        expected_data = {'services': []}
+        assert expected_data == resp.json()
+
+        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = requests.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert len(data['services']) == 1
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_delete_unhandled(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        ref = data['services'] if admin_url == MGMT else data['services'][0]['endpoints']
+        assert len(ref) == 0
+
+        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = requests.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        ref = data['services'] if admin_url == MGMT else data['services'][0]['endpoints']
+        assert len(ref) == 1
+        if admin_url == MGMT:
+            len(data['services'][0]['endpoints']) == 1
+
+        resp = requests.delete(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 204 == resp.status_code
+
+        resp = requests.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        ref = data['services'] if admin_url == MGMT else data['services'][0]['endpoints']
+        assert len(ref) == 0
+
+    @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml',
         'tests_integrated/integration_config.json'

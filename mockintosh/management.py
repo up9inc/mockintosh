@@ -269,8 +269,6 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         services = self.http_server.definition.orig_data['services']
         for i, service in enumerate(services):
-            if 'endpoints' not in service or not service['endpoints']:
-                continue
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
@@ -278,15 +276,15 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             new_service['endpoints'] = endpoints
             data['services'].append(new_service)
 
-        if data['services'] and not self.validate(data):
+        if data['services'] and not self.validate(data):  # pragma: no cover
             return
 
         self.dump(data)
 
     def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
-            for j, _ in self.http_server.unhandled_data.requests[i]:
-                self.http_server.unhandled_data.requests[i][j] = []
+            for key, _ in self.http_server.unhandled_data.requests[i].items():
+                self.http_server.unhandled_data.requests[i][key] = []
         self.set_status(204)
 
     def build_unhandled_requests(self, service_id):
@@ -989,9 +987,8 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         self.dump(data)
 
     def delete(self):
-        for i, _ in enumerate(self.http_server.unhandled_data.requests):
-            for key, _ in self.http_server.unhandled_data.requests[i].items():
-                self.http_server.unhandled_data.requests[i][key] = []
+        for key, _ in self.http_server.unhandled_data.requests[self.service_id].items():
+            self.http_server.unhandled_data.requests[self.service_id][key] = []
         self.set_status(204)
 
 
