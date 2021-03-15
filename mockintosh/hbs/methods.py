@@ -158,5 +158,5 @@ class HbsFaker(Faker):
                 result = attr(*args, **kwargs)
                 return result
             return newfunc
-        else:
+        else:  # pragma: no cover
             return attr

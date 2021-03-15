@@ -218,7 +218,7 @@ def run(source, is_file=True, debug=False, interceptors=(), address='', services
             address=address,
             services_list=services_list
         )
-    except Exception:
+    except Exception:  # pragma: no cover
         logging.exception('Mock server loading error:')
         with _nostderr():
             raise
@@ -227,7 +227,7 @@ def run(source, is_file=True, debug=False, interceptors=(), address='', services
 
 def gracefully_exit(num, frame):
     atexit._run_exitfuncs()
-    if should_cov:
+    if should_cov:  # pragma: no cover
         sys.exit()
 
 
@@ -235,11 +235,11 @@ def cov_exit(cov):
     if should_cov:
         logging.debug('Stopping coverage')
         cov.stop()
-        cov.save()
+        cov.save()  # pragma: no cover
 
 
 def initiate():
-    if should_cov:
+    if should_cov:  # pragma: no cover
         signal.signal(signal.SIGTERM, gracefully_exit)
         logging.debug('Starting coverage')
         from coverage import Coverage
@@ -303,5 +303,5 @@ def initiate():
     source = args['source'][0]
     services_list = args['source'][1:]
 
-    if not cov_no_run:
+    if not cov_no_run:  # pragma: no cover
         run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)

@@ -206,7 +206,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 'request': self.replica_request
             }
             self.custom_context = {}
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
@@ -251,7 +251,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 self.write(self.rendered_body)
         except NewHTTPError:
             return
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))

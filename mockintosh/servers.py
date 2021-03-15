@@ -158,7 +158,6 @@ class HttpServer:
                         if service['name'] not in self.services_list:
                             continue
                     else:
-                        print("HEYOOOOO")
                         continue
 
                 endpoints = []
