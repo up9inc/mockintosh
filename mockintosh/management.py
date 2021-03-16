@@ -551,7 +551,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                         if isinstance(response, dict) and 'headers' in response:
                             new_headers = {k.title(): v for k, v in response['headers'].items()}
                             if 'Content-Type' in new_headers:
-                                if 'application/json' == new_headers['Content-Type']:
+                                if new_headers['Content-Type'].startswith('application/json'):
                                     status_data = {
                                         'content': {
                                             'application/json': {
