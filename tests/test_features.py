@@ -2353,6 +2353,56 @@ class TestManagement():
         data = resp.json()
         assert len(data['services']) == 1
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_unhandled_changing_headers(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(
+            SRV_8001 + '/service1x',
+            headers={
+                'Host': SRV_8001_HOST,
+                'User-Agent': 'mockintosh-test',
+                'hdr1': 'val1',
+                'hdr2': 'val2',
+                'hdr3': 'val3'
+            },
+            verify=False
+        )
+        assert 404 == resp.status_code
+
+        resp = requests.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        headers = [x.lower() for x in data['services'][0]['endpoints'][0]['headers']]
+        assert set(['hdr1', 'hdr2', 'hdr3']).issubset(set(headers))
+
+        resp = requests.get(
+            SRV_8001 + '/service1x',
+            headers={
+                'Host': SRV_8001_HOST,
+                'User-Agent': 'mockintosh-test',
+                'hdr1': 'val1',
+                'hdr2': 'val22'
+            },
+            verify=False
+        )
+        assert 404 == resp.status_code
+
+        resp = requests.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        headers = [x.lower() for x in data['services'][0]['endpoints'][0]['headers']]
+        assert 'hdr1' in headers
+        assert 'hdr2' not in headers
+        assert 'hdr3' not in headers
+
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
         ('configs/json/hbs/management/config.json', MGMT, {}),
         ('configs/yaml/hbs/management/config.yaml', MGMT, {}),

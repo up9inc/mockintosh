@@ -324,17 +324,6 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
             # Query String
             for key, value in request.query_arguments.items():
-                continue_parent = False
-                for _request in requests:
-                    if (
-                        (key not in request.query_arguments)
-                        or  # noqa: W504, W503
-                        (key in request.query_arguments and value != request.query_arguments[key])
-                    ):
-                        continue_parent = True
-                        break
-                if continue_parent:
-                    continue
                 if 'queryString' not in config_template:
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = value[0].decode()
