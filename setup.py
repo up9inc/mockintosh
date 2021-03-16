@@ -81,7 +81,6 @@ setup(
             'flake8',
             'psutil',
             'pytest',
-            'requests',
             'coverage',
             'codecov',
             'openapi-spec-validator',

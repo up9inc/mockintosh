@@ -11,7 +11,7 @@ install-dev:
 
 test: test-integration copy-certs
 	flake8 && \
-	pytest tests -s -vv --log-level=DEBUG
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG
 
 test-integration: build
 	docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
