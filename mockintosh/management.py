@@ -89,7 +89,7 @@ class ManagementBaseHandler(tornado.web.RequestHandler):
 
 class ManagementRootHandler(ManagementBaseHandler):
 
-    def get(self):
+    async def get(self):
         with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
             html = file.read()
             self.write(html)
@@ -100,11 +100,11 @@ class ManagementConfigHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    def get(self):
+    async def get(self):
         data = self.http_server.definition.orig_data
         self.dump(data)
 
-    def post(self):
+    async def post(self):
         orig_data = self.decode()
         if orig_data is None:
             return
@@ -224,10 +224,10 @@ class ManagementStatsHandler(ManagementBaseHandler):
     def initialize(self, stats):
         self.stats = stats
 
-    def get(self):
+    async def get(self):
         self.write(self.stats.json())
 
-    def delete(self):
+    async def delete(self):
         self.stats.reset()
         self.set_status(204)
 
@@ -237,16 +237,16 @@ class ManagementLogsHandler(ManagementBaseHandler):
     def initialize(self, logs):
         self.logs = logs
 
-    def get(self):
+    async def get(self):
         self.write(self.logs.json())
 
-    def post(self):
+    async def post(self):
         enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
         for service in self.logs.services:
             service.enabled = enabled
         self.set_status(204)
 
-    def delete(self):
+    async def delete(self):
         self.write(self.logs.json())
         self.logs.reset()
 
@@ -256,7 +256,7 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    def post(self):
+    async def post(self):
         for app in self.http_server._apps.apps:
             _reset_iterators(app)
         self.set_status(204)
@@ -267,7 +267,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    def get(self):
+    async def get(self):
         data = {
             'services': []
         }
@@ -286,7 +286,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         self.dump(data)
 
-    def delete(self):
+    async def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
             for key, _ in self.http_server.unhandled_data.requests[i].items():
                 self.http_server.unhandled_data.requests[i][key] = []
@@ -378,7 +378,7 @@ class ManagementOasHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    def get(self):
+    async def get(self):
         data = {
             'documents': []
         }
@@ -610,7 +610,7 @@ class ManagementTagHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    def get(self):
+    async def get(self):
         data = {
             'tags': []
         }
@@ -622,7 +622,7 @@ class ManagementTagHandler(ManagementBaseHandler):
 
         self.write(data)
 
-    def post(self):
+    async def post(self):
         data = self.request.body.decode()
         for app in self.http_server._apps.apps:
             for rule in app.default_router.rules[0].target.rules:
@@ -686,7 +686,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         self.files = sorted(files)
         self.files_abs = [os.path.abspath(os.path.join(cwd, x)) for x in self.files]
 
-    def get(self):
+    async def get(self):
         data = None
         cwd = self.http_server.definition.source_dir
         path = self.get_query_argument('path', default=None)
@@ -739,7 +739,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                     return
         self.write(data)
 
-    def post(self):
+    async def post(self):
         cwd = self.http_server.definition.source_dir
         path = self.get_body_argument('path', default=None)
         orig_path = path
@@ -804,7 +804,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 _file.write(file)
         self.set_status(204)
 
-    def delete(self):
+    async def delete(self):
         cwd = self.http_server.definition.source_dir
         path = self.get_query_argument('path', default=None)
         keep = self.get_query_argument('keep', default=False)
@@ -848,7 +848,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
 
-    def get(self):
+    async def get(self):
         with open(os.path.join(__location__, 'res/management.html'), 'r') as file:
             html = file.read()
             self.write(html)
@@ -859,7 +859,7 @@ class ManagementServiceRootRedirectHandler(ManagementBaseHandler):
     def initialize(self, management_root):
         self.management_root = management_root
 
-    def get(self):
+    async def get(self):
         self.redirect('/%s/' % self.management_root)
 
 
@@ -869,11 +869,11 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         self.http_server = http_server
         self.service_id = service_id
 
-    def get(self):
+    async def get(self):
         data = self.http_server.definition.orig_data['services'][self.service_id]
         self.dump(data)
 
-    def post(self):
+    async def post(self):
         orig_data = self.decode()
         if orig_data is None:
             return
@@ -910,10 +910,10 @@ class ManagementServiceStatsHandler(ManagementBaseHandler):
         self.stats = stats
         self.service_id = service_id
 
-    def get(self):
+    async def get(self):
         self.write(self.stats.services[self.service_id].json())
 
-    def delete(self):
+    async def delete(self):
         self.stats.services[self.service_id].reset()
         self.set_status(204)
 
@@ -924,16 +924,16 @@ class ManagementServiceLogsHandler(ManagementBaseHandler):
         self.logs = logs
         self.service_id = service_id
 
-    def get(self):
+    async def get(self):
         self.write(self.logs.services[self.service_id].json())
 
-    def post(self):
+    async def post(self):
         self.logs.services[self.service_id].enabled = not (
             self.get_body_argument('enable', default=True) in ('false', 'False', '0')
         )
         self.set_status(204)
 
-    def delete(self):
+    async def delete(self):
         self.write(self.logs.services[self.service_id].json())
         self.logs.services[self.service_id].reset()
 
@@ -944,7 +944,7 @@ class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
         self.http_server = http_server
         self.service_id = service_id
 
-    def post(self):
+    async def post(self):
         app = self.http_server._apps.apps[self.service_id]
         _reset_iterators(app)
         self.set_status(204)
@@ -956,7 +956,7 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         self.http_server = http_server
         self.service_id = service_id
 
-    def get(self):
+    async def get(self):
         data = {
             'services': []
         }
@@ -973,7 +973,7 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
 
         self.dump(data)
 
-    def delete(self):
+    async def delete(self):
         for key, _ in self.http_server.unhandled_data.requests[self.service_id].items():
             self.http_server.unhandled_data.requests[self.service_id][key] = []
         self.set_status(204)
@@ -985,7 +985,7 @@ class ManagementServiceOasHandler(ManagementOasHandler):
         self.http_server = http_server
         self.service_id = service_id
 
-    def get(self):
+    async def get(self):
         self.write(self.build_oas(self.service_id))
 
 
@@ -995,7 +995,7 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
         self.http_server = http_server
         self.service_id = service_id
 
-    def get(self):
+    async def get(self):
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 tag = rule.target_kwargs['tag']
@@ -1004,7 +1004,7 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
                 else:
                     self.write(tag)
 
-    def post(self):
+    async def post(self):
         data = self.request.body.decode()
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
