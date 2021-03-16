@@ -52,10 +52,12 @@ SRV_8000 = os.environ.get('SRV1', 'http://localhost:8000')
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
+SRV_8004 = os.environ.get('SRV2', 'http://localhost:8004')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
 SRV_8003_HOST = 'service3.example.com'
+SRV_8004_HOST = 'service4.example.com'
 
 SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
 SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
@@ -2802,7 +2804,7 @@ class TestManagement():
                 assert not entry['request']['cookies']
                 request_headers = {x['name']: x['value'] for x in entry['request']['headers']}
                 assert request_headers['User-Agent'] == 'python-httpx/%s' % httpx.__version__
-                assert request_headers['Accept-Encoding'] == 'gzip, deflate, br'
+                assert request_headers['Accept-Encoding'].startswith('gzip, deflate')
                 assert request_headers['Accept'] == '*/*'
                 assert request_headers['Connection'] == 'keep-alive'
                 assert request_headers['Host'] == SRV_8001_HOST
@@ -3245,6 +3247,17 @@ class TestManagement():
         assert 504 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Redirected request to: GET http://service1.example.com:8001/serviceX is timed out!'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json'
+    ])
+    def test_fallback_to_unknown_name(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(SRV_8004 + '/serviceX', headers={'Host': SRV_8004_HOST}, timeout=30)
+        assert 502 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Name or service not known: http://service4.example.com:8004'
 
 
 class TestPerformanceProfile():

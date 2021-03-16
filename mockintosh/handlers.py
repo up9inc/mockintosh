@@ -1032,6 +1032,10 @@ class GenericHandler(tornado.web.RequestHandler):
             self.set_status(504)
             self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()
+        except httpx.ConnectError:
+            self.set_status(502)
+            self.write('Name or service not known: %s' % self.fallback_to.rstrip('/'))
+            raise NewHTTPError()
 
         logging.info('Returned back from the redirected request.')
 

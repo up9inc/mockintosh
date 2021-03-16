@@ -63,6 +63,14 @@
       "managementRoot": "__admin",
       "fallbackTo": "https://loremflickr.com/",
       "endpoints": []
+    },
+    {
+      "name": "Mock for Service4",
+      "hostname": "service4.example.com",
+      "port": 8004,
+      "managementRoot": "__admin",
+      "fallbackTo": "http://service4.example.com:8004",
+      "endpoints": []
     }
   ]
 }
