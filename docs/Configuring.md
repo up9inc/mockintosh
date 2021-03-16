@@ -97,9 +97,7 @@ The redirect in here does not mean returning `3xx` but instead doing a server-si
 response to the original requester. Such that the response of `http://localhost:8001/somepath` reflects
 the response of `http://example.com/somepath`.
 
-_Note: Timeout for such redirected requests is 5 seconds._
-
-_Note: In case of an internal circular `fallbackTo` definition, Mockintosh returns `408` because it can lead to an unresponsive server._
+_Note: Timeout for such redirected requests is 30 seconds and can be overridden with `MOCKINTOSH_FALLBACK_TO_TIMEOUT` environment variable._
 
 If the [management API](Management.md#unhandled-requests) is enabled, redirected requests are also logged as
 unhandled requests.

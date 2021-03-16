@@ -13,7 +13,7 @@ import re
 import socket
 import struct
 import traceback
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from typing import (
     Union,
@@ -21,7 +21,7 @@ from typing import (
     Awaitable
 )
 
-import requests
+import requests_async as requests
 import jsonschema
 import tornado.web
 from accept_types import parse_header
@@ -116,8 +116,6 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
                         str(self.get_status())
                     )
-        if self.is_unhandled_request:
-            self.insert_unhandled_data((self.request, self.replica_response))
         super().on_finish()
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
@@ -161,8 +159,7 @@ class GenericHandler(tornado.web.RequestHandler):
         logs: Logs,
         unhandled_data,
         fallback_to: Union[str, None],
-        tag: Union[str, None],
-        is_unhandled_request: bool
+        tag: Union[str, None]
     ) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         try:
@@ -178,7 +175,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.unhandled_data = unhandled_data
             self.fallback_to = fallback_to
             self.tag = tag
-            self.is_unhandled_request = is_unhandled_request
 
             for path, methods in self.endpoints:
                 if re.fullmatch(path, self.request.path):
@@ -207,7 +203,7 @@ class GenericHandler(tornado.web.RequestHandler):
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
 
-    def super_verb(self, *args) -> None:
+    async def super_verb(self, *args) -> None:
         """A method to unify all the HTTP verbs under a single flow."""
         try:
             self.args_backup = args
@@ -217,10 +213,10 @@ class GenericHandler(tornado.web.RequestHandler):
                 if self.custom_args:
                     args = self.custom_args
                 if self.methods is None:
-                    self.raise_http_error(404)
-                self.dynamic_unimplemented_method_guard()
+                    await self.raise_http_error(404)
+                await self.dynamic_unimplemented_method_guard()
 
-            match_alternative_return = self.match_alternative()
+            match_alternative_return = await self.match_alternative()
             if not match_alternative_return:
                 return
             _id, response, params, context, dataset, internal_endpoint_id, performance_profile = match_alternative_return
@@ -252,34 +248,34 @@ class GenericHandler(tornado.web.RequestHandler):
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
 
-    def get(self, *args) -> None:
+    async def get(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def post(self, *args) -> None:
+    async def post(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def head(self, *args) -> None:
+    async def head(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def delete(self, *args) -> None:
+    async def delete(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def patch(self, *args) -> None:
+    async def patch(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def put(self, *args) -> None:
+    async def put(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def options(self, *args) -> None:
+    async def options(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         self.is_options = True
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
     def populate_context(self, *args) -> None:
         """Method to populate the context to be used by the templating engines."""
@@ -303,11 +299,11 @@ class GenericHandler(tornado.web.RequestHandler):
             for key, value in context[SPECIAL_CONTEXT]['counters'].items():
                 counters[key] = value
 
-    def dynamic_unimplemented_method_guard(self) -> None:
+    async def dynamic_unimplemented_method_guard(self) -> None:
         """Method to handle unimplemented HTTP verbs (`405`)."""
         if self.request.method.lower() not in self.methods:
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
-            self.raise_http_error(405)
+            await self.raise_http_error(405)
 
     def log_request(self) -> None:
         """Method that logs the request."""
@@ -575,14 +571,14 @@ class GenericHandler(tornado.web.RequestHandler):
                 else:
                     self.set_header(key, value)
 
-    def match_alternative(self) -> tuple:
+    async def match_alternative(self) -> tuple:
         """Method to handles all the request matching logic.
 
         If the request does not match to any alternatives defined in the config, it returns `400`.
 
         It also handles the automatic CORS.
         """
-        if self.should_cors():
+        if await self.should_cors():
             self.respond_cors()
             return ()
 
@@ -785,7 +781,7 @@ class GenericHandler(tornado.web.RequestHandler):
             return (_id, response, params, context, dataset, internal_endpoint_id, performance_profile)
 
         self.write(reason)
-        self.raise_http_error(400)
+        await self.raise_http_error(400)
 
     def trigger_interceptors(self) -> None:
         """Method to trigger the interceptors"""
@@ -871,10 +867,10 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_header('X-Mockintosh-Prompt', "Hello, I'm Mockintosh.")  # clear signature that it's mock
         self.set_cors_headers()
 
-    def should_cors(self) -> bool:
+    async def should_cors(self) -> bool:
         """Method that decides whether the request is applicable for automatic CORS or not."""
         if self.is_options and self.methods is None:
-            self.raise_http_error(404)
+            await self.raise_http_error(404)
         return self.is_options and self.methods is not None and self.request.method.lower() not in self.methods.keys()
 
     def load_dataset(self, dataset: [list, str]) -> dict:
@@ -949,9 +945,9 @@ class GenericHandler(tornado.web.RequestHandler):
         )
         return renderer.render()
 
-    def raise_http_error(self, status_code: int) -> None:
+    async def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""
-        self.resolve_unhandled_request()
+        await self.resolve_unhandled_request()
 
         self.set_status(status_code)
 
@@ -968,15 +964,10 @@ class GenericHandler(tornado.web.RequestHandler):
 
         raise NewHTTPError()
 
-    def resolve_unhandled_request(self) -> None:
+    async def resolve_unhandled_request(self) -> None:
         if self.fallback_to is None:
             self.insert_unhandled_data((self.request, None))
             return
-
-        if self.is_unhandled_request:
-            self.set_status(408)
-            self.write('Internal circular \'fallbackTo\' definition error! Fix your configuration file.')
-            raise NewHTTPError()
 
         # Headers
         headers = {}
@@ -1025,37 +1016,19 @@ class GenericHandler(tornado.web.RequestHandler):
             body = self.request.body.decode()
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
-        url_parsed = urlparse(url)
-
-        for i, app in enumerate(self.http_server._apps.apps):
-            listener = self.http_server._apps.listeners[i]
-            if (
-                listener.hostname == url_parsed.hostname or listener.address == url_parsed.hostname
-            ) and listener.port == url_parsed.port:
-                # Found the service internally
-                logging.info('Redirecting the unhandled request to internal: %s %s' % (self.request.method, url))
-                for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
-                    if rule.target == GenericHandler:
-                        new_target_kwargs = rule.target_kwargs
-                        new_target_kwargs['is_unhandled_request'] = True
-                        new_target_kwargs['service_id'] = self.service_id
-                        rule.target.initialize(self, *new_target_kwargs.values())
-                        rule.target.super_verb(self, *self.args_backup)
-                logging.info('Returned back from the internal redirected request.')
-                raise NewHTTPError()
 
         # The service is external
-        logging.info('Redirecting the unhandled request to external: %s %s' % (self.request.method, url))
+        logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
 
         http_verb = getattr(requests, self.request.method.lower())
         try:
-            resp = http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
+            resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
         except requests.exceptions.Timeout:
             self.set_status(504)
             self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()
 
-        logging.info('Returned back from the external redirected request.')
+        logging.info('Returned back from the redirected request.')
 
         self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():

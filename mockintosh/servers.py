@@ -294,8 +294,7 @@ class HttpServer:
                     logs=self.logs,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
-                    tag=None,
-                    is_unhandled_request=False
+                    tag=None
                 )
             )
         )
