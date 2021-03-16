@@ -6,5 +6,4 @@ jsonschema==3.2.0
 pybars4>=0.9.11
 accept-types==0.4.1
 jsonpath-ng==1.5.2
-requests>=2.22.0
-requests-async>=0.6.2
+httpx>=0.16.0

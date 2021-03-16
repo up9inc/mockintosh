@@ -21,7 +21,7 @@ from typing import (
     Awaitable
 )
 
-import requests_async as requests
+import httpx
 import jsonschema
 import tornado.web
 from accept_types import parse_header
@@ -83,6 +83,8 @@ hbs_date = hbs_Date()
 j2_date = j2_Date()
 
 counters = {}
+
+client = httpx.AsyncClient()
 
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
@@ -973,7 +975,8 @@ class GenericHandler(tornado.web.RequestHandler):
         headers = {}
         for key, value in self.request.headers._dict.items():
             if key.title() in (
-                'Host'
+                'Host',
+                'Content-Length'
             ):
                 continue
             headers[key] = value
@@ -993,37 +996,39 @@ class GenericHandler(tornado.web.RequestHandler):
                     query_string += '%s[]=%s' % (key, _value)
 
         # Body
-        body = None
+        data = {}
+        files = {}
         if self.request.body_arguments:
-            body = {}
             for key, value in self.request.body_arguments.items():
                 try:
-                    body[key] = [x.decode() for x in value]
+                    data[key] = [x.decode() for x in value]
                 except (AttributeError, UnicodeDecodeError):
-                    body[key] = [x for x in value]
-                if len(body[key]) == 1:
-                    body[key] = body[key][0]
+                    data[key] = [x for x in value]
+                if len(data[key]) == 1:
+                    data[key] = data[key][0]
         elif self.request.files:
-            body = {}
             for key, value in self.request.files.items():
                 try:
-                    body[key] = [x.body.decode() for x in value]
+                    files[key] = [x.body.decode() for x in value]
                 except (AttributeError, UnicodeDecodeError):
-                    body[key] = [x.body for x in value]
-                if len(body[key]) == 1:
-                    body[key] = body[key][0]
+                    files[key] = [x.body for x in value]
+                if len(files[key]) == 1:
+                    files[key] = files[key][0]
         else:
-            body = self.request.body.decode()
+            data = self.request.body.decode()
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
         # The service is external
         logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
 
-        http_verb = getattr(requests, self.request.method.lower())
+        http_verb = getattr(client, self.request.method.lower())
         try:
-            resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
-        except requests.exceptions.Timeout:
+            if self.request.method.upper() in ('POST', 'PUT', 'PATCH', 'DELETE'):
+                resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT, data=data, files=files)
+            else:
+                resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
+        except httpx.TimeoutException:
             self.set_status(504)
             self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()

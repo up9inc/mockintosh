@@ -3198,28 +3198,28 @@ class TestManagement():
     def test_fallback_to_body_param(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        error_msg = 'Redirected request to: POST https://gorest.co.in/public-api/service1b is timed out!'
-        resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': 'example'})
-        assert 504 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == error_msg
+        expected_data = {"code": 401, "meta": None, "data": {"message": "Authentication failed"}}
+        resp = requests.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': 'example'})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+        assert resp.json() == expected_data
 
-        resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': 'example'})
-        assert 504 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == error_msg
+        resp = requests.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': 'example'})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+        assert resp.json() == expected_data
 
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             image_file = file.read()
-            resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': image_file})
-            assert 504 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-            assert resp.text == error_msg
+            resp = requests.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+            assert resp.json() == expected_data
 
-            resp = requests.post(SRV_8001 + '/service1b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': image_file})
-            assert 504 == resp.status_code
-            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-            assert resp.text == error_msg
+            resp = requests.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+            assert resp.json() == expected_data
 
     @pytest.mark.parametrize(('config'), [
         'configs/fallback_to.json'
@@ -3244,9 +3244,9 @@ class TestManagement():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = requests.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST})
-        assert 408 == resp.status_code
+        assert 504 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Internal circular \'fallbackTo\' definition error! Fix your configuration file.'
+        assert resp.text == 'Redirected request to: GET http://service1.example.com:8001/serviceX is timed out!'
 
 
 class TestPerformanceProfile():
