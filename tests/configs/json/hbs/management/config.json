@@ -5,6 +5,9 @@
     "sslCertFile": "cert.pem",
     "sslKeyFile": "key.pem"
   },
+  "globals": {
+    "unused": "unused"
+  },
   "templatingEngine": "Handlebars",
   "services": [
     {

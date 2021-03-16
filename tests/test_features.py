@@ -1547,18 +1547,20 @@ class TestManagement():
         if self.mock_server_process is not None:
             self.mock_server_process.terminate()
 
-    @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+    @pytest.mark.parametrize(('config', 'suffix'), [
+        ('configs/json/hbs/management/config.json', '/'),
+        ('configs/yaml/hbs/management/config.yaml', '/'),
+        ('configs/json/hbs/management/config.json', ''),
+        ('configs/yaml/hbs/management/config.yaml', '')
     ])
-    def test_get_root(self, config):
+    def test_get_root(self, config, suffix):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(MGMT + '/', verify=False)
+        resp = requests.get(MGMT + suffix, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
-        resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST}, verify=False)
+        resp = requests.get(SRV_8001 + '/__admin' + suffix, headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
@@ -1723,6 +1725,29 @@ class TestManagement():
             assert 500 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
+
+    @pytest.mark.parametrize(('config', '_format'), [
+        ('configs/json/hbs/management/config.json', 'json'),
+        ('configs/yaml/hbs/management/config.yaml', 'json'),
+        ('configs/json/hbs/management/config.json', 'yaml'),
+        ('configs/yaml/hbs/management/config.yaml', 'yaml')
+    ])
+    def test_post_config_only_service_level(self, config, _format):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
+            assert 204 == resp.status_code
+
+        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-service'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -2037,6 +2062,9 @@ class TestManagement():
     ])
     def test_tagged_responses(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8003 + '/__admin/tag')
+        assert 204 == resp.status_code
 
         resp = requests.post(MGMT + '/tag', data="first", verify=False)
         assert 204 == resp.status_code
@@ -2447,6 +2475,7 @@ class TestManagement():
         body_txt_rel_path = 'res/body.txt'
         body_txt_path = get_config_path('configs/json/hbs/management/%s' % body_txt_rel_path)
         new_body_txt_rel_path = 'new_res/new_body.txt'
+        new_body_txt_rel_path2 = 'new_res/new_body2.txt'
         os.makedirs(os.path.dirname(body_txt_path), exist_ok=True)
         with open(body_txt_path, 'w') as file:
             file.write(text_state_1)
@@ -2540,11 +2569,15 @@ class TestManagement():
 
         resp = requests.post(MGMT + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5}, verify=False)
         assert 204 == resp.status_code
+        resp = requests.post(MGMT + '/resources', data={'path': new_body_txt_rel_path2, 'file': text_state_5}, verify=False)
+        assert 204 == resp.status_code
         resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_5
 
+        resp = requests.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path2, verify=False)
+        assert 204 == resp.status_code
         resp = requests.delete(MGMT + '/resources?path=%s' % os.path.dirname(new_body_txt_rel_path), verify=False)
         assert 204 == resp.status_code
         resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
@@ -2571,6 +2604,9 @@ class TestManagement():
         assert 400 == resp.status_code
 
         resp = requests.get(MGMT + '/resources?path=oas_documents', verify=False)
+        assert 400 == resp.status_code
+
+        resp = requests.get(MGMT + '/resources?path=oas_documents/service1.json', verify=False)
         assert 400 == resp.status_code
 
         text = 'hello world'

@@ -850,7 +850,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             if not keep:
                 ref = os.path.dirname(path)
                 while ref:
-                    if os.listdir(ref) or ref == cwd:
+                    if os.listdir(ref) or ref == cwd:  # pragma: no cover
                         break
                     shutil.rmtree(ref)
                     ref = os.path.dirname(ref)
@@ -900,8 +900,8 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         global_performance_profile = None
-        if 'globals' in self.http_server.definition.data:
-            global_performance_profile = self.http_server.definition.data['globals'].get('performanceProfile', None)
+        if 'globals' in self.http_server.definition.orig_data:
+            global_performance_profile = self.http_server.definition.orig_data['globals'].get('performanceProfile', None)
         data = mockintosh.Definition.analyze_service(
             data,
             self.http_server.definition.template_engine,
@@ -981,7 +981,7 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
         imaginary_config['services'] = data['services']
 
-        if not self.validate(imaginary_config):
+        if not self.validate(imaginary_config):  # pragma: no cover
             return
 
         self.dump(data)

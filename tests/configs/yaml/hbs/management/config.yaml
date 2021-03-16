@@ -4,6 +4,8 @@ management:
   ssl: true
   sslCertFile: cert.pem
   sslKeyFile: key.pem
+globals:
+  unused: unused
 templatingEngine: Handlebars
 services:
 - name: Mock for Service1
