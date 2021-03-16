@@ -2069,6 +2069,9 @@ class TestManagement():
         resp = requests.post(MGMT + '/tag', data="first", verify=False)
         assert 204 == resp.status_code
 
+        resp = requests.post(MGMT + '/tag?current=first', verify=False)
+        assert 204 == resp.status_code
+
         resp = requests.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code
         data = resp.json()
@@ -2140,7 +2143,7 @@ class TestManagement():
         assert "3.3" == resp.text
 
         # first tag set - "second" + untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="second")
+        resp = requests.post(SRV_8003 + '/__admin/tag?current=second')
         assert 204 == resp.status_code
 
         resp = requests.get(SRV_8003 + '/tagged-responses')

@@ -623,7 +623,9 @@ class ManagementTagHandler(ManagementBaseHandler):
         self.write(data)
 
     def post(self):
-        data = self.request.body.decode()
+        data = self.get_query_argument('current', default=None)
+        if data is None:
+            data = self.request.body.decode()
         for app in self.http_server._apps.apps:
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
@@ -1005,7 +1007,9 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
                     self.write(tag)
 
     def post(self):
-        data = self.request.body.decode()
+        data = self.get_query_argument('current', default=None)
+        if data is None:
+            data = self.request.body.decode()
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 rule.target_kwargs['tag'] = data
