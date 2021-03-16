@@ -2585,6 +2585,21 @@ class TestManagement():
         resp = requests.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
+    def test_resources_various(self):
+        config = 'tests_integrated/integration_config.json'
+        config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
+        self.mock_server_process = run_mock_server(config_path)
+
+        resp = requests.get(MGMT + '/resources', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert 'subdir/empty_schema.json' in data['files']
+        assert 'cors.html' in data['files']
+        assert 'subdir/image.png' in data['files']
+        assert '/etc/hosts' not in data['files']
+        assert len(data['files']) == len(set(data['files']))
+
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/resources.json'
     ])
