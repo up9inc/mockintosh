@@ -352,14 +352,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                         config_template['response']['headers'][key] = value.decode()
                     except (AttributeError, UnicodeDecodeError):
                         config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
-                if isinstance(response.body, dict):
-                    config_template['response']['body'] = {}
-                    for key, value in response.body.items():
-                        try:
-                            config_template['response']['body'][key] = value.decode()
-                        except (AttributeError, UnicodeDecodeError):
-                            config_template['response']['body'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
-                elif response.body is not None:
+                if response.body is not None:
                     try:
                         config_template['response']['body'] = response.body.decode()
                     except (AttributeError, UnicodeDecodeError):

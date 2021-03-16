@@ -3172,6 +3172,22 @@ class TestManagement():
             assert resp.text == error_msg
 
     @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json'
+    ])
+    def test_fallback_to_binary_response(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = requests.get(SRV_8003 + '/250/250', headers={'Host': SRV_8003_HOST})
+        assert 200 == resp.status_code
+
+        resp = requests.get(SRV_8000 + '/unhandled')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'image/jpeg'
+
+    @pytest.mark.parametrize(('config'), [
         'configs/internal_circular_fallback_to.json'
     ])
     def test_internal_circular_fallback_to(self, config):
