@@ -99,6 +99,10 @@
 
 - don't clear traffic log on page reload
 
+- add support of array/list parameters on query strings like
+`/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data
+with multiple values for the same key to the request matching logic
+
 
 # Ideas
 

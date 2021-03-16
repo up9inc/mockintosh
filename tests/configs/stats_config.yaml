@@ -1,5 +1,10 @@
 management:
-  port: 9000
+  port: 8000
+  ssl: true
+  sslCertFile: cert.pem
+  sslKeyFile: key.pem
+globals:
+  unused: unused
 templatingEngine: Handlebars
 services:
 - name: Mock for Service1
@@ -13,8 +18,13 @@ services:
   - path: /service1-second/{{var}}
     method: GET
     response:
+      headers:
+        Content-Type: application/json; charset=UTF-8
       status: 201
       body: 'service1-second: {{var}}'
+  - path: /service1-post
+    method: POST
+    response: service1
 - name: Mock for Service2
   hostname: service2.example.com
   port: 8002

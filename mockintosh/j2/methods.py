@@ -25,7 +25,7 @@ from mockintosh.methods import _jinja_add_varname, _jinja_add_to_context
 
 def fake():
     # Fake fake :)
-    pass
+    raise NotImplementedError
 
 
 @contextfunction

@@ -204,10 +204,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
 
         resp = requests.get(SRV1 + '/insecure-configuration1')
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(500, resp.status_code)
 
         resp = requests.get(SRV1 + '/insecure-configuration2')
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(500, resp.status_code)
 
     def test_cors(self):
         hdr = {

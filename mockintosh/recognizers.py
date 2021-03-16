@@ -8,8 +8,7 @@
 
 import re
 
-from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA
-from mockintosh.exceptions import UnsupportedTemplateEngine
+from mockintosh.constants import PYBARS, JINJA
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import (
     PathParam,
@@ -91,8 +90,6 @@ class RecognizerBase():
             from mockintosh.hbs.methods import reg_ex
         elif self.engine == JINJA:
             from mockintosh.j2.methods import reg_ex
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
 
         inject_objects = {}
         if self.scope == 'path':

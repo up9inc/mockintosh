@@ -25,7 +25,8 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _decoder, _safe_path_split, _b64encode
+from mockintosh.methods import _safe_path_split, _b64encode
+from mockintosh.exceptions import RestrictedFieldError
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -65,9 +66,9 @@ def _reset_iterators(app):
 class ManagementBaseHandler(tornado.web.RequestHandler):
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
-        if self._finished:
+        if self._finished:  # pragma: no cover
             raise RuntimeError("Cannot write() after finish()")
-        if not isinstance(chunk, (bytes, unicode_type, dict)):
+        if not isinstance(chunk, (bytes, unicode_type, dict)):  # pragma: no cover
             message = "write() only accepts bytes, unicode, and dict objects"
             if isinstance(chunk, list):
                 message += (
@@ -101,49 +102,33 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
     def get(self):
         data = self.http_server.definition.orig_data
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def post(self):
-        body = _decoder(self.request.body)
-        try:
-            orig_data = yaml.safe_load(body)
-        except json.JSONDecodeError as e:
-            self.set_status(400)
-            self.write('JSON/YAML decode error:\n%s' % str(e))
+        orig_data = self.decode()
+        if orig_data is None:
             return
+
         data = copy.deepcopy(orig_data)
 
-        try:
-            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
+        if not self.validate(data):
             return
 
-        try:
-            data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
-            self.http_server.stats.services = []
-            for service in data['services']:
-                hint = '%s:%s%s' % (
-                    service['hostname'] if 'hostname' in service else (
-                        self.http_server.address if self.http_server.address else 'localhost'
-                    ),
-                    service['port'],
-                    ' - %s' % service['name'] if 'name' in service else ''
-                )
-                self.http_server.stats.add_service(hint)
-            for i, service in enumerate(data['services']):
-                service['internalServiceId'] = i
-                self.update_service(service, i)
-        except Exception as e:
-            self.set_status(400)
-            self.write('Something bad happened:\n%s' % str(e))
-            return
+        data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
+        self.http_server.stats.services = []
+        for service in data['services']:
+            hint = '%s:%s%s' % (
+                service['hostname'] if 'hostname' in service else (
+                    self.http_server.address if self.http_server.address else 'localhost'
+                ),
+                service['port'],
+                ' - %s' % service['name'] if 'name' in service else ''
+            )
+            self.http_server.stats.add_service(hint)
+        for i, service in enumerate(data['services']):
+            service['internalServiceId'] = i
+            if not self.update_service(service, i):
+                return
 
         self.http_server.stats.reset()
         self.http_server.definition.orig_data = orig_data
@@ -153,7 +138,16 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
         self.set_status(204)
 
-    def update_service(self, service, service_index):
+    def update_service(self, service, service_index) -> bool:
+        try:
+            self._update_service(service, service_index)
+            return True
+        except RestrictedFieldError as e:
+            self.set_status(500)
+            self.write(str(e))
+            return False
+
+    def _update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
         self.http_server.stats.services[service_index].endpoints = []
@@ -169,14 +163,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
         for endpoint in endpoints:
             merged_endpoints.append((endpoint['path'], endpoint['methods']))
 
-        endpoints_setted = False
         for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 rule.target_kwargs['endpoints'] = merged_endpoints
-                endpoints_setted = True
                 break
-        if not endpoints_setted:
-            raise Exception('Target handler couldn\'t found.')
 
         mockintosh.servers.HttpServer.log_merged_endpoints(merged_endpoints)
 
@@ -191,7 +181,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                     service[field] != self.http_server.definition.orig_data['services'][service_index][field]
                 )
             ):
-                raise Exception('%s field is restricted!' % field)
+                raise RestrictedFieldError(field)
 
     def update_globals(self):
         for i, _ in enumerate(self.http_server.definition.data['services']):
@@ -201,6 +191,32 @@ class ManagementConfigHandler(ManagementBaseHandler):
             for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['_globals'] = self.http_server.globals
+
+    def decode(self) -> Union[dict, None]:
+        body = self.request.body.decode()
+        try:
+            return yaml.safe_load(body)
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
+            self.set_status(400)
+            self.write('JSON/YAML decode error:\n%s' % str(e))
+            return None
+
+    def validate(self, data) -> bool:
+        try:
+            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return False
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
 
 class ManagementStatsHandler(ManagementBaseHandler):
@@ -258,8 +274,6 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         services = self.http_server.definition.orig_data['services']
         for i, service in enumerate(services):
-            if 'endpoints' not in service or not service['endpoints']:
-                continue
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
@@ -267,25 +281,15 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             new_service['endpoints'] = endpoints
             data['services'].append(new_service)
 
-        if data['services']:
-            try:
-                jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
-            except jsonschema.exceptions.ValidationError as e:
-                self.set_status(400)
-                self.write('JSON schema validation error:\n%s' % str(e))
-                return
+        if data['services'] and not self.validate(data):  # pragma: no cover
+            return
 
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
-            for j, _ in self.http_server.unhandled_data.requests[i]:
-                self.http_server.unhandled_data.requests[i][j] = []
+            for key, _ in self.http_server.unhandled_data.requests[i].items():
+                self.http_server.unhandled_data.requests[i][key] = []
         self.set_status(204)
 
     def build_unhandled_requests(self, service_id):
@@ -325,20 +329,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
             # Query String
             for key, value in request.query_arguments.items():
-                continue_parent = False
-                for _request in requests:
-                    if (
-                        (key not in request.query_arguments)
-                        or  # noqa: W504, W503
-                        (key in request.query_arguments and value != request.query_arguments[key])
-                    ):
-                        continue_parent = True
-                        break
-                if continue_parent:
-                    continue
                 if 'queryString' not in config_template:
                     config_template['queryString'] = {}
-                config_template['queryString'][key] = _decoder(value[0])
+                config_template['queryString'][key] = value[0].decode()
 
             if response is None:
                 config_template['response'] = ''
@@ -353,14 +346,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                         config_template['response']['headers'][key] = value.decode()
                     except (AttributeError, UnicodeDecodeError):
                         config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
-                if isinstance(response.body, dict):
-                    config_template['response']['body'] = {}
-                    for key, value in response.body.items():
-                        try:
-                            config_template['response']['body'][key] = value.decode()
-                        except (AttributeError, UnicodeDecodeError):
-                            config_template['response']['body'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
-                elif response.body is not None:
+                if response.body is not None:
                     try:
                         config_template['response']['body'] = response.body.decode()
                     except (AttributeError, UnicodeDecodeError):
@@ -368,6 +354,23 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             endpoints.append(config_template)
 
         return endpoints
+
+    def validate(self, data) -> bool:
+        try:
+            jsonschema.validate(instance=data, schema=self.http_server.definition.schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:  # pragma: no cover
+            self.set_status(400)
+            self.write('JSON schema validation error:\n%s' % str(e))
+            return False
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
 
 
 class ManagementOasHandler(ManagementBaseHandler):
@@ -437,8 +440,8 @@ class ManagementOasHandler(ManagementBaseHandler):
             path, path_params = self.path_handlebars_to_oas(original_path)
             methods = {}
             for method, alternatives in endpoint[1].items():
-                if not alternatives:
-                    continue
+                if not alternatives:  # pragma: no cover
+                    continue  # https://github.com/nedbat/coveragepy/issues/198
 
                 method_data = {'responses': {}}
                 alternative = alternatives[0]
@@ -535,7 +538,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                         if isinstance(response, dict) and 'headers' in response:
                             new_headers = {k.title(): v for k, v in response['headers'].items()}
                             if 'Content-Type' in new_headers:
-                                if 'application/json' == new_headers['Content-Type']:
+                                if new_headers['Content-Type'].startswith('application/json'):
                                     status_data = {
                                         'content': {
                                             'application/json': {
@@ -587,16 +590,16 @@ class ManagementOasHandler(ManagementBaseHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        error_msg = 'External OAS document \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
         relative_path = os.path.join(config_dir, orig_relative_path)
         if not os.path.isfile(relative_path):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
         relative_path = os.path.abspath(relative_path)
         if not relative_path.startswith(config_dir):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
 
         return relative_path
@@ -620,7 +623,7 @@ class ManagementTagHandler(ManagementBaseHandler):
         self.write(data)
 
     def post(self):
-        data = _decoder(self.request.body)
+        data = self.request.body.decode()
         for app in self.http_server._apps.apps:
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
@@ -705,10 +708,6 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
-                return
             if not os.path.exists(path):
                 self.set_status(400)
                 self.write('The path %s does not exist!' % orig_path)
@@ -717,6 +716,10 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             if os.path.isdir(path):
                 self.set_status(400)
                 self.write('The path %s is a directory!' % orig_path)
+                return
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
                 return
             else:
                 _format = self.get_query_argument('format', default='text')
@@ -751,7 +754,6 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.write('The path %s couldn\'t be accessed!' % orig_path)
                 return
             # path is SAFE
-            os.makedirs(os.path.dirname(path), exist_ok=True)
 
         if self.request.files:
             for key, files in self.request.files.items():
@@ -766,13 +768,13 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                         self.write('The path %s couldn\'t be accessed!' % orig_path)
                         return
                     # file_path is SAFE
-                    if file_path not in self.files_abs:
-                        self.set_status(400)
-                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
-                        return
                     if os.path.exists(file_path) and os.path.isdir(file_path):
                         self.set_status(400)
                         self.write('The path %s is a directory!' % file_path[len(cwd) + 1:])
+                        return
+                    if file_path not in self.files_abs:
+                        self.set_status(400)
+                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
                         return
                     # file_path is OK
                     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -788,15 +790,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
                 self.set_status(400)
                 self.write('\'path\' parameter is required!')
                 return
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
-                return
             if os.path.exists(path) and os.path.isdir(path):
                 self.set_status(400)
                 self.write('The path %s is a directory!' % orig_path)
                 return
+            if path not in self.files_abs:
+                self.set_status(400)
+                self.write('The path %s is not defined in the configuration file!' % orig_path)
+                return
             # path is OK
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w') as _file:
                 _file.write(file)
         self.set_status(204)
@@ -820,13 +823,13 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             self.write('The path %s couldn\'t be accessed!' % orig_path)
             return
         # path is SAFE
-        if path not in self.files_abs:
-            self.set_status(400)
-            self.write('The path %s is not defined in the configuration file!' % orig_path)
-            return
         if not os.path.exists(path):
             self.set_status(400)
             self.write('The path %s does not exist!' % orig_path)
+            return
+        if path not in self.files_abs:
+            self.set_status(400)
+            self.write('The path %s is not defined in the configuration file!' % orig_path)
             return
         # path is OK
         if os.path.isfile(path):
@@ -834,7 +837,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             if not keep:
                 ref = os.path.dirname(path)
                 while ref:
-                    if os.listdir(ref) or ref == cwd:
+                    if os.listdir(ref) or ref == cwd:  # pragma: no cover
                         break
                     shutil.rmtree(ref)
                     ref = os.path.dirname(ref)
@@ -868,48 +871,32 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
 
     def get(self):
         data = self.http_server.definition.orig_data['services'][self.service_id]
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def post(self):
-        body = _decoder(self.request.body)
-        try:
-            orig_data = yaml.safe_load(body)
-        except json.JSONDecodeError as e:
-            self.set_status(400)
-            self.write('JSON/YAML decode error:\n%s' % str(e))
+        orig_data = self.decode()
+        if orig_data is None:
             return
+
         data = copy.deepcopy(orig_data)
 
-        try:
-            jsonschema.validate(
-                instance=data,
-                schema=self.http_server.definition.schema['definitions']['service_ref']['properties']
-            )
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
+        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config['services'][self.service_id] = data
+
+        if not self.validate(imaginary_config):
             return
 
-        try:
-            global_performance_profile = None
-            if 'globals' in self.http_server.definition.data:
-                global_performance_profile = self.http_server.definition.data['globals'].get('performanceProfile', None)
-            data = mockintosh.Definition.analyze_service(
-                data,
-                self.http_server.definition.template_engine,
-                performance_profiles=self.http_server.definition.data['performanceProfiles'],
-                global_performance_profile=global_performance_profile
-            )
-            data['internalServiceId'] = self.service_id
-            self.update_service(data, self.service_id)
-        except Exception as e:
-            self.set_status(400)
-            self.write('Something bad happened:\n%s' % str(e))
+        global_performance_profile = None
+        if 'globals' in self.http_server.definition.orig_data:
+            global_performance_profile = self.http_server.definition.orig_data['globals'].get('performanceProfile', None)
+        data = mockintosh.Definition.analyze_service(
+            data,
+            self.http_server.definition.template_engine,
+            performance_profiles=self.http_server.definition.data['performanceProfiles'],
+            global_performance_profile=global_performance_profile
+        )
+        data['internalServiceId'] = self.service_id
+        if not self.update_service(data, self.service_id):
             return
 
         self.http_server.stats.reset()
@@ -978,27 +965,17 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
         data['services'][0]['endpoints'] = self.build_unhandled_requests(self.service_id)
 
-        try:
-            jsonschema.validate(
-                instance=data,
-                schema=self.http_server.definition.schema['definitions']['service_ref']['properties']
-            )
-        except jsonschema.exceptions.ValidationError as e:
-            self.set_status(400)
-            self.write('JSON schema validation error:\n%s' % str(e))
+        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config['services'] = data['services']
+
+        if not self.validate(imaginary_config):  # pragma: no cover
             return
 
-        _format = self.get_query_argument('format', default='json')
-        if _format == 'yaml':
-            self.set_header('Content-Type', 'application/x-yaml')
-            self.write(yaml.dump(data, sort_keys=False))
-        else:
-            self.write(data)
+        self.dump(data)
 
     def delete(self):
-        for i, _ in enumerate(self.http_server.unhandled_data.requests):
-            for key, _ in self.http_server.unhandled_data.requests[i].items():
-                self.http_server.unhandled_data.requests[i][key] = []
+        for key, _ in self.http_server.unhandled_data.requests[self.service_id].items():
+            self.http_server.unhandled_data.requests[self.service_id][key] = []
         self.set_status(204)
 
 
@@ -1028,7 +1005,7 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
                     self.write(tag)
 
     def post(self):
-        data = _decoder(self.request.body)
+        data = self.request.body.decode()
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 rule.target_kwargs['tag'] = data

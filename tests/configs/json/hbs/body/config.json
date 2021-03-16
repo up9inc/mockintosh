@@ -27,6 +27,22 @@
           "response": "body json schema matched"
         },
         {
+          "path": "/body-json-schema-file",
+          "method": "POST",
+          "body": {
+            "schema": "@body_schema.json"
+          },
+          "response": "body json schema matched"
+        },
+        {
+          "path": "/body-json-schema-file-error",
+          "method": "POST",
+          "body": {
+            "schema": "@body_schema_error.json"
+          },
+          "response": "body json schema matched"
+        },
+        {
           "path": "/body-regex",
           "method": "POST",
           "body": {
@@ -57,6 +73,14 @@
             }
           },
           "response": "body multipart matched: {{request.body.key1}} {{var1}} {{var2}} {{var3}}"
+        },
+        {
+          "path": "/body-text",
+          "method": "POST",
+          "body": {
+            "text": "{{body_text}}"
+          },
+          "response": "body text matched: {{body_text}}"
         }
       ]
     }

@@ -1,6 +1,9 @@
 {
   "management": {
-    "port": 8000
+    "port": 8000,
+    "ssl": true,
+    "sslCertFile": "cert.pem",
+    "sslKeyFile": "key.pem"
   },
   "templatingEngine": "Handlebars",
   "services": [
@@ -9,7 +12,7 @@
       "hostname": "service1.example.com",
       "port": 8001,
       "managementRoot": "__admin",
-      "fallbackTo": "http://service2.example.com:8002",
+      "oas": "@/oas_documents/service1_no_servers.json",
       "endpoints": [
         {
           "path": "/service1",
@@ -31,7 +34,6 @@
       "hostname": "service2.example.com",
       "port": 8002,
       "managementRoot": "__admin",
-      "fallbackTo": "http://service1.example.com:8001",
       "endpoints": [
         {
           "path": "/service2",

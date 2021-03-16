@@ -52,11 +52,11 @@ __location__ = path.abspath(path.dirname(__file__))
 class Impl:
     @abstractmethod
     def get_server(self, app, is_ssl, ssl_options):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def serve(self):
-        pass
+        raise NotImplementedError
 
 
 class TornadoImpl(Impl):
@@ -157,8 +157,8 @@ class HttpServer:
                     if 'name' in service:
                         if service['name'] not in self.services_list:
                             continue
-                    else:
-                        continue
+                    else:  # pragma: no cover
+                        continue  # https://github.com/nedbat/coveragepy/issues/198
 
                 endpoints = []
                 if 'endpoints' in service:
@@ -394,9 +394,9 @@ class HttpServer:
 
     def resolve_cert_path(self, cert_path):
         relative_path = path.join(self.definition.source_dir, cert_path)
+        relative_path = path.abspath(relative_path)
         if not path.isfile(relative_path):
             raise CertificateLoadingError('File not found on path `%s`' % cert_path)
-        relative_path = path.abspath(relative_path)
         if not relative_path.startswith(self.definition.source_dir):
             raise CertificateLoadingError('Path `%s` is inaccessible!' % cert_path)
 

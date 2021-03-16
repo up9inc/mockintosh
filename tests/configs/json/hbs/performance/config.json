@@ -1,7 +1,7 @@
 {
   "templatingEngine": "Handlebars",
   "management": {
-    "port": 9000
+    "port": 8000
   },
   "performanceProfiles": {
     "profile1": {

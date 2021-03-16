@@ -1,6 +1,6 @@
 ---
 management:
-  port: 9000
+  port: 8000
 templatingEngine: Handlebars
 services:
 - name: Mock for Service1

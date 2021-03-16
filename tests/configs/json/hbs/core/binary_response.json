@@ -1,5 +1,8 @@
 {
   "templatingEngine": "Handlebars",
+  "management": {
+    "port": 8000
+  },
   "services": [
     {
       "name": "Mock for Service1",

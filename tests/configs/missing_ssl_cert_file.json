@@ -8,8 +8,10 @@
       "name": "Mock for Service1",
       "hostname": "service1.example.com",
       "port": 8001,
+      "ssl": true,
+      "sslCertFile": "missing_dir/cert.pem",
+      "sslKeyFile": "missing_dir/key.pem",
       "managementRoot": "__admin",
-      "fallbackTo": "http://service2.example.com:8002",
       "endpoints": [
         {
           "path": "/service1",
@@ -31,7 +33,6 @@
       "hostname": "service2.example.com",
       "port": 8002,
       "managementRoot": "__admin",
-      "fallbackTo": "http://service1.example.com:8001",
       "endpoints": [
         {
           "path": "/service2",
