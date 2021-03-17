@@ -80,9 +80,7 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-# Roadmap
-
-## Next Version
+# Next Version
 
 - YAML format for unhandled requests
 - get rid of default config that runs with no params
@@ -92,32 +90,31 @@
 - mgmt UI change config global section didn't work
 - report error in case config apply fails
 - "fallback" mode for service to learn configuration
+- use proper `async` style for Tornado
+- don't clear traffic log on page reload
 
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
 - change config editor component
 
-- don't clear traffic log on page reload
+# Roadmap Ideas
 
 - add support of array/list parameters on query strings like
-`/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data
-with multiple values for the same key to the request matching logic
-
-
-# Ideas
-
+  `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
+  matching logic
 - Nicer formatted error pages for known errors
-- admin UI to show available tags and allow switching  
+- admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
 - mocks for Kafka & RabbitMQ
-  - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
-  - on schedule producer
-  - on demand producer
-  - reactive consumer+producer
-  - consumer fact validation
-  - avro + grpc + JSON 
+    - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
+    - on schedule producer
+    - on demand producer
+    - reactive consumer+producer
+    - consumer fact validation
+    - avro + grpc + JSON
 - mocks for gRPC servers

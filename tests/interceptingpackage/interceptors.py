@@ -47,7 +47,6 @@ def request_object(req: Request, resp: Response):
         assert req.headers['Cache-Control'] == 'no-cache'
         assert req.queryString['a'] == 'hello world'
         assert req.queryString['b'] == '3'
-        assert req.body == 'hello world'
     elif req.path == '/request2':
         assert req.method == 'POST'
         assert req.body['param1'] == 'value1'
