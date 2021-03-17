@@ -12,7 +12,7 @@ import re
 import logging
 from contextlib import contextmanager
 from base64 import b64encode
-from urllib.parse import _coerce_args, SplitResult, _splitnetloc, _checknetloc, scheme_chars
+from urllib.parse import _coerce_args, SplitResult, _splitnetloc, scheme_chars
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
@@ -112,6 +112,5 @@ def _urlsplit(url, scheme='', allow_fragments=True):
         url = result[0]
         if len(result) > 1:
             query = result[1]
-    _checknetloc(netloc)
     v = SplitResult(scheme, netloc, url, query, fragment)
     return _coerce_result(v)

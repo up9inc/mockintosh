@@ -6,9 +6,6 @@
     :synopsis: Contains classes that tests the helpers.
 """
 
-import sys
-import pytest
-
 from mockintosh.methods import _urlsplit
 
 
