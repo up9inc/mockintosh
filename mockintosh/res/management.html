@@ -7,8 +7,15 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"/>
-    <link rel="stylesheet" type="text/css"
-          href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui.css"/>
+    <link
+            rel="stylesheet"
+            type="text/css"
+            href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui.css"
+    />
+    <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.6.0/styles/default.min.css"
+    />
 
     <title>Mockintosh Management UI</title>
     <style>
@@ -74,11 +81,11 @@
 <div class="pull-right small" style="padding: 0.25rem 0.5rem">
     <a href="https://mockintosh.io" target="_blank"><i class="fa fa-github"></i> Docs</a><br/>
 </div>
-<H1 style="text-transform: uppercase; padding: 0.25em 0.5em; font-weight: bold; font-size: 1.5em;">
+<h1 style="text-transform: uppercase; padding: 0.25em 0.5em; font-weight: bold; font-size: 1.5em;">
     <a class="navbar-brand" href="./">
         <img src="https://mockintosh.io/img/logo_dark.svg" alt=" M " style="height: 2rem; width: 2rem">
     </a>
-    Mockintosh Management UI</H1>
+    Mockintosh Management UI</h1>
 
 <div class="container-fluid">
     <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -131,11 +138,11 @@
             <button class="btn btn-sm btn-primary">Load</button>
             <button class="btn btn-sm btn-success">Apply Changes</button>
             <button class="btn btn-info btn-sm pull-right">Reset Dataset Iterators</button>
-            <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em; padding:0.25em"></pre>
+            <pre contenteditable="true" class="border rounded" style="margin-top: 0.25em; padding:0.25em"><code></code></pre>
         </div>
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
             <button class="btn btn-sm btn-primary">Refresh</button>
-            <pre></pre>
+            <pre><code></code></pre>
         </div>
         <div class="tab-pane fade" id="reqlog" role="tabpanel" aria-labelledby="reqlog-tab">
             <table class="table">
@@ -218,6 +225,8 @@
         crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-bundle.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-standalone-preset.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.6.0/highlight.min.js"></script>
+
 <script>
     function addOAS(config, parent) {
         const el = document.createElement('div');
@@ -445,7 +454,8 @@
                 }
 
                 $.get(url).done(function (data) {
-                    $("#config pre").text(data);
+                    $("#config pre code").addClass('hljs');
+                    $("#config pre code").html(hljs.highlight(val ? val.split('.')[1] : 'yaml', data).value);
                 });
 
             }).trigger("change");
@@ -499,7 +509,7 @@
 
         $("#unhandled button").click(function () {
             $.get("./unhandled?format=yaml").done(function (data) {
-                $("#unhandled pre").text(data);
+                $("#unhandled pre code").html(hljs.highlight('yaml', data).value)
             });
         }).trigger('click');
 
