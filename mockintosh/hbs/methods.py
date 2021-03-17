@@ -26,7 +26,7 @@ from mockintosh.methods import _handlebars_add_to_context
 
 def fake():
     # Fake fake :)
-    pass
+    raise NotImplementedError
 
 
 def reg_ex(this, regex, *args, **kwargs):
@@ -158,5 +158,5 @@ class HbsFaker(Faker):
                 result = attr(*args, **kwargs)
                 return result
             return newfunc
-        else:
+        else:  # pragma: no cover
             return attr

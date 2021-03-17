@@ -9,6 +9,14 @@
           "path": "/service2z",
           "method": "GET",
           "response": ""
+        },
+        {
+          "path": "/service2q",
+          "method": "GET",
+          "queryString": {
+            "a[]": "b"
+          },
+          "response": ""
         }
       ]
     }

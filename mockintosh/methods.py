@@ -52,8 +52,6 @@ def _jinja_add_to_context(context, scope, key, value):
 
 
 def _jinja_add_varname(context, varname):
-    if JINJA_VARNAME_DICT not in context.environment.globals:
-        context.environment.globals[JINJA_VARNAME_DICT] = {}
     context.environment.globals[JINJA_VARNAME_DICT][varname] = None
 
 
@@ -70,23 +68,6 @@ def _nostderr():
 def _import_from(module, name):
     module = __import__(module, fromlist=[name])
     return getattr(module, name)
-
-
-def _decoder(string):
-    try:
-        return string.decode('utf-8')
-    except UnicodeDecodeError:
-        return string.decode('latin-1')
-
-
-def _is_mostly_bin(s: bytes) -> bool:
-    if not s or len(s) == 0:
-        return False
-
-    return sum(
-        i < 9 or 13 < i < 32 or 126 < i
-        for i in s[:100]
-    ) / len(s[:100]) > 0.3
 
 
 def _b64encode(s: bytes) -> str:

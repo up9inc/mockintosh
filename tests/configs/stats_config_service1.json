@@ -13,9 +13,17 @@
       "path": "/service1-second/{{var}}",
       "method": "GET",
       "response": {
+        "headers": {
+          "Content-Type": "application/json; charset=UTF-8"
+        },
         "status": 201,
         "body": "service1-second: {{var}}"
       }
+    },
+    {
+      "path": "/service1-post",
+      "method": "POST",
+      "response": "service1"
     }
   ]
 }

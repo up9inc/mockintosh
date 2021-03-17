@@ -2,7 +2,7 @@
 
 ## v0.7 - 2021-02-07
 
-1. [Management API](Configuring.md#management-api) to get/set config, see stats, quick trying
+1. [Management API](Management.md) to get/set config, see stats, quick trying
 1. [Performance/Chaos Profiles](Configuring.md#performancechaos-profiles)
 1. [Tagging responses](Configuring.md#tagged-responses) of endpoint
 1. referencing multipart/urlencoded fields in matchers and templates
@@ -80,130 +80,41 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-# Roadmap
+# Next Version
 
-## Next Version
 - YAML format for unhandled requests
 - get rid of default config that runs with no params
 - allow editing resource files via mgmt API/UI
 - "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header
 - traffic log API & viewer
-
 - mgmt UI change config global section didn't work
-- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
-- "Bypass" mode for service to learn configuration
 - report error in case config apply fails
+- "fallback" mode for service to learn configuration
+- use proper `async` style for Tornado
+- don't clear traffic log on page reload
 
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
-- management UI to give links to individual services
-- exp demo of requests log
+- change config editor component
 
-# Ideas
+# Roadmap Ideas
+
+- add support of array/list parameters on query strings like
+  `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
+  matching logic
+- Nicer formatted error pages for known errors
+- admin UI to show available tags and allow switching
+- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
 - mocks for Kafka & RabbitMQ
+    - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
+    - on schedule producer
+    - on demand producer
+    - reactive consumer+producer
+    - consumer fact validation
+    - avro + grpc + JSON
 - mocks for gRPC servers
-
-## Config Ideas
-
-```json5
-{
-  "management": {
-    // management API, allows to reload configs, get the stats etc
-    "port": 9000
-  },
-  "performanceProfiles": {
-    "profile1": {
-      "ratio": 0.5,
-      "delay": 1.5,
-      // can be distributions
-      "faults": {
-        "RST": 0.1,
-        "400": 0.1,
-        "500": 0.1,
-        "503": 0.1,
-      }
-    }
-  },
-  "globals": {
-    "performanceProfile": "profile1",
-    "headers": []
-  },
-  "services": [
-    {
-      // headers and performance profile per-service, maybe interceptors too
-      // first service
-      "name": "Mock for http://card-service.trdemo",
-      "port": 8001,
-      // optional per-service management API
-      "managementRoot": "/__admin",
-      "endpoints": [
-        {
-          "id": "unique id for endpoint",
-          // "path": "/somepath/all/action",
-          "path": "/somepath/{{regex '[^/]'}}/action",
-          // "path": "/somepath/{{justval}}/action"
-          // GET /somepath/1233423/action
-          "headers": {
-            "Content-Type": "application/json",
-            "hname2": "{{regex '.+'}}"
-          },
-          "queryString": {
-            "param1": "val1",
-            "p2": "{{regex '.+'}}"
-          },
-          "body": {
-            // regex criteria
-            // "schema": "path/to/schemafile",
-            "schema": {
-              // inline schema
-            }
-          },
-          "response": {
-            "performanceProfile": "profile2",
-            // "dataset": "path/to.csv",
-            "dataset": [
-              {
-                "var1": "val1"
-              },
-              {
-                "var1": "val2"
-              }
-            ],
-            // "status": "{{random.int 200 500}}"
-            "status": 200,
-            "headers": [
-              {
-                "hname": "hval"
-              },
-              {
-                "{{var1}}": "{{justval}}"
-              }
-            ],
-            // "body": "simple {{time.now}} string"
-            "body": {
-              "useTemplating": true,
-              "text": "",
-              "fromFile": "",
-              "modifications": [
-                "{{jsonPath '$.path' 'value'}}"
-                // somehow else?
-              ]
-            }
-          },
-        },
-      ]
-    },
-    {
-      // second service on different port
-      "name": "Mock for http://frontend-service.trdemo",
-      "port": 8002
-    },
-  ]
-}
-```
-

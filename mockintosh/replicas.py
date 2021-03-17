@@ -12,8 +12,7 @@ from urllib.parse import urlencode
 from http.client import responses
 
 from mockintosh.methods import _b64encode
-
-BASE64 = 'base64'
+from mockintosh.constants import BASE64
 
 
 class _NotParsedJSON():
@@ -68,10 +67,14 @@ class Request():
 
         query_string = []
         for key, value in self.queryString.items():
-            query_string.append({
-                'name': key,
-                'value': value
-            })
+            value_list = value
+            if not isinstance(value_list, list):
+                value_list = [value_list]
+            for _value in value_list:
+                query_string.append({
+                    'name': key,
+                    'value': _value
+                })
 
         data = {
             "method": self.method,
@@ -124,12 +127,8 @@ class Response():
         self.bodySize = 0
 
     def _har(self) -> dict:
-        extracted_keys = []
         headers = []
         for key, value in self.headers.items():
-            if key.lower() in extracted_keys:
-                continue
-            extracted_keys.append(key.lower())
             headers.append({
                 'name': key.title(),
                 'value': value
@@ -143,7 +142,7 @@ class Response():
         }
         if isinstance(content['text'], (bytes, bytearray)):
             content['text'] = _b64encode(content['text'])
-            content['encoding'] = 'base64'
+            content['encoding'] = BASE64
 
         return {
             "status": self.status,

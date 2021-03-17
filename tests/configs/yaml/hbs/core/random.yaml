@@ -1,0 +1,23 @@
+templatingEngine: Handlebars
+services:
+- name: Mock for Service1
+  port: 8001
+  endpoints:
+  - path: "/int"
+    method: GET
+    response: "{{random.int 1 5}}"
+  - path: "/float"
+    method: GET
+    response: "{{random.float 1.0 2.0 3}}"
+  - path: "/alphanum"
+    method: GET
+    response: "{{random.alphanum 7}}"
+  - path: "/hex"
+    method: GET
+    response: "{{random.hex 5}}"
+  - path: "/uuid4"
+    method: GET
+    response: "{{random.uuid4}}"
+  - path: "/ascii"
+    method: GET
+    response: "{{random.ascii 11}}"

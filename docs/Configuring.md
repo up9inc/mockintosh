@@ -89,6 +89,21 @@ services:
     port: 80
 ```
 
+### Fallback To
+
+Service-level defined `fallbackTo: "http://example.com/"` option redirects every unhandled request to the
+specified base URL. e.g. for a path like `/somepath` the request would be redirected to `http://example.com/somepath`.
+The redirect in here does not mean returning `3xx` but instead doing a server-side request and tunneling its
+response to the original requester. Such that the response of `http://localhost:8001/somepath` reflects
+the response of `http://example.com/somepath`.
+
+_Note: Timeout for such redirected requests is 30 seconds (`504`) and can be overridden with `MOCKINTOSH_FALLBACK_TO_TIMEOUT` environment variable._
+
+_Note: If the hostname in `fallbackTo` is an unresolved name then `502` will be returned._
+
+If the [management API](Management.md#unhandled-requests) is enabled, redirected requests are also logged as
+unhandled requests.
+
 _Note: You may want to play with your client's `/etc/hosts` file contents when using virtual hosts._
 
 ## Defining Endpoints

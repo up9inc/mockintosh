@@ -17,7 +17,7 @@
             href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.6.0/styles/default.min.css"
     />
 
-    <title>Mockintosh Management UI</title>
+    <title>Mockintosh Control Plane</title>
     <style>
         .responses-table .col {
             width: fit-content;
@@ -85,7 +85,7 @@
     <a class="navbar-brand" href="./">
         <img src="https://mockintosh.io/img/logo_dark.svg" alt=" M " style="height: 2rem; width: 2rem">
     </a>
-    Mockintosh Management UI</h1>
+    Mockintosh Control Plane</h1>
 
 <div class="container-fluid">
     <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -361,15 +361,17 @@
         }
     }
 
+    let traffic_offset = 0;
+
     function traffic_log() {
         $.ajax({
             url: '/traffic-log',
-            type: 'DELETE',
+            type: 'GET',
             success: function (result) {
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
                 let prev = 0;
-                for (let n = 0; n < result.log.entries.length; n++) {
-                    const entry = result.log.entries[n];
+                for (; traffic_offset < result.log.entries.length; traffic_offset++) {
+                    const entry = result.log.entries[traffic_offset];
                     const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
                     const ts = new Date(entry.startedDateTime);
                     li.append('<span class="small text-muted">+' + timediff(prev ? (ts - prev) : 0) + '</span>');
@@ -529,9 +531,16 @@
         });
 
         $("#reqlog .btn-info").click(function () {
-            $("#reqlog .traffic-items").empty();
-            $(".traffic-items>span").show();
-            $(".traffic-items>div").hide();
+            $.ajax({
+                url: '/traffic-log',
+                type: 'DELETE',
+                success: function (result) {
+                    traffic_offset = 0;
+                    $("#reqlog .traffic-items").empty();
+                    $(".traffic-items>span").show();
+                    $(".traffic-items>div").hide();
+                }
+            });
         });
 
         $("#reqlog .header a.pull-right").click(function () {

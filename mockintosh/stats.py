@@ -19,8 +19,6 @@ class BaseStats:
 
     def increase_request_counter(self):
         self.request_counter += 1
-        if not hasattr(self, 'parent'):
-            return
 
         method = getattr(self.parent, "increase_request_counter", None)
         if callable(method):
@@ -28,8 +26,6 @@ class BaseStats:
 
     def add_request_elapsed_time(self, elapsed_time_in_seconds):
         self.total_resp_time += elapsed_time_in_seconds
-        if not hasattr(self, 'parent'):
-            return
 
         method = getattr(self.parent, "add_request_elapsed_time", None)
         if callable(method):
@@ -37,8 +33,6 @@ class BaseStats:
 
     def add_status_code(self, status_code):
         self.status_code_distribution.update([status_code])
-        if not hasattr(self, 'parent'):
-            return
 
         method = getattr(self.parent, "add_status_code", None)
         if callable(method):

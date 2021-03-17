@@ -1,6 +1,9 @@
 {
   "management": {
-    "port": 9000
+    "port": 8000,
+    "ssl": true,
+    "sslCertFile": "cert.pem",
+    "sslKeyFile": "key.pem"
   },
   "templatingEngine": "Handlebars",
   "services": [
@@ -17,6 +20,13 @@
             "resp2",
             "resp3"
           ]
+        },
+        {
+          "path": "/service1-multi-response-looped-empty-list",
+          "response": []
+        },
+        {
+          "path": "/service1-no-response"
         },
         {
           "path": "/service1-multi-response-nonlooped",
@@ -40,6 +50,27 @@
               "var1": "val3"
             }
           ],
+          "response": "dset: {{var1}}"
+        },
+        {
+          "path": "/service1-dataset-inline-nonlooped",
+          "datasetLooped": false,
+          "dataset": [
+            {
+              "var1": "val1"
+            },
+            {
+              "var1": "val2"
+            },
+            {
+              "var1": "val3"
+            }
+          ],
+          "response": "dset: {{var1}}"
+        },
+        {
+          "path": "/service1-dataset-fromfile",
+          "dataset": "@dataset.json",
           "response": "dset: {{var1}}"
         }
       ]

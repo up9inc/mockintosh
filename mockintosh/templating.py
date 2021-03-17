@@ -15,8 +15,7 @@ from jinja2.exceptions import TemplateSyntaxError, UndefinedError
 from pybars import Compiler, PybarsError
 from faker import Faker
 
-from mockintosh.constants import SUPPORTED_ENGINES, PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
-from mockintosh.exceptions import UnsupportedTemplateEngine
+from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 from mockintosh.methods import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
 
@@ -46,21 +45,11 @@ class TemplateRenderer():
         self.add_params_callback = add_params_callback
         self.fill_undefineds = fill_undefineds
 
-        self.check_engine_support()
-
     def render(self):
         if self.engine == PYBARS:
             return self.render_handlebars()
         elif self.engine == JINJA:
             return self.render_jinja()
-        else:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-
-    def check_engine_support(self):
-        if self.engine not in SUPPORTED_ENGINES:
-            raise UnsupportedTemplateEngine(self.engine, SUPPORTED_ENGINES)
-        else:
-            pass
 
     def render_handlebars(self):
         context, helpers = self.add_globals(compiler._compiler, helpers={})
@@ -70,7 +59,7 @@ class TemplateRenderer():
         except (PybarsError, TypeError, SyntaxError) as e:
             if self.fill_undefineds:
                 if debug_mode:
-                    raise e
+                    raise NotImplementedError
                 else:
                     logging.warning('Handlebars: %s' % e)
                 compiled = self.text
@@ -84,10 +73,6 @@ class TemplateRenderer():
         else:
             env = Environment()
 
-        if JINJA_VARNAME_DICT in env.globals:
-            env.globals[JINJA_VARNAME_DICT] = {}
-        if SPECIAL_CONTEXT in env.globals:
-            env.globals[SPECIAL_CONTEXT] = {}
         self.add_globals(env)
         if JINJA_VARNAME_DICT not in env.globals:
             env.globals[JINJA_VARNAME_DICT] = {}
@@ -103,7 +88,7 @@ class TemplateRenderer():
             compiled = template.render()
         except (TemplateSyntaxError, TypeError, UndefinedError) as e:
             if self.fill_undefineds and debug_mode:
-                raise e
+                raise NotImplementedError
             else:
                 logging.warning('Jinja2: %s' % e)
             compiled = self.text
