@@ -319,16 +319,27 @@
 
         const label = $(".traffic-details .request .headers .header");
         $(".traffic-details .request .headers").empty().append(label);
+        let req_ctype = null;
         for (let n = 0; n < entry.request.headers.length; n++) {
             const hdr = entry.request.headers[n];
             $(".traffic-details .request .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            if (hdr.name.toLowerCase() == 'content-type') {
+                req_ctype = hdr.value;
+            }
         }
 
         if (entry.request.postData && entry.request.postData.text) {
-            $(".traffic-details .request .actual-body").text(entry.request.postData.text);
+            let body = $(".traffic-details .request .actual-body");
+            body.text(entry.request.postData.text);
             if (entry.request.postData._encoding) {
-                $(".traffic-details .request .actual-body").prepend("Base64 Encoded:\n");
+                body.prepend("Base64 Encoded:\n");
             }
+
+            if (req_ctype.startsWith("application/json")) {
+                body.addClass('hljs');
+                body.html(hljs.highlight('json', body.text()).value);
+            }
+
             $(".traffic-details .request .body").show();
         } else {
             $(".traffic-details .request .body").hide();
@@ -339,19 +350,34 @@
             .text(entry.response.status + " " + entry.response.statusText);
         const rlabel = $(".traffic-details .response .headers .header");
         $(".traffic-details .response .headers").empty().append(rlabel);
+        let resp_ctype = null;
         for (let n = 0; n < entry.response.headers.length; n++) {
             const hdr = entry.response.headers[n];
             $(".traffic-details .response .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            if (hdr.name.toLowerCase() == 'content-type') {
+                resp_ctype = hdr.value;
+            }
         }
 
         if (entry.response.content && entry.response.content.text) {
             const img = is_img(entry.response);
+            let body = $(".traffic-details .response .actual-body");
             if (img) {
-                $(".traffic-details .response .actual-body").empty().append("<img src='" + img + "' alt='Response Image'/>");
+                body.empty().append("<img src='" + img + "' alt='Response Image'/>");
             } else {
-                $(".traffic-details .response .actual-body").empty().text(entry.response.content.text);
+                body.empty().text(entry.response.content.text);
                 if (entry.response.content.encoding) {
-                    $(".traffic-details .response .actual-body").prepend("Base64 Encoded:\n");
+                    body.prepend("Base64 Encoded:\n");
+                }
+
+                if (resp_ctype.startsWith("application/json")) {
+                    body.addClass('hljs');
+                    body.html(hljs.highlight('json', body.text()).value);
+                }
+
+                if (resp_ctype.startsWith("text/html")) {
+                    body.addClass('hljs');
+                    body.html(hljs.highlight('html', body.text()).value);
                 }
             }
 
@@ -548,6 +574,8 @@
             const body = $(this).parent().parent().find(".actual-body");
             try {
                 body.text(JSON.stringify(JSON.parse(body.text()), null, 2));
+                body.addClass('hljs');
+                body.html(hljs.highlight('json', body.text()).value);
             } catch (error) {
             }
             return false;

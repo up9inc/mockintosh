@@ -96,6 +96,7 @@
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
 - change config editor component
+- add /tag UI
 
 # Roadmap Ideas
 
