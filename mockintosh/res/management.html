@@ -340,6 +340,11 @@
                 body.html(hljs.highlight('json', body.text()).value);
             }
 
+            if (req_ctype.startsWith("text/xml")) {
+                body.addClass('hljs');
+                body.html(hljs.highlight('xml', body.text()).value);
+            }
+
             $(".traffic-details .request .body").show();
         } else {
             $(".traffic-details .request .body").hide();
@@ -378,6 +383,11 @@
                 if (resp_ctype.startsWith("text/html")) {
                     body.addClass('hljs');
                     body.html(hljs.highlight('html', body.text()).value);
+                }
+
+                if (resp_ctype.startsWith("text/xml")) {
+                    body.addClass('hljs');
+                    body.html(hljs.highlight('xml', body.text()).value);
                 }
             }
 
