@@ -84,6 +84,7 @@ class RecognizerBase():
                 return new_parts
 
     def render_part(self, key, text):
+        text = self.auto_regex(text)
         var = None
 
         if self.engine == PYBARS:
@@ -110,7 +111,7 @@ class RecognizerBase():
                 del context['key']
 
         if not compiled:
-            match = re.search(r'{{(.*)}}', text)
+            match = re.search(r'{{(.*?)}}', text)
             if match is not None:
                 name = match.group(1).strip()
                 if self.scope == 'path':
@@ -121,6 +122,28 @@ class RecognizerBase():
             else:
                 compiled = text
         return var, compiled, context
+
+    def auto_regex(self, text):
+        if text.strip().startswith('{{') and text.strip().endswith('}}'):
+            return text
+
+        matches = re.findall(r'{{(.*?)}}', text)
+        if not matches:
+            return text
+
+        regex = re.sub(r'\\{\\{(.*?)\\}\\}', '(.*)', re.escape(text))
+
+        params = []
+        for match in matches:
+            if match.startswith('regEx'):
+                return text
+
+            params.append('\'%s\'' % match)
+
+        if self.engine == PYBARS:
+            return '{{regEx \'%s\' %s}}' % (regex, ' '.join(params))
+        elif self.engine == JINJA:
+            return '{{regEx(\'%s\', %s)}}' % (regex, ', '.join(params))
 
 
 class PathRecognizer(RecognizerBase):

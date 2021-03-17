@@ -55,6 +55,51 @@ You can use as many path parameters and regex capture groups you want:
 {% endraw %}
 ```
 
+### Automatic Regex Conversion
+
+When you define a variable for a portion of a path segment like the example below, it's automatically detected and
+converted to a regex function behind the scenes.
+
+E.g.:
+
+```yaml
+{% raw %}
+- path: "/hello-{{somevar}}/another"
+  response: 'result: {{somevar}}'
+{% endraw %}
+```
+
+is converted to:
+
+```yaml
+{% raw %}
+- path: "/{{regEx 'hello\-(.*)' 'somevar'}}/another"
+  response: 'result: {{somevar}}'
+{% endraw %}
+```
+
+By leveraging this mechanic, it's possible to match query strings using the `path` attribute. Since the `path`
+tries to match the `path[?query][#fragment]` portion
+of [URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier)(`scheme:[//authority]path[?query][#fragment]`).
+
+E.g.:
+
+```yaml
+{% raw %}
+- path: "/search?q={{keyword1}}&s={{keyword2}}"
+  response: 'result: {{keyword1}} {{keyword2}}'
+{% endraw %}
+```
+
+is converted to:
+
+```yaml
+{% raw %}
+- path: "/{{regEx 'search\?q=(.*)\&s=(.*)' 'keyword1' 'keyword2'}}"
+  response: 'result: {{keyword1}} {{keyword2}}'
+{% endraw %}
+```
+
 ### Static Value Priority
 
 Even if you specified a path parameter for a certain path segment, static values have a higher priority over named

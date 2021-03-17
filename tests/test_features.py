@@ -1308,6 +1308,35 @@ class TestPath():
         resp = httpx.delete(SRV_8001 + '/carts/%s/items/%s' % (param1, param2))
         assert 202 == resp.status_code
 
+    def test_auto_regex(self, config):
+        hello = 'hello'
+        world = 'world'
+
+        resp = httpx.get(SRV_8001 + '/search?q=%s' % hello)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % hello
+
+        resp = httpx.get(SRV_8001 + '/search2?q=%s&s=%s' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s' % (hello, world)
+
+        resp = httpx.get(SRV_8001 + '/search3?q=%s' % hello)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % hello
+
+        resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+        resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/query_string/config.json',

@@ -133,6 +133,31 @@
           "response": {
             "status": 202
           }
+        },
+        {
+          "path": "/search?q={{keyword}}",
+          "method": "GET",
+          "response": "result: {{keyword}}"
+        },
+        {
+          "path": "/search2?q={{keyword1}}&s={{keyword2}}",
+          "method": "GET",
+          "response": "result: {{keyword1}} {{keyword2}}"
+        },
+        {
+          "path": "/{{regEx 'search3\\?q=(.*)' 'keyword'}}",
+          "method": "GET",
+          "response": "result: {{keyword}}"
+        },
+        {
+          "path": "/hello-{{somevar}}/another",
+          "method": "GET",
+          "response": "result: {{somevar}}"
+        },
+        {
+          "path": "/hello2-{{regEx 'prefix-(.*)' 'somevar'}}/another",
+          "method": "GET",
+          "response": "result: {{somevar}}"
         }
       ]
     }
