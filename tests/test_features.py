@@ -1312,6 +1312,21 @@ class TestPath():
         hello = 'hello'
         world = 'world'
 
+        resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+        resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+    def test_auto_query_string(self, config):
+        hello = 'hello'
+        world = 'world'
+        goodbye = 'goodbye'
+
         resp = httpx.get(SRV_8001 + '/search?q=%s' % hello)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -1322,20 +1337,25 @@ class TestPath():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'result: %s %s' % (hello, world)
 
-        resp = httpx.get(SRV_8001 + '/search3?q=%s' % hello)
+        resp = httpx.get(SRV_8001 + '/abc1-xx%sxx' % hello)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'result: %s' % hello
 
-        resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
+        resp = httpx.get(SRV_8001 + '/abc2-xx%sxx?q=%s&s=%s' % (hello, world, goodbye))
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'result: %s' % world
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
 
-        resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
+        resp = httpx.get(SRV_8001 + '/abc3-xx%sxx?q=abc4-xx%sxx&s=%s' % (hello, world, goodbye))
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'result: %s' % world
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+        resp = httpx.get(SRV_8001 + '/abc5-xx%sxx?q=%s&s=%s#some-string' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
 
 
 @pytest.mark.parametrize(('config'), [

@@ -12,6 +12,7 @@ import re
 import logging
 from contextlib import contextmanager
 from base64 import b64encode
+from urllib.parse import _coerce_args, SplitResult, _splitnetloc, _checknetloc, scheme_chars
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
@@ -72,3 +73,45 @@ def _import_from(module, name):
 
 def _b64encode(s: bytes) -> str:
     return b64encode(s).decode()
+
+
+def _urlsplit(url, scheme='', allow_fragments=True):
+    """Templating safe version of urllib.parse.urlsplit
+
+    Ignores '?' and '#' inside {{}} templating tags.
+
+    Caching disabled.
+    """
+
+    url, scheme, _coerce_result = _coerce_args(url, scheme)
+    allow_fragments = bool(allow_fragments)
+    netloc = query = fragment = ''
+    i = url.find(':')
+    if i > 0:
+        for c in url[:i]:
+            if c not in scheme_chars:
+                break
+        else:
+            scheme, url = url[:i].lower(), url[i + 1:]
+
+    if url[:2] == '//':
+        netloc, url = _splitnetloc(url, 2)
+        if (
+            ('[' in netloc and ']' not in netloc)
+            or  # noqa: W504, W503
+            (']' in netloc and '[' not in netloc)
+        ):
+            raise ValueError("Invalid IPv6 URL")
+    if allow_fragments and '#' in url:
+        result = re.split(r'#(?![^{{}}]*}})', url, maxsplit=1)
+        url = result[0]
+        if len(result) > 1:
+            fragment = result[1]
+    if '?' in url:
+        result = re.split(r'\?(?![^{{}}]*}})', url, maxsplit=1)
+        url = result[0]
+        if len(result) > 1:
+            query = result[1]
+    _checknetloc(netloc)
+    v = SplitResult(scheme, netloc, url, query, fragment)
+    return _coerce_result(v)

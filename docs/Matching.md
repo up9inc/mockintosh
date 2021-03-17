@@ -55,7 +55,7 @@ You can use as many path parameters and regex capture groups you want:
 {% endraw %}
 ```
 
-### Automatic Regex Conversion
+### Automatic `regEx` Conversion
 
 When you define a variable for a portion of a path segment like the example below, it's automatically detected and
 converted to a regex function behind the scenes.
@@ -69,7 +69,7 @@ E.g.:
 {% endraw %}
 ```
 
-is converted to:
+is automatically converted to:
 
 ```yaml
 {% raw %}
@@ -78,9 +78,15 @@ is converted to:
 {% endraw %}
 ```
 
-By leveraging this mechanic, it's possible to match query strings using the `path` attribute. Since the `path`
-tries to match the `path[?query][#fragment]` portion
-of [URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier)(`scheme:[//authority]path[?query][#fragment]`).
+_Note: "Automatic `regEx` Conversion" is not specific to `path` attribute but rather applies to places where templating is possible._
+
+### Automatic Query String Conversion
+
+Similar to the [Automatic RegEx Conversion](#automatic-regex-conversion) mechanic, it's possible to
+[match query strings](#query-string)
+using the `path` attribute. `path` can be extended to match the `path[?query][#fragment]` portion
+of [URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier)(`scheme:[//authority]path[?query][#fragment]`)
+for practical reasons.
 
 E.g.:
 
@@ -91,14 +97,19 @@ E.g.:
 {% endraw %}
 ```
 
-is converted to:
+is automatically converted to:
 
 ```yaml
 {% raw %}
-- path: "/{{regEx 'search\?q=(.*)\&s=(.*)' 'keyword1' 'keyword2'}}"
+- path: "/search"
+  queryString:
+    q: "{{keyword1}}"
+    s: "{{keyword1}}"
   response: 'result: {{keyword1}} {{keyword2}}'
 {% endraw %}
 ```
+
+_Note: "Automatic Query String Conversion" is specific to `path` attribute._
 
 ### Static Value Priority
 

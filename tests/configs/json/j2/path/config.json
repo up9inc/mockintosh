@@ -135,6 +135,16 @@
           }
         },
         {
+          "path": "/hello-{{somevar}}/another",
+          "method": "GET",
+          "response": "result: {{somevar}}"
+        },
+        {
+          "path": "/hello2-{{regEx('prefix-(.*)', 'somevar')}}/another",
+          "method": "GET",
+          "response": "result: {{somevar}}"
+        },
+        {
           "path": "/search?q={{keyword}}",
           "method": "GET",
           "response": "result: {{keyword}}"
@@ -145,19 +155,24 @@
           "response": "result: {{keyword1}} {{keyword2}}"
         },
         {
-          "path": "/{{regEx('search3\\?q=(.*)', 'keyword')}}",
+          "path": "/{{regEx('abc1-xx(.*?)xx', 'keyword')}}",
           "method": "GET",
           "response": "result: {{keyword}}"
         },
         {
-          "path": "/hello-{{somevar}}/another",
+          "path": "/{{regEx('abc2-xx(.*?)xx', 'keyword1')}}?q={{keyword2}}&s={{keyword3}}",
           "method": "GET",
-          "response": "result: {{somevar}}"
+          "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
         },
         {
-          "path": "/hello2-{{regEx('prefix-(.*)', 'somevar')}}/another",
+          "path": "/{{regEx('abc3-xx(.*?)xx', 'keyword1')}}?q={{regEx('abc4-xx(.*?)xx', 'keyword2')}}&s={{keyword3}}",
           "method": "GET",
-          "response": "result: {{somevar}}"
+          "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
+        },
+        {
+          "path": "/{{regEx('abc5-xx(.*?)xx', 'keyword1')}}?q={{keyword2}}&s={{keyword3}}#some-string",
+          "method": "GET",
+          "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
         }
       ]
     }

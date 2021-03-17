@@ -16,6 +16,7 @@ import copy
 from collections import OrderedDict
 from os import path, environ
 from gettext import gettext
+from urllib.parse import parse_qs
 
 import yaml
 from jsonschema import validate
@@ -23,7 +24,7 @@ from jsonschema import validate
 from mockintosh.constants import PROGRAM
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.replicas import Request, Response  # noqa: F401
-from mockintosh.methods import _detect_engine, _nostderr, _import_from
+from mockintosh.methods import _detect_engine, _nostderr, _import_from, _urlsplit
 from mockintosh.recognizers import (
     PathRecognizer,
     HeadersRecognizer,
@@ -117,8 +118,14 @@ class Definition():
                 None
             )
 
+            scheme, netloc, path, query, fragment = _urlsplit(endpoint['path'])
+            if 'queryString' not in endpoint:
+                endpoint['queryString'] = {}
+            parsed_query = parse_qs(query)
+            endpoint['queryString'].update({k: parsed_query[k][0] for k, v in parsed_query.items()})
+
             path_recognizer = PathRecognizer(
-                endpoint['path'],
+                path,
                 endpoint['params'],
                 endpoint['context'],
                 template_engine
@@ -135,13 +142,13 @@ class Definition():
                 endpoint['headers'] = headers_recognizer.recognize()
 
             if 'queryString' in endpoint and endpoint['queryString']:
-                headers_recognizer = QueryStringRecognizer(
+                query_string_recognizer = QueryStringRecognizer(
                     endpoint['queryString'],
                     endpoint['params'],
                     endpoint['context'],
                     template_engine
                 )
-                endpoint['queryString'] = headers_recognizer.recognize()
+                endpoint['queryString'] = query_string_recognizer.recognize()
 
             if 'body' in endpoint:
                 if 'text' in endpoint['body'] and endpoint['body']['text']:

@@ -179,8 +179,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.tag = tag
 
             for path, methods in self.endpoints:
-                if re.fullmatch(path, self.request.uri) or re.fullmatch(path, self.request.path):
-                    groups = re.findall(path, self.request.uri)
+                if re.fullmatch(path, self.request.path):
+                    groups = re.findall(path, self.request.path)
                     if isinstance(groups[0], tuple):
                         self.custom_args = groups[0]
                     elif isinstance(groups, list) and groups:
@@ -286,6 +286,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_context[key] = value
         if args:
             for i, key in enumerate(self.initial_context):
+                if key == SPECIAL_CONTEXT:
+                    continue
                 self.custom_context[key] = args[i]
         self.custom_context.update(self.default_context)
         self.analyze_component('headers')
