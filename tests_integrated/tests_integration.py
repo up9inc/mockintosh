@@ -883,3 +883,8 @@ class IntegrationTests(unittest.TestCase):
 
         resp = httpx.get(SRV1 + '/qstr-multiparam2?param2=v1&param1=v2')
         self.assertEqual(400, resp.status_code)
+
+        # non-key/value pairs
+        resp = httpx.get(SRV1 + '/qstr-multiparam3?prefix-somedata-suffix')
+        resp.raise_for_status()
+        self.assertEqual("somedata", resp.text)
