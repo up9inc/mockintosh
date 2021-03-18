@@ -24,6 +24,10 @@
             /*overflow-y: hidden;*/
         }
 
+        .content {
+            overflow-y: scroll;
+        }
+
         .responses-table .col {
             width: fit-content;
         }
@@ -86,13 +90,19 @@
 <div class="pull-right small" style="padding: 0.25rem 0.5rem">
     <a href="https://mockintosh.io" target="_blank"><i class="fa fa-github"></i> Docs</a><br/>
 </div>
-<h1 style="text-transform: uppercase; padding: 0.25em 0.5em; font-weight: bold; font-size: 1.5em;">
-    <a class="navbar-brand" href="./">
-        <img src="https://mockintosh.io/img/logo_dark.svg" alt=" M " style="height: 2rem; width: 2rem">
-    </a>
-    Mockintosh Control Plane</h1>
 
-<div class="container-fluid">
+<header>
+    <h1
+            style="text-transform: uppercase; padding: 0.25em 0.5em; font-weight: bold; font-size: 1.5em;"
+    >
+        <a class="navbar-brand" href="./">
+            <img src="https://mockintosh.io/img/logo_dark.svg" alt=" M " style="height: 2rem; width: 2rem">
+        </a>
+        Mockintosh Control Plane
+    </h1>
+</header>
+
+<div class="container-fluid content" id="content-container">
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link active" id="contact-tab" data-toggle="tab" href="#trynow" role="tab"
@@ -318,7 +328,6 @@
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
         const entry = item.data("obj");
-        // console.log(entry)
         $(".traffic-details>span").hide();
         $(".traffic-details>div").show();
         $(".traffic-details .ts").text(entry.startedDateTime);
@@ -616,6 +625,12 @@
     import {CodeJar} from 'https://medv.io/codejar/codejar.js';
 
     const configEditor = CodeJar(document.querySelector('#config pre code'), () => {});
+</script>
+
+<script>
+    $('#myTabContent').height(
+        $(document).outerHeight() - $('header').outerHeight() - $('footer').outerHeight() - $('#myTab').outerHeight()*2
+    )
 </script>
 
 </body>
