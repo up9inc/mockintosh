@@ -89,8 +89,8 @@ def _urlsplit(url, scheme='', allow_fragments=True):
     i = url.find(':')
     if i > 0:
         for c in url[:i]:
-            if c not in scheme_chars:
-                break
+            if c not in scheme_chars:  # pragma: no cover
+                break  # https://github.com/nedbat/coveragepy/issues/198
         else:
             scheme, url = url[:i].lower(), url[i + 1:]
 
