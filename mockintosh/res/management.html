@@ -19,6 +19,11 @@
 
     <title>Mockintosh Control Plane</title>
     <style>
+        body {
+            height: 100vh;
+            /*overflow-y: hidden;*/
+        }
+
         .responses-table .col {
             width: fit-content;
         }
@@ -304,6 +309,11 @@
         }
     }
 
+    function useCodeHighlight(jqNode, text, type) {
+        jqNode.addClass('hljs');
+        jqNode.html(hljs.highlight(type, text).value);
+    }
+
     function details(item) {
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
@@ -335,14 +345,12 @@
                 body.prepend("Base64 Encoded:\n");
             }
 
-            if (req_ctype.startsWith("application/json")) {
-                body.addClass('hljs');
-                body.html(hljs.highlight('json', body.text()).value);
+            if (req_ctype && req_ctype.startsWith("application/json")) {
+                useCodeHighlight(body, body.text(), 'json');
             }
 
-            if (req_ctype.startsWith("text/xml")) {
-                body.addClass('hljs');
-                body.html(hljs.highlight('xml', body.text()).value);
+            if (req_ctype && req_ctype.startsWith("text/xml")) {
+                useCodeHighlight(body, body.text(), 'xml');
             }
 
             $(".traffic-details .request .body").show();
@@ -375,19 +383,16 @@
                     body.prepend("Base64 Encoded:\n");
                 }
 
-                if (resp_ctype.startsWith("application/json")) {
-                    body.addClass('hljs');
-                    body.html(hljs.highlight('json', body.text()).value);
+                if (resp_ctype && resp_ctype.startsWith("application/json")) {
+                    useCodeHighlight(body, body.text(), 'json');
                 }
 
-                if (resp_ctype.startsWith("text/html")) {
-                    body.addClass('hljs');
-                    body.html(hljs.highlight('html', body.text()).value);
+                if (resp_ctype && resp_ctype.startsWith("text/html")) {
+                    useCodeHighlight(body, body.text(), 'html');
                 }
 
-                if (resp_ctype.startsWith("text/xml")) {
-                    body.addClass('hljs');
-                    body.html(hljs.highlight('xml', body.text()).value);
+                if (resp_ctype && resp_ctype.startsWith("text/xml")) {
+                    useCodeHighlight(body, body.text(), 'xml');
                 }
             }
 
@@ -492,8 +497,7 @@
                 }
 
                 $.get(url).done(function (data) {
-                    $("#config pre code").addClass('hljs');
-                    $("#config pre code").html(hljs.highlight(val ? val.split('.')[1] : 'yaml', data).value);
+                    useCodeHighlight($("#config pre code"), data, val ? val.split('.')[1] : 'yaml');
                 });
 
             }).trigger("change");
@@ -547,8 +551,7 @@
 
         $("#unhandled button").click(function () {
             $.get("./unhandled?format=yaml").done(function (data) {
-                $("#unhandled pre code").addClass('hljs');
-                $("#unhandled pre code").html(hljs.highlight('yaml', data).value)
+                useCodeHighlight($("#unhandled pre code"), data, 'yaml');
             });
         }).trigger('click');
 
@@ -584,8 +587,7 @@
             const body = $(this).parent().parent().find(".actual-body");
             try {
                 body.text(JSON.stringify(JSON.parse(body.text()), null, 2));
-                body.addClass('hljs');
-                body.html(hljs.highlight('json', body.text()).value);
+                useCodeHighlight(body, body.text(), 'json');
             } catch (error) {
             }
             return false;
@@ -611,11 +613,9 @@
 </script>
 
 <script type="module">
-    import {CodeJar} from 'https://medv.io/codejar/codejar.js'
+    import {CodeJar} from 'https://medv.io/codejar/codejar.js';
 
-    const configEditor = CodeJar(document.querySelector('#config pre code'), (data) => {
-        console.log(data);
-    })
+    const configEditor = CodeJar(document.querySelector('#config pre code'), () => {});
 </script>
 
 </body>
