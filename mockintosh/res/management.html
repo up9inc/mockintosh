@@ -23,13 +23,28 @@
             height: 100vh;
         }
 
+        .nav-tabs {
+            padding: 0 1rem;
+        }
+
         .content {
-            overflow-y: scroll;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            height: calc(100vh - 150px);
+        }
+
+        .tab-pane {
+            position: relative;
+            height: 100%;
         }
 
         .tab-data {
             padding: 0 1rem;
-            height: 100%;
+            position: relative;
+            height: calc(100% - 40px);
         }
 
         .controls {
@@ -38,15 +53,34 @@
 
         .tab-data-horizontal {
             display: flex;
+            width: 100%;
+            position: relative;
+            height: 100%;
+        }
+
+        .reqlog .tab-data-horizontal {
+            overflow: hidden;
         }
 
         .left {
-            width: 20%;
+            min-width: 15rem;
+            width: 25%;
+            max-width: 25rem;
         }
 
         .right {
-            width: 80%;
-            padding: 0 2rem;
+            width: 75%;
+            padding: 1rem 2rem;
+        }
+
+        .full-width {
+            width: 100%;
+        }
+
+        .left,
+        .right,
+        .full-width {
+            overflow-y: scroll;
         }
 
         h1 {
@@ -59,6 +93,10 @@
 
         .scheme-container {
             display: none;
+        }
+
+        .traffic-details .list-group {
+            margin-top: 0;
         }
 
         .traffic-details .list-group-item {
@@ -116,6 +154,10 @@
             border-top: 0.0625rem solid rgba(0, 0, 0, .05);
             padding: 1rem 0;
         }
+
+        .swagger-ui .wrapper {
+            padding: 0;
+        }
     </style>
 </head>
 
@@ -161,37 +203,66 @@
                aria-selected="false">Unhandled Requests</a>
         </li>
     </ul>
-    <div class="tab-content" id="myTabContent">
+    <div class="tab-content">
         <div class="tab-pane fade show active" id="trynow" role="tabpanel" aria-labelledby="contact-tab">
-            <div id="swagger-ui">
-                <div class="center_progress">
-                    <div class="lds-dual-ring"></div>
+            <div class="tab-data">
+                <div class="tab-data-horizontal">
+                    <div class="full-width">
+                        <div id="swagger-ui">
+                            <div class="center_progress">
+                                <div class="lds-dual-ring"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab">
-            <button class="btn btn-sm btn-primary">Refresh</button>
-            <button class="btn btn-sm btn-danger">Reset Statistics</button>
-            <table class="table table-striped table-hover">
-                <thead>
-                <th></th>
-                <th>Request Count</th>
-                <th>Avg. Response Time</th>
-                <th>Response Codes</th>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <div class="tab-data">
+                <div class="controls">
+                    <button class="btn btn-sm btn-primary">Refresh</button>
+                    <button class="btn btn-sm btn-danger">Reset Statistics</button>
+                </div>
+
+                <div class="tab-data-horizontal">
+                    <div class="full-width">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                            <th></th>
+                            <th>Request Count</th>
+                            <th>Avg. Response Time</th>
+                            <th>Response Codes</th>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
-            <select></select>
-            <button class="btn btn-sm btn-primary">Load</button>
-            <button class="btn btn-sm btn-success">Apply Changes</button>
-            <button class="btn btn-info btn-sm pull-right">Reset Dataset Iterators</button>
-            <pre class="border rounded" style="margin-top: 0.25em; padding:0.25em"><code></code></pre>
+            <div class="tab-data">
+                <div class="controls">
+                    <select></select>
+                    <button class="btn btn-sm btn-primary">Load</button>
+                    <button class="btn btn-sm btn-success">Apply Changes</button>
+                    <button class="btn btn-info btn-sm pull-right">Reset Dataset Iterators</button>
+                </div>
+
+                <div class="tab-data-horizontal">
+                    <div class="full-width">
+                        <pre class="border rounded" style="margin-top: 0.25em; padding:0.25em"><code></code></pre>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
-            <button class="btn btn-sm btn-primary">Refresh</button>
-            <pre><code></code></pre>
+            <div class="tab-data">
+                <div class="controls">
+                    <button class="btn btn-sm btn-primary">Refresh</button>
+                </div>
+
+                <pre><code></code></pre>
+            </div>
         </div>
         <div class="tab-pane fade" id="reqlog" role="tabpanel" aria-labelledby="reqlog-tab">
             <div class="tab-data">
@@ -204,7 +275,7 @@
 
                 <div class="tab-data-horizontal">
                     <div class="left">
-                        <ul class="traffic-items list-group small" style="margin-top: 1rem">
+                        <ul class="traffic-items list-group small">
                         </ul>
                     </div>
                     <div class="right traffic-details">
@@ -661,12 +732,6 @@
     import {CodeJar} from 'https://medv.io/codejar/codejar.js';
 
     const configEditor = CodeJar(document.querySelector('#config pre code'), () => {});
-</script>
-
-<script>
-    $('#myTabContent').height(
-        $(document).outerHeight() - $('header').outerHeight() - $('footer').outerHeight() - $('#myTab').outerHeight()
-    )
 </script>
 
 </body>
