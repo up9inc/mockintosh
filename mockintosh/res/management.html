@@ -21,11 +21,36 @@
     <style>
         body {
             height: 100vh;
-            /*overflow-y: hidden;*/
         }
 
         .content {
             overflow-y: scroll;
+        }
+
+        .tab-data {
+            padding: 0 1rem;
+            height: 100%;
+        }
+
+        .controls {
+            padding: 0.5rem 0;
+        }
+
+        .tab-data-horizontal {
+            display: flex;
+        }
+
+        .left {
+            width: 20%;
+        }
+
+        .right {
+            width: 80%;
+            padding: 0 2rem;
+        }
+
+        h1 {
+            margin-bottom: 0;
         }
 
         .responses-table .col {
@@ -34,6 +59,10 @@
 
         .scheme-container {
             display: none;
+        }
+
+        .traffic-details .list-group-item {
+            overflow-wrap: break-word;
         }
 
         .traffic-items .list-group-item .small {
@@ -82,6 +111,11 @@
         .header a {
             cursor: pointer
         }
+
+        footer {
+            border-top: 0.0625rem solid rgba(0, 0, 0, .05);
+            padding: 1rem 0;
+        }
     </style>
 </head>
 
@@ -102,7 +136,7 @@
     </h1>
 </header>
 
-<div class="container-fluid content" id="content-container">
+<div class="content" id="content-container">
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link active" id="contact-tab" data-toggle="tab" href="#trynow" role="tab"
@@ -160,17 +194,20 @@
             <pre><code></code></pre>
         </div>
         <div class="tab-pane fade" id="reqlog" role="tabpanel" aria-labelledby="reqlog-tab">
-            <table class="table">
-                <tr class="row">
-                    <td class="col-md-4" style="border-right: 1px solid silver; border-top: none; overflow-y: auto">
-                        <div>
-                            <input type="checkbox"/> Enable Traffic Log
-                            <button class="btn btn-sm btn-info pull-right">Clear</button>
-                        </div>
+            <div class="tab-data">
+                <div class="controls">
+                    <div>
+                        <input type="checkbox"/> Enable Traffic Log
+                        <button class="btn btn-sm btn-info pull-right">Clear</button>
+                    </div>
+                </div>
+
+                <div class="tab-data-horizontal">
+                    <div class="left">
                         <ul class="traffic-items list-group small" style="margin-top: 1rem">
                         </ul>
-                    </td>
-                    <td class="col-md-8 traffic-details" style="border-top: none">
+                    </div>
+                    <div class="right traffic-details">
                         <span class="text-muted">Select traffic entry from the left sidebar...</span>
                         <div style="display: none">
                             <small class="text-muted ts"></small>
@@ -218,16 +255,15 @@
                                 </ul>
                             </div>
                         </div>
-                    </td>
-                </tr>
-            </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
 </div>
 
 <footer class="text-muted text-center small">
-    <hr/>
     Management API for <a href="https://mockintosh.io" target="_blank">Mockintosh</a>
 </footer>
 
@@ -629,7 +665,7 @@
 
 <script>
     $('#myTabContent').height(
-        $(document).outerHeight() - $('header').outerHeight() - $('footer').outerHeight() - $('#myTab').outerHeight()*2
+        $(document).outerHeight() - $('header').outerHeight() - $('footer').outerHeight() - $('#myTab').outerHeight()
     )
 </script>
 
