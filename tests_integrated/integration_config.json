@@ -323,6 +323,16 @@
               "tag": "some"
             }
           ]
+        },
+        {
+          "path": "/json-response",
+          "method": "POST",
+          "response": {
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"key\": [1, \"value\", null, false]}"
+          }
         }
       ]
     },
