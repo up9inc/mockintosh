@@ -7,6 +7,7 @@
 """
 
 import re
+from urllib.parse import parse_qs
 
 from mockintosh.constants import PYBARS, JINJA
 from mockintosh.methods import _safe_path_split
@@ -43,6 +44,7 @@ class RecognizerBase():
         else:
             parts = None
             new_parts = None
+            orig_scope = self.scope
 
             if self.scope == 'path':
                 priority = 0
@@ -50,7 +52,9 @@ class RecognizerBase():
                 parts = dict(enumerate(parts))
                 new_parts = []
             elif self.scope == 'queryStringAsString':
-                parts = {}  # TODO: satisfy logic here
+                parts = {k: v[0] for k, v in parse_qs(self.payload).items()}
+                new_parts = []
+                self.scope = 'queryString'
             else:
                 parts = self.payload
                 new_parts = {}
@@ -76,12 +80,16 @@ class RecognizerBase():
                     if priority == 0 and new_part != value:
                         priority = 1
                     new_parts.append(new_part)
+                elif orig_scope == 'queryStringAsString':
+                    new_parts.append(new_part)
                 else:
                     new_parts[key] = new_part
                 self.all_contexts.update(context)
 
             if self.scope == 'path':
                 return '/'.join(new_parts), priority
+            elif orig_scope == 'queryStringAsString':
+                return '&'.join(new_parts)
             else:
                 return new_parts
 

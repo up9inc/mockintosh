@@ -622,7 +622,12 @@ class GenericHandler(tornado.web.RequestHandler):
 
             if 'queryStringAsString' in alternative:
                 if not re.fullmatch(alternative['queryStringAsString'], self.request.query):
-                    return  # did not match
+                    self.internal_endpoint_id = alternative['internalEndpointId']
+                    reason = 'Query string \'%s\' didn\'t match to: %s' % (
+                        self.request.query,
+                        alternative['queryStringAsString']
+                    )
+                    continue
 
             # Query String
             if 'queryString' in alternative:
