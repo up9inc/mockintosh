@@ -164,7 +164,9 @@
         }
 
         .resp-tags {
-            margin-right: 1rem;
+            margin-right: 0.5rem;
+            border-right: 1px solid #dee2e6;
+            padding-right: 0.5rem;
         }
     </style>
 </head>
@@ -255,7 +257,7 @@
                     <button class="btn btn-sm btn-success">Apply Changes</button>
                     <button class="btn btn-info btn-sm pull-right">Reset Dataset Iterators</button>
                     <span class="pull-right resp-tags"><label>Enable tag: <select><option
-                    value="">None</option></select></label></span>
+                            value="">None</option></select></label></span>
                 </div>
 
                 <div class="tab-data-horizontal">
@@ -473,10 +475,10 @@
 
             if (req_ctype && req_ctype.startsWith("application/json")) {
                 useCodeHighlight(body, body.text(), 'json');
-            }
-
-            if (req_ctype && req_ctype.startsWith("text/xml")) {
+            } else if (req_ctype && req_ctype.startsWith("text/xml")) {
                 useCodeHighlight(body, body.text(), 'xml');
+            } else {
+                useCodeHighlight(body, body.text(), 'txt');
             }
 
             $(".traffic-details .request .body").show();
@@ -511,14 +513,12 @@
 
                 if (resp_ctype && resp_ctype.startsWith("application/json")) {
                     useCodeHighlight(body, body.text(), 'json');
-                }
-
-                if (resp_ctype && resp_ctype.startsWith("text/html")) {
+                } else if (resp_ctype && resp_ctype.startsWith("text/html")) {
                     useCodeHighlight(body, body.text(), 'html');
-                }
-
-                if (resp_ctype && resp_ctype.startsWith("text/xml")) {
+                } else if (resp_ctype && resp_ctype.startsWith("text/xml")) {
                     useCodeHighlight(body, body.text(), 'xml');
+                } else {
+                    useCodeHighlight(body, body.text(), 'text');
                 }
             }
 
@@ -794,7 +794,8 @@
 <script type="module">
     import {CodeJar} from 'https://medv.io/codejar/codejar.js';
 
-    const configEditor = CodeJar(document.querySelector('#config pre code'), () => {});
+    const configEditor = CodeJar(document.querySelector('#config pre code'), () => {
+    });
 </script>
 
 </body>

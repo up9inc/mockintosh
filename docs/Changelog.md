@@ -92,12 +92,11 @@
 - "fallback" mode for service to learn configuration
 - use proper `async` style for Tornado
 - don't clear traffic log on page reload
-- have UI for /tag management API
+- add UI for /tag management API
 
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
 - change config editor component
-- add /tag UI
 
 # Roadmap Ideas
 
