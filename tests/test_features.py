@@ -1311,11 +1311,18 @@ class TestPath():
     def test_auto_regex(self, config):
         hello = 'hello'
         world = 'world'
+        x = 'x'
+        y = 'y'
 
         resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'result: %s' % world
+
+        resp = httpx.get(SRV_8001 + '/%s-middle-%s/another' % (x, y))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s' % (x, y)
 
         resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
         assert 200 == resp.status_code

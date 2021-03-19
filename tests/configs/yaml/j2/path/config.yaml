@@ -84,6 +84,9 @@ services:
   - path: "/hello-{{somevar}}/another"
     method: GET
     response: 'result: {{somevar}}'
+  - path: "/{{somevar1}}-middle-{{somevar2}}/another"
+    method: GET
+    response: 'result: {{somevar1}} {{somevar2}}'
   - path: "/hello2-{{regEx('prefix-(.*)', 'somevar')}}/another"
     method: GET
     response: 'result: {{somevar}}'

@@ -124,11 +124,10 @@ class RecognizerBase():
         return var, compiled, context
 
     def auto_regex(self, text):
-        if text.strip().startswith('{{') and text.strip().endswith('}}'):
-            return text
-
         matches = re.findall(r'{{(.*?)}}', text)
         if not matches:
+            return text
+        elif len(matches) == 1 and len('{{%s}}' % matches[0]) == len(text):
             return text
 
         regex = re.sub(r'\\{\\{(.*?)\\}\\}', '(.*)', re.escape(text))
