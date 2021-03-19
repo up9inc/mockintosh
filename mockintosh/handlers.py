@@ -13,13 +13,13 @@ import re
 import socket
 import struct
 import traceback
-from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from typing import (
     Union,
     Optional,
     Awaitable
 )
+from urllib.parse import quote_plus
 
 import httpx
 import jsonschema
@@ -29,9 +29,9 @@ from tornado.concurrent import Future
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
-from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
+from mockintosh.logs import Logs, LogRecord
 from mockintosh.methods import _safe_path_split, _detect_engine, _b64encode
 from mockintosh.params import (
     PathParam,
@@ -41,8 +41,8 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
+from mockintosh.replicas import Request, Response
 from mockintosh.stats import Stats
-from mockintosh.logs import Logs, LogRecord
 from mockintosh.templating import TemplateRenderer
 
 OPTIONS = 'options'
@@ -286,6 +286,8 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_context[key] = value
         if args:
             for i, key in enumerate(self.initial_context):
+                if key == SPECIAL_CONTEXT:
+                    continue
                 self.custom_context[key] = args[i]
         self.custom_context.update(self.default_context)
         self.analyze_component('headers')
@@ -617,6 +619,10 @@ class GenericHandler(tornado.web.RequestHandler):
                         break
                 if fail:
                     continue
+
+            if 'queryStringAsString' in alternative:
+                if not re.fullmatch(alternative['queryStringAsString'], self.request.query):
+                    return  # did not match
 
             # Query String
             if 'queryString' in alternative:

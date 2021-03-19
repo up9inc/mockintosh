@@ -89,7 +89,7 @@ class IntegrationTests(unittest.TestCase):
     def test_query_string(self):
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
-        path = '/qstr-matching1?param1=constant%%20val&param2=%s&param3=prefix-%s-suffix' % (param2, param3)
+        path = '/qstr-matching1?param2=%s&param1=constant%%20val&&param3=prefix-%s-suffix' % (param2, param3)
         resp = httpx.get(SRV1 + path)
         self.assertEqual(202, resp.status_code)
         self.assertEqual("qstr match 1: constant val " + param3 + ' ' + param2, resp.text)
@@ -152,7 +152,8 @@ class IntegrationTests(unittest.TestCase):
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
         path = '/header-matching1'
-        resp = httpx.get(SRV1 + path, headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefix-%s-suffix" % param3})
+        resp = httpx.get(SRV1 + path,
+                         headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefix-%s-suffix" % param3})
         self.assertEqual(201, resp.status_code)
         self.assertEqual(param2, resp.cookies['name1'])
         self.assertEqual("prefix-" + param3 + "-suffix", resp.cookies['name2'])
@@ -160,7 +161,8 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.get(SRV1 + path, headers={"hdr1": "constant", "hdr2": param2, "hdr3": "prefix-%s-suffix" % param3})
         self.assertEqual(400, resp.status_code)
 
-        resp = httpx.get(SRV1 + path, headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefics-%s-suffix" % param3})
+        resp = httpx.get(SRV1 + path,
+                         headers={"hdr1": "constant val", "hdr2": param2, "hdr3": "prefics-%s-suffix" % param3})
         self.assertEqual(400, resp.status_code)
 
         resp = httpx.get(SRV1 + path, headers={"hdr4": "another header"})
@@ -504,7 +506,8 @@ class IntegrationTests(unittest.TestCase):
             "response": ["11", "22", "33"]
         }]
         conf['endpoints'] = endps1
-        resp = httpx.post(SRV6 + '/sub/__admin/config', data=yaml.dump(conf), headers={"Content-Type": "application/x-yaml"})
+        resp = httpx.post(SRV6 + '/sub/__admin/config', data=yaml.dump(conf),
+                          headers={"Content-Type": "application/x-yaml"})
         self.assertEqual(204, resp.status_code)
 
         resp = httpx.get(SRV6 + '/endp1')
@@ -864,3 +867,24 @@ class IntegrationTests(unittest.TestCase):
         endps[1]['response'].pop('headers')
         endps[2]['response'].pop('headers')
         self.assertEqual(exp, rdata)
+
+    def test_qstr_multiparam(self):
+        resp = httpx.get(SRV1 + '/qstr-multiparam1?param[]=v1&param[]=v2')
+        resp.raise_for_status()
+        self.assertEqual("v1 v2", resp.text)
+
+        resp = httpx.get(SRV1 + '/qstr-multiparam2?param[]=v1')
+        self.assertEqual(400, resp.status_code)
+
+        # order matters
+        resp = httpx.get(SRV1 + '/qstr-multiparam2?param1=v1&param2=v2')
+        resp.raise_for_status()
+        self.assertEqual("v1 v2", resp.text)
+
+        resp = httpx.get(SRV1 + '/qstr-multiparam2?param2=v1&param1=v2')
+        self.assertEqual(400, resp.status_code)
+
+        # non-key/value pairs
+        resp = httpx.get(SRV1 + '/qstr-multiparam3?prefix-somedata-suffix')
+        resp.raise_for_status()
+        self.assertEqual("somedata", resp.text)

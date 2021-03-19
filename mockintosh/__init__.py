@@ -8,32 +8,32 @@
 
 import argparse
 import atexit
+import copy
 import json
 import logging
 import signal
 import sys
-import copy
 from collections import OrderedDict
-from os import path, environ
 from gettext import gettext
+from os import path, environ
 
 import yaml
 from jsonschema import validate
 
 from mockintosh.constants import PROGRAM
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
-from mockintosh.replicas import Request, Response  # noqa: F401
-from mockintosh.methods import _detect_engine, _nostderr, _import_from
+from mockintosh.methods import _detect_engine, _nostderr, _import_from, _urlsplit
+from mockintosh.performance import PerformanceProfile
 from mockintosh.recognizers import (
     PathRecognizer,
     HeadersRecognizer,
     QueryStringRecognizer,
     BodyTextRecognizer,
     BodyUrlencodedRecognizer,
-    BodyMultipartRecognizer
+    BodyMultipartRecognizer, QueryStringAsStringRecognizer
 )
+from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.servers import HttpServer, TornadoImpl
-from mockintosh.performance import PerformanceProfile
 
 __version__ = "0.7"
 __location__ = path.abspath(path.dirname(__file__))
@@ -117,13 +117,22 @@ class Definition():
                 None
             )
 
+            scheme, netloc, path, query, fragment = _urlsplit(endpoint['path'])
             path_recognizer = PathRecognizer(
-                endpoint['path'],
+                path,
                 endpoint['params'],
                 endpoint['context'],
                 template_engine
             )
             endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+
+            qstrasstr = QueryStringAsStringRecognizer(
+                query,
+                endpoint['params'],
+                endpoint['context'],
+                template_engine
+            )
+            endpoint['queryStringAsString'] = qstrasstr.recognize()
 
             if 'headers' in endpoint and endpoint['headers']:
                 headers_recognizer = HeadersRecognizer(
@@ -135,13 +144,13 @@ class Definition():
                 endpoint['headers'] = headers_recognizer.recognize()
 
             if 'queryString' in endpoint and endpoint['queryString']:
-                headers_recognizer = QueryStringRecognizer(
+                query_string_recognizer = QueryStringRecognizer(
                     endpoint['queryString'],
                     endpoint['params'],
                     endpoint['context'],
                     template_engine
                 )
-                endpoint['queryString'] = headers_recognizer.recognize()
+                endpoint['queryString'] = query_string_recognizer.recognize()
 
             if 'body' in endpoint:
                 if 'text' in endpoint['body'] and endpoint['body']['text']:

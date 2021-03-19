@@ -9,7 +9,7 @@
 import re
 
 from mockintosh.constants import PYBARS, JINJA
-from mockintosh.templating import TemplateRenderer
+from mockintosh.methods import _safe_path_split
 from mockintosh.params import (
     PathParam,
     HeaderParam,
@@ -18,7 +18,7 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
-from mockintosh.methods import _safe_path_split
+from mockintosh.templating import TemplateRenderer
 
 
 class RecognizerBase():
@@ -49,6 +49,8 @@ class RecognizerBase():
                 parts = _safe_path_split(self.payload)
                 parts = dict(enumerate(parts))
                 new_parts = []
+            elif self.scope == 'queryStringAsString':
+                parts = {}  # TODO: satisfy logic here
             else:
                 parts = self.payload
                 new_parts = {}
@@ -84,6 +86,7 @@ class RecognizerBase():
                 return new_parts
 
     def render_part(self, key, text):
+        text = self.auto_regex(text)
         var = None
 
         if self.engine == PYBARS:
@@ -110,7 +113,7 @@ class RecognizerBase():
                 del context['key']
 
         if not compiled:
-            match = re.search(r'{{(.*)}}', text)
+            match = re.search(r'{{(.*?)}}', text)
             if match is not None:
                 name = match.group(1).strip()
                 if self.scope == 'path':
@@ -122,11 +125,38 @@ class RecognizerBase():
                 compiled = text
         return var, compiled, context
 
+    def auto_regex(self, text):
+        if text.strip().startswith('{{') and text.strip().endswith('}}'):
+            return text
+
+        matches = re.findall(r'{{(.*?)}}', text)
+        if not matches:
+            return text
+
+        regex = re.sub(r'\\{\\{(.*?)\\}\\}', '(.*)', re.escape(text))
+
+        params = []
+        for match in matches:
+            if match.startswith('regEx'):
+                return text
+
+            params.append('\'%s\'' % match)
+
+        if self.engine == PYBARS:
+            return '{{regEx \'%s\' %s}}' % (regex, ' '.join(params))
+        elif self.engine == JINJA:
+            return '{{regEx(\'%s\', %s)}}' % (regex, ', '.join(params))
+
 
 class PathRecognizer(RecognizerBase):
 
     def __init__(self, path, params, all_contexts, engine):
         super().__init__(path, params, all_contexts, engine, 'path')
+
+
+class QueryStringAsStringRecognizer(RecognizerBase):
+    def __init__(self, path, params, all_contexts, engine):
+        super().__init__(path, params, all_contexts, engine, 'queryStringAsString')
 
 
 class HeadersRecognizer(RecognizerBase):
