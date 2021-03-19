@@ -381,7 +381,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.5/swagger-ui-standalone-preset.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.6.0/highlight.min.js"></script>
 
-<script>
+<script type="module">
+    import {CodeJar} from 'https://medv.io/codejar/codejar.js';
+    import {withLineNumbers} from 'https://medv.io/codejar/linenumbers.js';
+
     function addOAS(config, parent) {
         const el = document.createElement('div');
         el.id = "id_" + Math.random().toString(16).slice(2);
@@ -458,13 +461,20 @@
         }
     }
 
+    /**
+     * @param jqNode - parent of the editor element
+     */
+    function clearEditorData(jqNode) {
+        // This resolves #38 issue in Codejar
+        if(!!jqNode) jqNode.html('<code></code>');
+    }
+
     function useCodeHighlight(jqNode, text, type) {
         const highlightedText = hljs.getLanguage(type) ? hljs.highlight(type, text).value : hljs.highlightAuto(text).value;
 
         jqNode.addClass('hljs');
         jqNode.html(highlightedText);
     }
-
     function details(item) {
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
@@ -667,12 +677,14 @@
         $.getJSON('./resources').done(function (resources) {
             let select = $("#config select.filename");
             select.empty().append("<option value='' selected> &lt;&lt;&lt; Main Configuration &gt;&gt;&gt;</option>");
+
             for (let n = 0; n < resources.files.length; n++) {
                 select.append("<option value='" + resources.files[n] + "'>" + resources.files[n] + "</option>");
             }
 
             select.change(function () {
                 let val = $("#config select").val();
+                clearEditorData($("#config pre"))
 
                 let url;
                 if (val) {
@@ -682,7 +694,8 @@
                 }
 
                 $.get(url).done(function (data) {
-                    useCodeHighlight($("#config pre code"), data, val ? val.split('.')[1] : 'yaml');
+                    useCodeHighlight($("#config pre code"), data, val);
+                    CodeJar(document.querySelector('#config pre code'), withLineNumbers((e) => e));
                 });
             }).trigger("change");
 
@@ -819,13 +832,6 @@
                 $(obj).click();
             }
         });
-    });
-</script>
-
-<script type="module">
-    import {CodeJar} from 'https://medv.io/codejar/codejar.js';
-
-    const configEditor = CodeJar(document.querySelector('#config pre code'), () => {
     });
 </script>
 
