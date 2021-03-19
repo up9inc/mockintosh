@@ -1310,6 +1310,88 @@ class TestPath():
 
 
 @pytest.mark.parametrize(('config'), [
+    'configs/yaml/hbs/path/query_string_in_path.yaml'
+])
+class TestQueryStringInPath():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_single_query_parameter(self, config):
+        hello = 'hello'
+
+        resp = httpx.get(SRV_8001 + '/search?q=%s' % hello)
+        assert 200 == resp.status_code
+        assert resp.text == 'result: %s' % hello
+
+    def test_multiple_query_parameters(self, config):
+        hello = 'hello'
+        world = 'world'
+
+        resp = httpx.get(SRV_8001 + '/search2?q=%s&s=%s' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.text == 'result: %s %s' % (hello, world)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param1=%s&param2=%s' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.text == '%s %s' % (hello, world)
+
+    def test_regex_in_path(self, config):
+        hello = 'hello'
+
+        resp = httpx.get(SRV_8001 + '/abc1-xx%sxx' % hello)
+        assert 200 == resp.status_code
+        assert resp.text == 'result: %s' % hello
+
+    def test_regex_in_path_with_query_string(self, config):
+        hello = 'hello'
+        world = 'world'
+        goodbye = 'goodbye'
+
+        resp = httpx.get(SRV_8001 + '/abc2-xx%sxx?q=%s&s=%s' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+    def test_regex_in_path_and_regex_in_query_string(self, config):
+        hello = 'hello'
+        world = 'world'
+        goodbye = 'goodbye'
+
+        resp = httpx.get(SRV_8001 + '/abc3-xx%sxx?q=abc4-xx%sxx&s=%s' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+    def test_regex_in_path_with_query_string_and_fragment(self, config):
+        hello = 'hello'
+        world = 'world'
+        goodbye = 'goodbye'
+
+        resp = httpx.get(SRV_8001 + '/abc5-xx%sxx?q=%s&s=%s#some-string' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+    def test_array_query_parameter(self, config):
+        hello = 'hello'
+        world = 'world'
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam1?param[]=%s&param[]=%s' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.text == '%s %s' % (hello, world)
+
+    def test_query_parameter_without_value(self, config):
+        hello = 'hello'
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam3?prefix-%s-suffix' % hello)
+        assert 200 == resp.status_code
+        assert resp.text == '%s' % hello
+
+
+
+@pytest.mark.parametrize(('config'), [
     'configs/json/hbs/query_string/config.json',
     'configs/json/j2/query_string/config.json',
     'configs/yaml/hbs/query_string/config.yaml',
