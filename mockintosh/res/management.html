@@ -201,7 +201,7 @@
 <header>
     <h1>
         <a class="navbar-brand" href="./">
-            <img src="https://mockintosh.io/img/logo_dark.svg" alt="[M]" style="">
+            <img src="https://mockintosh.io/img/logo_dark.svg" alt="[M]">
         </a>
         Mockintosh Control Plane
     </h1>
@@ -233,8 +233,9 @@
         </li>
     </ul>
     <div class="tab-content">
-        <div class="tab-pane fade show active" id="trynow" role="tabpanel" aria-labelledby="contact-tab">
+        <div class="tab-pane fade show active" id="trynow" role="tabpanel">
             <div class="tab-data">
+                <span class="small text-muted">Pick any endpoint  below and use "Try it out" button to send the request</span>
                 <div class="tab-data-horizontal">
                     <div class="full-width">
                         <div id="swagger-ui">
@@ -289,7 +290,8 @@
         <div class="tab-pane fade" id="unhandled" role="tabpanel" aria-labelledby="unhandled-tab">
             <div class="tab-data">
                 <div class="controls">
-                    <button class="btn btn-sm btn-primary">Refresh</button>
+                    <span class="small text-muted">Below is the config template for requests that are missing in Mockintosh config:</span>
+                    <button class="btn btn-sm btn-primary pull-right">Refresh</button>
                 </div>
 
                 <pre><code></code></pre>
