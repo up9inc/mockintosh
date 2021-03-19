@@ -555,7 +555,9 @@
                         details($(this));
                     });
                     $("#reqlog .traffic-items").append(li);
-                    document.querySelector("#reqlog .traffic-items li:last-child").scrollIntoView();
+                    if (!$(".traffic-items .selected").length) {
+                        document.querySelector("#reqlog .traffic-items li:last-child").scrollIntoView();
+                    }
                     prev = ts;
                 }
             },
