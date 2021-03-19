@@ -1324,6 +1324,11 @@ class TestPath():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'result: %s %s' % (x, y)
 
+        resp = httpx.get(SRV_8001 + '/%s-middle2-7/another' % x)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % x
+
         resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'

@@ -145,6 +145,11 @@
           "response": "result: {{somevar1}} {{somevar2}}"
         },
         {
+          "path": "/{{somevar1}}-middle2-{{regEx '\\d'}}/another",
+          "method": "GET",
+          "response": "result: {{somevar1}}"
+        },
+        {
           "path": "/hello2-{{regEx 'prefix-(.*)' 'somevar'}}/another",
           "method": "GET",
           "response": "result: {{somevar}}"
