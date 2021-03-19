@@ -177,6 +177,18 @@
             font-size: 1.25rem;
             cursor: pointer
         }
+
+        header h1 {
+            text-transform: uppercase;
+            padding: 0.25em 0.5em;
+            font-weight: bold;
+            font-size: 1.5em;
+        }
+
+        header h1 img {
+            height: 2rem;
+            width: 2rem
+        }
     </style>
 </head>
 
@@ -187,11 +199,9 @@
 </div>
 
 <header>
-    <h1
-            style="text-transform: uppercase; padding: 0.25em 0.5em; font-weight: bold; font-size: 1.5em;"
-    >
+    <h1>
         <a class="navbar-brand" href="./">
-            <img src="https://mockintosh.io/img/logo_dark.svg" alt=" M " style="height: 2rem; width: 2rem">
+            <img src="https://mockintosh.io/img/logo_dark.svg" alt="[M]" style="">
         </a>
         Mockintosh Control Plane
     </h1>
@@ -357,7 +367,7 @@
 </div>
 
 <footer class="text-muted text-center small">
-    Management API for <a href="https://mockintosh.io" target="_blank">Mockintosh</a>
+    Management UI for <a href="https://mockintosh.io" target="_blank">Mockintosh</a>
 </footer>
 
 <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
