@@ -10,7 +10,7 @@ import copy
 import logging
 from os import environ
 
-from jinja2 import Environment, meta, StrictUndefined
+from jinja2 import Environment, StrictUndefined
 from jinja2.exceptions import TemplateSyntaxError, UndefinedError
 from pybars import Compiler, PybarsError
 from faker import Faker
@@ -18,6 +18,7 @@ from faker import Faker
 from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 from mockintosh.methods import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
+from mockintosh.j2.meta import find_undeclared_variables_in_order
 
 compiler = Compiler()
 faker = Faker()
@@ -93,13 +94,13 @@ class TemplateRenderer():
             if self.fill_undefineds:
                 ast = env.parse(self.text)
                 if self.fill_undefineds_with is not None:
-                    for var in meta.find_undeclared_variables(ast):
+                    for var in find_undeclared_variables_in_order(ast):
                         env.globals[var] = self.fill_undefineds_with
                         self.keys_to_delete.append(var)
                         if self.one_and_only_var is None:
                             self.one_and_only_var = var
                 else:
-                    for var in meta.find_undeclared_variables(ast):
+                    for var in find_undeclared_variables_in_order(ast):
                         logging.warning('Jinja2: Could not find variable `%s`' % var)
                         env.globals[var] = '{{%s}}' % var
 
