@@ -51,34 +51,37 @@ class RecognizerBase():
                 new_parts = {}
 
             for key, value in parts.items():
-                var, new_part, context = self.render_part(key, value)
-                if var is not None:
-                    param = None
-                    if self.scope == 'headers':
-                        param = HeaderParam(key, var)
-                    elif self.scope == 'queryString':
-                        param = QueryStringParam(key, var)
-                    elif self.scope == 'bodyUrlencoded':
-                        param = BodyUrlencodedParam(key, var)
-                    elif self.scope == 'bodyMultipart':
-                        param = BodyMultipartParam(key, var)
-                    self.params[var] = param
+                if not isinstance(value, list):
+                    value = [value]
+                for el in value:
+                    var, new_part, context = self.render_part(key, el)
+                    if var is not None:
+                        param = None
+                        if self.scope == 'headers':
+                            param = HeaderParam(key, var)
+                        elif self.scope == 'queryString':
+                            param = QueryStringParam(key, var)
+                        elif self.scope == 'bodyUrlencoded':
+                            param = BodyUrlencodedParam(key, var)
+                        elif self.scope == 'bodyMultipart':
+                            param = BodyMultipartParam(key, var)
+                        self.params[var] = param
+                        if self.scope == 'path':
+                            priority = 2
                     if self.scope == 'path':
-                        priority = 2
-                if self.scope == 'path':
-                    if priority == 0 and new_part != value:
-                        priority = 1
-                    new_parts.append(new_part)
-                else:
-                    new_parts[key] = new_part
-                self.all_contexts.update(context)
+                        if priority == 0 and new_part != el:
+                            priority = 1
+                        new_parts.append(new_part)
+                    else:
+                        new_parts[key] = new_part
+                    self.all_contexts.update(context)
 
             if self.scope == 'path':
                 return '/'.join(new_parts), priority
             else:
                 return new_parts
 
-    def render_part(self, key, text):
+    def render_part(self, key: str, text: str):
         if self.engine == PYBARS:
             from mockintosh.hbs.methods import reg_ex
         elif self.engine == JINJA:

@@ -122,7 +122,7 @@ class Definition():
             if 'queryString' not in endpoint:
                 endpoint['queryString'] = {}
             parsed_query = parse_qs(query)
-            endpoint['queryString'].update({k: parsed_query[k][0] for k, v in parsed_query.items()})
+            endpoint['queryString'].update({k: parsed_query[k] for k, v in parsed_query.items()})
 
             path_recognizer = PathRecognizer(
                 path,

@@ -319,11 +319,18 @@ class GenericHandler(tornado.web.RequestHandler):
         """Method that injects parameters defined in the config into template engine contexts."""
         if not hasattr(self, 'custom_params'):
             return context
+        query_arguments = self.request.query_arguments
         for key, param in self.custom_params.items():
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
-                context[key] = self.get_query_argument(param.key)
+                try:
+                    context[key] = query_arguments[param.key].pop(0).decode()
+                except IndexError:
+                    try:
+                        context[key] = self.get_query_argument(param.key)
+                    except tornado.web.MissingArgumentError:
+                        context[key] = self.get_argument(param.key)
             if isinstance(param, BodyTextParam):
                 context[key] = self.request.body.decode()
             if isinstance(param, BodyUrlencodedParam):
