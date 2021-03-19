@@ -168,6 +168,15 @@
             border-right: 1px solid #dee2e6;
             padding-right: 0.5rem;
         }
+
+        .traffic-details .fa-times {
+            opacity: 0.5;
+            position: absolute;
+            right: 1rem;
+            top: 0;
+            font-size: 1.25rem;
+            cursor: pointer
+        }
     </style>
 </head>
 
@@ -293,8 +302,7 @@
                     <div class="right traffic-details">
                         <span class="text-muted">Select traffic entry from the left sidebar...</span>
                         <div style="display: none">
-                            <i class="fa fa-times text-muted "
-                               style="position: absolute; right: 1rem; top: 0; font-size: 1.25rem; cursor: pointer"></i>
+                            <i class="fa fa-times text-muted"></i>
                             <small class="text-muted ts"></small>
                             <small class="text-muted pull-right"></small><br/>
                             <div class="request">
