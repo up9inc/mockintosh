@@ -287,7 +287,10 @@ class GenericHandler(tornado.web.RequestHandler):
             for i, key in enumerate(self.initial_context):
                 if key == SPECIAL_CONTEXT:
                     continue
-                self.custom_context[key] = args[i]
+                try:
+                    self.custom_context[key] = args[i]
+                except IndexError:
+                    pass
         self.custom_context.update(self.default_context)
         self.analyze_component('headers')
         self.analyze_component('queryString')
