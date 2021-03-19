@@ -427,8 +427,10 @@
     }
 
     function useCodeHighlight(jqNode, text, type) {
+        const highlightedText = hljs.getLanguage(type) ? hljs.highlight(type, text).value : hljs.highlightAuto(text).value;
+
         jqNode.addClass('hljs');
-        jqNode.html(hljs.highlight(type, text).value);
+        jqNode.html(highlightedText);
     }
 
     function details(item) {
