@@ -293,6 +293,8 @@
                     <div class="right traffic-details">
                         <span class="text-muted">Select traffic entry from the left sidebar...</span>
                         <div style="display: none">
+                            <i class="fa fa-times text-muted "
+                               style="position: absolute; right: 1rem; top: 0; font-size: 1.25rem; cursor: pointer"></i>
                             <small class="text-muted ts"></small>
                             <small class="text-muted pull-right"></small><br/>
                             <div class="request">
@@ -785,6 +787,12 @@
         });
 
         traffic_log();
+
+        $(".traffic-details .fa-times").click(function () {
+            $(".traffic-items .selected").removeClass('selected');
+            $(".traffic-details>span").show();
+            $(".traffic-details>div").hide();
+        });
 
         $(".nav-link").map(function (i, obj) {
             if ($(obj).attr('href') === window.location.hash) {
