@@ -126,13 +126,14 @@ class Definition():
             )
             endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
 
-            qstrasstr = QueryStringAsStringRecognizer(
-                query,
-                endpoint['params'],
-                endpoint['context'],
-                template_engine
-            )
-            endpoint['queryStringAsString'] = qstrasstr.recognize()
+            if query:
+                qstrasstr = QueryStringAsStringRecognizer(
+                    query,
+                    endpoint['params'],
+                    endpoint['context'],
+                    template_engine
+                )
+                endpoint['queryStringAsString'] = qstrasstr.recognize()
 
             if 'headers' in endpoint and endpoint['headers']:
                 headers_recognizer = HeadersRecognizer(
