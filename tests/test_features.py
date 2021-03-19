@@ -303,11 +303,11 @@ class TestCore():
         with nostdout() and nostderr():
             self.mock_server_process = run_mock_server(get_config_path(config))
         resp = httpx.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         if 'j2' in config:
-            assert resp.text == '{{varname}}'
+            assert 404 == resp.status_code
         else:
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == var
 
     @pytest.mark.parametrize(('config'), [

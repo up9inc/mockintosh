@@ -62,7 +62,7 @@ class TemplateRenderer():
             compiled = template(context, helpers=helpers)
         except (PybarsError, TypeError, SyntaxError) as e:
             if self.fill_undefineds:
-                if self.fill_undefineds_with is not None:
+                if self.fill_undefineds_with is not None and str(e).startswith('Could not find variable'):
                     var = str(e)[25:-1]
                     self.inject_objects[var] = self.fill_undefineds_with
                     self.keys_to_delete.append(var)

@@ -869,7 +869,6 @@ class IntegrationTests(unittest.TestCase):
         endps[2]['response'].pop('headers')
         self.assertEqual(exp, rdata)
 
-    @pytest.mark.skip(reason="no way of currently testing this")
     def test_qstr_multiparam(self):
         resp = httpx.get(SRV1 + '/qstr-multiparam1?param[]=v1&param[]=v2')
         resp.raise_for_status()
