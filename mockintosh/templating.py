@@ -35,7 +35,8 @@ class TemplateRenderer():
         inject_objects={},
         inject_methods=[],
         add_params_callback=None,
-        fill_undefineds=False
+        fill_undefineds=False,
+        fill_undefineds_with=None,
     ):
         self.engine = engine
         self.text = text
@@ -44,6 +45,9 @@ class TemplateRenderer():
         self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
         self.add_params_callback = add_params_callback
         self.fill_undefineds = fill_undefineds
+        self.fill_undefineds_with = fill_undefineds_with
+        self.keys_to_delete = []
+        self.one_and_only_var = None
 
     def render(self):
         if self.engine == PYBARS:
@@ -58,11 +62,19 @@ class TemplateRenderer():
             compiled = template(context, helpers=helpers)
         except (PybarsError, TypeError, SyntaxError) as e:
             if self.fill_undefineds:
-                if debug_mode:
-                    raise NotImplementedError
+                if self.fill_undefineds_with is not None:
+                    var = str(e)[25:-1]
+                    self.inject_objects[var] = self.fill_undefineds_with
+                    self.keys_to_delete.append(var)
+                    if self.one_and_only_var is None:
+                        self.one_and_only_var = var
+                    return self.render_handlebars()
                 else:
-                    logging.warning('Handlebars: %s' % e)
-                compiled = self.text
+                    if debug_mode:
+                        raise NotImplementedError
+                    else:
+                        logging.warning('Handlebars: %s' % e)
+                    compiled = self.text
             else:
                 compiled = None
         return compiled, context
@@ -80,9 +92,16 @@ class TemplateRenderer():
         try:
             if self.fill_undefineds:
                 ast = env.parse(self.text)
-                for var in meta.find_undeclared_variables(ast):
-                    logging.warning('Jinja2: Could not find variable `%s`' % var)
-                    env.globals[var] = '{{%s}}' % var
+                if self.fill_undefineds_with is not None:
+                    for var in meta.find_undeclared_variables(ast):
+                        env.globals[var] = self.fill_undefineds_with
+                        self.keys_to_delete.append(var)
+                        if self.one_and_only_var is None:
+                            self.one_and_only_var = var
+                else:
+                    for var in meta.find_undeclared_variables(ast):
+                        logging.warning('Jinja2: Could not find variable `%s`' % var)
+                        env.globals[var] = '{{%s}}' % var
 
             template = env.from_string(self.text)
             compiled = template.render()

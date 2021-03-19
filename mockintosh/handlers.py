@@ -32,9 +32,8 @@ from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _b64encode
+from mockintosh.methods import _detect_engine, _b64encode
 from mockintosh.params import (
-    PathParam,
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
@@ -318,8 +317,6 @@ class GenericHandler(tornado.web.RequestHandler):
         if not hasattr(self, 'custom_params'):
             return context
         for key, param in self.custom_params.items():
-            if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param.key]
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):

@@ -6,12 +6,9 @@
     :synopsis: module that contains config recognizer classes.
 """
 
-import re
-
 from mockintosh.constants import PYBARS, JINJA
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import (
-    PathParam,
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
@@ -57,9 +54,7 @@ class RecognizerBase():
                 var, new_part, context = self.render_part(key, value)
                 if var is not None:
                     param = None
-                    if self.scope == 'path':
-                        param = PathParam(key, var)
-                    elif self.scope == 'headers':
+                    if self.scope == 'headers':
                         param = HeaderParam(key, var)
                     elif self.scope == 'queryString':
                         param = QueryStringParam(key, var)
@@ -84,9 +79,6 @@ class RecognizerBase():
                 return new_parts
 
     def render_part(self, key, text):
-        text = self.auto_regex(text)
-        var = None
-
         if self.engine == PYBARS:
             from mockintosh.hbs.methods import reg_ex
         elif self.engine == JINJA:
@@ -102,47 +94,19 @@ class RecognizerBase():
             self.engine,
             text,
             inject_objects=inject_objects,
-            inject_methods=[reg_ex]
+            inject_methods=[reg_ex],
+            fill_undefineds=True,
+            fill_undefineds_with='(.*)'
         )
         compiled, context = renderer.render()
         if self.engine == PYBARS:
             del context['scope']
             if 'key' in inject_objects:
                 del context['key']
+        for key in renderer.keys_to_delete:
+            context[key] = None
 
-        if not compiled:
-            match = re.search(r'{{(.*?)}}', text)
-            if match is not None:
-                name = match.group(1).strip()
-                if self.scope == 'path':
-                    compiled = '[^/]+'
-                else:
-                    compiled = '.*'
-                var = name
-            else:
-                compiled = text
-        return var, compiled, context
-
-    def auto_regex(self, text):
-        matches = re.findall(r'{{(.*?)}}', text)
-        if not matches:
-            return text
-        elif len(matches) == 1 and len('{{%s}}' % matches[0]) == len(text):
-            return text
-
-        regex = re.sub(r'\\{\\{(.*?)\\}\\}', '(.*)', re.escape(text))
-
-        params = []
-        for match in matches:
-            if match.startswith('regEx'):
-                return text
-
-            params.append('\'%s\'' % match)
-
-        if self.engine == PYBARS:
-            return '{{regEx \'%s\' %s}}' % (regex, ' '.join(params))
-        elif self.engine == JINJA:
-            return '{{regEx(\'%s\', %s)}}' % (regex, ', '.join(params))
+        return renderer.one_and_only_var, compiled, context
 
 
 class PathRecognizer(RecognizerBase):
