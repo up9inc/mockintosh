@@ -97,6 +97,10 @@
 - bug of applying status change via UI (Alon)
 - \r vs \n problem in mac
 - change config editor component
+  
+- downloadable YAML in getting started 
+- cli argument to set the tag
+
 
 # Roadmap Ideas
 
@@ -104,6 +108,7 @@
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
 - Nicer formatted error pages for known errors
+- Nicer debug logging of requests  
 - admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 

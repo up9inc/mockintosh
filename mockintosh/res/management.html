@@ -745,7 +745,7 @@
                 });
             } else {
                 $.ajax("./config", {
-                    'data': $("#config pre").text(),
+                    'data': $("#config pre code").text(),
                     'type': 'POST',
                     'processData': false,
                     'contentType': 'application/x-yaml',
