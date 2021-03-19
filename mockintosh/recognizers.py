@@ -81,7 +81,7 @@ class RecognizerBase():
                         priority = 1
                     new_parts.append(new_part)
                 elif orig_scope == 'queryStringAsString':
-                    new_parts.append(new_part)
+                    new_parts.append('%s=%s'% (key, new_part))
                 else:
                     new_parts[key] = new_part
                 self.all_contexts.update(context)
