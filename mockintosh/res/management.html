@@ -171,11 +171,9 @@
 
         .traffic-details .fa-times {
             opacity: 0.5;
-            position: absolute;
-            right: 1rem;
-            top: 0;
             font-size: 1.25rem;
-            cursor: pointer
+            cursor: pointer;
+            margin-left: 1rem;
         }
 
         header h1 {
@@ -314,7 +312,7 @@
                     <div class="right traffic-details">
                         <span class="text-muted">Select traffic entry from the left sidebar...</span>
                         <div style="display: none">
-                            <i class="fa fa-times text-muted"></i>
+                            <i class="fa fa-times text-muted pull-right"></i>
                             <small class="text-muted ts"></small>
                             <small class="text-muted pull-right"></small><br/>
                             <div class="request">
@@ -474,7 +472,7 @@
         $(".traffic-details>span").hide();
         $(".traffic-details>div").show();
         $(".traffic-details .ts").text(entry.startedDateTime);
-        $(".traffic-details > div > .text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        $(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
         $(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
         let method = $(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
