@@ -93,17 +93,15 @@
 - use proper `async` style for Tornado
 - don't clear traffic log on page reload
 - add UI for /tag management API
-
-- bug of applying status change via UI (Alon)
-- \r vs \n problem in mac
+- ctrl+c to produce debug message
 - change config editor component
   
 - downloadable YAML in getting started 
-- cli argument to set the tag
 
 
 # Roadmap Ideas
 
+- cli argument to set the tag
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
