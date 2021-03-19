@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Fake doc",
-    "description": "Fake",
+    "title": "Service for management API / Dynamic configs",
+    "description": "OAS provided externally",
     "version": "0.1.9"
   },
   "servers": [

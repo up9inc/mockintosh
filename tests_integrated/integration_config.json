@@ -345,12 +345,12 @@
           "id": "some-endpoint-id",
           "path": "/",
           "method": "get",
-          "response": {}
+          "response": "Yo, I'm specified.host"
         }
       ]
     },
     {
-      "name": "Service with specified.host",
+      "name": "Service with specified another.host",
       "port": 8002,
       "hostname": "another.host",
       "endpoints": [
@@ -358,7 +358,7 @@
           "id": "some-endpoint-id2",
           "path": "/",
           "method": "get",
-          "response": {}
+          "response": "Hey, I'm another.host"
         }
       ]
     },

@@ -158,6 +158,10 @@
         .swagger-ui .wrapper {
             padding: 0;
         }
+
+        .resp-tags {
+            margin-right: 1rem;
+        }
     </style>
 </head>
 
@@ -242,10 +246,12 @@
         <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="home-tab">
             <div class="tab-data">
                 <div class="controls">
-                    <select></select>
+                    <select class="filename"></select>
                     <button class="btn btn-sm btn-primary">Load</button>
                     <button class="btn btn-sm btn-success">Apply Changes</button>
                     <button class="btn btn-info btn-sm pull-right">Reset Dataset Iterators</button>
+                    <span class="pull-right resp-tags"><label>Enable tag: <select><option
+                    value="">None</option></select></label></span>
                 </div>
 
                 <div class="tab-data-horizontal">
@@ -268,7 +274,7 @@
             <div class="tab-data">
                 <div class="controls">
                     <div>
-                        <input type="checkbox"/> Enable Traffic Log
+                        <label><input type="checkbox"/> Enable Traffic Log</label>
                         <button class="btn btn-sm btn-info pull-right">Clear</button>
                     </div>
                 </div>
@@ -522,7 +528,7 @@
 
     function traffic_log() {
         $.ajax({
-            url: '/traffic-log',
+            url: './traffic-log',
             type: 'GET',
             success: function (result) {
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
@@ -565,9 +571,8 @@
     function stats(data) {
         let tbody = $("#stats table tbody");
         tbody.empty();
-        tbody.append(stats_row(data.global, "Overall").addClass('font-weight-bold font-italic'));
-        for (let s = 0; s < data.services.length; s++) {
-            let svc = data.services[s];
+
+        function svc_block(svc) {
             tbody.append(stats_row(svc, svc.hint).addClass('font-weight-bold'));
 
             for (let e = 0; e < svc.endpoints.length; e++) {
@@ -575,6 +580,41 @@
                 tbody.append(stats_row(endp, endp.hint).addClass('small'));
             }
         }
+
+        if (data.global) {
+            tbody.append(stats_row(data.global, "Overall").addClass('font-weight-bold font-italic'));
+
+            for (let s = 0; s < data.services.length; s++) {
+                let svc = data.services[s];
+                svc_block(svc);
+            }
+        } else {
+            svc_block(data);
+        }
+    }
+
+    function tags_in_config(config) {
+        if (!config.services) config = {services: [config]};
+        let result = [];
+        //debugger;
+        for (let s = 0; s < config['services'].length; s++) {
+            const service = config['services'][s];
+            if (!service.endpoints) continue;
+
+            for (let e = 0; e < service.endpoints.length; e++) {
+                const endpoint = service.endpoints[e];
+                if (!endpoint.response) continue;
+
+                const resps = Array.isArray(endpoint.response) ? endpoint.response : [endpoint.response];
+                for (let n = 0; n < resps.length; n++) {
+                    if (resps[n].tag) {
+                        result.push(resps[n].tag);
+                    }
+                }
+            }
+
+        }
+        return [...new Set(result)].sort();
     }
 
     $(function () {
@@ -596,7 +636,7 @@
         });
 
         $.getJSON('./resources').done(function (resources) {
-            let select = $("#config select");
+            let select = $("#config select.filename");
             select.empty().append("<option value='' selected> &lt;&lt;&lt; Main Configuration &gt;&gt;&gt;</option>");
             for (let n = 0; n < resources.files.length; n++) {
                 select.append("<option value='" + resources.files[n] + "'>" + resources.files[n] + "</option>");
@@ -615,12 +655,31 @@
                 $.get(url).done(function (data) {
                     useCodeHighlight($("#config pre code"), data, val ? val.split('.')[1] : 'yaml');
                 });
-
             }).trigger("change");
 
             $("#config .btn-primary").click(function () {
                 select.trigger('change');
             });
+        });
+
+        $.getJSON('./config').done(function (config) {
+            const tags = tags_in_config(config);
+            if (tags.length) {
+                $.get("./tag").done(function (tag) {
+                    if (tag.tags) tag = tag.tags[0];
+
+                    let select = $("#config .resp-tags select");
+                    select.empty().append("<option value=''>None</option>");
+                    for (let n = 0; n < tags.length; n++) {
+                        select.append("<option value='" + tags[n] + "' " + (tag === tags[n] ? 'selected' : '') + ">" + tags[n] + "</option>");
+                    }
+                    select.change(function () {
+                        $.post('./tag', select.val());
+                    });
+                });
+            } else {
+                $("#config .resp-tags").hide();
+            }
         });
 
         $("#config .btn-success").click(function () {
@@ -688,7 +747,7 @@
 
         $("#reqlog .btn-info").click(function () {
             $.ajax({
-                url: '/traffic-log',
+                url: './traffic-log',
                 type: 'DELETE',
                 success: function (result) {
                     traffic_offset = 0;
@@ -710,7 +769,7 @@
         });
 
         $("#reqlog input").change(function () {
-            $.post("/traffic-log", {"enable": this.checked ? 'True' : 'False'}).fail(function () {
+            $.post("./traffic-log", {"enable": this.checked ? 'True' : 'False'}).fail(function () {
                 $("#reqlog input").prop('checked', '')
             });
             if (this.checked) {
