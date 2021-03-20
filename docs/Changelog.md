@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.8 - 2021-03-20
+
+1. [Management API/UI](Management.md) Improvements:
+    1. Overall visual look tuning
+    1. change config editor component in management UI
+    1. YAML format for unhandled requests
+    1. allow editing resource files via mgmt API/UI
+    1. traffic log API & viewer
+    1. mgmt UI change config global section didn't work
+    1. report error in case config apply fails
+    1. add UI for /tag management API
+    1. Improve stats display
+
+1. `fallbackTo` [option for service](Configuring.md#fallback-to) to help generate configuration
+1. "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header as sign of mock involved
+1. use proper `async` style for Tornado functions
+1. get rid of default config that runs with no params `mockintosh` command
+1. ctrl+c to produce debug message only
+
 ## v0.7 - 2021-02-07
 
 1. [Management API](Management.md) to get/set config, see stats, quick trying
@@ -82,21 +101,6 @@
 
 # Next Version
 
-- YAML format for unhandled requests
-- get rid of default config that runs with no params
-- allow editing resource files via mgmt API/UI
-- "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header
-- traffic log API & viewer
-- mgmt UI change config global section didn't work
-- report error in case config apply fails
-- "fallback" mode for service to learn configuration
-- use proper `async` style for Tornado
-- don't clear traffic log on page reload
-- add UI for /tag management API
-- ctrl+c to produce debug message
-- change config editor component
-  
-- downloadable YAML in getting started 
 
 
 # Roadmap Ideas
