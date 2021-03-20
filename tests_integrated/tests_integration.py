@@ -881,6 +881,7 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertEqual("v1 v2", resp.text)
 
+        # TODO: order does not matter
         resp = httpx.get(SRV1 + '/qstr-multiparam2?param2=v1&param1=v2')
         self.assertEqual(400, resp.status_code)
 
