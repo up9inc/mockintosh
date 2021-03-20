@@ -54,7 +54,9 @@ class RecognizerBase():
                 if not isinstance(value, list):
                     value = [value]
                 for el in value:
-                    var, new_part, context = self.render_part(key, el)
+                    _var, key, context = self.render_part(key, key)
+                    var, new_part, _context = self.render_part(key, el)
+                    context.update(_context)
                     if var is not None:
                         param = None
                         if self.scope == 'headers':
@@ -68,6 +70,10 @@ class RecognizerBase():
                         self.params[var] = param
                         if self.scope == 'path':
                             priority = 2
+                    else:
+                        if self.scope == 'queryString':
+                            param = QueryStringParam(_var, key)
+                            self.params[key] = param
                     if self.scope == 'path':
                         if priority == 0 and new_part != el:
                             priority = 1

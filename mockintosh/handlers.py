@@ -331,6 +331,15 @@ class GenericHandler(tornado.web.RequestHandler):
                         context[key] = self.get_query_argument(param.key)
                     except tornado.web.MissingArgumentError:
                         context[key] = self.get_argument(param.key)
+                except KeyError:
+                    for arg in query_arguments:
+                        match = re.search(key, arg)
+                        if match is not None:
+                            try:
+                                context[param.key] = match.group(1).strip()
+                                break
+                            except IndexError:
+                                continue
             if isinstance(param, BodyTextParam):
                 context[key] = self.request.body.decode()
             if isinstance(param, BodyUrlencodedParam):
@@ -634,11 +643,21 @@ class GenericHandler(tornado.web.RequestHandler):
                     default = None
                     request_query_val = self.get_query_argument(key, default=default)
                     if request_query_val is default:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
-                        break
+                        is_matched = False
+                        if re.escape(key) != key:
+                            for _key in self.request.query_arguments:
+                                match = re.search(key, _key)
+                                if match is not None:
+                                    is_matched = True
+                                    break
+                        if not is_matched:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the query string!' % key
+                            break
                     if value == request_query_val:
+                        continue
+                    if request_query_val is default:
                         continue
                     value = '^%s$' % value
                     match = re.search(value, request_query_val)

@@ -121,7 +121,7 @@ class Definition():
             scheme, netloc, path, query, fragment = _urlsplit(endpoint['path'])
             if 'queryString' not in endpoint:
                 endpoint['queryString'] = {}
-            parsed_query = parse_qs(query)
+            parsed_query = parse_qs(query, keep_blank_values=True)
             endpoint['queryString'].update({k: parsed_query[k] for k, v in parsed_query.items()})
 
             path_recognizer = PathRecognizer(
