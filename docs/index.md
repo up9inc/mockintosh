@@ -40,7 +40,7 @@ Please note the `-p` flag used to publish container's ports and `-v` to mount di
 
 After server starts, you can issue requests against it. For example, `curl -v http://localhost:8000/` would
 respond `hello world`. Also, consider opening [Management UI](Management.md) in your
-browser: http://localhost:8000/__admin . Management UI offers visual tools to see available mock endpoints, traffic log
+browser: [http://localhost:8000/__admin](http://localhost:8000/__admin). Management UI offers visual tools to see available mock endpoints, traffic log
 and many other [features](Management.md).
 
 ## Command-line Arguments

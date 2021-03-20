@@ -20,7 +20,7 @@ test-integration: build
 		-l /tmp/tests_integrated/server.log \
 		--interceptor=custom_interceptors.intercept_for_logging \
 		--interceptor=custom_interceptors.intercept_for_modifying \
-		/tmp/tests_integrated/integration_config.json && \
+		/tmp/tests_integrated/integration_config.yaml && \
 	sleep 5 && \
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
