@@ -861,7 +861,7 @@ class TestCore():
         assert resp.text == '&amp; &lt; &quot; &gt;'
 
     def test_cors(self):
-        config = 'tests_integrated/integration_config.json'
+        config = 'tests_integrated/integration_config.yaml'
         config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
         self.mock_server_process = run_mock_server(config_path)
 
@@ -2531,7 +2531,7 @@ class TestManagement():
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml',
-        'tests_integrated/integration_config.json'
+        'tests_integrated/integration_config.yaml'
     ])
     def test_get_oas(self, config):
         config_path = None
@@ -2723,7 +2723,7 @@ class TestManagement():
         assert 400 == resp.status_code
 
     def test_resources_various(self):
-        config = 'tests_integrated/integration_config.json'
+        config = 'tests_integrated/integration_config.yaml'
         config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
         self.mock_server_process = run_mock_server(config_path)
 
