@@ -109,6 +109,7 @@
 - Nicer debug logging of requests  
 - admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+- config editor to provide hyperlinks from resource files into corresponding editing
 
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
