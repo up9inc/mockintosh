@@ -54,7 +54,9 @@ class RecognizerBase():
                 if not isinstance(value, list):
                     value = [value]
                 for el in value:
-                    _var, key, context = self.render_part(key, key)
+                    context = {}
+                    if self.scope != 'path':
+                        _var, key, context = self.render_part(key, key)
                     var, new_part, _context = self.render_part(key, el)
                     context.update(_context)
                     if var is not None:
