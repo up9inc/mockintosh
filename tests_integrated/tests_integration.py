@@ -6,7 +6,6 @@ import unittest
 from collections import Counter
 from datetime import datetime, timedelta
 
-import pytest
 import httpx
 import yaml
 from jsonschema.validators import validate
