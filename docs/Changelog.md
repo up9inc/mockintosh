@@ -92,18 +92,22 @@
 - "fallback" mode for service to learn configuration
 - use proper `async` style for Tornado
 - don't clear traffic log on page reload
-
-- bug of applying status change via UI (Alon)
-- \r vs \n problem in mac
+- add UI for /tag management API
+- ctrl+c to produce debug message
 - change config editor component
+  
+- downloadable YAML in getting started 
+
 
 # Roadmap Ideas
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
+- cli argument to set the tag
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
 - Nicer formatted error pages for known errors
+- Nicer debug logging of requests  
 - admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 

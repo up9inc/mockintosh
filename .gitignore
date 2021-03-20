@@ -19,6 +19,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+mck/
 parts/
 sdist/
 var/
@@ -106,6 +107,10 @@ ENV/
 
 # Editors / IDEs
 .vscode/
+.idea/
+
+# OS
+.DS_Store
 
 # Ignore the file that are created for development
 *dev.*

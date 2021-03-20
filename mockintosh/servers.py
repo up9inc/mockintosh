@@ -8,9 +8,10 @@
 
 import logging
 import sys
+import traceback
 from abc import abstractmethod
-from os import path, environ
 from collections import OrderedDict
+from os import path, environ
 from typing import Union
 
 import tornado.ioloop
@@ -19,6 +20,7 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
+from mockintosh.logs import Logs
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -41,7 +43,6 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
-from mockintosh.logs import Logs
 
 stats = Stats()
 logs = Logs()
@@ -69,7 +70,10 @@ class TornadoImpl(Impl):
         return server
 
     def serve(self):
-        tornado.ioloop.IOLoop.current().start()
+        try:
+            tornado.ioloop.IOLoop.current().start()
+        except KeyboardInterrupt:
+            logging.debug("Shutdown: %s", traceback.format_exc())
 
 
 class _Listener:
