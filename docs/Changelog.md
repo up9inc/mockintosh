@@ -105,6 +105,7 @@
 
 # Roadmap Ideas
 
+- support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - cli argument to set the tag
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
