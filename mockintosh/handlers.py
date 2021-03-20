@@ -970,8 +970,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 json_path,
                 escape_html
             ],
-            add_params_callback=self.add_params,
-            fill_undefineds=True
+            add_params_callback=self.add_params
         )
         return renderer.render()
 

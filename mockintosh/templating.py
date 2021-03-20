@@ -36,7 +36,6 @@ class TemplateRenderer():
         inject_objects={},
         inject_methods=[],
         add_params_callback=None,
-        fill_undefineds=False,
         fill_undefineds_with=None,
     ):
         self.engine = engine
@@ -45,7 +44,6 @@ class TemplateRenderer():
         self.inject_methods = inject_methods
         self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
         self.add_params_callback = add_params_callback
-        self.fill_undefineds = fill_undefineds
         self.fill_undefineds_with = fill_undefineds_with
         self.keys_to_delete = []
         self.one_and_only_var = None
@@ -62,52 +60,45 @@ class TemplateRenderer():
             template = compiler.compile(self.text)
             compiled = template(context, helpers=helpers)
         except (PybarsError, TypeError, SyntaxError) as e:
-            if self.fill_undefineds:
-                if self.fill_undefineds_with is not None and str(e).startswith('Could not find variable'):
-                    var = str(e)[25:-1]
-                    self.inject_objects[var] = self.fill_undefineds_with
-                    self.keys_to_delete.append(var)
-                    if self.one_and_only_var is None:
-                        self.one_and_only_var = var
-                    return self.render_handlebars()
-                else:
-                    if debug_mode:
-                        raise NotImplementedError
-                    else:
-                        logging.warning('Handlebars: %s' % e)
-                    compiled = self.text
+            if self.fill_undefineds_with is not None and str(e).startswith('Could not find variable'):
+                var = str(e)[25:-1]
+                self.inject_objects[var] = self.fill_undefineds_with
+                self.keys_to_delete.append(var)
+                if self.one_and_only_var is None:
+                    self.one_and_only_var = var
+                return self.render_handlebars()
             else:
-                compiled = None
+                if debug_mode:
+                    raise NotImplementedError
+                else:
+                    logging.warning('Handlebars: %s' % e)
+                compiled = self.text
         return compiled, context
 
     def render_jinja(self):
-        if self.fill_undefineds:
-            env = Environment(undefined=StrictUndefined)
-        else:
-            env = Environment()
+        env = Environment(undefined=StrictUndefined)
 
         self.add_globals(env)
         if JINJA_VARNAME_DICT not in env.globals:
             env.globals[JINJA_VARNAME_DICT] = {}
 
         try:
-            if self.fill_undefineds:
-                ast = env.parse(self.text)
-                if self.fill_undefineds_with is not None:
-                    for var in find_undeclared_variables_in_order(ast):
-                        env.globals[var] = self.fill_undefineds_with
-                        self.keys_to_delete.append(var)
-                        if self.one_and_only_var is None:
-                            self.one_and_only_var = var
-                else:
-                    for var in find_undeclared_variables_in_order(ast):
-                        logging.warning('Jinja2: Could not find variable `%s`' % var)
-                        env.globals[var] = '{{%s}}' % var
+            ast = env.parse(self.text)
+            if self.fill_undefineds_with is not None:
+                for var in find_undeclared_variables_in_order(ast):
+                    env.globals[var] = self.fill_undefineds_with
+                    self.keys_to_delete.append(var)
+                    if self.one_and_only_var is None:
+                        self.one_and_only_var = var
+            else:
+                for var in find_undeclared_variables_in_order(ast):
+                    logging.warning('Jinja2: Could not find variable `%s`' % var)
+                    env.globals[var] = '{{%s}}' % var
 
             template = env.from_string(self.text)
             compiled = template.render()
         except (TemplateSyntaxError, TypeError, UndefinedError) as e:
-            if self.fill_undefineds and debug_mode:
+            if debug_mode:
                 raise NotImplementedError
             else:
                 logging.warning('Jinja2: %s' % e)

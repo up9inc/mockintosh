@@ -28,7 +28,7 @@ def find_undeclared_variables_in_order(ast):
     # remove duplicates
     for node in ordered_nodes:
         name = node.name
-        if name in seen:
+        if name in seen:  # pragma: no cover
             continue
         seen.add(name)
         result.append(name)

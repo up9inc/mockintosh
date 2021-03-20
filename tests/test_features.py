@@ -1369,6 +1369,29 @@ class TestPath():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
 
+    def test_array_parameter_and_key_templating(self, config):
+        v1 = 'v1'
+        v2 = 'v2'
+        somedata = 'somedata'
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam1?param[]=%s&param[]=%s' % (v1, v2))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s %s' % (v1, v2)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param[]=%s' % v1)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param1=%s&param2=%s' % (v1, v2))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s %s' % (v1, v2)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam3?prefix-%s-suffix' % somedata)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s' % somedata
+
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/query_string/config.json',

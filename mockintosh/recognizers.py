@@ -104,7 +104,6 @@ class RecognizerBase():
             text,
             inject_objects=inject_objects,
             inject_methods=[reg_ex],
-            fill_undefineds=True,
             fill_undefineds_with='([^/]+)' if self.scope == 'path' else '(.*)'
         )
         compiled, context = renderer.render()

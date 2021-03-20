@@ -183,6 +183,18 @@
           "path": "/{{regEx('abc5-xx(.*?)xx', 'keyword1')}}?q={{keyword2}}&s={{keyword3}}#some-string",
           "method": "GET",
           "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
+        },
+        {
+          "path": "/qstr-multiparam1?param[]={{val1}}&param[]={{val2}}",
+          "response": "{{val1}} {{val2}}"
+        },
+        {
+          "path": "/qstr-multiparam2?param1={{val1}}&param2={{val2}}",
+          "response": "{{val1}} {{val2}}"
+        },
+        {
+          "path": "/qstr-multiparam3?prefix-{{data}}-suffix",
+          "response": "{{data}}"
         }
       ]
     }
