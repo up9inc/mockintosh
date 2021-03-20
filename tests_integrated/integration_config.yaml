@@ -103,8 +103,7 @@ services:
         response: 'body regex matched: {{val1}} {{val2}}'
       - path: /body-jsonpath-tpl
         method: POST
-        response: 'body jsonpath matched: {{jsonPath request.json ''$.key''}} {{jsonPath
-      request.json ''$.key2''}}'
+        response: 'body jsonpath matched: {{jsonPath request.json ''$.key''}} {{jsonPath request.json ''$.key2''}}'
       - path: /status-template1
         response:
           status: '{{request.queryString.rc}}'
@@ -163,8 +162,7 @@ services:
       - path: /counter2
         response:
           headers:
-            X-Counter: 'variant3: {{counter ''counterName1''}} {{counter ''counterName2''}}
-          {{counter ''counterName3''}}'
+            X-Counter: 'variant3: {{counter ''counterName1''}} {{counter ''counterName2''}} {{counter ''counterName3''}}'
       - path: /counter3
         response: 'variant3: {{counterName1}} {{counterName2}} {{counterName3}}'
       - path: /undefined-templates
@@ -173,9 +171,7 @@ services:
             x-header: also {{random.intt 10 20}} can happen
           body: here goes {{unknownUndefined}} var
       - path: /date-tpl
-        response: '{{date.timestamp}} {{date.timestamp -10}} {{date.timestamp 10}} {{date.ftimestamp}}
-      {{date.ftimestamp 10 5}} {{date.date}} {{date.date ''%Y-%m-%d %H:%M:%S''}} {{date.date
-      ''%Y-%m-%d %H'' 86400}}'
+        response: '{{date.timestamp}} {{date.timestamp -10}} {{date.timestamp 10}} {{date.ftimestamp}} {{date.ftimestamp 10 5}} {{date.date}} {{date.date ''%Y-%m-%d %H:%M:%S''}} {{date.date ''%Y-%m-%d %H'' 86400}}'
       - path: /conn-rst
         response:
           status: RST
@@ -206,12 +202,12 @@ services:
           headers:
             Content-Type: application/json
           body: '{"key": [1, "value", null, false]}'
-      - path: /qstr-multiparam1?param[]={{val1}}&param[]={{val2}}
-        response: {{val1}} {{val2}}
-      - path: /qstr-multiparam2?param1={{val1}}&param2={{val2}}
-        response: {{val1}} {{val2}}
-      - path: /qstr-multiparam3?prefix-{{data}}-suffix
-        response: {{data}}
+      - path: "/qstr-multiparam1?param[]={{val1}}&param[]={{val2}}"
+        response: "{{val1}} {{val2}}"
+      - path: "/qstr-multiparam2?param1={{val1}}&param2={{val2}}"
+        response: "{{val1}} {{val2}}"
+      - path: "/qstr-multiparam3?prefix-{{data}}-suffix"
+        response: "{{data}}"
 
   - name: Service with specified.host
     port: 8002
