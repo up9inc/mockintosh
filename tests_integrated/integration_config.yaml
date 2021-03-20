@@ -266,27 +266,42 @@ services:
     address: ... # deployed address
     actors:
       # on-demand producer
-      - queue: queue-or-topic
-        key: somekey or null
-        value: thevalue
-        headers:
-          name: val
+      - produce:
+          queue: queue-or-topic
+          key: somekey or null
+          value: json ( protobuf / avro )
+          headers:
+            name: val
 
       # scheduled producer
-      - repeat: 5 # seconds between producing
+      - produce:
+          queue: queue-or-topic
+          key: somekey or null
+          value: thevalue
+          headers:
+            name: val
+        delay: 5 # seconds between producing
         limit: 100 # produce up to N messages
 
-        queue: queue-or-topic
-        key: somekey or null
-        value: thevalue
-        headers:
-          name: val
+      # reactive producer
+      - consume:
+          queue: another-queue-name
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
+        delay: 10 # seconds after consume
+        produce:
+          queue: queue-or-topic
+          key: somekey or null
+          value: thevalue
+          headers:
+            name: val
 
-    # reactive producer
-      - queue: queue-or-topic
-        key: somekey or null
-        value: thevalue
-        headers:
-          name: val
-
-    # validating consumer
+      # validating consumer
+      - consume:
+          queue: another-queue-name
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher

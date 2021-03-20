@@ -9,12 +9,70 @@
         },
         "address": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "kafka",
+            "rabbitmq",
+            "redis"
+          ]
+        },
+        "actors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/actor_ref"
+          }
         }
       },
       "required": [
-        "address"
+        "type",
+        "address",
+        "actors"
       ],
       "additionalProperties": false
+    },
+    "actor_ref": {
+      "type": "object",
+      "properties": {
+        "produce": {
+          "$ref": "#/definitions/message_ref"
+        },
+        "consume": {
+          "$ref": "#/definitions/message_ref"
+        },
+        "delay": {
+          "type": "number"
+        },
+        "limit": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "message_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queue"
+      ],
+      "properties": {
+        "queue": {
+          "type": "string"
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "header": {
+          "$ref": "#/definitions/headers_ref"
+        }
+      }
     },
     "service_ref": {
       "type": "object",
