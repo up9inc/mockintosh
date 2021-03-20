@@ -206,6 +206,13 @@ services:
           headers:
             Content-Type: application/json
           body: '{"key": [1, "value", null, false]}'
+      - path: /qstr-multiparam1?param[]={{val1}}&param[]={{val2}}
+        response: {{val1}} {{val2}}
+      - path: /qstr-multiparam2?param1={{val1}}&param2={{val2}}
+        response: {{val1}} {{val2}}
+      - path: /qstr-multiparam3?prefix-{{data}}-suffix
+        response: {{data}}
+
   - name: Service with specified.host
     port: 8002
     hostname: specified.host
