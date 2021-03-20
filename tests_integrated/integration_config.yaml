@@ -206,6 +206,13 @@ services:
           headers:
             Content-Type: application/json
           body: '{"key": [1, "value", null, false]}'
+      - path: /qstr-multiparam1?param[]={{val1}}&param[]={{val2}}
+        response: {{val1}} {{val2}}
+      - path: /qstr-multiparam2?param1={{val1}}&param2={{val2}}
+        response: {{val1}} {{val2}}
+      - path: /qstr-multiparam3?prefix-{{data}}-suffix
+        response: {{data}}
+
   - name: Service with specified.host
     port: 8002
     hostname: specified.host
@@ -214,6 +221,7 @@ services:
         path: /
         method: get
         response: Yo, I'm specified.host
+
   - name: Service with specified another.host
     port: 8002
     hostname: another.host
@@ -222,6 +230,7 @@ services:
         path: /
         method: get
         response: Hey, I'm another.host
+
   - name: Service with no endpoints, for bare interceptors
     port: 8003
     ssl: true
@@ -230,6 +239,7 @@ services:
     endpoints:
       - path: /cors2
         response: '@cors.html'
+
   - name: SSL with certfile
     port: 8005
     ssl: true
@@ -237,10 +247,12 @@ services:
     sslKeyFile: subdir/key.pem
     endpoints:
       - path: /
+
   - name: Service for management API / Dynamic configs
     port: 8006
     managementRoot: /sub/__admin
     oas: '@subdir/oas.json'
+
   - name: Service with fallback
     port: 8007
     managementRoot: /sub/__admin

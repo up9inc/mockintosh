@@ -32,9 +32,8 @@ from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _b64encode
+from mockintosh.methods import _detect_engine, _b64encode
 from mockintosh.params import (
-    PathParam,
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
@@ -286,7 +285,12 @@ class GenericHandler(tornado.web.RequestHandler):
             self.custom_context[key] = value
         if args:
             for i, key in enumerate(self.initial_context):
-                self.custom_context[key] = args[i]
+                if key == SPECIAL_CONTEXT:
+                    continue
+                try:
+                    self.custom_context[key] = args[i]
+                except IndexError:
+                    pass
         self.custom_context.update(self.default_context)
         self.analyze_component('headers')
         self.analyze_component('queryString')
@@ -315,13 +319,27 @@ class GenericHandler(tornado.web.RequestHandler):
         """Method that injects parameters defined in the config into template engine contexts."""
         if not hasattr(self, 'custom_params'):
             return context
+        query_arguments = self.request.query_arguments
         for key, param in self.custom_params.items():
-            if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param.key]
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
-                context[key] = self.get_query_argument(param.key)
+                try:
+                    context[key] = query_arguments[param.key].pop(0).decode()
+                except IndexError:
+                    try:
+                        context[key] = self.get_query_argument(param.key)
+                    except tornado.web.MissingArgumentError:
+                        context[key] = self.get_argument(param.key)
+                except KeyError:
+                    for arg in query_arguments:
+                        match = re.search(key, arg)
+                        if match is not None:
+                            try:
+                                context[param.key] = match.group(1).strip()
+                                break
+                            except IndexError:
+                                continue
             if isinstance(param, BodyTextParam):
                 context[key] = self.request.body.decode()
             if isinstance(param, BodyUrlencodedParam):
@@ -625,11 +643,21 @@ class GenericHandler(tornado.web.RequestHandler):
                     default = None
                     request_query_val = self.get_query_argument(key, default=default)
                     if request_query_val is default:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
-                        break
+                        is_matched = False
+                        if re.escape(key) != key:
+                            for _key in self.request.query_arguments:
+                                match = re.search(key, _key)
+                                if match is not None:
+                                    is_matched = True
+                                    break
+                        if not is_matched:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the query string!' % key
+                            break
                     if value == request_query_val:
+                        continue
+                    if request_query_val is default:
                         continue
                     value = '^%s$' % value
                     match = re.search(value, request_query_val)
@@ -942,8 +970,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 json_path,
                 escape_html
             ],
-            add_params_callback=self.add_params,
-            fill_undefineds=True
+            add_params_callback=self.add_params
         )
         return renderer.render()
 
