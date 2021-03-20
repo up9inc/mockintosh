@@ -248,3 +248,33 @@ services:
     endpoints:
       - path: /
         response: no fallback
+
+  - name: Kafka Mocks
+    type: kafka # rabbitmq, redis
+    address: ... # deployed address
+    actors:
+      # on-demand producer
+      - queue: queue-or-topic
+        key: somekey or null
+        value: thevalue
+        headers:
+          name: val
+
+      # scheduled producer
+      - repeat: 5 # seconds between producing
+        limit: 100 # produce up to N messages
+
+        queue: queue-or-topic
+        key: somekey or null
+        value: thevalue
+        headers:
+          name: val
+
+    # reactive producer
+      - queue: queue-or-topic
+        key: somekey or null
+        value: thevalue
+        headers:
+          name: val
+
+    # validating consumer
