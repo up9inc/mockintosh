@@ -54,7 +54,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "queue"
+        "queue",
+        "value"
       ],
       "properties": {
         "queue": {
