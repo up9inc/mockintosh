@@ -16,6 +16,7 @@ from typing import (
     Union
 )
 from collections import OrderedDict
+from urllib.parse import parse_qs
 
 import yaml
 import jsonschema
@@ -25,7 +26,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _safe_path_split, _b64encode
+from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import RestrictedFieldError
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -437,6 +438,8 @@ class ManagementOasHandler(ManagementBaseHandler):
 
         for endpoint in endpoints:
             original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
+            scheme, netloc, original_path, query, fragment = _urlsplit(original_path)
+            query_string = parse_qs(query, keep_blank_values=True)
             path, path_params = self.path_handlebars_to_oas(original_path)
             methods = {}
             for method, alternatives in endpoint[1].items():
@@ -512,7 +515,8 @@ class ManagementOasHandler(ManagementBaseHandler):
                 if 'queryString' in alternative:
                     if 'parameters' not in method_data:
                         method_data['parameters'] = []
-                    for key in alternative['queryString'].keys():
+                    query_string.update(alternative['queryString'])
+                    for key in query_string.keys():
                         data = {
                             'in': 'query',
                             'name': key,

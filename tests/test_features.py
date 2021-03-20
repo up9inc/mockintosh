@@ -303,11 +303,11 @@ class TestCore():
         with nostdout() and nostderr():
             self.mock_server_process = run_mock_server(get_config_path(config))
         resp = httpx.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         if 'j2' in config:
-            assert resp.text == '{{varname}}'
+            assert 404 == resp.status_code
         else:
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == var
 
     @pytest.mark.parametrize(('config'), [
@@ -1307,6 +1307,90 @@ class TestPath():
 
         resp = httpx.delete(SRV_8001 + '/carts/%s/items/%s' % (param1, param2))
         assert 202 == resp.status_code
+
+    def test_auto_regex(self, config):
+        hello = 'hello'
+        world = 'world'
+        x = 'x'
+        y = 'y'
+
+        resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+        resp = httpx.get(SRV_8001 + '/%s-middle-%s/another' % (x, y))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s' % (x, y)
+
+        resp = httpx.get(SRV_8001 + '/%s-middle2-7/another' % x)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % x
+
+        resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+    def test_auto_query_string(self, config):
+        hello = 'hello'
+        world = 'world'
+        goodbye = 'goodbye'
+
+        resp = httpx.get(SRV_8001 + '/search?q=%s' % hello)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % hello
+
+        resp = httpx.get(SRV_8001 + '/search2?q=%s&s=%s' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s' % (hello, world)
+
+        resp = httpx.get(SRV_8001 + '/abc1-xx%sxx' % hello)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % hello
+
+        resp = httpx.get(SRV_8001 + '/abc2-xx%sxx?q=%s&s=%s' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+        resp = httpx.get(SRV_8001 + '/abc3-xx%sxx?q=abc4-xx%sxx&s=%s' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+        resp = httpx.get(SRV_8001 + '/abc5-xx%sxx?q=%s&s=%s#some-string' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+    def test_array_parameter_and_key_templating(self, config):
+        v1 = 'v1'
+        v2 = 'v2'
+        somedata = 'somedata'
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam1?param[]=%s&param[]=%s' % (v1, v2))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s %s' % (v1, v2)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param[]=%s' % v1)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param1=%s&param2=%s' % (v1, v2))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s %s' % (v1, v2)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam3?prefix-%s-suffix' % somedata)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s' % somedata
 
 
 @pytest.mark.parametrize(('config'), [

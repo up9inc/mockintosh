@@ -26,6 +26,7 @@ test-integration: build
 	docker stop $$(docker ps -a -q)
 
 test-with-coverage: copy-certs
+	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --quiet && \
