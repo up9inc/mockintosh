@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.1 - 2021-03-21
+
+1. Fix bug in management UI resource editor
+2. Proper support for query string written in `path` option
+
 ## v0.8 - 2021-03-20
 
 1. [Management API/UI](Management.md) Improvements:
