@@ -36,7 +36,7 @@ from mockintosh.recognizers import (
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
 
-__version__ = "0.8"
+__version__ = "0.8.1"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
