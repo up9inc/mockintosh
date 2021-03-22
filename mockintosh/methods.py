@@ -114,3 +114,10 @@ def _urlsplit(url, scheme='', allow_fragments=True):
             query = result[1]
     v = SplitResult(scheme, netloc, url, query, fragment)
     return _coerce_result(v)
+
+
+def _kafka_delivery_report(err, msg):
+    if err is not None:
+        logging.info('Message delivery failed: {}'.format(err))
+    else:
+        logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))

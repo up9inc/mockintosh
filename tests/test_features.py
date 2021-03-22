@@ -21,6 +21,7 @@ import httpx
 from openapi_spec_validator import validate_spec
 from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
+from confluent_kafka import Consumer
 
 import mockintosh
 from mockintosh.constants import PROGRAM, BASE64
@@ -3433,3 +3434,24 @@ class TestKafka():
     def test_post_kafka(self, config, _format):
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
         assert 200 == resp.status_code
+
+        log = []
+        consumer = Consumer({
+            'bootstrap.servers': 'localhost:9092',
+            'group.id': '0',
+            'auto.offset.reset': 'earliest'
+        })
+        consumer.subscribe(['topic1'])
+        while True:
+            msg = consumer.poll(1.0)
+
+            if msg is None:
+                break
+
+            if msg.error():
+                print("Consumer error: {}".format(msg.error()))
+                continue
+
+            log.append(msg.value().decode())
+        consumer.close()
+        assert 'value1' in log

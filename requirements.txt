@@ -7,4 +7,4 @@ pybars4>=0.9.11
 accept-types==0.4.1
 jsonpath-ng==1.5.2
 httpx>=0.17.1
-confluent-kafka>=1.5.0
+confluent-kafka>=1.6.0

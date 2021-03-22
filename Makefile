@@ -73,6 +73,8 @@ download-kafka:
 	mv kafka_2.13-2.7.0 kafka
 
 run-kafka:
+	rm -rf /tmp/kafka-logs && \
+	rm -rf /tmp/zookeeper && \
 	kafka/bin/zookeeper-server-start.sh kafka/config/zookeeper.properties & \
 	echo "$$!" > "kafka_zookeeper.pid" && \
 	sleep 5 && \

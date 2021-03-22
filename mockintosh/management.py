@@ -23,12 +23,13 @@ import jsonschema
 import tornado.web
 from tornado.util import unicode_type
 from tornado.escape import utf8
+from confluent_kafka import Producer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit
+from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit, _kafka_delivery_report
 from mockintosh.exceptions import RestrictedFieldError
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -1093,6 +1094,8 @@ class ManagementKafkaHandler(ManagementBaseHandler):
 
         if 'produce' in actor:
             produce = actor['produce']
+
+            # Topic creation
             admin_client = AdminClient({'bootstrap.servers': service['address']})
             new_topics = [NewTopic(topic, num_partitions=3, replication_factor=1) for topic in [produce['queue']]]
             futures = admin_client.create_topics(new_topics)
@@ -1103,3 +1106,9 @@ class ManagementKafkaHandler(ManagementBaseHandler):
                     logging.info('Topic {} created'.format(topic))
                 except KafkaException as e:
                     logging.info('Failed to create topic {}: {}'.format(topic, e))
+
+            # Producing
+            producer = Producer({'bootstrap.servers': service['address']})
+            producer.poll(0)
+            producer.produce(produce['queue'], produce['value'], callback=_kafka_delivery_report)
+            producer.flush()
