@@ -3396,3 +3396,38 @@ class TestPerformanceProfile():
         for _ in range(50):
             status_code = profile.trigger(201)
             assert str(status_code) in faults or status_code == 201
+
+
+class TestKafka():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config', '_format'), [
+        ('configs/json/hbs/kafka/config.json', 'json'),
+        ('configs/yaml/hbs/kafka/config.yaml', 'json'),
+        ('configs/json/hbs/kafka/config.json', 'yaml'),
+        ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
+    ])
+    def test_get_kafka(self, config, _format):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(MGMT + '/kafka?format=%s' % _format, verify=False)
+        assert 200 == resp.status_code
+        if _format == 'json':
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        elif _format == 'yaml':
+            assert resp.headers['Content-Type'] == 'application/x-yaml'
+        data = yaml.safe_load(resp.text)
+
+        with open(get_config_path(config), 'r') as file:
+            data2 = yaml.safe_load(file.read())
+            for i, service in enumerate(data['services']):
+                service2 = data2['services'][i]
+                assert service['name'] == service2['name']
+                assert service['address'] == service2['address']
+                assert service['actors'] == service2['actors']

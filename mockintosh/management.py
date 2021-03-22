@@ -118,7 +118,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
         self.http_server.stats.services = []
         for service in data['services']:
-            if 'type' in service and service['type'] != 'http':
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
 
             hint = '%s:%s%s' % (
@@ -130,7 +130,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             )
             self.http_server.stats.add_service(hint)
         for i, service in enumerate(data['services']):
-            if 'type' in service and service['type'] != 'http':
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
 
             service['internalServiceId'] = i
@@ -192,7 +192,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
     def update_globals(self):
         for i, service in enumerate(self.http_server.definition.data['services']):
-            if 'type' in service and service['type'] != 'http':
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
 
             self.http_server.globals = self.http_server.definition.data['globals'] if (
@@ -1042,3 +1042,37 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
 class UnhandledData:
     def __init__(self):
         self.requests = []
+
+
+class ManagementKafkaHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self):
+        data = {
+            'services': []
+        }
+
+        services = self.http_server.definition.orig_data['services']
+        for i, service in enumerate(services):
+            if 'type' not in service or service['type'] != 'kafka':  # pragma: no cover
+                continue
+
+            data['services'].append(
+                {
+                    'name': service['name'],
+                    'address': service['address'],
+                    'actors': service['actors']
+                }
+            )
+
+        self.dump(data)
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)

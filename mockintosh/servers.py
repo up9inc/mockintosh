@@ -30,6 +30,7 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
+    ManagementKafkaHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -491,6 +492,13 @@ class HttpServer:
                 (
                     '/resources',
                     ManagementResourcesHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/kafka',
+                    ManagementKafkaHandler,
                     dict(
                         http_server=self
                     )

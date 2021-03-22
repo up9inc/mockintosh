@@ -1,0 +1,49 @@
+---
+templatingEngine: Handlebars
+management:
+  port: 8000
+  ssl: true
+  sslCertFile: cert.pem
+  sslKeyFile: key.pem
+services:
+- name: Kafka Mocks
+  type: kafka
+  address: localhost:9092
+  actors:
+  - produce:
+      queue: topic1
+      key:
+      value: value1
+      headers:
+        hdr1: val1
+  - produce:
+      queue: topic1
+      key:
+      value: value2
+      headers:
+        hdr2: val2
+    delay: 5
+    limit: 100
+  - consume:
+      queue: topic2
+      key:
+      value: value2
+      headers:
+        hdr3: val3
+    delay: 10
+    produce:
+      queue: topic2
+      key:
+      value: value2
+      headers:
+        hdr3: val3
+  - consume:
+      queue: topic2
+      key:
+      value: value2
+      headers:
+        hdr3: val3
+- name: Mock for Service1
+  hostname: service1.example.com
+  port: 8001
+  endpoints: []

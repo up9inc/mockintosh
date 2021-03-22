@@ -58,4 +58,8 @@ copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/management/key.pem && \
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/management/cert.pem && \
-	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem && \
+	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/kafka/cert.pem && \
+	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/kafka/key.pem && \
+	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/kafka/cert.pem && \
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
