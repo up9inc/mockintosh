@@ -23,6 +23,8 @@ import jsonschema
 import tornado.web
 from tornado.util import unicode_type
 from tornado.escape import utf8
+from confluent_kafka.admin import AdminClient, NewTopic
+from confluent_kafka.cimpl import KafkaException
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
@@ -1054,11 +1056,8 @@ class ManagementKafkaHandler(ManagementBaseHandler):
             'services': []
         }
 
-        services = self.http_server.definition.orig_data['services']
+        services = self.http_server.definition.data['kafka_services']
         for i, service in enumerate(services):
-            if 'type' not in service or service['type'] != 'kafka':  # pragma: no cover
-                continue
-
             data['services'].append(
                 {
                     'name': service['name'],
@@ -1076,3 +1075,31 @@ class ManagementKafkaHandler(ManagementBaseHandler):
             self.write(yaml.dump(data, sort_keys=False))
         else:
             self.write(data)
+
+    async def post(self):
+        service_id = self.get_body_argument('service', default=None)
+        actor_id = self.get_body_argument('actor', default=None)
+        if service_id is None:
+            self.set_status(400)
+            self.write('\'service\' parameter is required!')
+            return
+        if actor_id is None:
+            self.set_status(400)
+            self.write('\'actor\' parameter is required!')
+            return
+
+        service = self.http_server.definition.data['kafka_services'][int(service_id)]
+        actor = service['actors'][int(actor_id)]
+
+        if 'produce' in actor:
+            produce = actor['produce']
+            admin_client = AdminClient({'bootstrap.servers': service['address']})
+            new_topics = [NewTopic(topic, num_partitions=3, replication_factor=1) for topic in [produce['queue']]]
+            futures = admin_client.create_topics(new_topics)
+
+            for topic, future in futures.items():
+                try:
+                    future.result()
+                    logging.info('Topic {} created'.format(topic))
+                except KafkaException as e:
+                    logging.info('Failed to create topic {}: {}'.format(topic, e))

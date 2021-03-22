@@ -3398,24 +3398,22 @@ class TestPerformanceProfile():
             assert str(status_code) in faults or status_code == 201
 
 
+@pytest.mark.parametrize(('config', '_format'), [
+    ('configs/json/hbs/kafka/config.json', 'json'),
+    ('configs/yaml/hbs/kafka/config.yaml', 'json'),
+    ('configs/json/hbs/kafka/config.json', 'yaml'),
+    ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
+])
 class TestKafka():
 
     def setup_method(self):
-        self.mock_server_process = None
-
-    def teardown_method(self):
-        if self.mock_server_process is not None:
-            self.mock_server_process.terminate()
-
-    @pytest.mark.parametrize(('config', '_format'), [
-        ('configs/json/hbs/kafka/config.json', 'json'),
-        ('configs/yaml/hbs/kafka/config.yaml', 'json'),
-        ('configs/json/hbs/kafka/config.json', 'yaml'),
-        ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
-    ])
-    def test_get_kafka(self, config, _format):
+        config = self._item.callspec.getparam('config')
         self.mock_server_process = run_mock_server(get_config_path(config))
 
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_get_kafka(self, config, _format):
         resp = httpx.get(MGMT + '/kafka?format=%s' % _format, verify=False)
         assert 200 == resp.status_code
         if _format == 'json':
@@ -3431,3 +3429,7 @@ class TestKafka():
                 assert service['name'] == service2['name']
                 assert service['address'] == service2['address']
                 assert service['actors'] == service2['actors']
+
+    def test_post_kafka(self, config, _format):
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
+        assert 200 == resp.status_code

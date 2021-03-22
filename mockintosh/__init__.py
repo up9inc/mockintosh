@@ -95,9 +95,14 @@ class Definition():
         if 'globals' in data:
             global_performance_profile = data['globals'].get('performanceProfile', None)
 
+        data['kafka_services'] = []
         for service in data['services']:
-            if 'type' in service and service['type'] != 'http':
-                continue
+            if 'type' in service:
+                if service['type'] == 'kafka':
+                    data['kafka_services'].append(service)
+
+                if service['type'] != 'http':
+                    continue
 
             if 'endpoints' not in service:
                 continue
