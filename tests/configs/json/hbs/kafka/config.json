@@ -43,7 +43,7 @@
               "hdr3": "val3"
             }
           },
-          "delay": 10,
+          "delay": 3,
           "produce": {
             "queue": "topic2",
             "key": null,

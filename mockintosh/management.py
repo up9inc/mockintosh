@@ -10,6 +10,7 @@ import os
 import re
 import json
 import copy
+import time
 import shutil
 import logging
 from typing import (
@@ -23,7 +24,7 @@ import jsonschema
 import tornado.web
 from tornado.util import unicode_type
 from tornado.escape import utf8
-from confluent_kafka import Producer
+from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
@@ -1097,7 +1098,7 @@ class ManagementKafkaHandler(ManagementBaseHandler):
 
             # Topic creation
             admin_client = AdminClient({'bootstrap.servers': service['address']})
-            new_topics = [NewTopic(topic, num_partitions=3, replication_factor=1) for topic in [produce['queue']]]
+            new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [produce['queue']]]
             futures = admin_client.create_topics(new_topics)
 
             for topic, future in futures.items():
@@ -1112,3 +1113,40 @@ class ManagementKafkaHandler(ManagementBaseHandler):
             producer.poll(0)
             producer.produce(produce['queue'], produce['value'], callback=_kafka_delivery_report)
             producer.flush()
+
+        # Delay
+        if 'delay' in actor:
+            delay = int(actor['delay'])
+            logging.info('Sleeping for %d seconds.' % delay)
+            time.sleep(delay)
+
+        # Consuming
+        if 'consume' in actor:
+            consume = actor['consume']
+
+            log = []
+            consumer = Consumer({
+                'bootstrap.servers': service['address'],
+                'group.id': '0',
+                'auto.offset.reset': 'earliest'
+            })
+            consumer.subscribe([consume['queue']])
+
+            while True:
+                msg = consumer.poll(1.0)
+
+                if msg is None:
+                    break
+
+                if msg.error():
+                    logging.warning("Consumer error: {}".format(msg.error()))
+                    continue
+
+                log.append(msg.value().decode())
+
+            consumer.close()
+
+            if consume['value'] not in log:
+                self.set_status(417)
+                self.write('Consuming failure!')
+                return

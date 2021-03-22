@@ -3435,6 +3435,8 @@ class TestKafka():
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
         assert 200 == resp.status_code
 
+        time.sleep(2)
+
         log = []
         consumer = Consumer({
             'bootstrap.servers': 'localhost:9092',
@@ -3455,3 +3457,7 @@ class TestKafka():
             log.append(msg.value().decode())
         consumer.close()
         assert 'value1' in log
+
+    def test_post_kafka_self_consume(self, config, _format):
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
+        assert 200 == resp.status_code
