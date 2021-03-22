@@ -268,6 +268,7 @@ services:
           value: json ( protobuf / avro )
           headers:
             name: val
+        id: id-for-convenience
 
       # scheduled producer
       - produce:
@@ -282,6 +283,7 @@ services:
       # reactive producer
       - consume:
           queue: another-queue-name
+          group: optional consumer group
           key: matching keys
           value: json / protobuf / avro # also allow validating schema for any type of it
           headers:
