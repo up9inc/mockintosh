@@ -10,6 +10,7 @@ import os
 import re
 import json
 import copy
+import time
 import shutil
 import logging
 from typing import (
@@ -23,10 +24,13 @@ import jsonschema
 import tornado.web
 from tornado.util import unicode_type
 from tornado.escape import utf8
+from confluent_kafka import Producer, Consumer
+from confluent_kafka.admin import AdminClient, NewTopic
+from confluent_kafka.cimpl import KafkaException
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit
+from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit, _kafka_delivery_report
 from mockintosh.exceptions import RestrictedFieldError
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -118,6 +122,9 @@ class ManagementConfigHandler(ManagementBaseHandler):
         data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
         self.http_server.stats.services = []
         for service in data['services']:
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             hint = '%s:%s%s' % (
                 service['hostname'] if 'hostname' in service else (
                     self.http_server.address if self.http_server.address else 'localhost'
@@ -127,6 +134,9 @@ class ManagementConfigHandler(ManagementBaseHandler):
             )
             self.http_server.stats.add_service(hint)
         for i, service in enumerate(data['services']):
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             service['internalServiceId'] = i
             if not self.update_service(service, i):
                 return
@@ -185,7 +195,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, _ in enumerate(self.http_server.definition.data['services']):
+        for i, service in enumerate(self.http_server.definition.data['services']):
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
@@ -275,6 +288,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         services = self.http_server.definition.orig_data['services']
         for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
@@ -385,7 +401,10 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for i in range(len(services)):
+        for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             data['documents'].append(self.build_oas(i))
 
         self.write(data)
@@ -645,6 +664,9 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         files = []
         cwd = self.http_server.definition.source_dir
         for service in self.http_server.definition.orig_data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             if 'oas' in service:
                 if service['oas'].startswith('@'):
                     files.append(service['oas'][1:])
@@ -1024,3 +1046,107 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
 class UnhandledData:
     def __init__(self):
         self.requests = []
+
+
+class ManagementKafkaHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self):
+        data = {
+            'services': []
+        }
+
+        services = self.http_server.definition.data['kafka_services']
+        for i, service in enumerate(services):
+            data['services'].append(
+                {
+                    'name': service['name'],
+                    'address': service['address'],
+                    'actors': service['actors']
+                }
+            )
+
+        self.dump(data)
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
+
+    async def post(self):
+        service_id = self.get_body_argument('service', default=None)
+        actor_id = self.get_body_argument('actor', default=None)
+        if service_id is None:
+            self.set_status(400)
+            self.write('\'service\' parameter is required!')
+            return
+        if actor_id is None:
+            self.set_status(400)
+            self.write('\'actor\' parameter is required!')
+            return
+
+        service = self.http_server.definition.data['kafka_services'][int(service_id)]
+        actor = service['actors'][int(actor_id)]
+
+        if 'produce' in actor:
+            produce = actor['produce']
+
+            # Topic creation
+            admin_client = AdminClient({'bootstrap.servers': service['address']})
+            new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [produce['queue']]]
+            futures = admin_client.create_topics(new_topics)
+
+            for topic, future in futures.items():
+                try:
+                    future.result()
+                    logging.info('Topic {} created'.format(topic))
+                except KafkaException as e:
+                    logging.info('Failed to create topic {}: {}'.format(topic, e))
+
+            # Producing
+            producer = Producer({'bootstrap.servers': service['address']})
+            producer.poll(0)
+            producer.produce(produce['queue'], produce['value'], callback=_kafka_delivery_report)
+            producer.flush()
+
+        # Delay
+        if 'delay' in actor:
+            delay = int(actor['delay'])
+            logging.info('Sleeping for %d seconds.' % delay)
+            time.sleep(delay)
+
+        # Consuming
+        if 'consume' in actor:
+            consume = actor['consume']
+
+            log = []
+            consumer = Consumer({
+                'bootstrap.servers': service['address'],
+                'group.id': '0',
+                'auto.offset.reset': 'earliest'
+            })
+            consumer.subscribe([consume['queue']])
+
+            while True:
+                msg = consumer.poll(1.0)
+
+                if msg is None:
+                    break
+
+                if msg.error():
+                    logging.warning("Consumer error: {}".format(msg.error()))
+                    continue
+
+                log.append(msg.value().decode())
+
+            consumer.close()
+
+            if consume['value'] not in log:
+                self.set_status(417)
+                self.write('Consuming failure!')
+                return

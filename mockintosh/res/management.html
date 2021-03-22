@@ -729,7 +729,7 @@
 
             if (val) {
                 var data = new FormData();
-                data.append(val, new Blob([$("#config pre").text()]), val);
+                data.append(val, new Blob([$("#config pre code").text()]), val);
                 $.ajax("./resources", {
                     data: data,
                     type: 'POST',

@@ -30,6 +30,7 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
+    ManagementKafkaHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -112,6 +113,9 @@ class HttpServer:
         services = self.definition.data['services']
         service_id_counter = 0
         for service in services:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             service['internalServiceId'] = service_id_counter
             service_id_counter += 1
 
@@ -128,6 +132,9 @@ class HttpServer:
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             port = str(service['port'])
             if port not in port_mapping:
                 port_mapping[port] = []
@@ -485,6 +492,13 @@ class HttpServer:
                 (
                     '/resources',
                     ManagementResourcesHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/kafka',
+                    ManagementKafkaHandler,
                     dict(
                         http_server=self
                     )

@@ -43,3 +43,7 @@ services:
     response:
       status: FIN
       body: service2-fin
+- name: Kafka Mocks
+  type: kafka
+  address: localhost:9092
+  actors: []

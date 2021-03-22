@@ -70,7 +70,7 @@
         "value": {
           "type": "string"
         },
-        "header": {
+        "headers": {
           "$ref": "#/definitions/headers_ref"
         }
       }

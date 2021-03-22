@@ -36,7 +36,7 @@ from mockintosh.recognizers import (
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
 
-__version__ = "0.8"
+__version__ = "0.8.1"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
@@ -95,7 +95,15 @@ class Definition():
         if 'globals' in data:
             global_performance_profile = data['globals'].get('performanceProfile', None)
 
+        data['kafka_services'] = []
         for service in data['services']:
+            if 'type' in service:
+                if service['type'] == 'kafka':
+                    data['kafka_services'].append(service)
+
+                if service['type'] != 'http':
+                    continue
+
             if 'endpoints' not in service:
                 continue
             service = Definition.analyze_service(

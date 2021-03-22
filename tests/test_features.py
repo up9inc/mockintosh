@@ -21,6 +21,7 @@ import httpx
 from openapi_spec_validator import validate_spec
 from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
+from confluent_kafka import Consumer
 
 import mockintosh
 from mockintosh.constants import PROGRAM, BASE64
@@ -861,7 +862,7 @@ class TestCore():
         assert resp.text == '&amp; &lt; &quot; &gt;'
 
     def test_cors(self):
-        config = 'tests_integrated/integration_config.json'
+        config = 'tests_integrated/integration_config.yaml'
         config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
         self.mock_server_process = run_mock_server(config_path)
 
@@ -2531,7 +2532,7 @@ class TestManagement():
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml',
-        'tests_integrated/integration_config.json'
+        'tests_integrated/integration_config.yaml'
     ])
     def test_get_oas(self, config):
         config_path = None
@@ -2723,7 +2724,7 @@ class TestManagement():
         assert 400 == resp.status_code
 
     def test_resources_various(self):
-        config = 'tests_integrated/integration_config.json'
+        config = 'tests_integrated/integration_config.yaml'
         config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
         self.mock_server_process = run_mock_server(config_path)
 
@@ -3396,3 +3397,67 @@ class TestPerformanceProfile():
         for _ in range(50):
             status_code = profile.trigger(201)
             assert str(status_code) in faults or status_code == 201
+
+
+@pytest.mark.parametrize(('config', '_format'), [
+    ('configs/json/hbs/kafka/config.json', 'json'),
+    ('configs/yaml/hbs/kafka/config.yaml', 'json'),
+    ('configs/json/hbs/kafka/config.json', 'yaml'),
+    ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
+])
+class TestKafka():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_get_kafka(self, config, _format):
+        resp = httpx.get(MGMT + '/kafka?format=%s' % _format, verify=False)
+        assert 200 == resp.status_code
+        if _format == 'json':
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        elif _format == 'yaml':
+            assert resp.headers['Content-Type'] == 'application/x-yaml'
+        data = yaml.safe_load(resp.text)
+
+        with open(get_config_path(config), 'r') as file:
+            data2 = yaml.safe_load(file.read())
+            for i, service in enumerate(data['services']):
+                service2 = data2['services'][i]
+                assert service['name'] == service2['name']
+                assert service['address'] == service2['address']
+                assert service['actors'] == service2['actors']
+
+    def test_post_kafka(self, config, _format):
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
+        assert 200 == resp.status_code
+
+        time.sleep(2)
+
+        log = []
+        consumer = Consumer({
+            'bootstrap.servers': 'localhost:9092',
+            'group.id': '0',
+            'auto.offset.reset': 'earliest'
+        })
+        consumer.subscribe(['topic1'])
+        while True:
+            msg = consumer.poll(1.0)
+
+            if msg is None:
+                break
+
+            if msg.error():
+                print("Consumer error: {}".format(msg.error()))
+                continue
+
+            log.append(msg.value().decode())
+        consumer.close()
+        assert 'value1' in log
+
+    def test_post_kafka_self_consume(self, config, _format):
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
+        assert 200 == resp.status_code
