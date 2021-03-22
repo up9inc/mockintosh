@@ -96,6 +96,9 @@ class Definition():
             global_performance_profile = data['globals'].get('performanceProfile', None)
 
         for service in data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             if 'endpoints' not in service:
                 continue
             service = Definition.analyze_service(

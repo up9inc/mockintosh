@@ -118,6 +118,9 @@ class ManagementConfigHandler(ManagementBaseHandler):
         data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
         self.http_server.stats.services = []
         for service in data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             hint = '%s:%s%s' % (
                 service['hostname'] if 'hostname' in service else (
                     self.http_server.address if self.http_server.address else 'localhost'
@@ -127,6 +130,9 @@ class ManagementConfigHandler(ManagementBaseHandler):
             )
             self.http_server.stats.add_service(hint)
         for i, service in enumerate(data['services']):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             service['internalServiceId'] = i
             if not self.update_service(service, i):
                 return
@@ -185,7 +191,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, _ in enumerate(self.http_server.definition.data['services']):
+        for i, service in enumerate(self.http_server.definition.data['services']):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
@@ -275,6 +284,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         services = self.http_server.definition.orig_data['services']
         for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
@@ -385,7 +397,10 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for i in range(len(services)):
+        for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             data['documents'].append(self.build_oas(i))
 
         self.write(data)
@@ -645,6 +660,9 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         files = []
         cwd = self.http_server.definition.source_dir
         for service in self.http_server.definition.orig_data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             if 'oas' in service:
                 if service['oas'].startswith('@'):
                     files.append(service['oas'][1:])
