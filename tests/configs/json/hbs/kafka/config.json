@@ -47,7 +47,7 @@
           "produce": {
             "queue": "topic2",
             "key": null,
-            "value": "value2",
+            "value": "value3",
             "headers": {
               "hdr3": "val3"
             }
@@ -57,7 +57,7 @@
           "consume": {
             "queue": "topic2",
             "key": null,
-            "value": "value2",
+            "value": "value3",
             "headers": {
               "hdr3": "val3"
             }

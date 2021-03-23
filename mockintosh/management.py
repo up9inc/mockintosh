@@ -24,14 +24,12 @@ import jsonschema
 import tornado.web
 from tornado.util import unicode_type
 from tornado.escape import utf8
-from confluent_kafka import Producer, Consumer
-from confluent_kafka.admin import AdminClient, NewTopic
-from confluent_kafka.cimpl import KafkaException
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit, _kafka_delivery_report
+from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit, _delay
 from mockintosh.exceptions import RestrictedFieldError
+from mockintosh import kafka
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -1099,67 +1097,25 @@ class ManagementKafkaHandler(ManagementBaseHandler):
     def handle_actor(self, service_id, service, actor_id, actor):
         # Consuming
         if 'consume' in actor:
-            consume = actor['consume']
+            consume_data = actor['consume']
+            success = kafka.consume(service['address'], consume_data['queue'], consume_data['value'])
 
-            log = []
-            consumer = Consumer({
-                'bootstrap.servers': service['address'],
-                'group.id': '0',
-                'auto.offset.reset': 'earliest'
-            })
-            consumer.subscribe([consume['queue']])
-
-            while True:
-                msg = consumer.poll(1.0)
-
-                if msg is None:
-                    break
-
-                if msg.error():
-                    logging.warning("Consumer error: {}".format(msg.error()))
-                    continue
-
-                log.append(msg.value().decode())
-
-            consumer.close()
-
-            if consume['value'] not in log:
+            if not success:
                 self.set_status(417)
                 self.write('Consuming failure!')
                 return
 
         # Delay between consume and produce
         if 'delay' in actor and 'consume' not in actor:
-            delay = int(actor['delay'])
-            logging.info('Sleeping for %d seconds.' % delay)
-            time.sleep(delay)
+            _delay(int(actor['delay']))
 
         if 'produce' in actor:
-            produce = actor['produce']
-
-            # Topic creation
-            admin_client = AdminClient({'bootstrap.servers': service['address']})
-            new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [produce['queue']]]
-            futures = admin_client.create_topics(new_topics)
-
-            for topic, future in futures.items():
-                try:
-                    future.result()
-                    logging.info('Topic {} created'.format(topic))
-                except KafkaException as e:
-                    logging.info('Failed to create topic {}: {}'.format(topic, e))
-
-            # Producing
-            producer = Producer({'bootstrap.servers': service['address']})
-            producer.poll(0)
-            producer.produce(produce['queue'], produce['value'], callback=_kafka_delivery_report)
-            producer.flush()
+            produce_data = actor['produce']
+            kafka.produce(service['address'], produce_data['queue'], produce_data['value'])
 
         # Delay loop
         if 'delay' in actor and 'consume' not in actor:
-            delay = int(actor['delay'])
-            logging.info('Sleeping for %d seconds.' % delay)
-            time.sleep(delay)
+            _delay(int(actor['delay']))
 
             if 'limit' in actor:
                 actor['limit'] -= 1

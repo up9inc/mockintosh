@@ -27,6 +27,7 @@ import mockintosh
 from mockintosh.constants import PROGRAM, BASE64
 from mockintosh.performance import PerformanceProfile
 from mockintosh.methods import _b64encode
+from mockintosh import kafka
 from utilities import (
     tcping,
     run_mock_server,
@@ -63,6 +64,8 @@ SRV_8004_HOST = 'service4.example.com'
 SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
 SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
+
+KAFKA_ADDR = 'localhost:9092'
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
@@ -3437,27 +3440,13 @@ class TestKafka():
 
         time.sleep(2)
 
-        log = []
-        consumer = Consumer({
-            'bootstrap.servers': 'localhost:9092',
-            'group.id': '0',
-            'auto.offset.reset': 'earliest'
-        })
-        consumer.subscribe(['topic1'])
-        while True:
-            msg = consumer.poll(1.0)
-
-            if msg is None:
-                break
-
-            if msg.error():
-                print("Consumer error: {}".format(msg.error()))
-                continue
-
-            log.append(msg.value().decode())
-        consumer.close()
-        assert 'value1' in log
+        assert kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
 
     def test_post_kafka_reactive_consumer(self, config, _format):
+        kafka.produce(KAFKA_ADDR, 'topic2', 'value2')
+
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
+        assert 200 == resp.status_code
+
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 3}, verify=False)
         assert 200 == resp.status_code
