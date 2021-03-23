@@ -9,7 +9,7 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-test: test-integration copy-certs run-kafka
+test: test-integration copy-certs start-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} stop-kafka
@@ -26,7 +26,7 @@ test-integration: build
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
-test-with-coverage: copy-certs run-kafka
+test-with-coverage: copy-certs start-kafka
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -72,7 +72,7 @@ download-kafka:
 	tar -xzf kafka.tgz && \
 	mv kafka_2.13-2.7.0 kafka
 
-run-kafka:
+start-kafka:
 	rm -rf /tmp/kafka-logs && \
 	rm -rf /tmp/zookeeper && \
 	kafka/bin/zookeeper-server-start.sh kafka/config/zookeeper.properties & \
