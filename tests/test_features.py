@@ -3458,6 +3458,6 @@ class TestKafka():
         consumer.close()
         assert 'value1' in log
 
-    def test_post_kafka_self_consume(self, config, _format):
+    def test_post_kafka_reactive_consumer(self, config, _format):
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
         assert 200 == resp.status_code

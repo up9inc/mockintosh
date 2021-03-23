@@ -1090,36 +1090,13 @@ class ManagementKafkaHandler(ManagementBaseHandler):
             self.write('\'actor\' parameter is required!')
             return
 
-        service = self.http_server.definition.data['kafka_services'][int(service_id)]
-        actor = service['actors'][int(actor_id)]
+        service_id = int(service_id)
+        actor_id = int(actor_id)
+        service = self.http_server.definition.data['kafka_services'][service_id]
+        actor = service['actors'][actor_id]
+        self.handle_actor(service_id, service, actor_id, actor)
 
-        if 'produce' in actor:
-            produce = actor['produce']
-
-            # Topic creation
-            admin_client = AdminClient({'bootstrap.servers': service['address']})
-            new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [produce['queue']]]
-            futures = admin_client.create_topics(new_topics)
-
-            for topic, future in futures.items():
-                try:
-                    future.result()
-                    logging.info('Topic {} created'.format(topic))
-                except KafkaException as e:
-                    logging.info('Failed to create topic {}: {}'.format(topic, e))
-
-            # Producing
-            producer = Producer({'bootstrap.servers': service['address']})
-            producer.poll(0)
-            producer.produce(produce['queue'], produce['value'], callback=_kafka_delivery_report)
-            producer.flush()
-
-        # Delay
-        if 'delay' in actor:
-            delay = int(actor['delay'])
-            logging.info('Sleeping for %d seconds.' % delay)
-            time.sleep(delay)
-
+    def handle_actor(self, service_id, service, actor_id, actor):
         # Consuming
         if 'consume' in actor:
             consume = actor['consume']
@@ -1150,3 +1127,41 @@ class ManagementKafkaHandler(ManagementBaseHandler):
                 self.set_status(417)
                 self.write('Consuming failure!')
                 return
+
+        # Delay between consume and produce
+        if 'delay' in actor and 'consume' not in actor:
+            delay = int(actor['delay'])
+            logging.info('Sleeping for %d seconds.' % delay)
+            time.sleep(delay)
+
+        if 'produce' in actor:
+            produce = actor['produce']
+
+            # Topic creation
+            admin_client = AdminClient({'bootstrap.servers': service['address']})
+            new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [produce['queue']]]
+            futures = admin_client.create_topics(new_topics)
+
+            for topic, future in futures.items():
+                try:
+                    future.result()
+                    logging.info('Topic {} created'.format(topic))
+                except KafkaException as e:
+                    logging.info('Failed to create topic {}: {}'.format(topic, e))
+
+            # Producing
+            producer = Producer({'bootstrap.servers': service['address']})
+            producer.poll(0)
+            producer.produce(produce['queue'], produce['value'], callback=_kafka_delivery_report)
+            producer.flush()
+
+        # Delay loop
+        if 'delay' in actor and 'consume' not in actor:
+            delay = int(actor['delay'])
+            logging.info('Sleeping for %d seconds.' % delay)
+            time.sleep(delay)
+
+            if 'limit' in actor:
+                actor['limit'] -= 1
+                self.http_server.definition.data['kafka_services'][service_id]['actors'][actor_id] -= 1
+            self.handle_actor(service_id, service, actor_id, actor)
