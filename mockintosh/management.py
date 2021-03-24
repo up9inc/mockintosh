@@ -13,6 +13,7 @@ import copy
 import time
 import shutil
 import logging
+import threading
 from typing import (
     Union
 )
@@ -1119,5 +1120,8 @@ class ManagementKafkaHandler(ManagementBaseHandler):
 
             if 'limit' in actor:
                 actor['limit'] -= 1
-                self.http_server.definition.data['kafka_services'][service_id]['actors'][actor_id] -= 1
-            self.handle_actor(service_id, service, actor_id, actor)
+                self.http_server.definition.data['kafka_services'][service_id]['actors'][actor_id]['limit'] -= 1
+
+            t = threading.Thread(target=self.handle_actor, args=(service_id, service, actor_id, actor))
+            t.daemon = True
+            t.start()
