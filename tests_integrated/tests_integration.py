@@ -22,6 +22,7 @@ SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
 SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
+KAFK = os.environ.get('KAFK', 'localhost:9092')
 
 
 class IntegrationTests(unittest.TestCase):
@@ -933,7 +934,7 @@ class IntegrationTests(unittest.TestCase):
 @contextmanager
 def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True, validator=lambda x: None):
     consumer = Consumer({
-        'bootstrap.servers': 'localhost:9092',  # TODO: parameterize it?
+        'bootstrap.servers': KAFK,
         'group.id': group,
     })
     consumer.subscribe([topic])
@@ -961,9 +962,10 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True,
     consumer.close()
 
 
+
 def produce(queue, key, val):
     logging.info("Producing: %s %s", key, val)
-    producer = Producer({'bootstrap.servers': 'localhost:9092'})  # TODO: parameterize
+    producer = Producer({'bootstrap.servers': KAFK})  # TODO: parameterize
     producer.poll(0)
     producer.produce(queue, key=key, value=val)
     producer.flush()
