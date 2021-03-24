@@ -15,7 +15,7 @@ test: test-integration copy-certs start-kafka
 	${MAKE} stop-kafka
 
 test-integration: build start-kafka
-	docker run -d -p 8000-8010:8000-8010 --add-host host.docker.internal:host-gateway -v `pwd`/tests_integrated:/tmp/tests_integrated \
+	docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
 		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
 		-v \
 		-l /tmp/tests_integrated/server.log \
@@ -23,7 +23,7 @@ test-integration: build start-kafka
 		--interceptor=custom_interceptors.intercept_for_modifying \
 		/tmp/tests_integrated/integration_config.yaml && \
 	sleep 5 && \
-	KAFK=host.docker.internal pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
+	KAFK=172.17.0.1:9092 pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q) && stop-kafka
 
 test-with-coverage: copy-certs start-kafka
