@@ -888,17 +888,44 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("somedata", resp.text)
 
     def test_kafka_producer_ondemand(self):
-        # resp = httpx.get(MGMT + '/async/producers', verify=False)  # gets the list of available actors
-        # resp.raise_for_status()
-        # self.assertIn("on-demand-1", resp.json()["actors"])
+        resp = httpx.get(MGMT + '/async/producers', verify=False)  # gets the list of available producers
+        resp.raise_for_status()
+        self.assertIn("on-demand-1", resp.json()["actors"])
 
-        produce('queue-or-topic1', None, "")
-        with kafka_consume_expected('queue-or-topic1', filter=lambda x: x.key()) as msgs:
+        with kafka_consume_expected('queue-or-topic1'):  # consume creation msg
+            produce('queue-or-topic1', None, "")  # to create a topic
+
+        with kafka_consume_expected('queue-or-topic1') as msgs:
             resp = httpx.post(MGMT + '/async/produce', data={"actor": "on-demand-1"}, verify=False)
             resp.raise_for_status()
             # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
         self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+
+    def test_kafka_producer_scheduled(self):
+        topic = 'scheduled-queue1'
+        with kafka_consume_expected(topic):  # consume creation msg
+            produce(topic, None, "")  # to create a topic
+
+        # def run():
+        #    while True:
+        #        produce(topic, "somekey or null", "thevalue %s" % time.time())
+        #        time.sleep(5)
+
+        # Thread(target=run, daemon=True).start()
+
+        # consume whatever is there
+        with kafka_consume_expected(topic) as msgs:
+            # produce('scheduled-queue1', "somekey or null", "thevalue %s" % time.time())
+            pass
+        logging.info("Ate: %s", msgs)
+
+        with kafka_consume_expected(topic, timeout=2) as msgs:
+            time.sleep(6)
+
+        self.assertIn(len(msgs), [1, 2])
         self.assertEqual("somekey or null", msgs[0].key().decode())
         self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
 

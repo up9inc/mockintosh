@@ -271,8 +271,9 @@ services:
             name: val
 
       # scheduled producer
-      - produce:
-          queue: queue-or-topic
+      - name: scheduled1
+        produce:
+          queue: scheduled-queue1
           key: somekey or null
           value: thevalue
           headers:
