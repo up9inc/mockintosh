@@ -34,13 +34,13 @@ services:
     produce:
       queue: topic2
       key:
-      value: value2
+      value: value3
       headers:
         hdr3: val3
   - consume:
       queue: topic2
       key:
-      value: value2
+      value: value3
       headers:
         hdr3: val3
 - name: Mock for Service1

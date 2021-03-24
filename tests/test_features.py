@@ -27,6 +27,7 @@ import mockintosh
 from mockintosh.constants import PROGRAM, BASE64
 from mockintosh.performance import PerformanceProfile
 from mockintosh.methods import _b64encode
+from mockintosh import kafka
 from utilities import (
     tcping,
     run_mock_server,
@@ -63,6 +64,8 @@ SRV_8004_HOST = 'service4.example.com'
 SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
 SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
+
+KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
@@ -3399,22 +3402,24 @@ class TestPerformanceProfile():
             assert str(status_code) in faults or status_code == 201
 
 
-@pytest.mark.parametrize(('config', '_format'), [
-    ('configs/json/hbs/kafka/config.json', 'json'),
-    ('configs/yaml/hbs/kafka/config.yaml', 'json'),
-    ('configs/json/hbs/kafka/config.json', 'yaml'),
-    ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
-])
 class TestKafka():
 
     def setup_method(self):
-        config = self._item.callspec.getparam('config')
-        self.mock_server_process = run_mock_server(get_config_path(config))
+        self.mock_server_process = None
 
     def teardown_method(self):
-        self.mock_server_process.terminate()
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
 
+    @pytest.mark.parametrize(('config', '_format'), [
+        ('configs/json/hbs/kafka/config.json', 'json'),
+        ('configs/yaml/hbs/kafka/config.yaml', 'json'),
+        ('configs/json/hbs/kafka/config.json', 'yaml'),
+        ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
+    ])
     def test_get_kafka(self, config, _format):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
         resp = httpx.get(MGMT + '/kafka?format=%s' % _format, verify=False)
         assert 200 == resp.status_code
         if _format == 'json':
@@ -3431,33 +3436,33 @@ class TestKafka():
                 assert service['address'] == service2['address']
                 assert service['actors'] == service2['actors']
 
-    def test_post_kafka(self, config, _format):
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/kafka/config.json'
+    ])
+    def test_post_kafka(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
+
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
         assert 200 == resp.status_code
 
         time.sleep(2)
 
-        log = []
-        consumer = Consumer({
-            'bootstrap.servers': 'localhost:9092',
-            'group.id': '0',
-            'auto.offset.reset': 'earliest'
-        })
-        consumer.subscribe(['topic1'])
-        while True:
-            msg = consumer.poll(1.0)
+        assert kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
 
-            if msg is None:
-                break
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/kafka/config.json'
+    ])
+    def test_post_kafka_reactive_consumer(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
-            if msg.error():
-                print("Consumer error: {}".format(msg.error()))
-                continue
+        assert not kafka.consume(KAFKA_ADDR, 'topic2', 'value2')
 
-            log.append(msg.value().decode())
-        consumer.close()
-        assert 'value1' in log
+        kafka.produce(KAFKA_ADDR, 'topic2', 'value2')
 
-    def test_post_kafka_self_consume(self, config, _format):
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
+        assert 200 == resp.status_code
+
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 3}, verify=False)
         assert 200 == resp.status_code
