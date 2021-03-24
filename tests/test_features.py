@@ -3454,6 +3454,15 @@ class TestKafka():
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/kafka/config.json'
     ])
+    def test_post_kafka_loop(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 1}, verify=False)
+        assert 200 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/kafka/config.json'
+    ])
     def test_post_kafka_reactive_consumer(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
