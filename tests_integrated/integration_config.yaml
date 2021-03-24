@@ -283,7 +283,7 @@ services:
 
       # reactive producer
       - consume:
-          queue: another-queue-name
+          queue: consume-trigger1
           group: optional consumer group
           key: matching keys
           value: json / protobuf / avro # also allow validating schema for any type of it
@@ -291,7 +291,7 @@ services:
             hdr-name: value matcher
         delay: 10 # seconds after consume
         produce:
-          queue: queue-or-topic
+          queue: produce-reaction1
           key: somekey or null
           value: thevalue
           headers:

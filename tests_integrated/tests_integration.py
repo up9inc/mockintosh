@@ -930,6 +930,20 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("somekey or null", msgs[0].key().decode())
         self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
 
+    def test_kafka_producer_reactive(self):
+        trigger = 'consume-trigger1'
+        reaction = 'produce-reaction1'
+
+        with kafka_consume_expected(reaction, timeout=1) as msgs:  # cleanup
+            pass
+
+        with kafka_consume_expected(reaction, timeout=5) as msgs:  # validate
+            produce(trigger, "trigger-key", "trigger-val")
+
+        self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+
 
 @contextmanager
 def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True, validator=lambda x: None):
@@ -937,6 +951,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True,
         'bootstrap.servers': KAFK,
         'group.id': group,
     })
+    consumer.list_topics(topic)  # will create topic
     consumer.subscribe([topic])
 
     msgs = []
