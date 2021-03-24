@@ -889,7 +889,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("somedata", resp.text)
 
     def test_kafka_producer_ondemand(self):
-        resp = httpx.get(MGMT + '/async/producers', verify=False)  # gets the list of available producers
+        resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
         resp.raise_for_status()
         self.assertIn("on-demand-1", resp.json()["actors"])
 
@@ -897,7 +897,7 @@ class IntegrationTests(unittest.TestCase):
             produce('queue-or-topic1', None, "")  # to create a topic
 
         with kafka_consume_expected('queue-or-topic1') as msgs:
-            resp = httpx.post(MGMT + '/async/produce', data={"actor": "on-demand-1"}, verify=False)
+            resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
             resp.raise_for_status()
             # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
