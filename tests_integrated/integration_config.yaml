@@ -259,16 +259,16 @@ services:
 
   - name: Kafka Mocks
     type: kafka # rabbitmq, redis
-    address: ... # deployed address
+    address: localhost:9092 # deployed address
     actors:
       # on-demand producer
-      - produce:
-          queue: queue-or-topic
+      - name: on-demand-1
+        produce:
+          queue: queue-or-topic1
           key: somekey or null
           value: json ( protobuf / avro )
           headers:
             name: val
-        id: id-for-convenience
 
       # scheduled producer
       - produce:

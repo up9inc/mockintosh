@@ -4,10 +4,12 @@ import re
 import time
 import unittest
 from collections import Counter
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 import httpx
 import yaml
+from confluent_kafka.cimpl import Consumer, Producer
 from jsonschema.validators import validate
 
 import mockintosh
@@ -884,3 +886,57 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.get(SRV1 + '/qstr-multiparam3?prefix-somedata-suffix')
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
+
+    def test_kafka_producer_ondemand(self):
+        # resp = httpx.get(MGMT + '/async/producers', verify=False)  # gets the list of available actors
+        # resp.raise_for_status()
+        # self.assertIn("on-demand-1", resp.json()["actors"])
+
+        produce('queue-or-topic1', None, "")
+        with kafka_consume_expected('queue-or-topic1', filter=lambda x: x.key()) as msgs:
+            resp = httpx.post(MGMT + '/async/produce', data={"actor": "on-demand-1"}, verify=False)
+            resp.raise_for_status()
+            # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
+
+        self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+
+
+@contextmanager
+def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True, validator=lambda x: None):
+    consumer = Consumer({
+        'bootstrap.servers': 'localhost:9092',  # TODO: parameterize it?
+        'group.id': group,
+    })
+    consumer.subscribe([topic])
+
+    msgs = []
+    yield msgs
+
+    while True:
+        msg = consumer.poll(timeout)
+
+        if msg is None:
+            break
+
+        logging.info("Seen message: %r %r", msg.key(), msg.value())
+
+        if msg.error():
+            logging.warning("Consumer error: {}".format(msg.error()))
+            continue
+
+        if filter(msg):
+            validator(msg)
+            msgs.append(msg)
+
+    consumer.commit()
+    consumer.close()
+
+
+def produce(queue, key, val):
+    logging.info("Producing: %s %s", key, val)
+    producer = Producer({'bootstrap.servers': 'localhost:9092'})  # TODO: parameterize
+    producer.poll(0)
+    producer.produce(queue, key=key, value=val)
+    producer.flush()
