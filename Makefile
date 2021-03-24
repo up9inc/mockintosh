@@ -21,10 +21,10 @@ test-integration: build
 		-l /tmp/tests_integrated/server.log \
 		--interceptor=custom_interceptors.intercept_for_logging \
 		--interceptor=custom_interceptors.intercept_for_modifying \
-		/tmp/tests_integrated/integration_config.yaml && \
+		/tmp/tests_integrated/integration_config.yaml && start-kafka && \
 	sleep 5 && \
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
-	docker stop $$(docker ps -a -q)
+	docker stop $$(docker ps -a -q) && stop-kafka
 
 test-with-coverage: copy-certs start-kafka
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
