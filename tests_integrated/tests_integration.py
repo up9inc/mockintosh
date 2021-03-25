@@ -919,7 +919,7 @@ class IntegrationTests(unittest.TestCase):
         # consume whatever is there
         msgs = kafka_consume_expected(topic)
         logging.info("Ate: %s", msgs)
-        time.sleep(15)
+        time.sleep(6)
         msgs = kafka_consume_expected(topic, timeout=1)
 
         self.assertGreater(len(msgs), 0)
@@ -946,6 +946,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
     consumer = Consumer({
         'bootstrap.servers': KAFK,
         'group.id': group,
+        'auto.offset.reset': 'earliest'  # earliest _committed_ offset
     })
     topics = consumer.list_topics(topic)  # promises to create topic
     logging.debug("Topic state: %s", topics.topics)
