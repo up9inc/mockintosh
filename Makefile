@@ -10,20 +10,21 @@ install-dev:
 	pip3 install -e .[dev]
 
 up:
-	docker-compose up -d
+	echo
 
 down:
-	docker-compose down
+	docker kill kafka && docker rm kafka
 
 up-testing:
-	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d
+	echo
+	# docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d
 
 test: test-integration copy-certs up-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
-test-integration: build up-testing
+test-integration: build up-testing up-kafka
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
@@ -69,4 +70,4 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker-compose up -d zookeeper kafka
+	docker build tests_integrated -t kafka && sleep 10 && docker run -d -it --name kafka kafka

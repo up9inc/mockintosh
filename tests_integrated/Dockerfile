@@ -2,7 +2,7 @@ FROM java:latest
 
 EXPOSE 9092
 WORKDIR /tmp
-ADD https://apache-mirror.rbc.ru/pub/apache/kafka/2.7.0/kafka_2.13-2.7.0.tgz .
+ADD https://downloads.apache.org/kafka/2.7.0/kafka_2.13-2.7.0.tgz .
 
 RUN tar -xvzf kafka_2.13-2.7.0.tgz
 WORKDIR /tmp/kafka_2.13-2.7.0
