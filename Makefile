@@ -65,10 +65,5 @@ copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/kafka/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
-download-kafka:
-	curl -o kafka.tgz https://downloads.apache.org/kafka/2.7.0/kafka_2.13-2.7.0.tgz && \
-	tar -xzf kafka.tgz && \
-	mv kafka_2.13-2.7.0 kafka
-
 up-kafka:
 	docker-compose up -d zookeeper kafka
