@@ -13,7 +13,7 @@ up:
 	echo
 
 down:
-	docker kill kafka && docker rm kafka
+	docker kill kafka && docker rm kafka && docker kill mockintosh && docker rm mockintosh
 
 up-testing:
 	echo
@@ -24,7 +24,15 @@ test: test-integration copy-certs up-kafka
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
-test-integration: build up-testing up-kafka
+test-integration: build
+	docker run -d --net=host -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
+		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
+		-v \
+		-l /tmp/tests_integrated/server.log \
+		--interceptor=custom_interceptors.intercept_for_logging \
+		--interceptor=custom_interceptors.intercept_for_modifying \
+		/tmp/tests_integrated/integration_config.yaml && \
+	sleep 5 && \
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
@@ -70,4 +78,4 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker build tests_integrated -t kafka && sleep 10 && docker run -d -it --name kafka kafka
+	docker build tests_integrated -t kafka && docker run -d -it --name kafka kafka
