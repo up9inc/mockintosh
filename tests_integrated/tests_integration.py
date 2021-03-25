@@ -962,7 +962,6 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True,
     consumer.close()
 
 
-
 def produce(queue, key, val):
     logging.info("Producing: %s %s", key, val)
     producer = Producer({'bootstrap.servers': KAFK})  # TODO: parameterize

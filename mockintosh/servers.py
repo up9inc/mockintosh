@@ -31,6 +31,8 @@ from mockintosh.management import (
     ManagementOasHandler,
     ManagementTagHandler,
     ManagementKafkaHandler,
+    ManagementAsyncProducersHandler,
+    ManagementAsyncProduceHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -499,6 +501,20 @@ class HttpServer:
                 (
                     '/kafka',
                     ManagementKafkaHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async/producers',
+                    ManagementAsyncProducersHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async/produce',
+                    ManagementAsyncProduceHandler,
                     dict(
                         http_server=self
                     )
