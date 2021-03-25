@@ -29,7 +29,7 @@ class IntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format='[%(relativeCreated)d %(name)s %(levelname)s] %(message)s')
         # test for release version consistency
         ttag = os.getenv("TRAVIS_TAG")
         ver = mockintosh.__version__
@@ -893,8 +893,8 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertIn("on-demand-1", resp.json()["actors"])
 
-        with kafka_consume_expected('queue-or-topic1'):  # consume creation msg
-            produce('queue-or-topic1', None, "")  # to create a topic
+        with kafka_consume_expected('queue-or-topic1', timeout=0.1):  # consume creation msg
+            pass  # produce('queue-or-topic1', None, "")  # to create a topic
 
         with kafka_consume_expected('queue-or-topic1') as msgs:
             resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
@@ -907,8 +907,8 @@ class IntegrationTests(unittest.TestCase):
 
     def test_kafka_producer_scheduled(self):
         topic = 'scheduled-queue1'
-        with kafka_consume_expected(topic):  # consume creation msg
-            produce(topic, None, "")  # to create a topic
+        # with kafka_consume_expected(topic):  # consume creation msg
+        #    pass  # produce(topic, None, "")  # to create a topic
 
         # def run():
         #    while True:
@@ -926,7 +926,7 @@ class IntegrationTests(unittest.TestCase):
         with kafka_consume_expected(topic, timeout=2) as msgs:
             time.sleep(6)
 
-        self.assertIn(len(msgs), [1, 2])
+        self.assertGreater(len(msgs), 0)
         self.assertEqual("somekey or null", msgs[0].key().decode())
         self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
 
@@ -946,12 +946,13 @@ class IntegrationTests(unittest.TestCase):
 
 
 @contextmanager
-def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True, validator=lambda x: None):
+def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None):
     consumer = Consumer({
         'bootstrap.servers': KAFK,
         'group.id': group,
     })
-    consumer.list_topics(topic)  # will create topic
+    topics = consumer.list_topics(topic)  # will create topic
+    logging.debug("Topic is known: %s", topics.topics)
     consumer.subscribe([topic])
 
     msgs = []
@@ -969,7 +970,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, filter=lambda x: True,
             logging.warning("Consumer error: {}".format(msg.error()))
             continue
 
-        if filter(msg):
+        if mfilter(msg):
             validator(msg)
             msgs.append(msg)
 
