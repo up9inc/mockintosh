@@ -46,6 +46,7 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
+from mockintosh import kafka
 
 stats = Stats()
 logs = Logs()
@@ -278,6 +279,7 @@ class HttpServer:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
+        kafka.run_loops(self.definition)
         self.impl.serve()
 
     def make_app(self, service, endpoints, _globals, debug=False, management_root=None):

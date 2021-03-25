@@ -25,7 +25,7 @@ from backports.datetime_fromisoformat import MonkeyPatch
 import mockintosh
 from mockintosh.constants import PROGRAM, BASE64
 from mockintosh.performance import PerformanceProfile
-from mockintosh.methods import _b64encode
+from mockintosh.methods import _b64encode, _delay
 from mockintosh import kafka
 from utilities import (
     tcping,
@@ -3446,7 +3446,7 @@ class TestKafka():
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(2)
+        _delay(2)
 
         assert kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
 
@@ -3454,10 +3454,13 @@ class TestKafka():
         'configs/json/hbs/kafka/config.json'
     ])
     def test_post_kafka_loop(self, config):
+        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
+
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 1}, verify=False)
-        assert 200 == resp.status_code
+        _delay(5)
+
+        assert kafka.consume(KAFKA_ADDR, 'topic1', 'value2')
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/kafka/config.json'

@@ -1116,16 +1116,6 @@ class ManagementKafkaHandler(ManagementBaseHandler):
             produce_data = actor['produce']
             kafka.produce(service['address'], produce_data['queue'], produce_data['value'])
 
-        # Delay loop
-        if 'delay' in actor and 'consume' not in actor:
-            _delay(int(actor['delay']))
-
-            if 'limit' in actor:
-                actor['limit'] -= 1
-                self.http_server.definition.data['kafka_services'][service_id]['actors'][actor_id]['limit'] -= 1
-
-            self.handle_actor(service_id, service, actor_id, actor)
-
 
 class ManagementAsyncProducersHandler(ManagementKafkaHandler):
 
