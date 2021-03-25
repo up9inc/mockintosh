@@ -126,7 +126,5 @@ tests/configs/yaml/hbs/kafka/cert.pem
 tests/configs/yaml/hbs/kafka/key.pem
 
 # Kafka
-kafka/
-kafka.tgz
-kafka_server.pid
-kafka_zookeeper.pid
+kafka
+zk-single-kafka-single
