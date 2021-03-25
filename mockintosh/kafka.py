@@ -7,10 +7,13 @@
 """
 
 import logging
+import threading
 
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
+
+from mockintosh.methods import _delay
 
 
 def _kafka_delivery_report(err, msg):
@@ -39,6 +42,8 @@ def produce(address: str, queue: str, value: str) -> None:
     producer.produce(queue, value, callback=_kafka_delivery_report)
     producer.flush()
 
+    logging.info('Produced Kafka message: %s %s %s' % (address, queue, value))
+
 
 def consume(address: str, queue: str, value: str) -> bool:
     log = []
@@ -63,4 +68,31 @@ def consume(address: str, queue: str, value: str) -> bool:
 
     consumer.close()
 
+    logging.info('Consumed Kafka message: %s %s %s' % (address, queue, value))
+
     return value in log
+
+
+def _run_loop(definition, service_id, service, actor_id, actor):
+    logging.info('Running a Kafka loop...')
+    if 'limit' not in actor:
+        actor['limit'] == -1
+
+    while actor['limit'] == -1 or actor['limit'] > 0:
+        produce_data = actor['produce']
+        produce(service['address'], produce_data['queue'], produce_data['value'])
+
+        _delay(int(actor['delay']))
+
+        if actor['limit'] > 1:
+            actor['limit'] -= 1
+            definition.data['kafka_services'][service_id]['actors'][actor_id]['limit'] -= 1
+
+
+def run_loops(definition):
+    for service_id, service in enumerate(definition.data['kafka_services']):
+        for actor_id, actor in enumerate(service['actors']):
+            if 'consume' not in actor and 'produce' in actor and 'delay' in actor:
+                t = threading.Thread(target=_run_loop, args=(definition, service_id, service, actor_id, actor))
+                t.daemon = True
+                t.start()
