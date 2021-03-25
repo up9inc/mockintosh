@@ -18,16 +18,24 @@ down:
 up-testing:
 	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d
 
-test: test-integration copy-certs up-kafka
+test: test-integration copy-certs start-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
-	${MAKE} down
+	${MAKE} stop-kafka
 
-test-integration: build up-testing
+test-integration: build start-kafka
+	docker run -d -p 8000-8010:8000-8010 --net=host -v `pwd`/tests_integrated:/tmp/tests_integrated \
+		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
+		-v \
+		-l /tmp/tests_integrated/server.log \
+		--interceptor=custom_interceptors.intercept_for_logging \
+		--interceptor=custom_interceptors.intercept_for_modifying \
+		/tmp/tests_integrated/integration_config.yaml && \
+	sleep 5 && \
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
-	${MAKE} down
+	docker stop $$(docker ps -a -q)
 
-test-with-coverage: copy-certs up-kafka
+test-with-coverage: copy-certs start-kafka
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -70,3 +78,22 @@ copy-certs:
 
 up-kafka:
 	docker-compose up -d zookeeper kafka
+
+download-kafka:
+	curl -o kafka.tgz https://downloads.apache.org/kafka/2.7.0/kafka_2.13-2.7.0.tgz && \
+	tar -xzf kafka.tgz && \
+	mv kafka_2.13-2.7.0 kafka
+
+start-kafka:
+	rm -rf /tmp/kafka-logs && \
+	rm -rf /tmp/zookeeper && \
+	kafka/bin/zookeeper-server-start.sh kafka/config/zookeeper.properties & \
+	echo "$$!" > "kafka_zookeeper.pid" && \
+	sleep 5 && \
+	kafka/bin/kafka-server-start.sh kafka/config/server.properties & \
+	echo "$$!" > "kafka_server.pid" && \
+	sleep 5
+
+stop-kafka:
+	kill -9 $$(cat kafka_server.pid) && \
+	kill -9 $$(cat kafka_zookeeper.pid)
