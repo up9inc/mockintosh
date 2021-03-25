@@ -8,6 +8,9 @@
 
 import logging
 import threading
+from typing import (
+    Union
+)
 
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
@@ -23,7 +26,7 @@ def _kafka_delivery_report(err, msg):
         logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
 
 
-def produce(address: str, queue: str, key: str, value: str) -> None:
+def produce(address: str, queue: str, key: Union[str, None], value: str) -> None:
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [queue]]
@@ -45,7 +48,7 @@ def produce(address: str, queue: str, key: str, value: str) -> None:
     logging.info('Produced Kafka message: \'%s\' \'%s\' \'%s\' \'%s\'' % (address, queue, key, value))
 
 
-def consume(address: str, queue: str, key: str, value: str) -> bool:
+def consume(address: str, queue: str, key: Union[str, None], value: str) -> bool:
     log = []
     consumer = Consumer({
         'bootstrap.servers': address,
