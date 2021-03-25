@@ -21,7 +21,6 @@ import httpx
 from openapi_spec_validator import validate_spec
 from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
-from confluent_kafka import Consumer
 
 import mockintosh
 from mockintosh.constants import PROGRAM, BASE64

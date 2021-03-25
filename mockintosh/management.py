@@ -10,7 +10,6 @@ import os
 import re
 import json
 import copy
-import time
 import shutil
 import logging
 import threading
@@ -1093,7 +1092,10 @@ class ManagementKafkaHandler(ManagementBaseHandler):
         actor_id = int(actor_id)
         service = self.http_server.definition.data['kafka_services'][service_id]
         actor = service['actors'][actor_id]
-        self.handle_actor(service_id, service, actor_id, actor)
+
+        t = threading.Thread(target=self.handle_actor, args=(service_id, service, actor_id, actor))
+        t.daemon = True
+        t.start()
 
     def handle_actor(self, service_id, service, actor_id, actor):
         # Consuming
@@ -1122,6 +1124,54 @@ class ManagementKafkaHandler(ManagementBaseHandler):
                 actor['limit'] -= 1
                 self.http_server.definition.data['kafka_services'][service_id]['actors'][actor_id]['limit'] -= 1
 
-            t = threading.Thread(target=self.handle_actor, args=(service_id, service, actor_id, actor))
-            t.daemon = True
-            t.start()
+            self.handle_actor(service_id, service, actor_id, actor)
+
+
+class ManagementAsyncProducersHandler(ManagementKafkaHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self):
+        data = {
+            'actors': []
+        }
+
+        services = self.http_server.definition.data['kafka_services']
+        for service in services:
+            for actor in service['actors']:
+                if 'name' in actor:
+                    data['actors'].append(actor['name'])
+
+        self.dump(data)
+
+
+class ManagementAsyncProduceHandler(ManagementKafkaHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def post(self):
+        actor_regex = self.get_body_argument('actor', default=None)
+        actor_regex_orig = actor_regex
+        if actor_regex is None:
+            self.set_status(400)
+            self.write('\'actor\' parameter is required!')
+            return
+
+        actor_regex = '^%s$' % actor_regex
+
+        services = self.http_server.definition.data['kafka_services']
+        for service_id, service in enumerate(services):
+            for actor_id, actor in enumerate(service['actors']):
+                if 'name' in actor:
+                    match = re.search(actor_regex, actor['name'])
+                    if match is not None:
+                        t = threading.Thread(target=self.handle_actor, args=(service_id, service, actor_id, actor))
+                        t.daemon = True
+                        t.start()
+                        return
+
+        self.set_status(400)
+        self.write('actor \'%s\' couldn\'t found!' % actor_regex_orig)
+        return
