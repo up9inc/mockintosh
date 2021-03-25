@@ -23,7 +23,7 @@ def _kafka_delivery_report(err, msg):
         logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
 
 
-def produce(address: str, queue: str, value: str) -> None:
+def produce(address: str, queue: str, key: str, value: str) -> None:
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [queue]]
@@ -39,13 +39,13 @@ def produce(address: str, queue: str, value: str) -> None:
     # Producing
     producer = Producer({'bootstrap.servers': address})
     producer.poll(0)
-    producer.produce(queue, value, callback=_kafka_delivery_report)
+    producer.produce(queue, value, key=key, callback=_kafka_delivery_report)
     producer.flush()
 
-    logging.info('Produced Kafka message: %s %s %s' % (address, queue, value))
+    logging.info('Produced Kafka message: \'%s\' \'%s\' \'%s\' \'%s\'' % (address, queue, key, value))
 
 
-def consume(address: str, queue: str, value: str) -> bool:
+def consume(address: str, queue: str, key: str, value: str) -> bool:
     log = []
     consumer = Consumer({
         'bootstrap.servers': address,
@@ -64,29 +64,33 @@ def consume(address: str, queue: str, value: str) -> bool:
             logging.warning("Consumer error: {}".format(msg.error()))
             continue
 
-        log.append(msg.value().decode())
+        log.append((msg.key().decode(), msg.value().decode()))
 
     consumer.close()
 
-    logging.info('Consumed Kafka message: %s %s %s' % (address, queue, value))
+    logging.info('Consumed Kafka message: \'%s\' \'%s\' \'%s\' \'%s\'' % (address, queue, key, value))
 
-    return value in log
+    return any(msg[0] == key and msg[1] == value for msg in log)
 
 
 def _run_loop(definition, service_id, service, actor_id, actor):
-    logging.info('Running a Kafka loop...')
     if 'limit' not in actor:
+        logging.info('Running a Kafka loop indefinitely...')
         actor['limit'] == -1
+    else:
+        logging.info('Running a Kafka loop for %d iterations...' % actor['limit'])
 
     while actor['limit'] == -1 or actor['limit'] > 0:
         produce_data = actor['produce']
-        produce(service['address'], produce_data['queue'], produce_data['value'])
+        produce(service['address'], produce_data['queue'], produce_data['key'], produce_data['value'])
 
         _delay(int(actor['delay']))
 
         if actor['limit'] > 1:
             actor['limit'] -= 1
             definition.data['kafka_services'][service_id]['actors'][actor_id]['limit'] -= 1
+
+    logging.info('Kafka loop is finished.')
 
 
 def run_loops(definition):

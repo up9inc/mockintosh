@@ -15,7 +15,7 @@
         {
           "produce": {
             "queue": "topic1",
-            "key": null,
+            "key": "key1",
             "value": "value1",
             "headers": {
               "hdr1": "val1"
@@ -25,7 +25,7 @@
         {
           "produce": {
             "queue": "topic1",
-            "key": null,
+            "key": "key2",
             "value": "value2",
             "headers": {
               "hdr2": "val2"
@@ -37,7 +37,7 @@
         {
           "consume": {
             "queue": "topic2",
-            "key": null,
+            "key": "key2",
             "value": "value2",
             "headers": {
               "hdr3": "val3"
@@ -46,7 +46,7 @@
           "delay": 3,
           "produce": {
             "queue": "topic2",
-            "key": null,
+            "key": "key3",
             "value": "value3",
             "headers": {
               "hdr3": "val3"
@@ -56,7 +56,7 @@
         {
           "consume": {
             "queue": "topic2",
-            "key": null,
+            "key": "key3",
             "value": "value3",
             "headers": {
               "hdr3": "val3"

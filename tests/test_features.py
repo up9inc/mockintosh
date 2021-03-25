@@ -3441,26 +3441,26 @@ class TestKafka():
     def test_post_kafka(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
+        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'key1', 'value1')
 
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
         assert 200 == resp.status_code
 
         _delay(2)
 
-        assert kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
+        assert kafka.consume(KAFKA_ADDR, 'topic1', 'key1', 'value1')
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/kafka/config.json'
     ])
     def test_post_kafka_loop(self, config):
-        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'value1')
+        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'key1', 'value1')
 
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         _delay(5)
 
-        assert kafka.consume(KAFKA_ADDR, 'topic1', 'value2')
+        assert kafka.consume(KAFKA_ADDR, 'topic1', 'key2', 'value2')
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/kafka/config.json'
@@ -3468,9 +3468,9 @@ class TestKafka():
     def test_post_kafka_reactive_consumer(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        assert not kafka.consume(KAFKA_ADDR, 'topic2', 'value2')
+        assert not kafka.consume(KAFKA_ADDR, 'topic2', 'key2', 'value2')
 
-        kafka.produce(KAFKA_ADDR, 'topic2', 'value2')
+        kafka.produce(KAFKA_ADDR, 'topic2', 'key2', 'value2')
 
         resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
         assert 200 == resp.status_code

@@ -1101,7 +1101,12 @@ class ManagementKafkaHandler(ManagementBaseHandler):
         # Consuming
         if 'consume' in actor:
             consume_data = actor['consume']
-            success = kafka.consume(service['address'], consume_data['queue'], consume_data['value'])
+            success = kafka.consume(
+                service['address'],
+                consume_data['queue'],
+                consume_data['key'],
+                consume_data['value']
+            )
 
             if not success:
                 self.set_status(417)
@@ -1114,7 +1119,12 @@ class ManagementKafkaHandler(ManagementBaseHandler):
 
         if 'produce' in actor:
             produce_data = actor['produce']
-            kafka.produce(service['address'], produce_data['queue'], produce_data['value'])
+            kafka.produce(
+                service['address'],
+                produce_data['queue'],
+                produce_data['key'],
+                produce_data['value']
+            )
 
 
 class ManagementAsyncProducersHandler(ManagementKafkaHandler):
