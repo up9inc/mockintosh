@@ -4,7 +4,6 @@ import re
 import time
 import unittest
 from collections import Counter
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 import httpx
@@ -924,7 +923,7 @@ class IntegrationTests(unittest.TestCase):
         logging.info("Ate: %s", msgs)
 
         with kafka_consume_expected(topic, timeout=2) as msgs:
-            time.sleep(6)
+            time.sleep(10)
 
         self.assertGreater(len(msgs), 0)
         self.assertEqual("somekey or null", msgs[0].key().decode())
@@ -945,19 +944,21 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
 
 
-@contextmanager
-def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None):
+def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
+                           after_subscribe=lambda: None):
     consumer = Consumer({
         'bootstrap.servers': KAFK,
         'group.id': group,
     })
-    topics = consumer.list_topics(topic)  # will create topic
-    logging.debug("Topic is known: %s", topics.topics)
+    topics = consumer.list_topics(topic)  # promises to create topic
+    logging.debug("Topic state: %s", topics.topics)
+    assert topics.topics[topic].error is None, "%s" % topics.topics
     consumer.subscribe([topic])
 
+    after_subscribe()
     msgs = []
-    yield msgs
 
+    logging.debug("Waiting for messages...")
     while True:
         msg = consumer.poll(timeout)
 
@@ -977,9 +978,11 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
     consumer.commit()
     consumer.close()
 
+    return msgs
+
 
 def produce(queue, key, val):
-    logging.info("Producing: %s %s", key, val)
+    logging.info("Producing into %s: %s %s", queue, key, val)
     producer = Producer({'bootstrap.servers': KAFK})  # TODO: parameterize
     producer.poll(0)
     producer.produce(queue, key=key, value=val)
