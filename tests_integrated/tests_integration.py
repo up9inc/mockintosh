@@ -892,13 +892,13 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertIn("on-demand-1", resp.json()["actors"])
 
-        with kafka_consume_expected('queue-or-topic1', timeout=0.1):  # consume creation msg
-            pass  # produce('queue-or-topic1', None, "")  # to create a topic
+        produce('queue-or-topic1', None, "")  # to create a topic
+        kafka_consume_expected('queue-or-topic1', timeout=0.1)  # consume creation msg
 
-        with kafka_consume_expected('queue-or-topic1') as msgs:
-            resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
-            resp.raise_for_status()
-            # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
+        msgs = kafka_consume_expected('queue-or-topic1')
+        resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
+        resp.raise_for_status()
+        # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
         self.assertEqual(1, len(msgs))
         self.assertEqual("somekey or null", msgs[0].key().decode())
@@ -917,13 +917,10 @@ class IntegrationTests(unittest.TestCase):
         # Thread(target=run, daemon=True).start()
 
         # consume whatever is there
-        with kafka_consume_expected(topic) as msgs:
-            # produce('scheduled-queue1', "somekey or null", "thevalue %s" % time.time())
-            pass
+        msgs = kafka_consume_expected(topic)
         logging.info("Ate: %s", msgs)
-
-        with kafka_consume_expected(topic, timeout=2) as msgs:
-            time.sleep(10)
+        time.sleep(15)
+        msgs = kafka_consume_expected(topic, timeout=1)
 
         self.assertGreater(len(msgs), 0)
         self.assertEqual("somekey or null", msgs[0].key().decode())

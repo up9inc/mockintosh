@@ -13,7 +13,7 @@ up:
 	echo
 
 down:
-	docker kill kafka && docker rm kafka && docker kill mockintosh && docker rm mockintosh
+	docker kill kafka && docker rm kafka
 
 up-testing:
 	echo
@@ -24,7 +24,7 @@ test: test-integration copy-certs up-kafka
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
-test-integration: build
+test-integration: build up-kafka
 	docker run -d --net=host -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
 		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
 		-v \
