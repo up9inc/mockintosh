@@ -15,12 +15,15 @@ up:
 down:
 	docker-compose down
 
+up-testing:
+	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d
+
 test: test-integration copy-certs up-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
-test-integration: build up
+test-integration: build up-testing
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	${MAKE} down
 

@@ -3,19 +3,11 @@ services:
   mockintosh:
     build: .
     image: mockintosh
-    command: "
-      -v
-      -l /tmp/tests_integrated/server.log
-      --interceptor=custom_interceptors.intercept_for_logging
-      --interceptor=custom_interceptors.intercept_for_modifying
-      /tmp/tests_integrated/integration_config.yaml
-    "
+    command: /tmp/mocks/config.yaml
     ports:
-      - "8000-8010:8000-8010"
+      - "8001-8003:8001-8003"
     volumes:
-      - ./tests_integrated:/tmp/tests_integrated
-    environment:
-      - PYTHONPATH=/tmp/tests_integrated
+      - ./tests/configs/yaml/hbs/common/:/tmp/mocks/
   zookeeper:
     image: wurstmeister/zookeeper
     ports:
