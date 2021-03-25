@@ -259,7 +259,7 @@ services:
 
   - name: Kafka Mocks
     type: kafka # rabbitmq, redis
-    address: kafka1:19092 # deployed address
+    address: localhost:9092 # deployed address
     actors:
       # on-demand producer
       - name: on-demand-1
