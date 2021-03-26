@@ -907,6 +907,8 @@ class IntegrationTests(unittest.TestCase):
         t.daemon = True
         t.start()
 
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
         resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
@@ -949,6 +951,8 @@ class IntegrationTests(unittest.TestCase):
         })
         t.daemon = True
         t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
 
         kafka.produce(
             KAFK,

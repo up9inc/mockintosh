@@ -3418,7 +3418,7 @@ class TestKafka():
             stderr=subprocess.DEVNULL,
             shell=True
         )
-        time.sleep(5)
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
 
     @classmethod
     def teardown_class(cls):
@@ -3504,6 +3504,8 @@ class TestKafka():
         t.daemon = True
         t.start()
 
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
         resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
@@ -3529,6 +3531,8 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
 
         resp = httpx.post(MGMT + '/async', data={'actor': 'actor6'}, verify=False)
         assert 200 == resp.status_code
@@ -3556,6 +3560,8 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
 
         kafka.produce(
             KAFKA_ADDR,
