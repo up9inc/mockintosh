@@ -1122,36 +1122,60 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             self.write(data)
 
     async def post(self, *args):
-        service_id, actor_id = args
-        service_id = int(service_id)
-        actor_id = int(actor_id)
-        try:
+        actor_regex = self.get_body_argument('actor', default=None)
+        actor_regex_orig = actor_regex
+        if actor_regex is not None:
+            actor_regex = '^%s$' % actor_regex
+
+            no_match = True
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service['actors']):
+                    if 'name' in actor:
+                        match = re.search(actor_regex, actor['name'])
+                        if match is not None:
+                            if 'produce' not in actor:
+                                continue
+                            t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
+                            t.daemon = True
+                            t.start()
+                            no_match = False
+
+            if no_match:
+                self.set_status(400)
+                self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
+                return
+        else:
+            service_id, actor_id = args
+            service_id = int(service_id)
+            actor_id = int(actor_id)
+            try:
+                service = self.http_server.definition.data['kafka_services'][service_id]
+            except IndexError:
+                self.set_status(400)
+                self.write('Service not found!')
+                return
+
+            try:
+                actor = service['actors'][actor_id]
+            except IndexError:
+                self.set_status(400)
+                self.write('Actor not found!')
+                return
+
+            if 'produce' not in actor:
+                self.set_status(400)
+                self.write('This actor is not a producer!')
+                return
+
+            service_id = int(service_id)
+            actor_id = int(actor_id)
             service = self.http_server.definition.data['kafka_services'][service_id]
-        except IndexError:
-            self.set_status(400)
-            self.write('Service not found!')
-            return
-
-        try:
             actor = service['actors'][actor_id]
-        except IndexError:
-            self.set_status(400)
-            self.write('Actor not found!')
-            return
 
-        if 'produce' not in actor:
-            self.set_status(400)
-            self.write('This actor is not a producer!')
-            return
-
-        service_id = int(service_id)
-        actor_id = int(actor_id)
-        service = self.http_server.definition.data['kafka_services'][service_id]
-        actor = service['actors'][actor_id]
-
-        t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
-        t.daemon = True
-        t.start()
+            t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
+            t.daemon = True
+            t.start()
 
     def _produce(self, service_id, service, actor_id, actor):
         # Producing

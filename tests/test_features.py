@@ -3533,6 +3533,35 @@ class TestKafka():
         t.join()
         assert any(row[0] == key and row[1] == value for row in log)
 
+    def test_post_kafka_produce_by_actor_name(self):
+        key = 'key6'
+        value = 'value6'
+
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFKA_ADDR,
+            'topic6',
+            key,
+            value
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(2)
+
+        resp = httpx.post(MGMT + '/async', data={'actor': 'actor6'}, verify=False)
+        assert 200 == resp.status_code
+
+        time.sleep(2)
+
+        stop['val'] = True
+        t.join()
+        assert any(row[0] == key and row[1] == value for row in log)
+
     def test_post_kafka_reactive_consumer(self):
         topic = 'topic5'
         key = 'key5'

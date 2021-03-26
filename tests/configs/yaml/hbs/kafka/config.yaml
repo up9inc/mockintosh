@@ -49,6 +49,13 @@ services:
       value: value5
       headers:
         hdr5: val5
+  - name: actor6
+    produce:
+      queue: topic6
+      key: key6
+      value: value6
+      headers:
+        hdr6: val6
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
