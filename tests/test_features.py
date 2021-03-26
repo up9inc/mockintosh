@@ -3480,6 +3480,30 @@ class TestKafka():
 
         assert any(row['key'] == 'key3' and row['value'] == 'value3' for row in data['log'])
 
+    def test_post_kafka__init(self):
+        key = 'key1'
+        value = 'value1'
+
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFKA_ADDR,
+            'topic1',
+            key,
+            value
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(2)
+
+        stop['val'] = True
+        t.join()
+        assert True
+
     def test_post_kafka_produce(self):
         key = 'key1'
         value = 'value1'
@@ -3497,6 +3521,8 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
+
+        time.sleep(2)
 
         resp = httpx.post(MGMT + '/kafka/0/0', verify=False)
         assert 200 == resp.status_code
@@ -3525,6 +3551,8 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
+
+        time.sleep(2)
 
         kafka.produce(
             KAFKA_ADDR,
