@@ -18,7 +18,8 @@ install:
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
 before_script:
   - docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
-  - docker run -d --net=host -v `pwd`/tests_integrated:/tmp/tests_integrated \
+  - |
+    docker run -d --net=host -v `pwd`/tests_integrated:/tmp/tests_integrated \
     -e PYTHONPATH=/tmp/tests_integrated mockintosh \
     -v \
     -l /tmp/tests_integrated/server.log \
