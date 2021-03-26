@@ -3,16 +3,16 @@ import os
 import re
 import time
 import unittest
+import threading
 from collections import Counter
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 import httpx
 import yaml
-from confluent_kafka.cimpl import Consumer, Producer
 from jsonschema.validators import validate
 
 import mockintosh
+from mockintosh import kafka
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
@@ -889,98 +889,74 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("somedata", resp.text)
 
     def test_kafka_producer_ondemand(self):
-        resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
-        resp.raise_for_status()
-        self.assertIn("on-demand-1", resp.json()["actors"])
+        key = 'somekey or null'
+        value = 'json ( protobuf / avro )'
 
-        with kafka_consume_expected('queue-or-topic1', timeout=0.1):  # consume creation msg
-            pass  # produce('queue-or-topic1', None, "")  # to create a topic
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFK,
+            'queue-or-topic1',
+            key,
+            value
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
 
-        with kafka_consume_expected('queue-or-topic1') as msgs:
-            resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
-            resp.raise_for_status()
-            # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
+        time.sleep(5)
 
-        self.assertEqual(1, len(msgs))
-        self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+        resp = httpx.post(MGMT + '/kafka/0/0', verify=False)
+        assert 200 == resp.status_code
+
+        time.sleep(2)
+
+        stop['val'] = True
+        t.join()
+        assert any(row[0] == key and row[1] == value for row in log)
 
     def test_kafka_producer_scheduled(self):
-        topic = 'scheduled-queue1'
-        # with kafka_consume_expected(topic):  # consume creation msg
-        #    pass  # produce(topic, None, "")  # to create a topic
+        time.sleep(2)
 
-        # def run():
-        #    while True:
-        #        produce(topic, "somekey or null", "thevalue %s" % time.time())
-        #        time.sleep(5)
+        resp = httpx.get(MGMT + '/kafka/0/2', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
 
-        # Thread(target=run, daemon=True).start()
-
-        # consume whatever is there
-        with kafka_consume_expected(topic) as msgs:
-            # produce('scheduled-queue1', "somekey or null", "thevalue %s" % time.time())
-            pass
-        logging.info("Ate: %s", msgs)
-
-        with kafka_consume_expected(topic, timeout=2) as msgs:
-            time.sleep(6)
-
-        self.assertGreater(len(msgs), 0)
-        self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+        assert any(row['key'] == 'somekey or null' and row['value'] == 'thevalue' for row in data['log'])
 
     def test_kafka_producer_reactive(self):
-        trigger = 'consume-trigger1'
-        reaction = 'produce-reaction1'
+        trigger_topic = 'consume-trigger1'
+        reaction_topic = 'produce-reaction1'
 
-        with kafka_consume_expected(reaction, timeout=1) as msgs:  # cleanup
-            pass
+        key = 'somekey or null'
+        value = 'thevalue'
 
-        with kafka_consume_expected(reaction, timeout=5) as msgs:  # validate
-            produce(trigger, "trigger-key", "trigger-val")
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFK,
+            reaction_topic,
+            key,
+            value
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
 
-        self.assertEqual(1, len(msgs))
-        self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+        kafka.produce(
+            KAFK,
+            trigger_topic,
+            'matching keys',
+            'json / protobuf / avro'
+        )
 
+        time.sleep(2)
 
-@contextmanager
-def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None):
-    consumer = Consumer({
-        'bootstrap.servers': KAFK,
-        'group.id': group,
-    })
-    topics = consumer.list_topics(topic)  # will create topic
-    logging.debug("Topic is known: %s", topics.topics)
-    consumer.subscribe([topic])
-
-    msgs = []
-    yield msgs
-
-    while True:
-        msg = consumer.poll(timeout)
-
-        if msg is None:
-            break
-
-        logging.info("Seen message: %r %r", msg.key(), msg.value())
-
-        if msg.error():
-            logging.warning("Consumer error: {}".format(msg.error()))
-            continue
-
-        if mfilter(msg):
-            validator(msg)
-            msgs.append(msg)
-
-    consumer.commit()
-    consumer.close()
-
-
-def produce(queue, key, val):
-    logging.info("Producing: %s %s", key, val)
-    producer = Producer({'bootstrap.servers': KAFK})  # TODO: parameterize
-    producer.poll(0)
-    producer.produce(queue, key=key, value=val)
-    producer.flush()
+        stop['val'] = True
+        t.join()
+        assert any(row[0] == key and row[1] == value for row in log)

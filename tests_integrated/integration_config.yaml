@@ -259,7 +259,7 @@ services:
 
   - name: Kafka Mocks
     type: kafka # rabbitmq, redis
-    address: kafka1:19092 # deployed address
+    address: kafka:19092 # deployed address
     actors:
       # on-demand producer
       - name: on-demand-1
@@ -280,6 +280,15 @@ services:
             name: val
         delay: 5 # seconds between producing
         limit: 100 # produce up to N messages
+
+      # scheduled producer listener
+      - name: scheduled1-listener
+        consume:
+          queue: scheduled-queue1
+          key: somekey or null
+          value: thevalue
+          headers:
+            name: val
 
       # reactive producer
       - consume:

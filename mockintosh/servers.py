@@ -508,6 +508,13 @@ class HttpServer:
                     )
                 ),
                 (
+                    '/kafka/([0-9]+)/([0-9]+)',
+                    ManagementKafkaHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
                     '/async/producers',
                     ManagementAsyncProducersHandler,
                     dict(

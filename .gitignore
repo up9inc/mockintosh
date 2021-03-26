@@ -126,5 +126,5 @@ tests/configs/yaml/hbs/kafka/cert.pem
 tests/configs/yaml/hbs/kafka/key.pem
 
 # Kafka
-kafka
+kafka/
 zk-single-kafka-single
