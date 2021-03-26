@@ -16,7 +16,8 @@ down:
 	docker-compose down
 
 up-testing:
-	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d
+	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
+	sleep 10
 
 test: test-integration copy-certs up-kafka
 	flake8 && \
@@ -67,4 +68,5 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker-compose up -d zookeeper kafka
+	docker-compose up -d zookeeper kafka && \
+	sleep 5

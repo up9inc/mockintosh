@@ -3487,30 +3487,6 @@ class TestKafka():
 
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
-    def test_post_kafka__init(self):
-        key = 'key1'
-        value = 'value1'
-
-        stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
-            KAFKA_ADDR,
-            'topic1',
-            key,
-            value
-        ), kwargs={
-            'log': log,
-            'stop': stop
-        })
-        t.daemon = True
-        t.start()
-
-        time.sleep(KAFKA_CONSUME_WAIT)
-
-        stop['val'] = True
-        t.join()
-        assert True
-
     def test_post_kafka_produce(self):
         key = 'key1'
         value = 'value1'

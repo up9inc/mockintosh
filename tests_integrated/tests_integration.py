@@ -890,30 +890,6 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
 
-    def test_kafka__init(self):
-        key = 'somekey or null'
-        value = 'json ( protobuf / avro )'
-
-        stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
-            KAFK,
-            'queue-or-topic1',
-            key,
-            value
-        ), kwargs={
-            'log': log,
-            'stop': stop
-        })
-        t.daemon = True
-        t.start()
-
-        time.sleep(KAFK_CONSUME_WAIT)
-
-        stop['val'] = True
-        t.join()
-        assert True
-
     def test_kafka_producer_ondemand(self):
         key = 'somekey or null'
         value = 'json ( protobuf / avro )'
