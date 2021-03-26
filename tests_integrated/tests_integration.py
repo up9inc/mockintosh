@@ -450,10 +450,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("also {{random.intt 10 20}} can happen", resp.headers.get('X-header'))
 
     def test_conn_status(self):
-        with self.assertRaises(httpx.RemoteProtocolError):
+        with self.assertRaises((httpx.RemoteProtocolError, httpx.ReadError)):
             httpx.get(SRV1 + '/conn-rst')
 
-        with self.assertRaises(httpx.RemoteProtocolError):
+        with self.assertRaises((httpx.RemoteProtocolError, httpx.ReadError)):
             httpx.get(SRV1 + '/conn-close')
 
     def test_management_global(self):
