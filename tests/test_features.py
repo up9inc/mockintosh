@@ -3461,7 +3461,7 @@ class TestKafka():
             value
         )
 
-        time.sleep(2)
+        time.sleep(5)
 
         resp = httpx.get(MGMT + '/async/0/1', verify=False)
         assert 200 == resp.status_code
@@ -3471,7 +3471,7 @@ class TestKafka():
         assert any(row['key'] == key and row['value'] == value for row in data['log'])
 
     def test_get_kafka_produce_consume_loop(self):
-        time.sleep(2)
+        time.sleep(5)
 
         resp = httpx.get(MGMT + '/async/0/3', verify=False)
         assert 200 == resp.status_code
@@ -3479,30 +3479,6 @@ class TestKafka():
         data = resp.json()
 
         assert any(row['key'] == 'key3' and row['value'] == 'value3' for row in data['log'])
-
-    def test_post_kafka__init(self):
-        key = 'key1'
-        value = 'value1'
-
-        stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
-            KAFKA_ADDR,
-            'topic1',
-            key,
-            value
-        ), kwargs={
-            'log': log,
-            'stop': stop
-        })
-        t.daemon = True
-        t.start()
-
-        time.sleep(5)
-
-        stop['val'] = True
-        t.join()
-        assert True
 
     def test_post_kafka_produce(self):
         key = 'key1'

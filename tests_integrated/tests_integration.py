@@ -888,30 +888,6 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
 
-    def test_kafka__init(self):
-        key = 'somekey or null'
-        value = 'json ( protobuf / avro )'
-
-        stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
-            KAFK,
-            'queue-or-topic1',
-            key,
-            value
-        ), kwargs={
-            'log': log,
-            'stop': stop
-        })
-        t.daemon = True
-        t.start()
-
-        time.sleep(2)
-
-        stop['val'] = True
-        t.join()
-        assert True
-
     def test_kafka_producer_ondemand(self):
         key = 'somekey or null'
         value = 'json ( protobuf / avro )'
@@ -940,7 +916,7 @@ class IntegrationTests(unittest.TestCase):
         assert any(row[0] == key and row[1] == value for row in log)
 
     def test_kafka_producer_scheduled(self):
-        time.sleep(2)
+        time.sleep(5)
 
         resp = httpx.get(MGMT + '/async/0/2', verify=False)
         assert 200 == resp.status_code
