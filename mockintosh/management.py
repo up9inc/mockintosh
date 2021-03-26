@@ -1088,7 +1088,8 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                     data['log'].append(
                         {
                             'key': row[0],
-                            'value': row[1]
+                            'value': row[1],
+                            'headers': row[2]
                         }
                     )
 
@@ -1181,8 +1182,9 @@ class ManagementAsyncHandler(ManagementBaseHandler):
         # Producing
         produce_data = actor['produce']
         kafka.produce(
-            service['address'],
-            produce_data['queue'],
-            produce_data['key'],
-            produce_data['value']
+            service.get('address'),
+            produce_data.get('queue'),
+            produce_data.get('key', None),
+            produce_data.get('value'),
+            produce_data.get('headers', {})
         )

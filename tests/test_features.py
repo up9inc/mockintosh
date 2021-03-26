@@ -3453,12 +3453,14 @@ class TestKafka():
     def test_get_kafka_consume(self):
         key = 'key2'
         value = 'value2'
+        headers = {'hdr2': 'val2'}
 
         kafka.produce(
             KAFKA_ADDR,
             'topic2',
             key,
-            value
+            value,
+            headers
         )
 
         time.sleep(5)
@@ -3468,9 +3470,13 @@ class TestKafka():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        assert any(row['key'] == key and row['value'] == value for row in data['log'])
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_get_kafka_produce_consume_loop(self):
+        key = 'key3'
+        value = 'value3'
+        headers = {'hdr3': 'val3'}
+
         time.sleep(5)
 
         resp = httpx.get(MGMT + '/async/0/3', verify=False)
@@ -3478,19 +3484,18 @@ class TestKafka():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        assert any(row['key'] == 'key3' and row['value'] == 'value3' for row in data['log'])
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_post_kafka_produce(self):
         key = 'key1'
         value = 'value1'
+        headers = {'hdr1': 'val1'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFKA_ADDR,
-            'topic1',
-            key,
-            value
+            'topic1'
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3505,19 +3510,18 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_produce_by_actor_name(self):
         key = 'key6'
         value = 'value6'
+        headers = {'hdr6': 'val6'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFKA_ADDR,
-            'topic6',
-            key,
-            value
+            'topic6'
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3532,20 +3536,19 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_reactive_consumer(self):
         topic = 'topic5'
         key = 'key5'
         value = 'value5'
+        headers = {'hdr5': 'val5'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFKA_ADDR,
-            topic,
-            key,
-            value
+            topic
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3557,11 +3560,12 @@ class TestKafka():
             KAFKA_ADDR,
             topic,
             key,
-            value
+            value,
+            {'hdr5': 'val5'}
         )
 
         time.sleep(5)
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)

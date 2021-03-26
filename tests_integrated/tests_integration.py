@@ -891,14 +891,13 @@ class IntegrationTests(unittest.TestCase):
     def test_kafka_producer_ondemand(self):
         key = 'somekey or null'
         value = 'json ( protobuf / avro )'
+        headers = {'name': 'val'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFK,
-            'queue-or-topic1',
-            key,
-            value
+            'queue-or-topic1'
         ), kwargs={
             'log': log,
             'stop': stop
@@ -913,9 +912,13 @@ class IntegrationTests(unittest.TestCase):
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_kafka_producer_scheduled(self):
+        key = 'somekey or null'
+        value = 'thevalue'
+        headers = {'name': 'val'}
+
         time.sleep(5)
 
         resp = httpx.get(MGMT + '/async/0/2', verify=False)
@@ -923,7 +926,7 @@ class IntegrationTests(unittest.TestCase):
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        assert any(row['key'] == 'somekey or null' and row['value'] == 'thevalue' for row in data['log'])
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_kafka_producer_reactive(self):
         trigger_topic = 'consume-trigger1'
@@ -931,14 +934,13 @@ class IntegrationTests(unittest.TestCase):
 
         key = 'somekey or null'
         value = 'thevalue'
+        headers = {'name': 'val'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFK,
-            reaction_topic,
-            key,
-            value
+            reaction_topic
         ), kwargs={
             'log': log,
             'stop': stop
@@ -950,11 +952,12 @@ class IntegrationTests(unittest.TestCase):
             KAFK,
             trigger_topic,
             'matching keys',
-            'json / protobuf / avro'
+            'json / protobuf / avro',
+            {'hdr-name': 'value matcher'}
         )
 
         time.sleep(5)
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)

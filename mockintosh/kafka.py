@@ -40,23 +40,34 @@ def _create_topic(address, queue):
             logging.info('Failed to create topic {}: {}'.format(topic, e))
 
 
-def produce(address: str, queue: str, key: Union[str, None], value: str) -> None:
+def _headers_decode(headers: list):
+    new_headers = {}
+    for el in headers:
+        new_headers[el[0]] = el[1].decode()
+    return new_headers
+
+
+def produce(address: str, queue: str, key: Union[str, None], value: str, headers: dict) -> None:
     _create_topic(address, queue)
 
     # Producing
     producer = Producer({'bootstrap.servers': address})
     producer.poll(0)
-    producer.produce(queue, value, key=key, callback=_kafka_delivery_report)
+    producer.produce(queue, value, key=key, headers=headers, callback=_kafka_delivery_report)
     producer.flush()
 
-    logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\'' % (address, queue, key, value))
+    logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+        address,
+        queue,
+        key,
+        value,
+        headers
+    ))
 
 
 def consume(
     address: str,
     queue: str,
-    key: Union[str, None],
-    value: str,
     produce_data=None,
     definition=None,
     service_id=None,
@@ -89,20 +100,34 @@ def consume(
             logging.warning("Consumer error: {}".format(msg.error()))
             continue
 
-        logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\'' % (address, queue, key, value))
+        key, value, headers = msg.key().decode(), msg.value().decode(), _headers_decode(msg.headers())
+
+        logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            address,
+            queue,
+            key,
+            value,
+            headers
+        ))
 
         if definition is not None:
             definition.data['kafka_services'][service_id]['actors'][actor_id]['log'].append(
-                (msg.key().decode(), msg.value().decode())
+                (key, value, headers)
             )
 
         if log is not None:
             log.append(
-                (msg.key().decode(), msg.value().decode())
+                (key, value, headers)
             )
 
         if produce_data is not None:
-            produce(address, produce_data['queue'], produce_data['key'], produce_data['value'])
+            produce(
+                address,
+                produce_data.get('queue'),
+                produce_data.get('key', None),
+                produce_data.get('value'),
+                produce_data.get('headers', {})
+            )
 
     consumer.close()
 
@@ -116,7 +141,13 @@ def _run_produce_loop(definition, service_id, service, actor_id, actor):
 
     while actor['limit'] == -1 or actor['limit'] > 0:
         produce_data = actor['produce']
-        produce(service['address'], produce_data['queue'], produce_data['key'], produce_data['value'])
+        produce(
+            service.get('address'),
+            produce_data.get('queue'),
+            produce_data.get('key', None),
+            produce_data.get('value'),
+            produce_data.get('headers', {})
+        )
 
         _delay(int(actor['delay']))
 
@@ -139,10 +170,8 @@ def run_loops(definition):
                 consume_data = actor['consume']
                 produce_data = None if 'produce' not in actor else actor['produce']
                 t = threading.Thread(target=consume, args=(
-                    service['address'],
-                    consume_data['queue'],
-                    consume_data['key'],
-                    consume_data['value']
+                    service.get('address'),
+                    consume_data.get('queue')
                 ), kwargs={
                     'produce_data': produce_data,
                     'definition': definition,
