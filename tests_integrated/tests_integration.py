@@ -930,12 +930,10 @@ class IntegrationTests(unittest.TestCase):
         t.daemon = True
         t.start()
 
-        time.sleep(2)
-
         resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(2)
+        time.sleep(5)
 
         stop['val'] = True
         t.join()
@@ -972,8 +970,6 @@ class IntegrationTests(unittest.TestCase):
         t.daemon = True
         t.start()
 
-        time.sleep(2)
-
         kafka.produce(
             KAFK,
             trigger_topic,
@@ -981,7 +977,7 @@ class IntegrationTests(unittest.TestCase):
             'json / protobuf / avro'
         )
 
-        time.sleep(2)
+        time.sleep(5)
 
         stop['val'] = True
         t.join()

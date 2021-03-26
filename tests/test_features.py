@@ -3498,7 +3498,7 @@ class TestKafka():
         t.daemon = True
         t.start()
 
-        time.sleep(2)
+        time.sleep(5)
 
         stop['val'] = True
         t.join()
@@ -3522,12 +3522,10 @@ class TestKafka():
         t.daemon = True
         t.start()
 
-        time.sleep(2)
-
         resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(2)
+        time.sleep(5)
 
         stop['val'] = True
         t.join()
@@ -3551,12 +3549,10 @@ class TestKafka():
         t.daemon = True
         t.start()
 
-        time.sleep(2)
-
         resp = httpx.post(MGMT + '/async', data={'actor': 'actor6'}, verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(2)
+        time.sleep(5)
 
         stop['val'] = True
         t.join()
@@ -3581,8 +3577,6 @@ class TestKafka():
         t.daemon = True
         t.start()
 
-        time.sleep(2)
-
         kafka.produce(
             KAFKA_ADDR,
             topic,
@@ -3590,7 +3584,7 @@ class TestKafka():
             value
         )
 
-        time.sleep(2)
+        time.sleep(5)
 
         stop['val'] = True
         t.join()
