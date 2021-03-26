@@ -24,6 +24,8 @@ SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
 SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
 KAFK = os.environ.get('KAFK', 'localhost:9092')
 
+KAFK_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 10)
+
 
 class IntegrationTests(unittest.TestCase):
     @classmethod
@@ -908,7 +910,7 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(5)
+        time.sleep(KAFK_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
@@ -919,7 +921,7 @@ class IntegrationTests(unittest.TestCase):
         value = 'thevalue'
         headers = {'name': 'val'}
 
-        time.sleep(5)
+        time.sleep(KAFK_CONSUME_WAIT)
 
         resp = httpx.get(MGMT + '/async/0/2', verify=False)
         assert 200 == resp.status_code
@@ -956,7 +958,7 @@ class IntegrationTests(unittest.TestCase):
             {'hdr-name': 'value matcher'}
         )
 
-        time.sleep(5)
+        time.sleep(KAFK_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
