@@ -888,16 +888,16 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("somedata", resp.text)
 
     def test_kafka_producer_ondemand(self):
-        resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
-        resp.raise_for_status()
-        self.assertIn("on-demand-1", resp.json()["actors"])
+        # resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
+        # resp.raise_for_status()
+        # self.assertIn("on-demand-1", resp.json()["actors"])
 
         produce('queue-or-topic1', None, "")  # to create a topic
         kafka_consume_expected('queue-or-topic1', timeout=0.1)  # consume creation msg
 
         msgs = kafka_consume_expected('queue-or-topic1')
-        resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
-        resp.raise_for_status()
+        #resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
+        #resp.raise_for_status()
         # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
         self.assertEqual(1, len(msgs))
@@ -919,7 +919,7 @@ class IntegrationTests(unittest.TestCase):
         # consume whatever is there
         msgs = kafka_consume_expected(topic)
         logging.info("Ate: %s", msgs)
-        time.sleep(6)
+        time.sleep(9)
         msgs = kafka_consume_expected(topic, timeout=1)
 
         self.assertGreater(len(msgs), 0)
@@ -981,7 +981,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
 
 def produce(queue, key, val):
     logging.info("Producing into %s: %s %s", queue, key, val)
-    producer = Producer({'bootstrap.servers': KAFK})  # TODO: parameterize
+    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})  # TODO: parameterize
     producer.poll(0)
     producer.produce(queue, key=key, value=val)
     producer.flush()

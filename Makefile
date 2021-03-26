@@ -78,4 +78,4 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker build tests_integrated -t kafka && docker run -d -it -p 9092:9092 --name kafka kafka
+	docker build tests_integrated -t kafka && docker run -d -it --net=host --name kafka kafka
