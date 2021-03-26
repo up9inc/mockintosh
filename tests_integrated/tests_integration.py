@@ -932,7 +932,7 @@ class IntegrationTests(unittest.TestCase):
 
         time.sleep(2)
 
-        resp = httpx.post(MGMT + '/kafka/0/0', verify=False)
+        resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
         time.sleep(2)
@@ -944,7 +944,7 @@ class IntegrationTests(unittest.TestCase):
     def test_kafka_producer_scheduled(self):
         time.sleep(2)
 
-        resp = httpx.get(MGMT + '/kafka/0/2', verify=False)
+        resp = httpx.get(MGMT + '/async/0/2', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()

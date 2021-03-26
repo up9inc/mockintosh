@@ -3426,7 +3426,7 @@ class TestKafka():
 
     def test_get_kafka(self):
         for _format in ('json', 'yaml'):
-            resp = httpx.get(MGMT + '/kafka?format=%s' % _format, verify=False)
+            resp = httpx.get(MGMT + '/async?format=%s' % _format, verify=False)
             assert 200 == resp.status_code
             if _format == 'json':
                 assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -3463,7 +3463,7 @@ class TestKafka():
 
         time.sleep(2)
 
-        resp = httpx.get(MGMT + '/kafka/0/1', verify=False)
+        resp = httpx.get(MGMT + '/async/0/1', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -3473,7 +3473,7 @@ class TestKafka():
     def test_get_kafka_produce_consume_loop(self):
         time.sleep(2)
 
-        resp = httpx.get(MGMT + '/kafka/0/3', verify=False)
+        resp = httpx.get(MGMT + '/async/0/3', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -3524,7 +3524,7 @@ class TestKafka():
 
         time.sleep(2)
 
-        resp = httpx.post(MGMT + '/kafka/0/0', verify=False)
+        resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
         time.sleep(2)

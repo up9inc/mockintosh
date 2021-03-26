@@ -1046,7 +1046,7 @@ class UnhandledData:
         self.requests = []
 
 
-class ManagementKafkaHandler(ManagementBaseHandler):
+class ManagementAsyncHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
