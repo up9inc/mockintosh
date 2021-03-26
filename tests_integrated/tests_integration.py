@@ -24,7 +24,7 @@ SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
 SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
 KAFK = os.environ.get('KAFK', 'localhost:9092')
 
-KAFK_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 10)
+KAFK_CONSUME_WAIT = os.environ.get('KAFK_CONSUME_WAIT', 10)
 
 
 class IntegrationTests(unittest.TestCase):
@@ -890,6 +890,30 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
 
+    def test_kafka__init(self):
+        key = 'somekey or null'
+        value = 'json ( protobuf / avro )'
+
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFK,
+            'queue-or-topic1',
+            key,
+            value
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(KAFK_CONSUME_WAIT)
+
+        stop['val'] = True
+        t.join()
+        assert True
+
     def test_kafka_producer_ondemand(self):
         key = 'somekey or null'
         value = 'json ( protobuf / avro )'
@@ -907,7 +931,7 @@ class IntegrationTests(unittest.TestCase):
         t.daemon = True
         t.start()
 
-        time.sleep(KAFKA_CONSUME_WAIT / 2)
+        time.sleep(KAFK_CONSUME_WAIT / 2)
 
         resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
@@ -952,7 +976,7 @@ class IntegrationTests(unittest.TestCase):
         t.daemon = True
         t.start()
 
-        time.sleep(KAFKA_CONSUME_WAIT / 2)
+        time.sleep(KAFK_CONSUME_WAIT / 2)
 
         kafka.produce(
             KAFK,
