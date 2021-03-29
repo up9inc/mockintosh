@@ -10,10 +10,10 @@ install-dev:
 	pip3 install -e .[dev]
 
 up:
-	date && docker-compose up -d && date
+	docker-compose up -d
 
 down:
-	date && docker-compose down && date
+	docker-compose down
 
 up-testing:
 	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
@@ -29,7 +29,6 @@ test-integration: build
 	docker stop $$(docker ps -a -q)
 
 test-with-coverage: copy-certs up-kafka
-	date && \
 	flake8 && \
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
@@ -42,8 +41,7 @@ test-with-coverage: copy-certs up-kafka
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
-	docker stop $$(docker ps -a -q) && \
-	date
+	docker stop $$(docker ps -a -q)
 
 coverage-after:
 	coverage combine && \
@@ -71,5 +69,4 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	date && docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka && date && \
-	sleep 5
+	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
