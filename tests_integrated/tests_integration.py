@@ -906,12 +906,15 @@ class IntegrationTests(unittest.TestCase):
 
     def test_kafka_producer_scheduled(self):
         topic = 'scheduled-queue1'
-        # with kafka_consume_expected(topic):  # consume creation msg
+
+        # produce(topic, None, "")
+
+        # kafka_consume_expected(topic)
         #    pass  # produce(topic, None, "")  # to create a topic
 
         # def run():
         #    while True:
-        #        produce(topic, "somekey or null", "thevalue %s" % time.time())
+        #        produce(topic, "somekey or null", "scheduled-value")
         #        time.sleep(5)
 
         # Thread(target=run, daemon=True).start()
@@ -924,7 +927,9 @@ class IntegrationTests(unittest.TestCase):
 
         self.assertGreater(len(msgs), 0)
         self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+        val = msgs[0].value().decode()
+        self.assertTrue(val.startswith("scheduled-value"), val)
+        # TODO self.assertEqual("", msgs[0].headers())
 
     def test_kafka_producer_reactive(self):
         trigger = 'consume-trigger1'
@@ -952,6 +957,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
     logging.debug("Topic state: %s", topics.topics)
     assert topics.topics[topic].error is None, "%s" % topics.topics
     consumer.subscribe([topic])
+    time.sleep(1)  # for kafka to rebalance consumer groups
 
     after_subscribe()
     msgs = []

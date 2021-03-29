@@ -275,11 +275,11 @@ services:
         produce:
           queue: scheduled-queue1
           key: somekey or null
-          value: thevalue
+          value: scheduled-value
           headers:
-            name: val
+            name: scheduled
         delay: 5 # seconds between producing
-        limit: 100 # produce up to N messages
+        limit: 10000 # produce up to N messages
 
       # reactive producer
       - consume:
