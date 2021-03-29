@@ -106,7 +106,8 @@
 
 # Next Version
 
-
+1. Display timestamps in traffic log
+1. Do not respond with Content-Type=text/html if no content-type header is configured
 
 # Roadmap Ideas
 
@@ -132,4 +133,6 @@
     - reactive consumer+producer
     - consumer fact validation
     - avro + grpc + JSON
+- SQS as one more async tech
+
 - mocks for gRPC servers
