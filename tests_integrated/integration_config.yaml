@@ -264,11 +264,11 @@ services:
       # on-demand producer
       - name: on-demand-1
         produce:
-          queue: queue-or-topic1
+          queue: on-demand1
           key: somekey or null
           value: json ( protobuf / avro )
           headers:
-            name: val
+            name: ondemand
 
       # scheduled producer
       - name: scheduled1

@@ -892,17 +892,17 @@ class IntegrationTests(unittest.TestCase):
         # resp.raise_for_status()
         # self.assertIn("on-demand-1", resp.json()["actors"])
 
-        produce('queue-or-topic1', None, "")  # to create a topic
-        kafka_consume_expected('queue-or-topic1', timeout=0.1)  # consume creation msg
+        #produce('on-demand1', None, "")  # to create a topic
+        kafka_consume_expected('on-demand1')  # consume any preceding
 
-        msgs = kafka_consume_expected('queue-or-topic1')
-        # resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
-        # resp.raise_for_status()
+        resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
+        resp.raise_for_status()
+        msgs = kafka_consume_expected('on-demand1')
         # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
         self.assertEqual(1, len(msgs))
         self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+        self.assertEqual("json ( protobuf / avro )", msgs[0].value().decode())
 
     def test_kafka_producer_scheduled(self):
         topic = 'scheduled-queue1'
@@ -957,7 +957,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
     logging.debug("Topic state: %s", topics.topics)
     assert topics.topics[topic].error is None, "%s" % topics.topics
     consumer.subscribe([topic])
-    time.sleep(10)  # for kafka to rebalance consumer groups
+    time.sleep(5)  # for kafka to rebalance consumer groups
 
     after_subscribe()
     msgs = []
