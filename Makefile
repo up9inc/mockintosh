@@ -22,7 +22,7 @@ up-testing:
 test: test-integration copy-certs up-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
-	${MAKE} down
+	docker stop $$(docker ps -a -q)
 
 test-integration: build
 	tests_integrated/acceptance.sh && \
@@ -42,8 +42,8 @@ test-with-coverage: copy-certs up-kafka
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
-	date && \
-	${MAKE} down
+	docker stop $$(docker ps -a -q) && \
+	date
 
 coverage-after:
 	coverage combine && \
@@ -71,5 +71,5 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	date && docker-compose up -d zookeeper kafka && date && \
+	date && docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka && date && \
 	sleep 5
