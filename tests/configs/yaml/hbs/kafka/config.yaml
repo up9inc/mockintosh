@@ -56,6 +56,14 @@ services:
       value: value6
       headers:
         hdr6: val6
+  - name: limitless
+    produce:
+      queue: topic7
+      key: key7
+      value: value7
+      headers:
+        hdr7: val7
+    delay: 20
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

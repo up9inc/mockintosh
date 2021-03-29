@@ -20,7 +20,7 @@ from mockintosh.methods import _delay
 
 
 def _kafka_delivery_report(err, msg):
-    if err is not None:
+    if err is not None:  # pragma: no cover
         logging.info('Message delivery failed: {}'.format(err))
     else:
         logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
@@ -88,7 +88,7 @@ def consume(
     consumer.subscribe([queue])
 
     while True:
-        if stop.get('val', False):
+        if stop.get('val', False):  # pragma: no cover
             break
 
         msg = consumer.poll(1.0)
@@ -96,7 +96,7 @@ def consume(
         if msg is None:
             continue
 
-        if msg.error():
+        if msg.error():  # pragma: no cover
             logging.warning("Consumer error: {}".format(msg.error()))
             continue
 
@@ -115,12 +115,12 @@ def consume(
                 (key, value, headers)
             )
 
-        if log is not None:
+        if log is not None:  # pragma: no cover
             log.append(
                 (key, value, headers)
             )
 
-        if produce_data is not None:
+        if produce_data is not None:  # pragma: no cover
             produce(
                 address,
                 produce_data.get('queue'),
@@ -129,13 +129,11 @@ def consume(
                 produce_data.get('headers', {})
             )
 
-    consumer.close()
-
 
 def _run_produce_loop(definition, service_id, service, actor_id, actor):
     if 'limit' not in actor:
         logging.info('Running a Kafka loop indefinitely...')
-        actor['limit'] == -1
+        actor['limit'] = -1
     else:
         logging.info('Running a Kafka loop for %d iterations...' % actor['limit'])
 
