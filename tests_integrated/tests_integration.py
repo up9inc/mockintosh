@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 import httpx
+import pytest
 import yaml
 from confluent_kafka.cimpl import Consumer, Producer
 from jsonschema.validators import validate
@@ -887,38 +888,30 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
 
+    @pytest.mark.kafka
     def test_kafka_producer_ondemand(self):
         # resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
         # resp.raise_for_status()
         # self.assertIn("on-demand-1", resp.json()["actors"])
 
+        topic = "on-demand1"
+        produce(topic, None, None)
         resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
         resp.raise_for_status()
-        kafka_consume_expected('on-demand1')  # to clear queue from any preceding messages
+        kafka_consume_expected(topic)  # to clear queue from any preceding messages
 
         resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
         resp.raise_for_status()
-        msgs = kafka_consume_expected('on-demand1')
+        msgs = kafka_consume_expected(topic)
         # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
         self.assertEqual(1, len(msgs))
         self.assertEqual("somekey or null", msgs[0].key().decode())
         self.assertEqual("json ( protobuf / avro )", msgs[0].value().decode())
 
+    @pytest.mark.kafka
     def test_kafka_producer_scheduled(self):
         topic = 'scheduled-queue1'
-
-        # produce(topic, None, "")
-
-        # kafka_consume_expected(topic)
-        #    pass  # produce(topic, None, "")  # to create a topic
-
-        # def run():
-        #    while True:
-        #        produce(topic, "somekey or null", "scheduled-value")
-        #        time.sleep(5)
-
-        # Thread(target=run, daemon=True).start()
 
         # consume whatever is there
         msgs = kafka_consume_expected(topic)
@@ -932,19 +925,21 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(val.startswith("scheduled-value"), val)
         # TODO self.assertEqual("", msgs[0].headers())
 
+    @pytest.mark.kafka
     def test_kafka_producer_reactive(self):
         trigger = 'consume-trigger1'
         reaction = 'produce-reaction1'
 
-        with kafka_consume_expected(reaction, timeout=1) as msgs:  # cleanup
-            pass
+        produce(reaction, None, None)
+        kafka_consume_expected(reaction, timeout=1)
 
-        with kafka_consume_expected(reaction, timeout=5) as msgs:  # validate
-            produce(trigger, "trigger-key", "trigger-val")
+        produce(trigger, "trigger-key", "trigger-val")
+        time.sleep(5)
+        msgs=kafka_consume_expected(reaction, timeout=5)
 
         self.assertEqual(1, len(msgs))
         self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertTrue(msgs[0].value().decode().startswith("thevalue "))
+        self.assertEqual("reaction-value", msgs[0].value().decode())
 
 
 def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,

@@ -42,7 +42,7 @@ def _create_topic(address, queue):
 
 def _headers_decode(headers: list):
     new_headers = {}
-    for el in headers:
+    for el in headers if headers else []:
         new_headers[el[0]] = el[1].decode()
     return new_headers
 

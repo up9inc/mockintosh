@@ -279,7 +279,7 @@ services:
           headers:
             name: scheduled
         delay: 5 # seconds between producing
-        limit: 10000 # produce up to N messages
+        limit: 100 # produce up to N messages
 
       # reactive producer
       - consume:
@@ -293,7 +293,7 @@ services:
         produce:
           queue: produce-reaction1
           key: somekey or null
-          value: thevalue
+          value: reaction-value
           headers:
             name: val
 
