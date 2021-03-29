@@ -24,11 +24,12 @@ test: test-integration copy-certs up-kafka
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
-test-integration: build up-testing
-	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
-	${MAKE} down
+test-integration: build
+	tests_integrated/acceptance.sh && \
+	docker stop $$(docker ps -a -q)
 
 test-with-coverage: copy-certs up-kafka
+	flake8 && \
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \

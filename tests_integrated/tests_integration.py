@@ -935,7 +935,7 @@ class IntegrationTests(unittest.TestCase):
 
         produce(trigger, "trigger-key", "trigger-val")
         time.sleep(5)
-        msgs=kafka_consume_expected(reaction, timeout=5)
+        msgs = kafka_consume_expected(reaction, timeout=5)
 
         self.assertEqual(1, len(msgs))
         self.assertEqual("somekey or null", msgs[0].key().decode())
