@@ -957,7 +957,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
     logging.debug("Topic state: %s", topics.topics)
     assert topics.topics[topic].error is None, "%s" % topics.topics
     consumer.subscribe([topic])
-    time.sleep(1)  # for kafka to rebalance consumer groups
+    time.sleep(10)  # for kafka to rebalance consumer groups
 
     after_subscribe()
     msgs = []
