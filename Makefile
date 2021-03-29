@@ -22,7 +22,7 @@ up-testing:
 test: test-integration copy-certs up-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
-	${MAKE} down
+	docker stop $$(docker ps -a -q)
 
 test-integration: build
 	tests_integrated/acceptance.sh && \
