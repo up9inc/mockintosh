@@ -892,8 +892,9 @@ class IntegrationTests(unittest.TestCase):
         # resp.raise_for_status()
         # self.assertIn("on-demand-1", resp.json()["actors"])
 
-        #produce('on-demand1', None, "")  # to create a topic
-        kafka_consume_expected('on-demand1')  # consume any preceding
+        resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
+        resp.raise_for_status()
+        kafka_consume_expected('on-demand1')  # to clear queue from any preceding messages
 
         resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
         resp.raise_for_status()
