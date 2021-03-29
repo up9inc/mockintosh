@@ -12,6 +12,8 @@ import re
 import time
 import json
 import socket
+import threading
+import subprocess
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
 
@@ -23,10 +25,10 @@ from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
+from mockintosh import kafka
 from mockintosh.constants import PROGRAM, BASE64
 from mockintosh.performance import PerformanceProfile
-from mockintosh.methods import _b64encode, _delay
-from mockintosh import kafka
+from mockintosh.methods import _b64encode
 from utilities import (
     tcping,
     run_mock_server,
@@ -65,6 +67,7 @@ SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
 
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
+KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 10)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
@@ -3403,77 +3406,173 @@ class TestPerformanceProfile():
 
 class TestKafka():
 
-    def setup_method(self):
-        self.mock_server_process = None
+    mock_server_process = None
+    config = 'configs/yaml/hbs/kafka/config.yaml'
 
-    def teardown_method(self):
-        if self.mock_server_process is not None:
-            self.mock_server_process.terminate()
+    @classmethod
+    def setup_class(cls):
+        cmd = '%s %s' % (PROGRAM, get_config_path(TestKafka.config))
+        TestKafka.mock_server_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            shell=True
+        )
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-    @pytest.mark.parametrize(('config', '_format'), [
-        ('configs/json/hbs/kafka/config.json', 'json'),
-        ('configs/yaml/hbs/kafka/config.yaml', 'json'),
-        ('configs/json/hbs/kafka/config.json', 'yaml'),
-        ('configs/yaml/hbs/kafka/config.yaml', 'yaml')
-    ])
-    def test_get_kafka(self, config, _format):
-        self.mock_server_process = run_mock_server(get_config_path(config))
+    @classmethod
+    def teardown_class(cls):
+        TestKafka.mock_server_process.kill()
+        os.system("killall -9 %s" % PROGRAM)
 
-        resp = httpx.get(MGMT + '/kafka?format=%s' % _format, verify=False)
+    def test_get_kafka(self):
+        for _format in ('json', 'yaml'):
+            resp = httpx.get(MGMT + '/async?format=%s' % _format, verify=False)
+            assert 200 == resp.status_code
+            if _format == 'json':
+                assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            elif _format == 'yaml':
+                assert resp.headers['Content-Type'] == 'application/x-yaml'
+            data = yaml.safe_load(resp.text)
+
+            with open(get_config_path(TestKafka.config), 'r') as file:
+                data2 = yaml.safe_load(file.read())
+                for i, service in enumerate(data['services']):
+                    service2 = data2['services'][i]
+                    new_actors = []
+                    for actor in service['actors']:
+                        actor.pop('limit', None)
+                        new_actors.append(actor)
+                    new_actors2 = []
+                    for actor2 in service['actors']:
+                        actor2.pop('limit', None)
+                        new_actors2.append(actor2)
+                    assert service['name'] == service2['name']
+                    assert service['address'] == service2['address']
+                    assert new_actors == new_actors2
+
+    def test_get_kafka_consume(self):
+        key = 'key2'
+        value = 'value2'
+        headers = {'hdr2': 'val2'}
+
+        kafka.produce(
+            KAFKA_ADDR,
+            'topic2',
+            key,
+            value,
+            headers
+        )
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/0/1', verify=False)
         assert 200 == resp.status_code
-        if _format == 'json':
-            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        elif _format == 'yaml':
-            assert resp.headers['Content-Type'] == 'application/x-yaml'
-        data = yaml.safe_load(resp.text)
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
 
-        with open(get_config_path(config), 'r') as file:
-            data2 = yaml.safe_load(file.read())
-            for i, service in enumerate(data['services']):
-                service2 = data2['services'][i]
-                assert service['name'] == service2['name']
-                assert service['address'] == service2['address']
-                assert service['actors'] == service2['actors']
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
-    @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/kafka/config.json'
-    ])
-    def test_post_kafka(self, config):
-        self.mock_server_process = run_mock_server(get_config_path(config))
+    def test_get_kafka_produce_consume_loop(self):
+        key = 'key3'
+        value = 'value3'
+        headers = {'hdr3': 'val3'}
 
-        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'key1', 'value1')
+        time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 0}, verify=False)
+        resp = httpx.get(MGMT + '/async/0/3', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+
+    def test_post_kafka_produce(self):
+        key = 'key1'
+        value = 'value1'
+        headers = {'hdr1': 'val1'}
+
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFKA_ADDR,
+            'topic1'
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        resp = httpx.post(MGMT + '/async/0/0', verify=False)
         assert 200 == resp.status_code
 
-        _delay(2)
+        time.sleep(KAFKA_CONSUME_WAIT)
 
-        assert kafka.consume(KAFKA_ADDR, 'topic1', 'key1', 'value1')
+        stop['val'] = True
+        t.join()
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
-    @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/kafka/config.json'
-    ])
-    def test_post_kafka_loop(self, config):
-        assert not kafka.consume(KAFKA_ADDR, 'topic1', 'key1', 'value1')
+    def test_post_kafka_produce_by_actor_name(self):
+        key = 'key6'
+        value = 'value6'
+        headers = {'hdr6': 'val6'}
 
-        self.mock_server_process = run_mock_server(get_config_path(config))
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFKA_ADDR,
+            'topic6'
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
 
-        _delay(5)
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        assert kafka.consume(KAFKA_ADDR, 'topic1', 'key2', 'value2')
-
-    @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/kafka/config.json'
-    ])
-    def test_post_kafka_reactive_consumer(self, config):
-        self.mock_server_process = run_mock_server(get_config_path(config))
-
-        assert not kafka.consume(KAFKA_ADDR, 'topic2', 'key2', 'value2')
-
-        kafka.produce(KAFKA_ADDR, 'topic2', 'key2', 'value2')
-
-        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 2}, verify=False)
+        resp = httpx.post(MGMT + '/async', data={'actor': 'actor6'}, verify=False)
         assert 200 == resp.status_code
 
-        resp = httpx.post(MGMT + '/kafka', data={'service': 0, 'actor': 3}, verify=False)
-        assert 200 == resp.status_code
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        stop['val'] = True
+        t.join()
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+
+    def test_post_kafka_reactive_consumer(self):
+        topic = 'topic5'
+        key = 'key5'
+        value = 'value5'
+        headers = {'hdr5': 'val5'}
+
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFKA_ADDR,
+            topic
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        kafka.produce(
+            KAFKA_ADDR,
+            topic,
+            key,
+            value,
+            {'hdr5': 'val5'}
+        )
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        stop['val'] = True
+        t.join()
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)

@@ -896,8 +896,8 @@ class IntegrationTests(unittest.TestCase):
         kafka_consume_expected('queue-or-topic1', timeout=0.1)  # consume creation msg
 
         msgs = kafka_consume_expected('queue-or-topic1')
-        #resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
-        #resp.raise_for_status()
+        # resp = httpx.post(MGMT + '/async/producer', data={"actor": "on-demand-1"}, verify=False)
+        # resp.raise_for_status()
         # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
         self.assertEqual(1, len(msgs))

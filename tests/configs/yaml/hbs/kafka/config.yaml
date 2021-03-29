@@ -16,33 +16,46 @@ services:
       value: value1
       headers:
         hdr1: val1
-  - produce:
-      queue: topic1
+  - consume:
+      queue: topic2
       key: key2
       value: value2
       headers:
         hdr2: val2
+  - produce:
+      queue: topic3
+      key: key3
+      value: value3
+      headers:
+        hdr3: val3
     delay: 5
     limit: 100
   - consume:
-      queue: topic2
-      key: key2
-      value: value2
-      headers:
-        hdr3: val3
-    delay: 3
-    produce:
-      queue: topic2
+      queue: topic3
       key: key3
       value: value3
       headers:
         hdr3: val3
   - consume:
-      queue: topic2
-      key: key3
-      value: value3
+      queue: topic4
+      key: key4
+      value: value4
       headers:
-        hdr3: val3
+        hdr4: val4
+    delay: 3
+    produce:
+      queue: topic5
+      key: key5
+      value: value5
+      headers:
+        hdr5: val5
+  - name: actor6
+    produce:
+      queue: topic6
+      key: key6
+      value: value6
+      headers:
+        hdr6: val6
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

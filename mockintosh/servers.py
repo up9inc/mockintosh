@@ -30,9 +30,7 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
-    ManagementKafkaHandler,
-    ManagementAsyncProducersHandler,
-    ManagementAsyncProduceHandler,
+    ManagementAsyncHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -501,22 +499,15 @@ class HttpServer:
                     )
                 ),
                 (
-                    '/kafka',
-                    ManagementKafkaHandler,
+                    '/async',
+                    ManagementAsyncHandler,
                     dict(
                         http_server=self
                     )
                 ),
                 (
-                    '/async/producers',
-                    ManagementAsyncProducersHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async/produce',
-                    ManagementAsyncProduceHandler,
+                    '/async/([0-9]+)/([0-9]+)',
+                    ManagementAsyncHandler,
                     dict(
                         http_server=self
                     )

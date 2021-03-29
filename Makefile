@@ -10,29 +10,21 @@ install-dev:
 	pip3 install -e .[dev]
 
 up:
-	echo
+	docker-compose up -d
 
 down:
-	docker kill kafka && docker rm kafka
+	docker-compose down
 
 up-testing:
-	echo
-	# docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d
+	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
+	sleep 10
 
 test: test-integration copy-certs up-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
-test-integration: build up-kafka
-	docker run -d --net=host -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
-		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
-		-v \
-		-l /tmp/tests_integrated/server.log \
-		--interceptor=custom_interceptors.intercept_for_logging \
-		--interceptor=custom_interceptors.intercept_for_modifying \
-		/tmp/tests_integrated/integration_config.yaml && \
-	sleep 5 && \
+test-integration: build up-testing
 	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
 	${MAKE} down
 
@@ -72,10 +64,9 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/management/key.pem && \
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/management/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem && \
-	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/kafka/cert.pem && \
-	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/kafka/key.pem && \
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/kafka/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker build tests_integrated -t kafka && docker run -d -it --net=host --name kafka kafka
+	docker-compose up -d zookeeper kafka && \
+	sleep 5
