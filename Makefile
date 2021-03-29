@@ -16,7 +16,8 @@ down:
 	docker-compose down
 
 up-testing:
-	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
+	echo
+	#docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
 	sleep 10
 
 test: test-integration copy-certs up-kafka
