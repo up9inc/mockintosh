@@ -12,4 +12,4 @@ docker run -d --net=host -v `pwd`/tests_integrated:/tmp/tests_integrated \
 
 sleep 5
 
-pytest tests_integrated/tests_integration.py -s -v --log-level=DEBUG -m kafka
+pytest tests_integrated/tests_integration.py -s -v --log-level=DEBUG # -m kafka
