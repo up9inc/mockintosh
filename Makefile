@@ -41,7 +41,7 @@ test-with-coverage: copy-certs up-kafka
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
-	${MAKE} down
+	docker stop $$(docker ps -a -q)
 
 coverage-after:
 	coverage combine && \
