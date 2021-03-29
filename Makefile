@@ -10,10 +10,10 @@ install-dev:
 	pip3 install -e .[dev]
 
 up:
-	docker-compose up -d
+	date && docker-compose up -d && date
 
 down:
-	docker-compose down
+	date && docker-compose down && date
 
 up-testing:
 	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
@@ -29,6 +29,7 @@ test-integration: build up-testing
 	${MAKE} down
 
 test-with-coverage: copy-certs up-kafka
+	date && \
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -40,6 +41,7 @@ test-with-coverage: copy-certs up-kafka
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
+	date && \
 	${MAKE} down
 
 coverage-after:
@@ -68,5 +70,5 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker-compose up -d zookeeper kafka && \
+	date && docker-compose up -d zookeeper kafka && date && \
 	sleep 5
