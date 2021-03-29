@@ -3496,6 +3496,22 @@ class TestKafka():
 
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
+    def test_get_kafka_bad_requests(self):
+        resp = httpx.get(MGMT + '/async/13/0', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Service not found!'
+
+        resp = httpx.get(MGMT + '/async/0/13', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Actor not found!'
+
+        resp = httpx.get(MGMT + '/async/0/0', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'This actor is not a consumer!'
+
     def test_post_kafka_produce(self):
         key = 'key1'
         value = 'value1'
@@ -3585,3 +3601,25 @@ class TestKafka():
         stop['val'] = True
         t.join()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+
+    def test_post_kafka_bad_requests(self):
+        actor13 = 'actor13'
+        resp = httpx.post(MGMT + '/async', data={'actor': actor13}, verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'No producer actor is found for: \'%s\'' % actor13
+
+        resp = httpx.post(MGMT + '/async/13/0', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Service not found!'
+
+        resp = httpx.post(MGMT + '/async/0/13', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Actor not found!'
+
+        resp = httpx.post(MGMT + '/async/0/1', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'This actor is not a producer!'

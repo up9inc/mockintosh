@@ -64,6 +64,22 @@ services:
       headers:
         hdr7: val7
     delay: 20
+  - name: short-loop
+    produce:
+      queue: topic8
+      key: key8
+      value: value8
+      headers:
+        hdr8: val8
+    delay: 2
+    limit: 2
+  - name: actor6
+    consume:
+      queue: topic9
+      key: key9
+      value: value9
+      headers:
+        hdr9: val9
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
