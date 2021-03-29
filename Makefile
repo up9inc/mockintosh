@@ -69,5 +69,4 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
 
 up-kafka:
-	docker-compose up -d zookeeper kafka && \
-	sleep 5
+	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
