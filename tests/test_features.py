@@ -71,6 +71,8 @@ KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 10)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
+should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
+
 
 @pytest.mark.parametrize(('config'), configs)
 class TestCommon():
@@ -3412,18 +3414,25 @@ class TestKafka():
     @classmethod
     def setup_class(cls):
         cmd = '%s %s' % (PROGRAM, get_config_path(TestKafka.config))
+        if should_cov:
+            cmd = 'coverage run --parallel -m %s' % cmd
+        this_env = os.environ.copy()
         TestKafka.mock_server_process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            shell=True
+            shell=True,
+            env=this_env
         )
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
     @classmethod
     def teardown_class(cls):
         TestKafka.mock_server_process.kill()
-        os.system("killall -9 %s" % PROGRAM)
+        name = PROGRAM
+        if should_cov:
+            name = 'coverage'
+        os.system('killall -2 %s' % name)
 
     def test_get_kafka(self):
         for _format in ('json', 'yaml'):
