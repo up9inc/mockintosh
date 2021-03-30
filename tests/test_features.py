@@ -82,8 +82,7 @@ class TestCommon():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
     def teardown_method(self):
-        self.mock_server_process.kill()
-        # self.mock_server_process.join()
+        self.mock_server_process.terminate()
 
     def test_ping_ports(self, config):
         ports = (8001, 8002)
