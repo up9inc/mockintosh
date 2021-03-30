@@ -86,7 +86,7 @@ class TestCommon:
         self.mock_server_process.terminate()
         try:
             self.mock_server_process.join(10)
-            logging.warning("Process has terminated: %s", self.mock_server_process.exitcode)
+            logging.debug("Process has terminated: %s", self.mock_server_process.exitcode)
         except subprocess.TimeoutExpired:
             logging.warning("Process has not terminated, killing it")
             self.mock_server_process.kill()
