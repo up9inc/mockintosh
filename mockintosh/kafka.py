@@ -16,7 +16,19 @@ from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
+from mockintosh.constants import PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.methods import _delay
+from mockintosh.templating import TemplateRenderer
+from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
+from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
+
+hbs_random = hbs_Random()
+j2_random = j2_Random()
+
+hbs_date = hbs_Date()
+j2_date = j2_Date()
+
+counters = {}
 
 
 def _kafka_delivery_report(err, msg):
@@ -47,8 +59,78 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def produce(address: str, queue: str, key: Union[str, None], value: str, headers: dict) -> None:
+def _populate_counters(context: [None, dict]) -> None:
+    """Method that retrieves counters from template engine contexts."""
+    if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
+        for key, value in context[SPECIAL_CONTEXT]['counters'].items():
+            counters[key] = value
+
+
+def _analyze_counters(context: dict) -> None:
+    """Method that injects counters into template engine contexts."""
+    for key, value in counters.items():
+        context[key] = value
+    return context
+
+
+def _template_renderer(template_engine: str, context: dict, text: str) -> str:
+    """Method to initialize `TemplateRenderer` and call `render()`."""
+
+    if template_engine == PYBARS:
+        from mockintosh.hbs.methods import fake, counter, json_path, escape_html
+        context['random'] = hbs_random
+        context['date'] = hbs_date
+    elif template_engine == JINJA:
+        from mockintosh.j2.methods import fake, counter, json_path, escape_html
+        context['random'] = j2_random
+        context['date'] = j2_date
+
+    renderer = TemplateRenderer(
+        template_engine,
+        text,
+        inject_objects=context,
+        inject_methods=[
+            fake,
+            counter,
+            json_path,
+            escape_html
+        ]
+    )
+    compiled, context = renderer.render()
+    _populate_counters(context)
+    return compiled
+
+
+def _render_attributes(template_engine, context, *args):
+    rendered = []
+    for arg in args:
+        if arg is None:
+            rendered.append(arg)
+
+        if isinstance(arg, dict):
+            new_arg = {}
+            for key, value in arg.items():
+                new_arg[key] = _template_renderer(template_engine, context, value)
+            rendered.append(new_arg)
+        elif isinstance(arg, str):
+            rendered.append(_template_renderer(template_engine, context, arg))
+
+    return rendered
+
+
+def produce(
+    address: str,
+    queue: str,
+    key: Union[str, None],
+    value: str,
+    headers: dict,
+    template_engine: str
+) -> None:
     _create_topic(address, queue)
+
+    context = _analyze_counters({})
+
+    key, value, headers = _render_attributes(template_engine, context, key, value, headers)
 
     # Producing
     producer = Producer({'bootstrap.servers': address})
@@ -126,7 +208,8 @@ def consume(
                 produce_data.get('queue'),
                 produce_data.get('key', None),
                 produce_data.get('value'),
-                produce_data.get('headers', {})
+                produce_data.get('headers', {}),
+                definition.template_engine
             )
 
 
@@ -144,7 +227,8 @@ def _run_produce_loop(definition, service_id, service, actor_id, actor):
             produce_data.get('queue'),
             produce_data.get('key', None),
             produce_data.get('value'),
-            produce_data.get('headers', {})
+            produce_data.get('headers', {}),
+            definition.template_engine
         )
 
         _delay(int(actor['delay']))
