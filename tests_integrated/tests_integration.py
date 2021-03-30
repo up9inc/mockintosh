@@ -987,7 +987,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
 
 def produce(queue, key, val):
     logging.info("Producing into %s: %s %s", queue, key, val)
-    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})  # TODO: parameterize
+    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})
     producer.poll(0)
     producer.produce(queue, key=key, value=val)
     producer.flush()
