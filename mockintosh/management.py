@@ -1142,6 +1142,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                                 service,
                                 actor_id,
                                 actor,
+                                self.http_server.definition.source_dir,
                                 self.http_server.definition.template_engine
                             ))
                             t.daemon = True
@@ -1185,12 +1186,13 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 service,
                 actor_id,
                 actor,
+                self.http_server.definition.source_dir,
                 self.http_server.definition.template_engine
             ))
             t.daemon = True
             t.start()
 
-    def _produce(self, service_id, service, actor_id, actor, template_engine):
+    def _produce(self, service_id, service, actor_id, actor, source_dir, template_engine):
         # Producing
         produce_data = actor['produce']
         kafka.produce(
@@ -1199,5 +1201,6 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             produce_data.get('key', None),
             produce_data.get('value'),
             produce_data.get('headers', {}),
+            source_dir,
             template_engine
         )
