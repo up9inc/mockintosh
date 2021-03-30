@@ -85,12 +85,12 @@ class TestCommon():
     def teardown_method(self):
         self.mock_server_process.terminate()
         try:
-            status = self.mock_server_process.wait(10)
-            logging.warning("Process has terminated: %s", status)
+            self.mock_server_process.join(10)
+            logging.warning("Process has terminated: %s", self.mock_server_process.exitcode)
         except subprocess.TimeoutExpired:
             logging.warning("Process has not terminated, killing it")
             self.mock_server_process.kill()
-            self.mock_server_process.wait(5)
+            self.mock_server_process.join(5)
 
     def test_ping_ports(self, config):
         ports = (8001, 8002)

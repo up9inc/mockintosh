@@ -41,6 +41,9 @@ def tcping(host, port=65533, timeout=2):
 
 
 def run_mock_server(*args, wait=5):
+    """
+    :rtype: Process
+    """
     mock_server_process = None
 
     testargs = [PROGRAM, *args]
