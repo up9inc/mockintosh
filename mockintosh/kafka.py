@@ -111,7 +111,7 @@ def _resolve_relative_path(config_dir: [str, None], template_engine: str, contex
 
     if orig_relative_path[0] == '/':
         orig_relative_path = orig_relative_path[1:]
-    error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+    # error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
     relative_path = os.path.join(config_dir, orig_relative_path)
     if not os.path.isfile(relative_path):
         return None

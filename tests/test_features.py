@@ -3664,9 +3664,9 @@ class TestKafka():
                 (row[2]['constant'] == 'constant-value')
                 and  # noqa: W504, W503
                 (len(row[2]['timestamp']) == 10 and row[2]['timestamp'].isnumeric())
-                and
+                and  # noqa: W504, W503
                 (int(row[2]['counter']) == i + 1)
-                and
+                and  # noqa: W504, W503
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
                 for row in log
             )

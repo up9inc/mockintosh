@@ -81,8 +81,6 @@ j2_random = j2_Random()
 hbs_date = hbs_Date()
 j2_date = j2_Date()
 
-counters = {}
-
 client = httpx.AsyncClient()
 
 __location__ = os.path.abspath(os.path.dirname(__file__))
@@ -93,7 +91,72 @@ class NewHTTPError(Exception):
     pass
 
 
-class GenericHandler(tornado.web.RequestHandler):
+class Counters:
+    def __init__(self):
+        self.data = {}
+
+
+counters = Counters()
+
+
+class BaseHandler:
+
+    def __init__(self):
+        self.custom_context = {}
+        self.counters = counters
+
+    def resolve_relative_path(self, source_text: str) -> [None, str]:
+        """Method to resolve the relative path (relative to the config file)."""
+        orig_relative_path = source_text[1:]
+
+        orig_relative_path, context = self.common_template_renderer(self.definition_engine, orig_relative_path)
+        self.populate_counters(context)
+
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        return os.path.join(self.config_dir, orig_relative_path), orig_relative_path
+
+    def common_template_renderer(self, template_engine: str, text: str) -> str:
+        """Common method to initialize `TemplateRenderer` and call `render()`."""
+        if template_engine == PYBARS:
+            from mockintosh.hbs.methods import fake, counter, json_path, escape_html
+            self.custom_context['random'] = hbs_random
+            self.custom_context['date'] = hbs_date
+        elif template_engine == JINJA:
+            from mockintosh.j2.methods import fake, counter, json_path, escape_html
+            self.custom_context['random'] = j2_random
+            self.custom_context['date'] = j2_date
+
+        renderer = TemplateRenderer(
+            template_engine,
+            text,
+            inject_objects=self.custom_context,
+            inject_methods=[
+                fake,
+                counter,
+                json_path,
+                escape_html
+            ],
+            add_params_callback=self.add_params
+        )
+        return renderer.render()
+
+    def populate_counters(self, context: [None, dict]) -> None:
+        """Method that retrieves counters from template engine contexts."""
+        if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
+            for key, value in context[SPECIAL_CONTEXT]['counters'].items():
+                self.counters.data[key] = value
+
+    def analyze_counters(self) -> None:
+        """Method that injects counters into template engine contexts."""
+        for key, value in self.counters.data.items():
+            self.custom_context[key] = value
+
+    def add_params(self, context: [None, dict]) -> [None, dict]:
+        pass
+
+
+class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     """Class to handle all mocked requests."""
 
     def prepare(self) -> Optional[Awaitable[None]]:
@@ -198,7 +261,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.default_context = {
                 'request': self.replica_request
             }
-            self.custom_context = {}
         except Exception as e:  # pragma: no cover
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
@@ -298,12 +360,6 @@ class GenericHandler(tornado.web.RequestHandler):
         self.analyze_component('bodyUrlencoded')
         self.analyze_component('bodyMultipart')
         self.analyze_counters()
-
-    def populate_counters(self, context: [None, dict]) -> None:
-        """Method that retrieves counters from template engine contexts."""
-        if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
-            for key, value in context[SPECIAL_CONTEXT]['counters'].items():
-                counters[key] = value
 
     async def dynamic_unimplemented_method_guard(self) -> None:
         """Method to handle unimplemented HTTP verbs (`405`)."""
@@ -551,11 +607,6 @@ class GenericHandler(tornado.web.RequestHandler):
                     if match is not None:
                         for i, key in enumerate(value['args']):
                             self.custom_context[key] = match.group(i + 1)
-
-    def analyze_counters(self) -> None:
-        """Method that injects counters into template engine contexts."""
-        for key, value in counters.items():
-            self.custom_context[key] = value
 
     def determine_headers(self) -> None:
         """Method to determine the headers of the response."""
@@ -839,17 +890,8 @@ class GenericHandler(tornado.web.RequestHandler):
         return not hasattr(self, 'custom_response') or 'body' in self.custom_response
 
     def resolve_relative_path(self, source_text: str) -> [None, str]:
-        """Method to resolve the relative path (relative to the config file)."""
-        relative_path = None
-        orig_relative_path = source_text[1:]
-
-        orig_relative_path, context = self.common_template_renderer(self.definition_engine, orig_relative_path)
-        self.populate_counters(context)
-
-        if orig_relative_path[0] == '/':
-            orig_relative_path = orig_relative_path[1:]
+        relative_path, orig_relative_path = super().resolve_relative_path(source_text)
         error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
-        relative_path = os.path.join(self.config_dir, orig_relative_path)
         if not os.path.isfile(relative_path):
             self.send_error(500, message=error_msg)
             return None
@@ -948,31 +990,6 @@ class GenericHandler(tornado.web.RequestHandler):
                 return alternative[key][alternative[index_key]]
         else:
             return alternative[key][alternative[index_key]]
-
-    def common_template_renderer(self, template_engine: str, text: str) -> str:
-        """Common method to initialize `TemplateRenderer` and call `render()`."""
-        if template_engine == PYBARS:
-            from mockintosh.hbs.methods import fake, counter, json_path, escape_html
-            self.custom_context['random'] = hbs_random
-            self.custom_context['date'] = hbs_date
-        elif template_engine == JINJA:
-            from mockintosh.j2.methods import fake, counter, json_path, escape_html
-            self.custom_context['random'] = j2_random
-            self.custom_context['date'] = j2_date
-
-        renderer = TemplateRenderer(
-            template_engine,
-            text,
-            inject_objects=self.custom_context,
-            inject_methods=[
-                fake,
-                counter,
-                json_path,
-                escape_html
-            ],
-            add_params_callback=self.add_params
-        )
-        return renderer.render()
 
     async def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""
