@@ -6,7 +6,6 @@
     :synopsis: module that contains Kafka related methods.
 """
 
-import os
 import logging
 import threading
 from typing import (
@@ -17,11 +16,10 @@ from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
-from mockintosh.constants import PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.methods import _delay
-from mockintosh.templating import TemplateRenderer
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
+from mockintosh.handlers import BaseHandler
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -60,93 +58,51 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _populate_counters(context: [None, dict]) -> None:
-    """Method that retrieves counters from template engine contexts."""
-    if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
-        for key, value in context[SPECIAL_CONTEXT]['counters'].items():
-            counters[key] = value
+class KafkaHandler(BaseHandler):
+    """Class to handle mocked Kafka data."""
 
+    def __init__(self, config_dir: [str, None], template_engine: str):
+        super().__init__()
+        self.config_dir = config_dir
+        self.definition_engine = template_engine
+        self.custom_context = {}
 
-def _analyze_counters(context: dict) -> None:
-    """Method that injects counters into template engine contexts."""
-    for key, value in counters.items():
-        context[key] = value
-    return context
+        self.analyze_counters()
 
+    def _render_value(self, value):
+        if len(value) > 1 and value[0] == '@':
+            template_path, context = self.resolve_relative_path(value)
+            with open(template_path, 'r') as file:
+                logging.debug('Reading external file from path: %s', template_path)
+                value = file.read()
+        compiled, context = self.common_template_renderer(self.definition_engine, value)
+        self.populate_counters(context)
+        return compiled
 
-def _template_renderer(template_engine: str, context: dict, text: str) -> str:
-    """Method to initialize `TemplateRenderer` and call `render()`."""
+    def render_attributes(self, *args):
+        rendered = []
+        for arg in args:
+            if arg is None:
+                rendered.append(arg)
 
-    if template_engine == PYBARS:
-        from mockintosh.hbs.methods import fake, counter, json_path, escape_html
-        context['random'] = hbs_random
-        context['date'] = hbs_date
-    elif template_engine == JINJA:
-        from mockintosh.j2.methods import fake, counter, json_path, escape_html
-        context['random'] = j2_random
-        context['date'] = j2_date
-
-    renderer = TemplateRenderer(
-        template_engine,
-        text,
-        inject_objects=context,
-        inject_methods=[
-            fake,
-            counter,
-            json_path,
-            escape_html
-        ]
-    )
-    compiled, context = renderer.render()
-    _populate_counters(context)
-    return compiled
-
-
-def _resolve_relative_path(config_dir: [str, None], template_engine: str, context: dict, source_text: str) -> [None, str]:
-    """Method to resolve the relative path (relative to the config file)."""
-    relative_path = None
-    orig_relative_path = source_text[1:]
-
-    orig_relative_path = _template_renderer(template_engine, context, orig_relative_path)
-
-    if orig_relative_path[0] == '/':
-        orig_relative_path = orig_relative_path[1:]
-    # error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
-    relative_path = os.path.join(config_dir, orig_relative_path)
-    if not os.path.isfile(relative_path):
-        return None
-    relative_path = os.path.abspath(relative_path)
-    if not relative_path.startswith(config_dir):
-        return None
-
-    return relative_path
-
-
-def _render_attributes(config_dir: [str, None], template_engine: str, context: dict, *args):
-    rendered = []
-    for arg in args:
-        if arg is None:
-            rendered.append(arg)
-
-        if isinstance(arg, dict):
-            new_arg = {}
-            for key, value in arg.items():
-                if len(value) > 1 and value[0] == '@':
-                    template_path = _resolve_relative_path(config_dir, template_engine, context, value)
+            if isinstance(arg, dict):
+                new_arg = {}
+                for key, value in arg.items():
+                    new_arg[key] = self._render_value(value)
+                rendered.append(new_arg)
+            elif isinstance(arg, str):
+                if len(arg) > 1 and arg[0] == '@':
+                    template_path, context = self.resolve_relative_path(arg)
+                    self.populate_counters(context)
                     with open(template_path, 'r') as file:
                         logging.debug('Reading external file from path: %s', template_path)
-                        value = file.read()
-                new_arg[key] = _template_renderer(template_engine, context, value)
-            rendered.append(new_arg)
-        elif isinstance(arg, str):
-            if len(arg) > 1 and arg[0] == '@':
-                template_path = _resolve_relative_path(config_dir, template_engine, context, arg)
-                with open(template_path, 'r') as file:
-                    logging.debug('Reading external file from path: %s', template_path)
-                    arg = file.read()
-            rendered.append(_template_renderer(template_engine, context, arg))
+                        arg = file.read()
+                rendered.append(self._render_value(arg))
 
-    return rendered
+        return rendered
+
+    def add_params(self, context):
+        return context
 
 
 def produce(
@@ -160,9 +116,8 @@ def produce(
 ) -> None:
     _create_topic(address, queue)
 
-    context = _analyze_counters({})
-
-    key, value, headers = _render_attributes(config_dir, template_engine, context, key, value, headers)
+    kafka_handler = KafkaHandler(config_dir, template_engine)
+    key, value, headers = kafka_handler.render_attributes(key, value, headers)
 
     # Producing
     producer = Producer({'bootstrap.servers': address})

@@ -18,7 +18,8 @@ from datetime import datetime, timezone
 from typing import (
     Union,
     Optional,
-    Awaitable
+    Awaitable,
+    Tuple
 )
 
 import httpx
@@ -105,7 +106,7 @@ class BaseHandler:
         self.custom_context = {}
         self.counters = counters
 
-    def resolve_relative_path(self, source_text: str) -> [None, str]:
+    def resolve_relative_path(self, source_text: str) -> Tuple[str, str]:
         """Method to resolve the relative path (relative to the config file)."""
         orig_relative_path = source_text[1:]
 
@@ -116,7 +117,7 @@ class BaseHandler:
             orig_relative_path = orig_relative_path[1:]
         return os.path.join(self.config_dir, orig_relative_path), orig_relative_path
 
-    def common_template_renderer(self, template_engine: str, text: str) -> str:
+    def common_template_renderer(self, template_engine: str, text: str) -> Tuple[str, dict]:
         """Common method to initialize `TemplateRenderer` and call `render()`."""
         if template_engine == PYBARS:
             from mockintosh.hbs.methods import fake, counter, json_path, escape_html
