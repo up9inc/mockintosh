@@ -6,6 +6,7 @@
     :synopsis: module that contains Kafka related methods.
 """
 
+import os
 import logging
 import threading
 from typing import (
@@ -101,7 +102,27 @@ def _template_renderer(template_engine: str, context: dict, text: str) -> str:
     return compiled
 
 
-def _render_attributes(template_engine, context, *args):
+def _resolve_relative_path(config_dir: [str, None], template_engine: str, context: dict, source_text: str) -> [None, str]:
+    """Method to resolve the relative path (relative to the config file)."""
+    relative_path = None
+    orig_relative_path = source_text[1:]
+
+    orig_relative_path = _template_renderer(template_engine, context, orig_relative_path)
+
+    if orig_relative_path[0] == '/':
+        orig_relative_path = orig_relative_path[1:]
+    error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+    relative_path = os.path.join(config_dir, orig_relative_path)
+    if not os.path.isfile(relative_path):
+        return None
+    relative_path = os.path.abspath(relative_path)
+    if not relative_path.startswith(config_dir):
+        return None
+
+    return relative_path
+
+
+def _render_attributes(config_dir: [str, None], template_engine: str, context: dict, *args):
     rendered = []
     for arg in args:
         if arg is None:
@@ -110,9 +131,19 @@ def _render_attributes(template_engine, context, *args):
         if isinstance(arg, dict):
             new_arg = {}
             for key, value in arg.items():
+                if len(value) > 1 and value[0] == '@':
+                    template_path = _resolve_relative_path(config_dir, template_engine, context, value)
+                    with open(template_path, 'r') as file:
+                        logging.debug('Reading external file from path: %s', template_path)
+                        value = file.read()
                 new_arg[key] = _template_renderer(template_engine, context, value)
             rendered.append(new_arg)
         elif isinstance(arg, str):
+            if len(arg) > 1 and arg[0] == '@':
+                template_path = _resolve_relative_path(config_dir, template_engine, context, arg)
+                with open(template_path, 'r') as file:
+                    logging.debug('Reading external file from path: %s', template_path)
+                    arg = file.read()
             rendered.append(_template_renderer(template_engine, context, arg))
 
     return rendered
@@ -124,13 +155,14 @@ def produce(
     key: Union[str, None],
     value: str,
     headers: dict,
+    config_dir: [str, None],
     template_engine: str
 ) -> None:
     _create_topic(address, queue)
 
     context = _analyze_counters({})
 
-    key, value, headers = _render_attributes(template_engine, context, key, value, headers)
+    key, value, headers = _render_attributes(config_dir, template_engine, context, key, value, headers)
 
     # Producing
     producer = Producer({'bootstrap.servers': address})
@@ -209,6 +241,7 @@ def consume(
                 produce_data.get('key', None),
                 produce_data.get('value'),
                 produce_data.get('headers', {}),
+                definition.source_dir,
                 definition.template_engine
             )
 
@@ -228,6 +261,7 @@ def _run_produce_loop(definition, service_id, service, actor_id, actor):
             produce_data.get('key', None),
             produce_data.get('value'),
             produce_data.get('headers', {}),
+            definition.source_dir,
             definition.template_engine
         )
 
