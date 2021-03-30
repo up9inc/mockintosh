@@ -278,8 +278,8 @@ services:
           value: scheduled-value
           headers:
             constant: justvalue
-            timestamp: {{date.timestamp}}
-            counter: {{counter 'insideScheduledKafka'}}
+            timestamp: '{{date.timestamp}}'
+            counter: '{{counter ''insideScheduledKafka''}}'
         delay: 5 # seconds between producing
         limit: 100 # produce up to N messages
 
@@ -297,7 +297,7 @@ services:
           key: somekey or null
           value: "@subdir/kafka_payload1.txt"
           headers:
-            name: {{consumed.headers.hdr-name}}
+            name: '{{consumed.headers.hdr-name}}'
 
       # validating consumer
       - consume:
