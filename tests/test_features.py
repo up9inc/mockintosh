@@ -12,6 +12,7 @@ import re
 import time
 import json
 import socket
+import logging
 import threading
 import subprocess
 from urllib.parse import urlparse
@@ -75,7 +76,7 @@ should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 
 
 @pytest.mark.parametrize(('config'), configs)
-class TestCommon():
+class TestCommon:
 
     def setup_method(self):
         config = self._item.callspec.getparam('config')
@@ -83,6 +84,13 @@ class TestCommon():
 
     def teardown_method(self):
         self.mock_server_process.terminate()
+        try:
+            self.mock_server_process.join(10)
+            logging.debug("Process has terminated: %s", self.mock_server_process.exitcode)
+        except subprocess.TimeoutExpired:
+            logging.warning("Process has not terminated, killing it")
+            self.mock_server_process.kill()
+            self.mock_server_process.join(5)
 
     def test_ping_ports(self, config):
         ports = (8001, 8002)
