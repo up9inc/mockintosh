@@ -9,16 +9,6 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-up:
-	docker-compose up -d
-
-down:
-	docker-compose down
-
-up-testing:
-	docker-compose -f docker-compose.yml -f docker-compose.testing.yml up -d && \
-	sleep 10
-
 test: test-integration copy-certs up-kafka
 	flake8 && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
