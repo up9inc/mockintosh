@@ -3645,19 +3645,25 @@ class TestKafka():
         resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
         assert 200 == resp.status_code
 
+        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
+        assert 200 == resp.status_code
+
         time.sleep(KAFKA_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
-        assert any(
-            (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
-            and  # noqa: W504, W503
-            (row[1][0].isupper())
-            and  # noqa: W504, W503
-            (row[2]['name'] == 'templated')
-            and  # noqa: W504, W503
-            (row[2]['constant'] == 'constant-value')
-            and  # noqa: W504, W503
-            (len(row[2]['timestamp']) == 10 and row[2]['timestamp'].isnumeric())
-            for row in log
-        )
+        for i in range(2):
+            assert any(
+                (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
+                and  # noqa: W504, W503
+                (row[1][0].isupper())
+                and  # noqa: W504, W503
+                (row[2]['name'] == 'templated')
+                and  # noqa: W504, W503
+                (row[2]['constant'] == 'constant-value')
+                and  # noqa: W504, W503
+                (len(row[2]['timestamp']) == 10 and row[2]['timestamp'].isnumeric())
+                and
+                (int(row[2]['counter']) == i + 1)
+                for row in log
+            )

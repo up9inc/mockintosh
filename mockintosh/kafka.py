@@ -16,7 +16,7 @@ from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
-from mockintosh.constants import PYBARS, JINJA
+from mockintosh.constants import PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.methods import _delay
 from mockintosh.templating import TemplateRenderer
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
@@ -27,6 +27,8 @@ j2_random = j2_Random()
 
 hbs_date = hbs_Date()
 j2_date = j2_Date()
+
+counters = {}
 
 
 def _kafka_delivery_report(err, msg):
@@ -57,9 +59,22 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _template_renderer(template_engine: str, text: str) -> str:
+def _populate_counters(context: [None, dict]) -> None:
+    """Method that retrieves counters from template engine contexts."""
+    if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
+        for key, value in context[SPECIAL_CONTEXT]['counters'].items():
+            counters[key] = value
+
+
+def _analyze_counters(context: dict) -> None:
+    """Method that injects counters into template engine contexts."""
+    for key, value in counters.items():
+        context[key] = value
+    return context
+
+
+def _template_renderer(template_engine: str, context: dict, text: str) -> str:
     """Method to initialize `TemplateRenderer` and call `render()`."""
-    context = {}
 
     if template_engine == PYBARS:
         from mockintosh.hbs.methods import fake, counter, json_path, escape_html
@@ -82,10 +97,11 @@ def _template_renderer(template_engine: str, text: str) -> str:
         ]
     )
     compiled, context = renderer.render()
+    _populate_counters(context)
     return compiled
 
 
-def _render_attributes(template_engine, *args):
+def _render_attributes(template_engine, context, *args):
     rendered = []
     for arg in args:
         if arg is None:
@@ -94,10 +110,10 @@ def _render_attributes(template_engine, *args):
         if isinstance(arg, dict):
             new_arg = {}
             for key, value in arg.items():
-                new_arg[key] = _template_renderer(template_engine, value)
+                new_arg[key] = _template_renderer(template_engine, context, value)
             rendered.append(new_arg)
         elif isinstance(arg, str):
-            rendered.append(_template_renderer(template_engine, arg))
+            rendered.append(_template_renderer(template_engine, context, arg))
 
     return rendered
 
@@ -112,7 +128,9 @@ def produce(
 ) -> None:
     _create_topic(address, queue)
 
-    key, value, headers = _render_attributes(template_engine, key, value, headers)
+    context = _analyze_counters({})
+
+    key, value, headers = _render_attributes(template_engine, context, key, value, headers)
 
     # Producing
     producer = Producer({'bootstrap.servers': address})

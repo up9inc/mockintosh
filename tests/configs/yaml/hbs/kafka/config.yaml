@@ -89,6 +89,7 @@ services:
         name: templated
         constant: constant-value
         timestamp: "{{date.timestamp}}"
+        counter: "{{counter 'kafkaCounter'}}"
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
