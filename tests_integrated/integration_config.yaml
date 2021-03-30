@@ -275,11 +275,10 @@ services:
         produce:
           queue: scheduled-queue1
           key: somekeyprefix-{{random.uuid4}}
-          value: scheduled-value
+          value: scheduled-value {{counter 'insideScheduledKafka'}}
           headers:
             constant: justvalue
             timestamp: {{date.timestamp}}
-            counter: {{counter 'insideScheduledKafka'}}
         delay: 5 # seconds between producing
         limit: 100 # produce up to N messages
 
