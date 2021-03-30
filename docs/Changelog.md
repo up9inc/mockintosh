@@ -118,6 +118,7 @@ TODO:
    - avro + grpc + JSON
    - what to do with binary headers?
    - bodies from file
+   - traffic log to display kafka comms
 
 1. Display timestamps in traffic log
 1. Do not respond with Content-Type=text/html if no content-type header is configured

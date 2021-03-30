@@ -920,10 +920,14 @@ class IntegrationTests(unittest.TestCase):
         msgs = kafka_consume_expected(topic, timeout=1)
 
         self.assertGreater(len(msgs), 0)
-        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertTrue(msgs[0].key().decode().startswith("somekeyprefix-"))
+        self.assertNotIn("{{", msgs[0].key().decode())
         val = msgs[0].value().decode()
-        self.assertTrue(val.startswith("scheduled-value"), val)
-        # TODO self.assertEqual("", msgs[0].headers())
+        self.assertTrue(val.startswith("scheduled-value "), val)
+        self.assertNotIn("{{", val)
+        headers=dict(msgs[0].headers() if msgs[0].headers() else [])
+        self.assertEqual("justvalue", headers['constant'].decode())
+        self.assertTrue(headers['timestamp'].decode().isdigit())
 
     @pytest.mark.kafka
     def test_kafka_producer_reactive(self):
@@ -983,7 +987,7 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
 
 def produce(queue, key, val):
     logging.info("Producing into %s: %s %s", queue, key, val)
-    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})  # TODO: parameterize
+    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})
     producer.poll(0)
     producer.produce(queue, key=key, value=val)
     producer.flush()
