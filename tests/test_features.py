@@ -76,7 +76,7 @@ should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 
 
 @pytest.mark.parametrize(('config'), configs)
-class TestCommon():
+class TestCommon:
 
     def setup_method(self):
         config = self._item.callspec.getparam('config')
