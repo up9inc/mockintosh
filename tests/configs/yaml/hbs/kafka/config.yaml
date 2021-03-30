@@ -1,0 +1,86 @@
+---
+templatingEngine: Handlebars
+management:
+  port: 8000
+  ssl: true
+  sslCertFile: cert.pem
+  sslKeyFile: key.pem
+services:
+- name: Kafka Mocks
+  type: kafka
+  address: localhost:9092
+  actors:
+  - produce:
+      queue: topic1
+      key: key1
+      value: value1
+      headers:
+        hdr1: val1
+  - consume:
+      queue: topic2
+      key: key2
+      value: value2
+      headers:
+        hdr2: val2
+  - produce:
+      queue: topic3
+      key: key3
+      value: value3
+      headers:
+        hdr3: val3
+    delay: 5
+    limit: 100
+  - consume:
+      queue: topic3
+      key: key3
+      value: value3
+      headers:
+        hdr3: val3
+  - consume:
+      queue: topic4
+      key: key4
+      value: value4
+      headers:
+        hdr4: val4
+    delay: 3
+    produce:
+      queue: topic5
+      key: key5
+      value: value5
+      headers:
+        hdr5: val5
+  - name: actor6
+    produce:
+      queue: topic6
+      key: key6
+      value: value6
+      headers:
+        hdr6: val6
+  - name: limitless
+    produce:
+      queue: topic7
+      key: key7
+      value: value7
+      headers:
+        hdr7: val7
+    delay: 20
+  - name: short-loop
+    produce:
+      queue: topic8
+      key: key8
+      value: value8
+      headers:
+        hdr8: val8
+    delay: 2
+    limit: 2
+  - name: actor6
+    consume:
+      queue: topic9
+      key: key9
+      value: value9
+      headers:
+        hdr9: val9
+- name: Mock for Service1
+  hostname: service1.example.com
+  port: 8001
+  endpoints: []

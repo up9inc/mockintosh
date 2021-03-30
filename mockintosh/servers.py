@@ -30,6 +30,7 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
+    ManagementAsyncHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -43,6 +44,7 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
+from mockintosh import kafka
 
 stats = Stats()
 logs = Logs()
@@ -112,6 +114,9 @@ class HttpServer:
         services = self.definition.data['services']
         service_id_counter = 0
         for service in services:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             service['internalServiceId'] = service_id_counter
             service_id_counter += 1
 
@@ -128,6 +133,9 @@ class HttpServer:
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             port = str(service['port'])
             if port not in port_mapping:
                 port_mapping[port] = []
@@ -269,6 +277,7 @@ class HttpServer:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
+        kafka.run_loops(self.definition)
         self.impl.serve()
 
     def make_app(self, service, endpoints, _globals, debug=False, management_root=None):
@@ -485,6 +494,20 @@ class HttpServer:
                 (
                     '/resources',
                     ManagementResourcesHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async',
+                    ManagementAsyncHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async/([0-9]+)/([0-9]+)',
+                    ManagementAsyncHandler,
                     dict(
                         http_server=self
                     )
