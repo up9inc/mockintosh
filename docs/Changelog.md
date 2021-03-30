@@ -106,7 +106,7 @@
 
 # Next Version
 
-
+1. Display timestamps in traffic log
 
 # Roadmap Ideas
 

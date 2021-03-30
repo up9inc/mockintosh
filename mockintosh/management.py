@@ -12,6 +12,7 @@ import json
 import copy
 import shutil
 import logging
+import threading
 from typing import (
     Union
 )
@@ -28,6 +29,7 @@ import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import RestrictedFieldError
+from mockintosh import kafka
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -118,6 +120,9 @@ class ManagementConfigHandler(ManagementBaseHandler):
         data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
         self.http_server.stats.services = []
         for service in data['services']:
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             hint = '%s:%s%s' % (
                 service['hostname'] if 'hostname' in service else (
                     self.http_server.address if self.http_server.address else 'localhost'
@@ -127,6 +132,9 @@ class ManagementConfigHandler(ManagementBaseHandler):
             )
             self.http_server.stats.add_service(hint)
         for i, service in enumerate(data['services']):
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             service['internalServiceId'] = i
             if not self.update_service(service, i):
                 return
@@ -185,7 +193,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, _ in enumerate(self.http_server.definition.data['services']):
+        for i, service in enumerate(self.http_server.definition.data['services']):
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
@@ -275,6 +286,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         services = self.http_server.definition.orig_data['services']
         for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
@@ -385,7 +399,10 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for i in range(len(services)):
+        for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             data['documents'].append(self.build_oas(i))
 
         self.write(data)
@@ -645,6 +662,9 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         files = []
         cwd = self.http_server.definition.source_dir
         for service in self.http_server.definition.orig_data['services']:
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             if 'oas' in service:
                 if service['oas'].startswith('@'):
                     files.append(service['oas'][1:])
@@ -1024,3 +1044,147 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
 class UnhandledData:
     def __init__(self):
         self.requests = []
+
+
+class ManagementAsyncHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self, *args):
+        if (len(args) == 2):
+            data = {
+                'queue': None,
+                'log': []
+            }
+
+            service_id, actor_id = args
+            service_id = int(service_id)
+            actor_id = int(actor_id)
+            try:
+                service = self.http_server.definition.data['kafka_services'][service_id]
+            except IndexError:
+                self.set_status(400)
+                self.write('Service not found!')
+                return
+
+            try:
+                actor = service['actors'][actor_id]
+            except IndexError:
+                self.set_status(400)
+                self.write('Actor not found!')
+                return
+
+            if 'consume' not in actor:
+                self.set_status(400)
+                self.write('This actor is not a consumer!')
+                return
+            else:
+                data['queue'] = actor['consume']['queue']
+
+            if 'log' in actor:
+                rows = actor['log']
+                for row in rows:
+                    data['log'].append(
+                        {
+                            'key': row[0],
+                            'value': row[1],
+                            'headers': row[2]
+                        }
+                    )
+
+            self.dump(data)
+        else:
+            data = {
+                'services': []
+            }
+
+            services = self.http_server.definition.data['kafka_services']
+            for i, service in enumerate(services):
+                filtered_actors = []
+                for actor in service['actors']:
+                    filtered_actors.append({k: v for k, v in actor.items() if k not in ('log')})
+                data['services'].append(
+                    {
+                        'name': service['name'],
+                        'address': service['address'],
+                        'actors': filtered_actors
+                    }
+                )
+
+            self.dump(data)
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
+
+    async def post(self, *args):
+        actor_regex = self.get_body_argument('actor', default=None)
+        actor_regex_orig = actor_regex
+        if actor_regex is not None:
+            actor_regex = '^%s$' % actor_regex
+
+            no_match = True
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service['actors']):
+                    if 'name' in actor:
+                        match = re.search(actor_regex, actor['name'])
+                        if match is not None:
+                            if 'produce' not in actor:
+                                continue
+                            t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
+                            t.daemon = True
+                            t.start()
+                            no_match = False
+
+            if no_match:
+                self.set_status(400)
+                self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
+                return
+        else:
+            service_id, actor_id = args
+            service_id = int(service_id)
+            actor_id = int(actor_id)
+            try:
+                service = self.http_server.definition.data['kafka_services'][service_id]
+            except IndexError:
+                self.set_status(400)
+                self.write('Service not found!')
+                return
+
+            try:
+                actor = service['actors'][actor_id]
+            except IndexError:
+                self.set_status(400)
+                self.write('Actor not found!')
+                return
+
+            if 'produce' not in actor:
+                self.set_status(400)
+                self.write('This actor is not a producer!')
+                return
+
+            service_id = int(service_id)
+            actor_id = int(actor_id)
+            service = self.http_server.definition.data['kafka_services'][service_id]
+            actor = service['actors'][actor_id]
+
+            t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
+            t.daemon = True
+            t.start()
+
+    def _produce(self, service_id, service, actor_id, actor):
+        # Producing
+        produce_data = actor['produce']
+        kafka.produce(
+            service.get('address'),
+            produce_data.get('queue'),
+            produce_data.get('key', None),
+            produce_data.get('value'),
+            produce_data.get('headers', {})
+        )

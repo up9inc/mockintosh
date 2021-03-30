@@ -7,7 +7,9 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 import httpx
+import pytest
 import yaml
+from confluent_kafka.cimpl import Consumer, Producer
 from jsonschema.validators import validate
 
 import mockintosh
@@ -20,13 +22,14 @@ SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
 SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
+KAFK = os.environ.get('KAFK', 'localhost:9092')
 
 
 class IntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format='[%(relativeCreated)d %(name)s %(levelname)s] %(message)s')
         # test for release version consistency
         ttag = os.getenv("TRAVIS_TAG")
         ver = mockintosh.__version__
@@ -448,10 +451,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("also {{random.intt 10 20}} can happen", resp.headers.get('X-header'))
 
     def test_conn_status(self):
-        with self.assertRaises(httpx.RemoteProtocolError):
+        with self.assertRaises((httpx.RemoteProtocolError, httpx.ReadError)):
             httpx.get(SRV1 + '/conn-rst')
 
-        with self.assertRaises(httpx.RemoteProtocolError):
+        with self.assertRaises((httpx.RemoteProtocolError, httpx.ReadError)):
             httpx.get(SRV1 + '/conn-close')
 
     def test_management_global(self):
@@ -884,3 +887,103 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.get(SRV1 + '/qstr-multiparam3?prefix-somedata-suffix')
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
+
+    @pytest.mark.kafka
+    def test_kafka_producer_ondemand(self):
+        # resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
+        # resp.raise_for_status()
+        # self.assertIn("on-demand-1", resp.json()["actors"])
+
+        topic = "on-demand1"
+        produce(topic, None, None)
+        resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
+        resp.raise_for_status()
+        kafka_consume_expected(topic)  # to clear queue from any preceding messages
+
+        resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
+        resp.raise_for_status()
+        msgs = kafka_consume_expected(topic)
+        # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
+
+        self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertEqual("json ( protobuf / avro )", msgs[0].value().decode())
+
+    @pytest.mark.kafka
+    def test_kafka_producer_scheduled(self):
+        topic = 'scheduled-queue1'
+
+        # consume whatever is there
+        msgs = kafka_consume_expected(topic)
+        logging.info("Ate: %s", msgs)
+        time.sleep(9)
+        msgs = kafka_consume_expected(topic, timeout=1)
+
+        self.assertGreater(len(msgs), 0)
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        val = msgs[0].value().decode()
+        self.assertTrue(val.startswith("scheduled-value"), val)
+        # TODO self.assertEqual("", msgs[0].headers())
+
+    @pytest.mark.kafka
+    def test_kafka_producer_reactive(self):
+        trigger = 'consume-trigger1'
+        reaction = 'produce-reaction1'
+
+        produce(reaction, None, None)
+        kafka_consume_expected(reaction, timeout=1)
+
+        produce(trigger, "trigger-key", "trigger-val")
+        time.sleep(5)
+        msgs = kafka_consume_expected(reaction, timeout=5)
+
+        self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertEqual("reaction-value", msgs[0].value().decode())
+
+
+def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
+                           after_subscribe=lambda: None):
+    consumer = Consumer({
+        'bootstrap.servers': KAFK,
+        'group.id': group,
+        'auto.offset.reset': 'earliest'  # earliest _committed_ offset
+    })
+    topics = consumer.list_topics(topic)  # promises to create topic
+    logging.debug("Topic state: %s", topics.topics)
+    assert topics.topics[topic].error is None, "%s" % topics.topics
+    consumer.subscribe([topic])
+    time.sleep(5)  # for kafka to rebalance consumer groups
+
+    after_subscribe()
+    msgs = []
+
+    logging.debug("Waiting for messages...")
+    while True:
+        msg = consumer.poll(timeout)
+
+        if msg is None:
+            break
+
+        logging.info("Seen message: %r %r", msg.key(), msg.value())
+
+        if msg.error():
+            logging.warning("Consumer error: {}".format(msg.error()))
+            continue
+
+        if mfilter(msg):
+            validator(msg)
+            msgs.append(msg)
+
+    consumer.commit()
+    consumer.close()
+
+    return msgs
+
+
+def produce(queue, key, val):
+    logging.info("Producing into %s: %s %s", queue, key, val)
+    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})  # TODO: parameterize
+    producer.poll(0)
+    producer.produce(queue, key=key, value=val)
+    producer.flush()

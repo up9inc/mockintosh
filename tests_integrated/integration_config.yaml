@@ -217,6 +217,7 @@ services:
         path: /
         method: get
         response: Yo, I'm specified.host
+
   - name: Service with specified another.host
     port: 8002
     hostname: another.host
@@ -225,6 +226,7 @@ services:
         path: /
         method: get
         response: Hey, I'm another.host
+
   - name: Service with no endpoints, for bare interceptors
     port: 8003
     ssl: true
@@ -233,6 +235,7 @@ services:
     endpoints:
       - path: /cors2
         response: '@cors.html'
+
   - name: SSL with certfile
     port: 8005
     ssl: true
@@ -240,10 +243,12 @@ services:
     sslKeyFile: subdir/key.pem
     endpoints:
       - path: /
+
   - name: Service for management API / Dynamic configs
     port: 8006
     managementRoot: /sub/__admin
     oas: '@subdir/oas.json'
+
   - name: Service with fallback
     port: 8007
     managementRoot: /sub/__admin
@@ -251,3 +256,51 @@ services:
     endpoints:
       - path: /
         response: no fallback
+
+  - name: Kafka Mocks
+    type: kafka # rabbitmq, redis
+    address: localhost:9092 # deployed address
+    actors:
+      # on-demand producer
+      - name: on-demand-1
+        produce:
+          queue: on-demand1
+          key: somekey or null
+          value: json ( protobuf / avro )
+          headers:
+            name: ondemand
+
+      # scheduled producer
+      - name: scheduled1
+        produce:
+          queue: scheduled-queue1
+          key: somekey or null
+          value: scheduled-value
+          headers:
+            name: scheduled
+        delay: 5 # seconds between producing
+        limit: 100 # produce up to N messages
+
+      # reactive producer
+      - consume:
+          queue: consume-trigger1
+          group: optional consumer group
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
+        delay: 10 # seconds after consume
+        produce:
+          queue: produce-reaction1
+          key: somekey or null
+          value: reaction-value
+          headers:
+            name: val
+
+      # validating consumer
+      - consume:
+          queue: another-queue-name
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher

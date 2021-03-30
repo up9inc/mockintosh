@@ -9,23 +9,17 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-test: test-integration copy-certs
+test: test-integration copy-certs up-kafka
 	flake8 && \
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG
-
-test-integration: build
-	docker run -d -p 8000-8010:8000-8010 -v `pwd`/tests_integrated:/tmp/tests_integrated \
-		-e PYTHONPATH=/tmp/tests_integrated mockintosh \
-		-v \
-		-l /tmp/tests_integrated/server.log \
-		--interceptor=custom_interceptors.intercept_for_logging \
-		--interceptor=custom_interceptors.intercept_for_modifying \
-		/tmp/tests_integrated/integration_config.yaml && \
-	sleep 5 && \
-	pytest tests_integrated/tests_integration.py -s -vv --log-level=DEBUG && \
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
-test-with-coverage: copy-certs
+test-integration: build
+	tests_integrated/acceptance.sh && \
+	docker stop $$(docker ps -a -q)
+
+test-with-coverage: copy-certs up-kafka
+	flake8 && \
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -35,7 +29,9 @@ test-with-coverage: copy-certs
 		--logfile dummy.log && \
 	COVERAGE_NO_RUN=true DEBUG=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest tests/test_features.py -s -vv --log-level=DEBUG
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest \
+		tests/test_features.py -s -vv --log-level=DEBUG && \
+	docker stop $$(docker ps -a -q)
 
 coverage-after:
 	coverage combine && \
@@ -58,4 +54,9 @@ copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/management/key.pem && \
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/management/cert.pem && \
-	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem && \
+	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/kafka/cert.pem && \
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
+
+up-kafka:
+	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka

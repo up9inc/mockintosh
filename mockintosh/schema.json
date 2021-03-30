@@ -1,6 +1,86 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "async_ref": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "kafka",
+            "rabbitmq",
+            "redis"
+          ]
+        },
+        "actors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/actor_ref"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "address",
+        "actors"
+      ],
+      "additionalProperties": false
+    },
+    "actor_ref": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "produce": {
+          "$ref": "#/definitions/message_ref"
+        },
+        "consume": {
+          "$ref": "#/definitions/message_ref"
+        },
+        "delay": {
+          "type": "number"
+        },
+        "limit": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "message_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queue",
+        "value"
+      ],
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "queue": {
+          "type": "string"
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "headers": {
+          "$ref": "#/definitions/headers_ref"
+        }
+      }
+    },
     "service_ref": {
       "type": "object",
       "properties": {
@@ -271,7 +351,14 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/definitions/service_ref"
+        "anyOf": [
+          {
+            "$ref": "#/definitions/service_ref"
+          },
+          {
+            "$ref": "#/definitions/async_ref"
+          }
+        ]
       }
     },
     "performanceProfiles": {

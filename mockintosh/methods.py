@@ -9,6 +9,7 @@
 import sys
 import io
 import re
+import time
 import logging
 from contextlib import contextmanager
 from base64 import b64encode
@@ -114,3 +115,8 @@ def _urlsplit(url, scheme='', allow_fragments=True):
             query = result[1]
     v = SplitResult(scheme, netloc, url, query, fragment)
     return _coerce_result(v)
+
+
+def _delay(seconds):
+    logging.info('Sleeping for %d seconds.' % seconds)
+    time.sleep(seconds)
