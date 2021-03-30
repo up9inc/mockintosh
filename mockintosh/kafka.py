@@ -91,12 +91,6 @@ class KafkaHandler(BaseHandler):
                     new_arg[key] = self._render_value(value)
                 rendered.append(new_arg)
             elif isinstance(arg, str):
-                if len(arg) > 1 and arg[0] == '@':
-                    template_path, context = self.resolve_relative_path(arg)
-                    self.populate_counters(context)
-                    with open(template_path, 'r') as file:
-                        logging.debug('Reading external file from path: %s', template_path)
-                        arg = file.read()
                 rendered.append(self._render_value(arg))
 
         return rendered

@@ -925,7 +925,7 @@ class IntegrationTests(unittest.TestCase):
         val = msgs[0].value().decode()
         self.assertTrue(val.startswith("scheduled-value "), val)
         self.assertNotIn("{{", val)
-        headers=dict(msgs[0].headers() if msgs[0].headers() else [])
+        headers = dict(msgs[0].headers() if msgs[0].headers() else [])
         self.assertEqual("justvalue", headers['constant'].decode())
         self.assertTrue(headers['timestamp'].decode().isdigit())
 
