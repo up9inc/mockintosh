@@ -3551,9 +3551,9 @@ class TestKafka():
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_produce_by_actor_name(self):
-        key = 'key6'
+        key = None
         value = 'value6'
-        headers = {'hdr6': 'val6'}
+        headers = {}
 
         stop = {'val': False}
         log = []

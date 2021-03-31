@@ -52,10 +52,7 @@ services:
   - name: actor6
     produce:
       queue: topic6
-      key: key6
       value: value6
-      headers:
-        hdr6: val6
   - name: limitless
     produce:
       queue: topic7
