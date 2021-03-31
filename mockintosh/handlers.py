@@ -154,7 +154,7 @@ class BaseHandler:
             self.custom_context[key] = value
 
     def add_params(self, context: [None, dict]) -> [None, dict]:
-        pass
+        raise NotImplementedError
 
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
