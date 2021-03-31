@@ -300,6 +300,7 @@ services:
 
       # validating consumer
       - consume:
+          capture: 10  # limit len of messages to store for validation
           queue: another-queue-name
           key: matching keys
           value: json / protobuf / avro # also allow validating schema for any type of it
