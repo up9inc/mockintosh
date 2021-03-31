@@ -3617,7 +3617,6 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        print(log)
         assert any(
             (row[0] == consumer_key)
             and  # noqa: W504, W503
@@ -3679,6 +3678,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
+        print(log)
         for i in range(2):
             assert any(
                 (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
