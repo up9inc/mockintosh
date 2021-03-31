@@ -12,6 +12,7 @@ import re
 import time
 import json
 import socket
+import logging
 import threading
 import subprocess
 from urllib.parse import urlparse
@@ -26,7 +27,7 @@ from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
 from mockintosh import kafka
-from mockintosh.constants import PROGRAM, BASE64
+from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.methods import _b64encode
 from utilities import (
@@ -75,7 +76,7 @@ should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 
 
 @pytest.mark.parametrize(('config'), configs)
-class TestCommon():
+class TestCommon:
 
     def setup_method(self):
         config = self._item.callspec.getparam('config')
@@ -83,6 +84,13 @@ class TestCommon():
 
     def teardown_method(self):
         self.mock_server_process.terminate()
+        try:
+            self.mock_server_process.join(10)
+            logging.debug("Process has terminated: %s", self.mock_server_process.exitcode)
+        except subprocess.TimeoutExpired:
+            logging.warning("Process has not terminated, killing it")
+            self.mock_server_process.kill()
+            self.mock_server_process.join(5)
 
     def test_ping_ports(self, config):
         ports = (8001, 8002)
@@ -3470,7 +3478,9 @@ class TestKafka():
             'topic2',
             key,
             value,
-            headers
+            headers,
+            None,
+            PYBARS
         )
 
         time.sleep(KAFKA_CONSUME_WAIT)
@@ -3490,6 +3500,30 @@ class TestKafka():
         time.sleep(KAFKA_CONSUME_WAIT)
 
         resp = httpx.get(MGMT + '/async/0/3', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+
+    def test_get_kafka_consume_no_key(self):
+        key = None
+        value = 'value10'
+        headers = {}
+
+        kafka.produce(
+            KAFKA_ADDR,
+            'topic10',
+            key,
+            value,
+            headers,
+            None,
+            JINJA
+        )
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/0/10', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -3541,9 +3575,9 @@ class TestKafka():
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_produce_by_actor_name(self):
-        key = 'key6'
+        key = None
         value = 'value6'
-        headers = {'hdr6': 'val6'}
+        headers = {}
 
         stop = {'val': False}
         log = []
@@ -3569,16 +3603,21 @@ class TestKafka():
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_reactive_consumer(self):
-        topic = 'topic5'
-        key = 'key5'
-        value = 'value5'
-        headers = {'hdr5': 'val5'}
+        producer_topic = 'topic4'
+        producer_key = 'key4'
+        producer_value = 'value4'
+        producer_headers = {'hdr4': 'val4'}
+
+        consumer_topic = 'topic5'
+        consumer_key = 'key5'
+        consumer_value = 'value5'
+        consumer_headers = {'hdr5': 'val5'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFKA_ADDR,
-            topic
+            consumer_topic
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3590,17 +3629,31 @@ class TestKafka():
 
         kafka.produce(
             KAFKA_ADDR,
-            topic,
-            key,
-            value,
-            {'hdr5': 'val5'}
+            producer_topic,
+            producer_key,
+            producer_value,
+            producer_headers,
+            None,
+            PYBARS
         )
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+        assert any(
+            (row[0] == consumer_key)
+            and  # noqa: W504, W503
+            (row[1] == '%s and %s %s %s' % (
+                consumer_value,
+                producer_key,
+                producer_value,
+                producer_headers['hdr4']
+            ))
+            and  # noqa: W504, W503
+            (row[2] == consumer_headers)
+            for row in log
+        )
 
     def test_post_kafka_bad_requests(self):
         actor13 = 'actor13'
@@ -3623,3 +3676,46 @@ class TestKafka():
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'This actor is not a producer!'
+
+    def test_post_kafka_producer_templated(self):
+        stop = {'val': False}
+        log = []
+        t = threading.Thread(target=kafka.consume, args=(
+            KAFKA_ADDR,
+            'templated-producer'
+        ), kwargs={
+            'log': log,
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
+        assert 200 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
+        assert 200 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        stop['val'] = True
+        t.join()
+        for i in range(2):
+            assert any(
+                (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
+                and  # noqa: W504, W503
+                (row[1][0].isupper())
+                and  # noqa: W504, W503
+                (row[2]['name'] == 'templated')
+                and  # noqa: W504, W503
+                (row[2]['constant'] == 'constant-value')
+                and  # noqa: W504, W503
+                (len(row[2]['timestamp']) == 10 and row[2]['timestamp'].isnumeric())
+                and  # noqa: W504, W503
+                (int(row[2]['counter']) == i + 1)
+                and  # noqa: W504, W503
+                (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
+                for row in log
+            )

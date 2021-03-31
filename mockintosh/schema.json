@@ -78,6 +78,9 @@
         },
         "headers": {
           "$ref": "#/definitions/headers_ref"
+        },
+        "capture": {
+          "type": "integer"
         }
       }
     },

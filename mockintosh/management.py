@@ -1137,7 +1137,14 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                         if match is not None:
                             if 'produce' not in actor:
                                 continue
-                            t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
+                            t = threading.Thread(target=self._produce, args=(
+                                service_id,
+                                service,
+                                actor_id,
+                                actor,
+                                self.http_server.definition.source_dir,
+                                self.http_server.definition.template_engine
+                            ))
                             t.daemon = True
                             t.start()
                             no_match = False
@@ -1174,11 +1181,18 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             service = self.http_server.definition.data['kafka_services'][service_id]
             actor = service['actors'][actor_id]
 
-            t = threading.Thread(target=self._produce, args=(service_id, service, actor_id, actor))
+            t = threading.Thread(target=self._produce, args=(
+                service_id,
+                service,
+                actor_id,
+                actor,
+                self.http_server.definition.source_dir,
+                self.http_server.definition.template_engine
+            ))
             t.daemon = True
             t.start()
 
-    def _produce(self, service_id, service, actor_id, actor):
+    def _produce(self, service_id, service, actor_id, actor, source_dir, template_engine):
         # Producing
         produce_data = actor['produce']
         kafka.produce(
@@ -1186,5 +1200,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             produce_data.get('queue'),
             produce_data.get('key', None),
             produce_data.get('value'),
-            produce_data.get('headers', {})
+            produce_data.get('headers', {}),
+            source_dir,
+            template_engine
         )

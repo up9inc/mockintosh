@@ -106,6 +106,22 @@
 
 # Next Version
 
+TODO:
+
+- mocks for Kafka & RabbitMQ
+    - on schedule producer
+    - on demand producer
+    - reactive consumer+producer
+    - consumer fact validation
+    - global headers considered
+    - avro + grpc + JSON
+    - what to do with binary headers?
+    - bodies from file
+    - traffic log to display kafka comms
+    - interceptors to access kafka comms
+    - stats to count kafka comms
+    - allow overriding on-demand producer fields via mgmt API
+
 1. Display timestamps in traffic log
 1. Do not respond with Content-Type=text/html if no content-type header is configured
 
@@ -117,7 +133,7 @@
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
 - Nicer formatted error pages for known errors
-- Nicer debug logging of requests  
+- Nicer debug logging of requests
 - admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - config editor to provide hyperlinks from resource files into corresponding editing
@@ -126,13 +142,6 @@
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
-- mocks for Kafka & RabbitMQ
-    - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
-    - on schedule producer
-    - on demand producer
-    - reactive consumer+producer
-    - consumer fact validation
-    - avro + grpc + JSON
 - SQS as one more async tech
 
 - mocks for gRPC servers

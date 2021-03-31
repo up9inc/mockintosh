@@ -46,16 +46,13 @@ services:
     produce:
       queue: topic5
       key: key5
-      value: value5
+      value: "value5 and {{consumed.key}} {{consumed.value}} {{consumed.headers.hdr4}}"
       headers:
         hdr5: val5
   - name: actor6
     produce:
       queue: topic6
-      key: key6
       value: value6
-      headers:
-        hdr6: val6
   - name: limitless
     produce:
       queue: topic7
@@ -80,6 +77,20 @@ services:
       value: value9
       headers:
         hdr9: val9
+  - name: templated-producer
+    produce:
+      queue: templated-producer
+      key: prefix-{{random.uuid4}}
+      value: "{{fake.name}}"
+      headers:
+        name: templated
+        constant: constant-value
+        timestamp: "{{date.timestamp}}"
+        counter: "{{counter 'kafkaCounter'}}"
+        fromFile: "@templates/example.txt"
+  - consume:
+      queue: topic10
+      value: value10
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

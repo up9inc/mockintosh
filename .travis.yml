@@ -10,22 +10,20 @@ addons:
     - service1.example.com
     - service2.example.com
     - service3.example.com
-  apt:
-    packages:
-      - openjdk-8-jdk
 install:
   - travis_fold start "Install.Pip.Package" && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
 script:
   - stty cols 120
+  - ./ps.sh &
   - travis_fold start "Unit.Tests" && make test-with-coverage && travis_fold end "Unit.Tests"
   - travis_fold start "Integration.Tests" && make test-integration && travis_fold end "Integration.Tests"
 after_success:
   - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force https://${GH_TOKEN}@github.com/up9inc/mockintosh.git HEAD:gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
   - make coverage-after
   - codecov
-after_failure:
-  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
+# after_failure:
+#  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
 deploy:
   edge: true  # use latest v2 deploy
   provider: pypi

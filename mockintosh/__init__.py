@@ -99,6 +99,9 @@ class Definition():
         for service in data['services']:
             if 'type' in service:
                 if service['type'] == 'kafka':
+                    for i, actor in enumerate(service['actors']):
+                        if 'counters' not in actor:
+                            service['actors'][i]['counters'] = {}
                     data['kafka_services'].append(service)
 
                 if service['type'] != 'http':

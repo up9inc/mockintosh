@@ -92,7 +92,7 @@ services:
           schema:
             type: object
             properties:
-              somekey: {}
+              somekey: { }
             required:
               - somekey
         response: body json schema matched
@@ -274,10 +274,11 @@ services:
       - name: scheduled1
         produce:
           queue: scheduled-queue1
-          key: somekey or null
-          value: scheduled-value
+          key: somekeyprefix-{{random.uuid4}}
+          value: scheduled-value {{counter 'insideScheduledKafka'}}
           headers:
-            name: scheduled
+            constant: justvalue
+            timestamp: '{{date.timestamp}}'
         delay: 5 # seconds between producing
         limit: 100 # produce up to N messages
 
@@ -293,12 +294,13 @@ services:
         produce:
           queue: produce-reaction1
           key: somekey or null
-          value: reaction-value
+          value: "@subdir/kafka_payload1.txt"
           headers:
-            name: val
+            name: '{{consumed.headers.hdr-name}}'
 
       # validating consumer
       - consume:
+          capture: 10  # limit len of messages to store for validation
           queue: another-queue-name
           key: matching keys
           value: json / protobuf / avro # also allow validating schema for any type of it
