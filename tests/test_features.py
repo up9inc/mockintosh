@@ -3600,10 +3600,10 @@ class TestKafka():
 
         kafka.produce(
             KAFKA_ADDR,
-            topic,
-            key,
-            value,
-            {'hdr5': 'val5'},
+            'topic4',
+            'key4',
+            'value4',
+            {'hdr4': 'val4'},
             None,
             PYBARS
         )
@@ -3612,7 +3612,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+        assert any(row[0] == key and row[1] == '%s and value4' % value and row[2] == headers for row in log)
 
     def test_post_kafka_bad_requests(self):
         actor13 = 'actor13'

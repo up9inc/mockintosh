@@ -18,6 +18,7 @@ from confluent_kafka.cimpl import KafkaException
 
 from mockintosh.methods import _delay
 from mockintosh.handlers import KafkaHandler
+from mockintosh.replicas import Consumed
 
 
 def _kafka_delivery_report(err, msg):
@@ -55,11 +56,20 @@ def produce(
     value: str,
     headers: dict,
     config_dir: [str, None],
-    template_engine: str
+    template_engine: str,
+    delay=0,
+    consumed=None
 ) -> None:
+    _delay(delay)
+
     _create_topic(address, queue)
 
+    # Templating
     kafka_handler = KafkaHandler(config_dir, template_engine)
+    if consumed is not None:
+        kafka_handler.custom_context = {
+            'consumed': consumed
+        }
     key, value, headers = kafka_handler.render_attributes(key, value, headers)
 
     # Producing
@@ -85,6 +95,7 @@ def consume(
     service_id=None,
     actor_id=None,
     log=None,
+    delay=0,
     stop={}
 ) -> None:
     _create_topic(address, queue)
@@ -132,8 +143,13 @@ def consume(
                 (key, value, headers)
             )
 
-        if produce_data is not None:  # pragma: no cover
-            produce(
+        if produce_data is not None:
+            consumed = Consumed()
+            consumed.key = key
+            consumed.value = value
+            consumed.headers = headers
+
+            t = threading.Thread(target=produce, args=(
                 address,
                 produce_data.get('queue'),
                 produce_data.get('key', None),
@@ -141,7 +157,12 @@ def consume(
                 produce_data.get('headers', {}),
                 definition.source_dir,
                 definition.template_engine
-            )
+            ), kwargs={
+                'delay': delay,
+                'consumed': consumed
+            })
+            t.daemon = True
+            t.start()
 
 
 def _run_produce_loop(definition, service_id, service, actor_id, actor):
@@ -190,7 +211,8 @@ def run_loops(definition):
                     'produce_data': produce_data,
                     'definition': definition,
                     'service_id': service_id,
-                    'actor_id': actor_id
+                    'actor_id': actor_id,
+                    'delay': int(actor['delay']) if 'delay' in actor else 0
                 })
                 t.daemon = True
                 t.start()
