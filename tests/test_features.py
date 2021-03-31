@@ -3617,6 +3617,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
+        print(log)
         assert any(
             (row[0] == consumer_key)
             and  # noqa: W504, W503
