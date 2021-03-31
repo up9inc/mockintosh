@@ -937,13 +937,15 @@ class IntegrationTests(unittest.TestCase):
         produce(reaction, None, None)
         kafka_consume_expected(reaction, timeout=1)
 
-        produce(trigger, "trigger-key", "trigger-val")
+        produce(trigger, "trigger-key", "trigger-val", {"hdr-name": "justvalue"})
         time.sleep(5)
         msgs = kafka_consume_expected(reaction, timeout=5)
 
         self.assertEqual(1, len(msgs))
         self.assertEqual("somekey or null", msgs[0].key().decode())
-        self.assertEqual("reaction-value", msgs[0].value().decode())
+        self.assertEqual("reaction value\ntrigger-key\ntrigger-val\n", msgs[0].value().decode())
+        headers = dict(msgs[0].headers() if msgs[0].headers() else [])
+        self.assertEqual("justvalue", headers['name'].decode())
 
 
 def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
@@ -985,9 +987,9 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
     return msgs
 
 
-def produce(queue, key, val):
+def produce(queue, key, val, headers=None):
     logging.info("Producing into %s: %s %s", queue, key, val)
     producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})
     producer.poll(0)
-    producer.produce(queue, key=key, value=val)
+    producer.produce(queue, key=key, value=val, headers=headers)
     producer.flush()
