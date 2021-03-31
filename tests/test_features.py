@@ -3551,9 +3551,9 @@ class TestKafka():
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_produce_by_actor_name(self):
-        key = 'key6'
+        key = None
         value = 'value6'
-        headers = {'hdr6': 'val6'}
+        headers = {}
 
         stop = {'val': False}
         log = []
@@ -3674,10 +3674,11 @@ class TestKafka():
         resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(KAFKA_CONSUME_WAIT)
+        time.sleep(KAFKA_CONSUME_WAIT * 2)
 
         stop['val'] = True
         t.join()
+        print(log)
         for i in range(2):
             assert any(
                 (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
