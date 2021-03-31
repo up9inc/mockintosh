@@ -3579,16 +3579,21 @@ class TestKafka():
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
 
     def test_post_kafka_reactive_consumer(self):
-        topic = 'topic5'
-        key = 'key5'
-        value = 'value5'
-        headers = {'hdr5': 'val5'}
+        producer_topic = 'topic4'
+        producer_key = 'key4'
+        producer_value = 'value4'
+        producer_headers = {'hdr4': 'val4'}
+
+        consumer_topic = 'topic5'
+        consumer_key = 'key5'
+        consumer_value = 'value5'
+        consumer_headers = {'hdr5': 'val5'}
 
         stop = {'val': False}
         log = []
         t = threading.Thread(target=kafka.consume, args=(
             KAFKA_ADDR,
-            topic
+            consumer_topic
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3600,10 +3605,10 @@ class TestKafka():
 
         kafka.produce(
             KAFKA_ADDR,
-            'topic4',
-            'key4',
-            'value4',
-            {'hdr4': 'val4'},
+            producer_topic,
+            producer_key,
+            producer_value,
+            producer_headers,
             None,
             PYBARS
         )
@@ -3612,7 +3617,19 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == '%s and value4' % value and row[2] == headers for row in log)
+        assert any(
+            (row[0] == consumer_key)
+            and  # noqa: W504, W503
+            (row[1] == '%s and %s %s %s' % (
+                consumer_value,
+                producer_key,
+                producer_value,
+                producer_headers['hdr4']
+            ))
+            and  # noqa: W504, W503
+            (row[2] == consumer_headers)
+            for row in log
+        )
 
     def test_post_kafka_bad_requests(self):
         actor13 = 'actor13'
