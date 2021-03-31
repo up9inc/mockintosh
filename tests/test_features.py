@@ -27,7 +27,7 @@ from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
 from mockintosh import kafka
-from mockintosh.constants import PROGRAM, BASE64, PYBARS
+from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.methods import _b64encode
 from utilities import (
@@ -3506,6 +3506,30 @@ class TestKafka():
 
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
+    def test_get_kafka_consume_no_key(self):
+        key = None
+        value = 'value10'
+        headers = {}
+
+        kafka.produce(
+            KAFKA_ADDR,
+            'topic10',
+            key,
+            value,
+            headers,
+            None,
+            JINJA
+        )
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/0/10', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+
     def test_get_kafka_bad_requests(self):
         resp = httpx.get(MGMT + '/async/13/0', verify=False)
         assert 400 == resp.status_code
@@ -3678,7 +3702,6 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        print(log)
         for i in range(2):
             assert any(
                 (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))

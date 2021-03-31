@@ -88,6 +88,9 @@ services:
         timestamp: "{{date.timestamp}}"
         counter: "{{counter 'kafkaCounter'}}"
         fromFile: "@templates/example.txt"
+  - consume:
+      queue: topic10
+      value: value10
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
