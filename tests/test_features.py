@@ -3674,7 +3674,7 @@ class TestKafka():
         resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
         assert 200 == resp.status_code
 
-        time.sleep(KAFKA_CONSUME_WAIT * 2)
+        time.sleep(KAFKA_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
