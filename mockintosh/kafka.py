@@ -28,7 +28,7 @@ def _kafka_delivery_report(err, msg):
         logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
 
 
-def _create_topic(address, queue):
+def _create_topic(address: str, queue: str):
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [queue]]
@@ -57,8 +57,8 @@ def produce(
     headers: dict,
     config_dir: [str, None],
     template_engine: str,
-    delay=0,
-    consumed=None
+    delay: int = 0,
+    consumed: Consumed = None
 ) -> None:
     _delay(delay)
 
@@ -90,13 +90,13 @@ def produce(
 def consume(
     address: str,
     queue: str,
-    produce_data=None,
+    produce_data: dict = None,
     definition=None,
-    service_id=None,
-    actor_id=None,
-    log=None,
-    delay=0,
-    stop={}
+    service_id: int = None,
+    actor_id: int = None,
+    log: Union[None, list] = None,
+    delay: int = 0,
+    stop: dict = {}
 ) -> None:
     _create_topic(address, queue)
 
@@ -165,7 +165,7 @@ def consume(
             t.start()
 
 
-def _run_produce_loop(definition, service_id, service, actor_id, actor):
+def _run_produce_loop(definition, service_id: int, service: dict, actor_id: int, actor: dict):
     if 'limit' not in actor:
         logging.info('Running a Kafka loop indefinitely...')
         actor['limit'] = -1
