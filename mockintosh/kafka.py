@@ -17,17 +17,7 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
 from mockintosh.methods import _delay
-from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
-from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.handlers import BaseHandler
-
-hbs_random = hbs_Random()
-j2_random = j2_Random()
-
-hbs_date = hbs_Date()
-j2_date = j2_Date()
-
-counters = {}
+from mockintosh.handlers import KafkaHandler
 
 
 def _kafka_delivery_report(err, msg):
@@ -56,47 +46,6 @@ def _headers_decode(headers: list):
     for el in headers if headers else []:
         new_headers[el[0]] = el[1].decode()
     return new_headers
-
-
-class KafkaHandler(BaseHandler):
-    """Class to handle mocked Kafka data."""
-
-    def __init__(self, config_dir: [str, None], template_engine: str):
-        super().__init__()
-        self.config_dir = config_dir
-        self.definition_engine = template_engine
-        self.custom_context = {}
-
-        self.analyze_counters()
-
-    def _render_value(self, value):
-        if len(value) > 1 and value[0] == '@':
-            template_path, context = self.resolve_relative_path(value)
-            with open(template_path, 'r') as file:
-                logging.debug('Reading external file from path: %s', template_path)
-                value = file.read()
-        compiled, context = self.common_template_renderer(self.definition_engine, value)
-        self.populate_counters(context)
-        return compiled
-
-    def render_attributes(self, *args):
-        rendered = []
-        for arg in args:
-            if arg is None:
-                rendered.append(arg)
-
-            if isinstance(arg, dict):
-                new_arg = {}
-                for key, value in arg.items():
-                    new_arg[key] = self._render_value(value)
-                rendered.append(new_arg)
-            elif isinstance(arg, str):
-                rendered.append(self._render_value(arg))
-
-        return rendered
-
-    def add_params(self, context):
-        return context
 
 
 def produce(
