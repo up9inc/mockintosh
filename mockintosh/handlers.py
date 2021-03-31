@@ -1112,3 +1112,44 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         if identifier not in self.unhandled_data.requests[self.service_id]:
             self.unhandled_data.requests[self.service_id][identifier] = []
         self.unhandled_data.requests[self.service_id][identifier].append(row)
+
+
+class KafkaHandler(BaseHandler):
+    """Class to handle mocked Kafka data."""
+
+    def __init__(self, config_dir: [str, None], template_engine: str):
+        super().__init__()
+        self.config_dir = config_dir
+        self.definition_engine = template_engine
+        self.custom_context = {}
+
+        self.analyze_counters()
+
+    def _render_value(self, value):
+        if len(value) > 1 and value[0] == '@':
+            template_path, context = self.resolve_relative_path(value)
+            with open(template_path, 'r') as file:
+                logging.debug('Reading external file from path: %s', template_path)
+                value = file.read()
+        compiled, context = self.common_template_renderer(self.definition_engine, value)
+        self.populate_counters(context)
+        return compiled
+
+    def render_attributes(self, *args):
+        rendered = []
+        for arg in args:
+            if arg is None:
+                rendered.append(arg)
+
+            if isinstance(arg, dict):
+                new_arg = {}
+                for key, value in arg.items():
+                    new_arg[key] = self._render_value(value)
+                rendered.append(new_arg)
+            elif isinstance(arg, str):
+                rendered.append(self._render_value(arg))
+
+        return rendered
+
+    def add_params(self, context):
+        return context

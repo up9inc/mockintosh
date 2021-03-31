@@ -17,17 +17,8 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
 from mockintosh.methods import _delay
-from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
-from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.handlers import BaseHandler
-
-hbs_random = hbs_Random()
-j2_random = j2_Random()
-
-hbs_date = hbs_Date()
-j2_date = j2_Date()
-
-counters = {}
+from mockintosh.handlers import KafkaHandler
+from mockintosh.replicas import Consumed
 
 
 def _kafka_delivery_report(err, msg):
@@ -58,47 +49,6 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-class KafkaHandler(BaseHandler):
-    """Class to handle mocked Kafka data."""
-
-    def __init__(self, config_dir: [str, None], template_engine: str):
-        super().__init__()
-        self.config_dir = config_dir
-        self.definition_engine = template_engine
-        self.custom_context = {}
-
-        self.analyze_counters()
-
-    def _render_value(self, value):
-        if len(value) > 1 and value[0] == '@':
-            template_path, context = self.resolve_relative_path(value)
-            with open(template_path, 'r') as file:
-                logging.debug('Reading external file from path: %s', template_path)
-                value = file.read()
-        compiled, context = self.common_template_renderer(self.definition_engine, value)
-        self.populate_counters(context)
-        return compiled
-
-    def render_attributes(self, *args):
-        rendered = []
-        for arg in args:
-            if arg is None:
-                rendered.append(arg)
-
-            if isinstance(arg, dict):
-                new_arg = {}
-                for key, value in arg.items():
-                    new_arg[key] = self._render_value(value)
-                rendered.append(new_arg)
-            elif isinstance(arg, str):
-                rendered.append(self._render_value(arg))
-
-        return rendered
-
-    def add_params(self, context):
-        return context
-
-
 def produce(
     address: str,
     queue: str,
@@ -106,11 +56,20 @@ def produce(
     value: str,
     headers: dict,
     config_dir: [str, None],
-    template_engine: str
+    template_engine: str,
+    delay=0,
+    consumed=None
 ) -> None:
+    _delay(delay)
+
     _create_topic(address, queue)
 
+    # Templating
     kafka_handler = KafkaHandler(config_dir, template_engine)
+    if consumed is not None:
+        kafka_handler.custom_context = {
+            'consumed': consumed
+        }
     key, value, headers = kafka_handler.render_attributes(key, value, headers)
 
     # Producing
@@ -136,6 +95,7 @@ def consume(
     service_id=None,
     actor_id=None,
     log=None,
+    delay=0,
     stop={}
 ) -> None:
     _create_topic(address, queue)
@@ -183,8 +143,13 @@ def consume(
                 (key, value, headers)
             )
 
-        if produce_data is not None:  # pragma: no cover
-            produce(
+        if produce_data is not None:
+            consumed = Consumed()
+            consumed.key = key
+            consumed.value = value
+            consumed.headers = headers
+
+            t = threading.Thread(target=produce, args=(
                 address,
                 produce_data.get('queue'),
                 produce_data.get('key', None),
@@ -192,7 +157,12 @@ def consume(
                 produce_data.get('headers', {}),
                 definition.source_dir,
                 definition.template_engine
-            )
+            ), kwargs={
+                'delay': delay,
+                'consumed': consumed
+            })
+            t.daemon = True
+            t.start()
 
 
 def _run_produce_loop(definition, service_id, service, actor_id, actor):
@@ -241,7 +211,8 @@ def run_loops(definition):
                     'produce_data': produce_data,
                     'definition': definition,
                     'service_id': service_id,
-                    'actor_id': actor_id
+                    'actor_id': actor_id,
+                    'delay': int(actor['delay']) if 'delay' in actor else 0
                 })
                 t.daemon = True
                 t.start()

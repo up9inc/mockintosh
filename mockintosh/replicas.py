@@ -15,12 +15,12 @@ from mockintosh.methods import _b64encode
 from mockintosh.constants import BASE64
 
 
-class _NotParsedJSON():
+class _NotParsedJSON:
     """Class to determine wheter the request body is parsed into JSON or not."""
     pass
 
 
-class Request():
+class Request:
     """Class that defines the `Request` object which is being injected into the response template."""
 
     def __init__(self) -> None:
@@ -117,7 +117,7 @@ class Request():
         return data
 
 
-class Response():
+class Response:
     """Class that defines the `Response` object which is being used by the interceptors."""
 
     def __init__(self) -> None:
@@ -155,3 +155,12 @@ class Response():
             "headersSize": -1,
             "bodySize": self.bodySize
         }
+
+
+class Consumed:
+    """Class that defines the `Consumed` object which is being injected into the producers in the async handlers."""
+
+    def __init__(self) -> None:
+        self.key = None
+        self.value = None
+        self.headers = {}
