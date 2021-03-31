@@ -15,7 +15,6 @@ install:
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
 script:
   - stty cols 120
-  - ./ps.sh &
   - travis_fold start "Unit.Tests" && make test-with-coverage && travis_fold end "Unit.Tests"
   - travis_fold start "Integration.Tests" && make test-integration && travis_fold end "Integration.Tests"
 after_success:
