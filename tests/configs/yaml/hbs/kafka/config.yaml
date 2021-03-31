@@ -87,7 +87,7 @@ services:
         constant: constant-value
         timestamp: "{{date.timestamp}}"
         counter: "{{counter 'kafkaCounter'}}"
-        # fromFile: "@templates/example.txt"
+        fromFile: "@templates/example.txt"
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
