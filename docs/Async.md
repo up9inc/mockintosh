@@ -74,12 +74,75 @@ services:
 Now, to trigger producing the message on-demand, you need to issue an API call using actor's `name`, like this:
 
 ```shell
-curl -X POST http://localhost:8000/async # TODO
+curl -X POST http://localhost:8000/async/on-demand-1 
 ```
 
+_Note: The `limit` option actually works for any kind of producer._
+
 ## Validating Consumer
+
+The "validating consumer" actor is used when you need to check the fact of service publishing the message on the bus.
+For example, if your service accepts REST call and puts message on the bus, and you validating this behavior in an
+automated test. Again, for this validating you would need to have [Management API](Management.md) enabled. Let's see a
+snippet:
+
+```yaml
+management:
+  port: 8000
+services:
+  - name: Kafka Mock Actors
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: validate-consume-1
+        consume:
+          queue: another-queue-name # topic/queue name to subscribe to, required
+          group: "consumer-group" # optional consumer group
+          key: matching keys  # expected key, optional
+          value: "expected value"  # optional
+          capture: 10  # limit len of messages to store for validation, optional, default: 1
+```
+
+To validate that message has appeared on the bus, you have to query Management API endpoint, like this:
+
+```shell
+curl http://localhost:8000/async/validate-consume-1 
+```
+
+That would respond with JSON containing the list of captured messages, for example:
+
+```json5
+TODO
+```
+
+To clear the captured message list, issue a `DELETE` call on the same URL:
+
+```shell
+curl -X DELETE http://localhost:8000/async/validate-consume-1
+```
+
+To narrow down the expected message, you can use regular [matching](Management.md) equations in `key`, `value`
+or `headers` values:
+
+```yaml
+management:
+  port: 8000
+services:
+  - name: Kafka Mock Actors
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: validate-consume-2
+        consume:
+          queue: another-queue-name
+          key: "{{regEx 'prefix-(.*)'}}"
+          value: "expected prefix-{{justName}}"  # see also "reactive producer" section 
+          headers:
+            hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section
+```
 
 ## "Reactive" Producer
 
 By mixing together actors of "validating consumer" and "on-demand producer" types, we can get the behavior when message
-is produced in "reaction" to another message consumed from the bus. You can also specify a `delay` between consumption and producing, to simulate some "processing time".
+is produced in "reaction" to another message consumed from the bus. You can also specify a `delay` between consumption
+and producing, to simulate some "processing time".
