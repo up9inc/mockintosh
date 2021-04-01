@@ -8,7 +8,7 @@
 
 import pytest
 
-from mockintosh.methods import _urlsplit
+from mockintosh.helpers import _urlsplit
 
 
 class TestHelpers():

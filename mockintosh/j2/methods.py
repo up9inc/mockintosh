@@ -20,7 +20,7 @@ from jsonpath_ng import parse as jsonpath_parse
 from jinja2.utils import contextfunction
 from jinja2.exceptions import TemplateSyntaxError
 
-from mockintosh.methods import _jinja_add_varname, _jinja_add_to_context
+from mockintosh.helpers import _jinja_add_varname, _jinja_add_to_context
 
 
 def fake():

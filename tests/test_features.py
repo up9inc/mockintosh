@@ -29,7 +29,7 @@ import mockintosh
 from mockintosh import kafka
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
-from mockintosh.methods import _b64encode
+from mockintosh.helpers import _b64encode
 from utilities import (
     tcping,
     run_mock_server,
