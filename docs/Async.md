@@ -54,9 +54,32 @@ memory/disk space._
 ## On-Demand Producer
 
 On-demand producer is basically a scheduled producer with no `delay` option. Instead of producing messages
-automatically, this kind of actor waits for Management API call to trigger the message push.
+automatically, this kind of actor waits for [Management API](Management.md) call to trigger the message push.
 
-## "Reactive" Producer
+```yaml
+management:
+  port: 8000
+services:
+  - name: Kafka Mock Actors
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: on-demand-1
+        produce:
+          queue: on-demand1
+          key: somekey or null
+          value: "@value/from/file.json"  # it's possible to reference file
+```
+
+Now, to trigger producing the message on-demand, you need to issue an API call using actor's `name`, like this:
+
+```shell
+curl -X POST http://localhost:8000/async # TODO
+```
 
 ## Validating Consumer
 
+## "Reactive" Producer
+
+By mixing together actors of "validating consumer" and "on-demand producer" types, we can get the behavior when message
+is produced in "reaction" to another message consumed from the bus. You can also specify a `delay` between consumption and producing, to simulate some "processing time".
