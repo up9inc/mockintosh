@@ -146,3 +146,27 @@ services:
 By mixing together actors of "validating consumer" and "on-demand producer" types, we can get the behavior when message
 is produced in "reaction" to another message consumed from the bus. You can also specify a `delay` between consumption
 and producing, to simulate some "processing time".
+
+```yaml
+services:
+  - name: Kafka Mock Actors
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: reactive-producer-1
+        consume:
+          queue: consume-from-topic-1
+          key: "{{regEx 'prefix-(.*)'}}"
+          value: "expected prefix-{{justName}}"  # see also "reactive producer" section 
+          headers:
+            hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section
+        delay: 5  # optional delay before producing
+        produce:
+          queue: produce-into-topic-2
+          key: "can reference as {{consumed.key}} and {{consumed.value}}"
+          value: "reference from consumed: {{justName}} {{myCapturedVar}}"
+          headers:
+            timestamp: '{{date.timestamp}}'  # regular Mockintosh templating can be used
+```
+
+_Note: Validating the consumer and triggering the producing would work for "reactive producer", too._
