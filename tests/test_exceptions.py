@@ -6,12 +6,14 @@
     :synopsis: Contains classes that tests the exceptions thrown by the mock server.
 """
 
+import sys
 import pytest
 from jsonschema.exceptions import ValidationError
 
 from mockintosh import Definition, get_schema
-from mockintosh.exceptions import UnrecognizedConfigFileFormat, UnsupportedTemplateEngine
-from mockintosh.templating import TemplateRenderer
+from mockintosh.exceptions import UnrecognizedConfigFileFormat, CertificateLoadingError
+from mockintosh.servers import HttpServer, TornadoImpl
+from mockintosh.methods import _nostderr
 from utilities import get_config_path
 
 schema = get_schema()
@@ -40,10 +42,30 @@ class TestExceptions():
         ):
             Definition(get_config_path(config), schema)
 
-    def test_unsupported_template_engine_error(self):
-        engine = 'not existing engine'
+    def test_certificate_loading_error_1(self):
+        config = 'configs/missing_ssl_cert_file.json'
         with pytest.raises(
-            UnsupportedTemplateEngine,
-            match=r"Unsupported template engine"
+            CertificateLoadingError,
+            match=r"Certificate loading error: File not found on path `missing_dir/cert.pem`"
         ):
-            TemplateRenderer(engine, '')
+            definition = Definition(get_config_path(config), schema)
+            HttpServer(
+                definition,
+                TornadoImpl()
+            )
+
+    def test_certificate_loading_error_2(self):
+        config = 'configs/inaccessible_ssl_cert_file.json'
+        with pytest.raises(
+            CertificateLoadingError,
+            match=r"Certificate loading error: Path `../../tests_integrated/subdir/cert.pem` is inaccessible!"
+        ):
+            definition = Definition(get_config_path(config), schema)
+            HttpServer(
+                definition,
+                TornadoImpl()
+            )
+
+    def test_nostderr(self):
+        with _nostderr():
+            sys.stderr.write('don\'t print this')

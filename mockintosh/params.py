@@ -14,12 +14,6 @@ class ParamBase():
         self.value = value
 
 
-class PathParam(ParamBase):
-
-    def __init__(self, key, value):
-        super().__init__(key, value)
-
-
 class HeaderParam(ParamBase):
 
     def __init__(self, key, value):

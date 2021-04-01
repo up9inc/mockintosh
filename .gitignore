@@ -19,6 +19,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+mck/
 parts/
 sdist/
 var/
@@ -106,6 +107,16 @@ ENV/
 
 # Editors / IDEs
 .vscode/
+.idea/
+
+# OS
+.DS_Store
 
 # Ignore the file that are created for development
 *dev.*
+
+# Copied Certificates
+tests/configs/json/hbs/management/cert.pem
+tests/configs/json/hbs/management/key.pem
+tests/configs/yaml/hbs/management/cert.pem
+tests/configs/yaml/hbs/management/key.pem

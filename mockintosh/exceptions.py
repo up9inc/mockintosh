@@ -18,22 +18,17 @@ class UnrecognizedConfigFileFormat(Exception):
         super().__init__(message)
 
 
-class UnsupportedTemplateEngine(Exception):
-    """Raised in case of an unsupported template engine is detected.
-    """
-
-    def __init__(self, engine, supported_engines):
-        super().__init__(
-            '\nUnsupported template engine: %s\nSupported template engines: %s' % (
-                engine,
-                ', '.join(supported_engines)
-            )
-        )
-
-
 class CertificateLoadingError(Exception):
     """Raised in case of a certificate file is not found or in a forbidden path.
     """
 
     def __init__(self, reason):
         super().__init__('\nCertificate loading error: %s' % reason)
+
+
+class RestrictedFieldError(Exception):
+    """Raised in case of a restricted field is tried to be changed during config update.
+    """
+
+    def __init__(self, field):
+        super().__init__('\'%s\' field is restricted!' % field)

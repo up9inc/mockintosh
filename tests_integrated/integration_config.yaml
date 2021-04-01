@@ -1,0 +1,253 @@
+management:
+  port: 8000
+  ssl: true
+globals:
+  headers:
+    global-hdr1: globalval1
+    global-hdr2: globalval2
+  performanceProfile: never
+performanceProfiles:
+  justDelay:
+    ratio: 1.0
+    delay: 0.5
+  someFaults:
+    ratio: 1.0
+    faults:
+      PASS: 0.5
+      '503': 0.25
+      RST: 0.25
+  dummy:
+    ratio: 1.0
+  never:
+    ratio: 0.0
+    faults:
+      RST: 0.0
+services:
+  - name: First basic service
+    port: 8001
+    managementRoot: __admin
+    endpoints:
+      - path: /
+        method: GET
+        response: static response
+        performanceProfile: justDelay
+      - path: /parameterized1/{{intoVar}}/subval
+        response: 'intoVar capture: {{intoVar}}'
+        performanceProfile: dummy
+      - path: /parameterized1/staticVal/subval
+        response: static path components have priority
+      - path: /parameterized2/{{regEx 'prefix-.+'}}/subval
+        response: 'regex capture: {{request.path}}'
+      - path: /parameterized3/{{regEx '(.+\.png)' 'fname'}}
+        response: '@subdir/{{fname}}'
+      - path: /parameterized1/{{regEx 'prefix2-([^/]+)' 'varname'}}/subval2
+        response: 'tricky regex capture: {{varname}}'
+      - path: /body-urlencoded
+        method: post
+        body:
+          urlencoded:
+            param1: constant val
+            param2: '{{anyValIntoVar}}'
+            param3: '{{regEx ''prefix-(.+)-suffix'' ''capturedVar''}}'
+        response: 'urlencoded match: {{request.body.param1}} {{capturedVar}} {{anyValIntoVar}}'
+      - path: /body-multipart
+        method: post
+        body:
+          multipart:
+            param1: constant val
+            param2: '{{anyValIntoVar}}'
+            param3: '{{regEx ''prefix-(.+)-suffix'' ''capturedVar''}}'
+        response: 'multipart match: {{request.body.param1}} {{capturedVar}} {{anyValIntoVar}}'
+      - path: /qstr-matching1
+        queryString:
+          param1: constant val
+          param2: '{{anyValIntoVar}}'
+          param3: '{{regEx ''prefix-(.+)-suffix'' ''capturedVar''}}'
+        response:
+          body: 'qstr match 1: {{request.queryString.param1}} {{capturedVar}} {{anyValIntoVar}}'
+          status: '202'
+          headers:
+            Content-Type: application/x-my-own
+            param2: '{{request.queryString.param2}} {{request.queryString.param3}}'
+            global-hdr1: overridden
+      - path: /header-matching1
+        headers:
+          hdr1: constant val
+          hdr2: '{{anyValIntoVar}}'
+          hdr3: '{{regEx ''prefix-(.+)-suffix'' ''capturedVar''}}'
+        response:
+          body: 'headers match 1: {{request.headers.hdr1}} {{capturedVar}}'
+          status: 201
+          headers:
+            Set-Cookie:
+              - name1={{request.headers.hdr2}}
+              - name2={{request.headers.hdr3}}
+      - path: /header-matching1
+        headers:
+          hdr4: another header
+        response: alternative header
+      - path: /body-jsonschema1
+        method: POST
+        body:
+          schema:
+            type: object
+            properties:
+              somekey: {}
+            required:
+              - somekey
+        response: body json schema matched
+      - path: /body-regex
+        method: POST
+        body:
+          text: '{{regEx ''(\d)-required-(\d)'' ''val1'' ''val2''}}'
+        response: 'body regex matched: {{val1}} {{val2}}'
+      - path: /body-jsonpath-tpl
+        method: POST
+        response: 'body jsonpath matched: {{jsonPath request.json ''$.key''}} {{jsonPath request.json ''$.key2''}}'
+      - path: /status-template1
+        response:
+          status: '{{request.queryString.rc}}'
+      - path: /insecure-configuration1
+        response: '@/etc/hosts'
+      - path: /insecure-configuration2
+        response: '@../../etc/hosts'
+      - path: /cors-request
+        method: post
+        body:
+          schema: '@subdir/empty_schema.json'
+        response:
+          status: 201
+      - path: /cors-request-overridden
+        method: options
+        response:
+          status: 401
+      - path: /multi-response-looped
+        response:
+          - '@cors.html'
+          - headers:
+              content-type: image/png
+            body: '@subdir/image.png'
+          - just some text
+      - path: /multi-response-nonlooped
+        multiResponsesLooped: false
+        response:
+          - resp1
+          - resp2
+      - path: /response-not-required
+      - path: /dataset-inline
+        dataset:
+          - var1: val1
+          - var1: val2
+        response: 'dset: {{var1}}'
+      - path: /dataset-fromfile
+        datasetLooped: false
+        dataset: '@subdir/dataset.json'
+        response: 'dset: {{var1}}'
+      - path: /templating-random
+        response: '{{random.int 10 20}}
+
+      {{random.float -0.5 20.7 3}}
+
+      {{random.alphanum 5}}
+
+      {{random.hex 16}}
+
+      {{random.uuid4}}
+
+      {{random.ascii 5}}'
+      - path: /counter1
+        response:
+          - 'variant1: {{counter ''counterName1''}} {{counter ''counterName2''}}'
+          - 'variant2: {{counter ''counterName1''}} {{counter ''counterName3''}}'
+      - path: /counter2
+        response:
+          headers:
+            X-Counter: 'variant3: {{counter ''counterName1''}} {{counter ''counterName2''}} {{counter ''counterName3''}}'
+      - path: /counter3
+        response: 'variant3: {{counterName1}} {{counterName2}} {{counterName3}}'
+      - path: /undefined-templates
+        response:
+          headers:
+            x-header: also {{random.intt 10 20}} can happen
+          body: here goes {{unknownUndefined}} var
+      - path: /date-tpl
+        response: '{{date.timestamp}} {{date.timestamp -10}} {{date.timestamp 10}} {{date.ftimestamp}} {{date.ftimestamp 10 5}} {{date.date}} {{date.date ''%Y-%m-%d %H:%M:%S''}} {{date.date ''%Y-%m-%d %H'' 86400}}'
+      - path: /conn-rst
+        response:
+          status: RST
+      - path: /conn-close
+        response:
+          status: FIN
+      - path: /perf-profile-faults
+        performanceProfile: someFaults
+      - path: /tagged
+        response:
+          - body: '3.1'
+          - tag: first
+            body: '1.1'
+          - tag: second
+            body: '2.1'
+          - tag: first
+            body: '1.2'
+          - body: '3.2'
+          - tag: second
+            body: '2.2'
+          - body: '3.3'
+      - path: /tagged-confusing
+        response:
+          - tag: some
+      - path: /json-response
+        method: POST
+        response:
+          headers:
+            Content-Type: application/json
+          body: '{"key": [1, "value", null, false]}'
+      - path: "/qstr-multiparam1?param[]={{val1}}&param[]={{val2}}"
+        response: "{{val1}} {{val2}}"
+      - path: "/qstr-multiparam2?param1={{val1}}&param2={{val2}}"
+        response: "{{val1}} {{val2}}"
+      - path: "/qstr-multiparam3?prefix-{{data}}-suffix"
+        response: "{{data}}"
+
+  - name: Service with specified.host
+    port: 8002
+    hostname: specified.host
+    endpoints:
+      - id: some-endpoint-id
+        path: /
+        method: get
+        response: Yo, I'm specified.host
+  - name: Service with specified another.host
+    port: 8002
+    hostname: another.host
+    endpoints:
+      - id: some-endpoint-id2
+        path: /
+        method: get
+        response: Hey, I'm another.host
+  - name: Service with no endpoints, for bare interceptors
+    port: 8003
+    ssl: true
+  - name: Service for CORS
+    port: 8004
+    endpoints:
+      - path: /cors2
+        response: '@cors.html'
+  - name: SSL with certfile
+    port: 8005
+    ssl: true
+    sslCertFile: subdir/cert.pem
+    sslKeyFile: subdir/key.pem
+    endpoints:
+      - path: /
+  - name: Service for management API / Dynamic configs
+    port: 8006
+    managementRoot: /sub/__admin
+    oas: '@subdir/oas.json'
+  - name: Service with fallback
+    port: 8007
+    managementRoot: /sub/__admin
+    fallbackTo: https://mockintosh.io
+    endpoints:
+      - path: /
+        response: no fallback

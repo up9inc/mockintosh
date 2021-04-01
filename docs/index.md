@@ -13,6 +13,9 @@ Key features:
 - request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
 - performance testing supported (with [datasets](Configuring.md#datasets) and low resource footprint)
 - [interceptors](#interceptors) support for unlimited customization
+- remote [management UI+API](Management.md)
+
+_Note: There is an [article on UP9 blog](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) explaining motivation behind Mockintosh project._
 
 ## Quick Start
 
@@ -20,14 +23,12 @@ Key features:
 pip3 install mockintosh
 ```
 
-If you have installed Mockintosh as Python package (requires Python 3.x+), start it with JSON/YAML [configuration file](Configuring.md) as
-parameter:
+If you have installed Mockintosh as Python package (requires Python 3.x+), start it with JSON/YAML configuration as an
+argument (consider [my_mocks.yaml](examples/my_mocks.yaml) as example):
 
 ```shell
 mockintosh my_mocks.yaml
 ```
-
-After server starts, you can issue requests against it.
 
 Alternatively, you can run Mockintosh as Docker container:
 
@@ -37,32 +38,17 @@ docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp up9inc/mockintosh /tmp/confi
 
 Please note the `-p` flag used to publish container's ports and `-v` to mount directory with config into container.
 
+After server starts, you can issue requests against it. For example, `curl -v http://localhost:8000/` would
+respond `hello world`. Also, consider opening [Management UI](Management.md) in your
+browser: [http://localhost:8000/__admin](http://localhost:8000/__admin). Management UI offers visual tools to see available mock endpoints, traffic log
+and many other [features](Management.md).
+
 ## Command-line Arguments
 
 The list of command-line arguments can be seen by running `mockintosh --help`.
 
-If no configuration file is provided `mockintosh` starts with the default config shown below:
-
-```json
-{
-  "services": [
-    {
-      "name": "Default Mock Service Config",
-      "hostname": "localhost",
-      "port": 8001,
-      "endpoints": [
-        {
-          "path": "/",
-          "method": "GET",
-          "response": "hello world"
-        }
-      ]
-    }
-  ]
-}
-```
-
-If you don't want to listen all of the services in a configuration file then you can specify a list of service names (`name` is a string attribute you can set per service):
+If you don't want to listen all of the services in a configuration file then you can specify a list of service
+names (`name` is a string attribute you can set per service):
 
 ```shell
 mockintosh my_mocks.yaml 'Mock for Service1' 'Mock for Service2'

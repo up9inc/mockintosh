@@ -16,6 +16,7 @@ import copy
 from collections import OrderedDict
 from os import path, environ
 from gettext import gettext
+from urllib.parse import parse_qs
 
 import yaml
 from jsonschema import validate
@@ -23,7 +24,7 @@ from jsonschema import validate
 from mockintosh.constants import PROGRAM
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.replicas import Request, Response  # noqa: F401
-from mockintosh.methods import _detect_engine, _nostderr, _import_from
+from mockintosh.methods import _detect_engine, _nostderr, _import_from, _urlsplit
 from mockintosh.recognizers import (
     PathRecognizer,
     HeadersRecognizer,
@@ -35,10 +36,11 @@ from mockintosh.recognizers import (
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
 
-__version__ = "0.7"
+__version__ = "0.8.1"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
+cov_no_run = environ.get('COVERAGE_NO_RUN', False)
 
 
 class Definition():
@@ -116,8 +118,14 @@ class Definition():
                 None
             )
 
+            scheme, netloc, path, query, fragment = _urlsplit(endpoint['path'])
+            if 'queryString' not in endpoint:
+                endpoint['queryString'] = {}
+            parsed_query = parse_qs(query, keep_blank_values=True)
+            endpoint['queryString'].update({k: parsed_query[k] for k, v in parsed_query.items()})
+
             path_recognizer = PathRecognizer(
-                endpoint['path'],
+                path,
                 endpoint['params'],
                 endpoint['context'],
                 template_engine
@@ -134,13 +142,13 @@ class Definition():
                 endpoint['headers'] = headers_recognizer.recognize()
 
             if 'queryString' in endpoint and endpoint['queryString']:
-                headers_recognizer = QueryStringRecognizer(
+                query_string_recognizer = QueryStringRecognizer(
                     endpoint['queryString'],
                     endpoint['params'],
                     endpoint['context'],
                     template_engine
                 )
-                endpoint['queryString'] = headers_recognizer.recognize()
+                endpoint['queryString'] = query_string_recognizer.recognize()
 
             if 'body' in endpoint:
                 if 'text' in endpoint['body'] and endpoint['body']['text']:
@@ -217,7 +225,7 @@ def run(source, is_file=True, debug=False, interceptors=(), address='', services
             address=address,
             services_list=services_list
         )
-    except Exception:
+    except Exception:  # pragma: no cover
         logging.exception('Mock server loading error:')
         with _nostderr():
             raise
@@ -226,7 +234,7 @@ def run(source, is_file=True, debug=False, interceptors=(), address='', services
 
 def gracefully_exit(num, frame):
     atexit._run_exitfuncs()
-    if should_cov:
+    if should_cov:  # pragma: no cover
         sys.exit()
 
 
@@ -234,11 +242,11 @@ def cov_exit(cov):
     if should_cov:
         logging.debug('Stopping coverage')
         cov.stop()
-        cov.save()
+        cov.save()  # pragma: no cover
 
 
 def initiate():
-    if should_cov:
+    if should_cov:  # pragma: no cover
         signal.signal(signal.SIGTERM, gracefully_exit)
         logging.debug('Starting coverage')
         from coverage import Coverage
@@ -302,4 +310,5 @@ def initiate():
     source = args['source'][0]
     services_list = args['source'][1:]
 
-    run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)
+    if not cov_no_run:  # pragma: no cover
+        run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)

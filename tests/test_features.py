@@ -17,21 +17,23 @@ from datetime import datetime, timedelta, timezone
 
 import yaml
 import pytest
-import requests
-from requests.exceptions import ConnectionError
+import httpx
 from openapi_spec_validator import validate_spec
 from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
-from mockintosh.constants import PROGRAM
+from mockintosh.constants import PROGRAM, BASE64
 from mockintosh.performance import PerformanceProfile
+from mockintosh.methods import _b64encode
 from utilities import (
     tcping,
     run_mock_server,
     get_config_path,
     nostdout,
-    nostderr
+    nostderr,
+    is_valid_uuid,
+    is_ascii
 )
 
 MonkeyPatch.patch_fromisoformat()
@@ -46,14 +48,16 @@ configs = [
 ]
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
+SRV_8000 = os.environ.get('SRV1', 'http://localhost:8000')
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')
-SRV_9000 = os.environ.get('SRV2', 'http://localhost:9000')
+SRV_8004 = os.environ.get('SRV2', 'http://localhost:8004')
 
 SRV_8001_HOST = 'service1.example.com'
 SRV_8002_HOST = 'service2.example.com'
 SRV_8003_HOST = 'service3.example.com'
+SRV_8004_HOST = 'service4.example.com'
 
 SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
 SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
@@ -80,7 +84,7 @@ class TestCommon():
                 raise AssertionError("Port %d is closed!" % port)
 
     def test_users(self, config):
-        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -96,7 +100,7 @@ class TestCommon():
 
     def test_user(self, config):
         user_id = random.randint(1, 1000)
-        resp = requests.get(SRV_8001 + '/users/%s' % user_id, headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/users/%s' % user_id, headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -109,7 +113,7 @@ class TestCommon():
         assert isinstance(data['friends'], list) or data['friends'] is None
 
     def test_companies(self, config):
-        resp = requests.post(SRV_8002 + '/companies', headers={'Host': SRV_8002_HOST})
+        resp = httpx.post(SRV_8002 + '/companies', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -137,6 +141,18 @@ class TestCommandLineArguments():
         assert self.mock_server_process.is_alive() is False
 
     @pytest.mark.parametrize(('config'), configs)
+    def test_wrong_argument(self, config):
+        with nostderr():
+            self.mock_server_process = run_mock_server(get_config_path(config), '--wrong-option', wait=1)
+        assert self.mock_server_process.is_alive() is False
+
+    @pytest.mark.parametrize(('config'), configs)
+    def test_missing_config_file(self, config):
+        with nostderr():
+            self.mock_server_process = run_mock_server('missing_file.json', wait=1)
+        assert self.mock_server_process.is_alive() is False
+
+    @pytest.mark.parametrize(('config'), configs)
     def test_quiet(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), '--quiet')
         TestCommon.test_users(TestCommon, config)
@@ -147,12 +163,17 @@ class TestCommandLineArguments():
         TestCommon.test_users(TestCommon, config)
 
     @pytest.mark.parametrize(('config'), configs)
+    def test_bind_address(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config), '--bind', '127.0.0.1')
+        TestCommon.test_users(TestCommon, config)
+
+    @pytest.mark.parametrize(('config'), configs)
     def test_interceptor_single(self, config):
         self.mock_server_process = run_mock_server(
             get_config_path(config),
             '--interceptor=interceptingpackage.interceptors.dummy1'
         )
-        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 414 == resp.status_code
 
     @pytest.mark.parametrize(('config'), configs)
@@ -162,7 +183,7 @@ class TestCommandLineArguments():
             '--interceptor=interceptingpackage.interceptors.dummy1',
             '--interceptor=interceptingpackage.interceptors.dummy2'
         )
-        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 417 == resp.status_code
 
     def test_logfile(self):
@@ -181,12 +202,15 @@ class TestCommandLineArguments():
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 404 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/service3', headers={'Host': SRV_8003_HOST})
         assert 404 == resp.status_code
 
     def test_port_override(self):
@@ -194,7 +218,7 @@ class TestCommandLineArguments():
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
-        resp = requests.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
@@ -218,7 +242,7 @@ class TestInterceptors():
             get_config_path(config),
             '--interceptor=interceptingpackage.interceptors.not_existing_path'
         )
-        resp = requests.get(SRV_8003 + '/interceptor-modified')
+        resp = httpx.get(SRV_8003 + '/interceptor-modified')
         assert 201 == resp.status_code
         assert 'intercepted' == resp.text
         assert resp.headers['someheader'] == 'some-i-val'
@@ -234,7 +258,7 @@ class TestInterceptors():
             '--logfile',
             logfile_name
         )
-        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert os.path.isfile(logfile_name)
         with open(logfile_name, 'r') as fp:
@@ -246,14 +270,13 @@ class TestInterceptors():
             get_config_path(config),
             '--interceptor=interceptingpackage.interceptors.request_object'
         )
-        resp = requests.get(
+        resp = httpx.get(
             SRV_8003 + '/request1?a=hello%20world&b=3',
-            headers={'Cache-Control': 'no-cache'},
-            data='hello world'
+            headers={'Cache-Control': 'no-cache'}
         )
         assert 200 == resp.status_code
 
-        resp = requests.post(
+        resp = httpx.post(
             SRV_8003 + '/request2',
             data={'param1': 'value1', 'param2': 'value2'}
         )
@@ -279,12 +302,12 @@ class TestCore():
         var = 'print_this'
         with nostdout() and nostderr():
             self.mock_server_process = run_mock_server(get_config_path(config))
-        resp = requests.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        resp = httpx.get(SRV_8001 + '/%s' % var, headers={'Host': SRV_8001_HOST})
         if 'j2' in config:
-            assert resp.text == '{{varname}}'
+            assert 404 == resp.status_code
         else:
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == var
 
     @pytest.mark.parametrize(('config'), [
@@ -295,7 +318,7 @@ class TestCore():
     ])
     def test_correct_templating_engine_in_response_should_render_correctly(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
-        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -310,7 +333,7 @@ class TestCore():
     ])
     def test_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
-        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
 
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -327,7 +350,7 @@ class TestCore():
     ])
     def test_no_use_templating_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
-        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
 
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -344,7 +367,7 @@ class TestCore():
     ])
     def test_use_templating_false_should_not_render(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
-        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
 
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -353,12 +376,12 @@ class TestCore():
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
@@ -367,22 +390,22 @@ class TestCore():
         config = 'configs/json/hbs/core/two_services_one_with_hostname_one_without.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/')
+        resp = httpx.get(SRV_8001 + '/')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
         # Service 1 (the one without the hostname) should accept any `Host` header
-        resp = requests.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
         # Service 2 (the one with the hostname) should require a correct `Host` header
-        resp = requests.get(SRV_8002 + '/')
+        resp = httpx.get(SRV_8002 + '/')
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8002 + '/', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
@@ -391,12 +414,12 @@ class TestCore():
         config = 'configs/json/hbs/core/endpoint_id_header.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-1'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
@@ -405,42 +428,42 @@ class TestCore():
         config = 'configs/json/hbs/core/http_verbs.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/hello')
+        resp = httpx.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'GET request'
 
-        resp = requests.get(SRV_8001 + '/hello')
+        resp = httpx.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'GET request'
 
-        resp = requests.post(SRV_8001 + '/hello')
+        resp = httpx.post(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'POST request'
 
-        resp = requests.head(SRV_8001 + '/hello')
+        resp = httpx.head(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == ''
 
-        resp = requests.delete(SRV_8001 + '/hello')
+        resp = httpx.delete(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'DELETE request'
 
-        resp = requests.patch(SRV_8001 + '/hello')
+        resp = httpx.patch(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'PATCH request'
 
-        resp = requests.put(SRV_8001 + '/hello')
+        resp = httpx.put(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'PUT request'
 
-        resp = requests.options(SRV_8001 + '/hello')
+        resp = httpx.options(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'OPTIONS request'
@@ -449,44 +472,44 @@ class TestCore():
         config = 'configs/json/hbs/core/http_verbs.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/method-not-allowed-unless-post')
+        resp = httpx.get(SRV_8001 + '/method-not-allowed-unless-post')
         assert 405 == resp.status_code
         assert 'Supported HTTP methods: POST' == resp.text
 
-        resp = requests.post(SRV_8001 + '/method-not-allowed-unless-get')
+        resp = httpx.post(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
         assert 'Supported HTTP methods: GET' == resp.text
 
-        resp = requests.head(SRV_8001 + '/method-not-allowed-unless-get')
+        resp = httpx.head(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
 
-        resp = requests.delete(SRV_8001 + '/method-not-allowed-unless-get')
-        assert 405 == resp.status_code
-        assert 'Supported HTTP methods: GET' == resp.text
-
-        resp = requests.patch(SRV_8001 + '/method-not-allowed-unless-get')
+        resp = httpx.delete(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
         assert 'Supported HTTP methods: GET' == resp.text
 
-        resp = requests.put(SRV_8001 + '/method-not-allowed-unless-get')
+        resp = httpx.patch(SRV_8001 + '/method-not-allowed-unless-get')
         assert 405 == resp.status_code
         assert 'Supported HTTP methods: GET' == resp.text
 
-        resp = requests.options(SRV_8001 + '/method-not-allowed-unless-get')
+        resp = httpx.put(SRV_8001 + '/method-not-allowed-unless-get')
+        assert 405 == resp.status_code
+        assert 'Supported HTTP methods: GET' == resp.text
+
+        resp = httpx.options(SRV_8001 + '/method-not-allowed-unless-get')
         assert 404 == resp.status_code
 
     def test_no_response_body_204(self):
         config = 'configs/json/hbs/core/no_response_body_204.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/endpoint1')
+        resp = httpx.get(SRV_8001 + '/endpoint1')
         assert 204 == resp.status_code
 
     def test_empty_response_body(self):
         config = 'configs/json/hbs/core/empty_response_body.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/endpoint1')
+        resp = httpx.get(SRV_8001 + '/endpoint1')
         assert 200 == resp.status_code
         assert resp.text == ''
 
@@ -494,34 +517,50 @@ class TestCore():
         config = 'configs/json/hbs/core/binary_response.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/hello')
+        resp = httpx.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
         data = resp.json()
         assert isinstance(data['hello'], str)
 
-        resp = requests.get(SRV_8001 + '/image')
+        resp = httpx.get(SRV_8001 + '/image')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'image/png'
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             assert resp.content == file.read()
 
+    def test_binary_request_body(self):
+        config = 'configs/yaml/hbs/core/binary_request_body.yaml'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            resp = httpx.post(SRV_8001 + '/endpoint1', files={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == _b64encode(image_file)
+
+            resp = httpx.post(SRV_8001 + '/endpoint1', data={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == _b64encode(image_file)
+
     def test_ssl_true(self):
         config = 'configs/json/hbs/core/ssl_true.json'
         self.mock_server_process = run_mock_server(get_config_path(config), wait=20)
 
-        resp = requests.get(SRV_8001_SSL + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
+        resp = httpx.get(SRV_8001_SSL + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
-        resp = requests.get(SRV_8003_SSL + '/service3', headers={'Host': SRV_8003_HOST}, verify=False)
+        resp = httpx.get(SRV_8003_SSL + '/service3', headers={'Host': SRV_8003_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service3'
@@ -536,7 +575,7 @@ class TestCore():
             os.remove(logfile_name)
 
         self.mock_server_process = run_mock_server(get_config_path(config), '--logfile', logfile_name)
-        resp = requests.get(SRV_8001 + '/undefined')
+        resp = httpx.get(SRV_8001 + '/undefined')
         assert 200 == resp.status_code
         assert resp.text == 'Hello {{undefined_var}} world'
 
@@ -548,7 +587,7 @@ class TestCore():
             else:
                 assert "WARNING] Handlebars: Could not find variable 'undefined_var'" in server_log
 
-        resp = requests.get(SRV_8001 + '/undefined2')
+        resp = httpx.get(SRV_8001 + '/undefined2')
         assert 200 == resp.status_code
         if 'j2' in config:
             assert resp.text == 'Hello {{undefined_helper(1, 2)}} world'
@@ -563,7 +602,7 @@ class TestCore():
             else:
                 assert "WARNING] Handlebars: Could not find property undefined_helper" in server_log
 
-        resp = requests.get(SRV_8001 + '/undefined3')
+        resp = httpx.get(SRV_8001 + '/undefined3')
         assert 200 == resp.status_code
         if 'j2' in config:
             assert resp.text == 'Hello {{undefined_obj.attr(1, 2)}} world'
@@ -578,7 +617,7 @@ class TestCore():
             else:
                 assert "WARNING] Handlebars: Could not find object attribute 'undefined_obj.attr'" in server_log
 
-        resp = requests.get(SRV_8001 + '/undefined4')
+        resp = httpx.get(SRV_8001 + '/undefined4')
         assert 200 == resp.status_code
         if 'j2' in config:
             assert resp.text == '{{ date.date(\'%Y-%m-%d %H:%M %f\', false, 99999) }}'
@@ -593,7 +632,7 @@ class TestCore():
             else:
                 assert "WARNING] Handlebars: date() takes from 2 to 4 positional arguments but 5 were given" in server_log
 
-        resp = requests.get(SRV_8001 + '/undefined5')
+        resp = httpx.get(SRV_8001 + '/undefined5')
         assert 200 == resp.status_code
         assert resp.text == 'Hello {{date.undefined_attr}} world'
 
@@ -613,10 +652,48 @@ class TestCore():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         for i in range(1, 6):
-            resp = requests.get(SRV_8001 + '/counter', headers={'Host': SRV_8001_HOST})
+            resp = httpx.get(SRV_8001 + '/counter', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == 'Hello %d world' % i
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/random.yaml',
+        'configs/yaml/j2/core/random.yaml'
+    ])
+    def test_random(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(SRV_8001 + '/int')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert str(int(resp.text)) == resp.text
+
+        resp = httpx.get(SRV_8001 + '/float')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert re.match(r'^-?\d+(?:\.\d+)?$', resp.text)
+
+        resp = httpx.get(SRV_8001 + '/alphanum')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert len(resp.text) == 7
+
+        resp = httpx.get(SRV_8001 + '/hex')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert int(resp.text, 16)
+
+        resp = httpx.get(SRV_8001 + '/uuid4')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert is_valid_uuid(resp.text)
+
+        resp = httpx.get(SRV_8001 + '/ascii')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert len(resp.text) == 11
+        assert is_ascii(resp.text)
 
     @pytest.mark.parametrize(('config'), [
         'configs/yaml/hbs/core/subexpression.yaml',
@@ -625,7 +702,7 @@ class TestCore():
     def test_subexpression(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/subexpression')
+        resp = httpx.get(SRV_8001 + '/subexpression')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert re.match(r'^-?\d+(?:\.\d+)?$', resp.text)
@@ -639,7 +716,7 @@ class TestCore():
     def test_date(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/timestamp')
+        resp = httpx.get(SRV_8001 + '/timestamp')
         utcnow = datetime.utcnow()
         now = time.time()
 
@@ -649,14 +726,14 @@ class TestCore():
         diff = now - resp_int
         assert diff < 1
 
-        resp = requests.get(SRV_8001 + '/timestamp-shift')
+        resp = httpx.get(SRV_8001 + '/timestamp-shift')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
         assert int(segments[0]) < int(segments[1])
         assert int(segments[0]) > int(segments[2])
 
-        resp = requests.get(SRV_8001 + '/ftimestamp')
+        resp = httpx.get(SRV_8001 + '/ftimestamp')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
@@ -665,14 +742,14 @@ class TestCore():
         assert len(segments[0].split('.')[1]) <= 3
         assert len(segments[1].split('.')[1]) <= 7
 
-        resp = requests.get(SRV_8001 + '/ftimestamp-shift')
+        resp = httpx.get(SRV_8001 + '/ftimestamp-shift')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
         assert float(segments[0]) < float(segments[1])
         assert float(segments[0]) > float(segments[2])
 
-        resp = requests.get(SRV_8001 + '/date')
+        resp = httpx.get(SRV_8001 + '/date')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         segments = resp.text.split('<br>')
@@ -683,7 +760,7 @@ class TestCore():
         delta = utcnow - datetime.strptime(segments[1], pattern)
         assert delta.seconds / 60 < 2
 
-        resp = requests.get(SRV_8001 + '/date-shift')
+        resp = httpx.get(SRV_8001 + '/date-shift')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -711,29 +788,29 @@ class TestCore():
     def test_connection_reset(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/normal')
+        resp = httpx.get(SRV_8001 + '/normal')
         assert 200 == resp.status_code
         assert resp.text == 'Hello world'
 
         try:
-            requests.get(SRV_8001 + '/reset')
-        except ConnectionError as e:
-            assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+            httpx.get(SRV_8001 + '/reset')
+        except httpx.ReadError as e:
+            assert str(e) == '[Errno 104] Connection reset by peer'
 
         try:
-            requests.get(SRV_8001 + '/close')
-        except ConnectionError as e:
-            assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+            httpx.get(SRV_8001 + '/close')
+        except httpx.RemoteProtocolError as e:
+            assert 'ConnectionClosed' in str(e)
 
         try:
-            requests.get(SRV_8001 + '/reset2')
-        except ConnectionError as e:
-            assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+            httpx.get(SRV_8001 + '/reset2')
+        except httpx.ReadError as e:
+            assert str(e) == '[Errno 104] Connection reset by peer'
 
         try:
-            requests.get(SRV_8001 + '/close2')
-        except ConnectionError as e:
-            assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+            httpx.get(SRV_8001 + '/close2')
+        except httpx.RemoteProtocolError as e:
+            assert 'ConnectionClosed' in str(e)
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/faker.json',
@@ -742,7 +819,7 @@ class TestCore():
     def test_faker(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/faker')
+        resp = httpx.get(SRV_8001 + '/faker')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -778,10 +855,51 @@ class TestCore():
     def test_escape_html(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/endp1')
+        resp = httpx.get(SRV_8001 + '/endp1')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == '&amp; &lt; &quot; &gt;'
+
+    def test_cors(self):
+        config = 'tests_integrated/integration_config.yaml'
+        config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
+        self.mock_server_process = run_mock_server(config_path)
+
+        hdr = {
+            "origin": "http://someorigin",
+            "Access-Control-Request-Headers": "authorization, x-api-key"
+        }
+        resp = httpx.options(SRV_8001 + '/cors-request', headers=hdr)
+        assert 204 == resp.status_code
+        assert hdr['origin'] == resp.headers.get("access-control-allow-origin")
+        assert hdr['Access-Control-Request-Headers'] == resp.headers.get("Access-Control-Allow-Headers")
+        assert "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT" == resp.headers.get("access-control-allow-methods")
+
+        resp = httpx.post(SRV_8001 + '/cors-request', json={}, headers=hdr)
+        assert hdr['origin'] == resp.headers.get("access-control-allow-origin")
+        assert hdr['Access-Control-Request-Headers'] == resp.headers.get("Access-Control-Allow-Headers")
+        assert "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT" == resp.headers.get("access-control-allow-methods")
+        assert 201 == resp.status_code
+
+        resp = httpx.options(SRV_8001 + '/cors-request-overridden', headers=hdr)
+        assert 401 == resp.status_code
+
+        resp = httpx.options(SRV_8001 + '/nonexistent', headers=hdr)
+        assert 404 == resp.status_code
+
+        resp = httpx.options(SRV_8001 + '/cors-request')
+        assert 404 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/random.yaml'
+    ])
+    def test_404_image(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(SRV_8001 + '/404-img.png')
+        assert 404 == resp.status_code
+        assert b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A' == resp.content[:8]
+        assert resp.headers['Content-Type'] == 'image/png'
 
 
 @pytest.mark.parametrize(('config'), [
@@ -800,23 +918,23 @@ class TestStatus():
         self.mock_server_process.terminate()
 
     def test_status_code(self, config):
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 202 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 403 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
     def test_status_code_templated(self, config):
         query = '?rc=303'
-        resp = requests.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
         assert 303 == resp.status_code
 
         query = '?rc=wrong'
-        resp = requests.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2-endpoint2' + query, headers={'Host': SRV_8002_HOST})
         assert 500 == resp.status_code
         assert 'Status code is neither an integer nor in \'RST\', \'FIN\'!' == resp.text
 
@@ -838,12 +956,12 @@ class TestHeaders():
 
     def test_parameter(self, config):
         param = str(int(time.time()))
-        resp = requests.get(SRV_8001 + '/parameter', headers={"hdr1": param})
+        resp = httpx.get(SRV_8001 + '/parameter', headers={"hdr1": param})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with parameter: %s' % param
 
-        resp = requests.get(SRV_8001 + '/parameter/template-file', headers={"hdr1": param})
+        resp = httpx.get(SRV_8001 + '/parameter/template-file', headers={"hdr1": param})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -851,12 +969,12 @@ class TestHeaders():
 
     def test_static_value(self, config):
         static_val = 'myValue'
-        resp = requests.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
+        resp = httpx.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with static value: %s' % static_val
 
-        resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
+        resp = httpx.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -864,12 +982,12 @@ class TestHeaders():
 
     def test_regex_capture_group(self, config):
         param = str(int(time.time()))
-        resp = requests.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'prefix-%s-suffix' % param})
+        resp = httpx.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'prefix-%s-suffix' % param})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with regex capture group: %s' % param
 
-        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'prefix-%s-suffix' % param})
+        resp = httpx.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'prefix-%s-suffix' % param})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -877,31 +995,31 @@ class TestHeaders():
 
     def test_missing_header_should_400(self, config):
         static_val = 'myValue'
-        resp = requests.get(SRV_8001 + '/static-value', headers={"hdrX": static_val})
+        resp = httpx.get(SRV_8001 + '/static-value', headers={"hdrX": static_val})
         assert 400 == resp.status_code
         assert '\'Hdr1\' not in the request headers!' == resp.text
 
-        resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdrX": static_val})
+        resp = httpx.get(SRV_8001 + '/static-value/template-file', headers={"hdrX": static_val})
         assert 400 == resp.status_code
         assert '\'Hdr1\' not in the request headers!' == resp.text
 
     def test_wrong_static_value_should_400(self, config):
         static_val = 'wrongValue'
-        resp = requests.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
+        resp = httpx.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
         assert 400 == resp.status_code
         assert ('Request header value \'%s\' on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
 
-        resp = requests.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
+        resp = httpx.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
         assert 400 == resp.status_code
         assert ('Request header value \'%s\' on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
 
     def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
-        resp = requests.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'idefix-%s-suffix' % param})
+        resp = httpx.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'idefix-%s-suffix' % param})
         assert 400 == resp.status_code
         assert ('Request header value \'idefix-%s-suffix\' on key \'Hdr1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
-        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'idefix-%s-suffix' % param})
+        resp = httpx.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'idefix-%s-suffix' % param})
         assert 400 == resp.status_code
         assert ('Request header value \'idefix-%s-suffix\' on key \'Hdr1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
@@ -909,7 +1027,7 @@ class TestHeaders():
         static_val = 'myValue'
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
-        resp = requests.get(SRV_8001 + '/alternative', headers={
+        resp = httpx.get(SRV_8001 + '/alternative', headers={
             "hdr1": static_val,
             "hdr2": param2,
             "hdr3": 'prefix-%s-suffix' % param3
@@ -918,7 +1036,7 @@ class TestHeaders():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'headers match: %s %s %s' % (static_val, param2, param3)
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+        resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr1": static_val,
             "hdr2": param2,
             "hdr3": 'prefix-%s-suffix' % param3
@@ -932,14 +1050,14 @@ class TestHeaders():
 
     def test_second_alternative(self, config):
         static_val = 'another header'
-        resp = requests.get(SRV_8001 + '/alternative', headers={
+        resp = httpx.get(SRV_8001 + '/alternative', headers={
             "hdr4": static_val
         })
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'hdr4 request header: %s' % static_val
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+        resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr4": static_val
         })
         assert 200 == resp.status_code
@@ -949,13 +1067,13 @@ class TestHeaders():
 
     def test_nonexisting_alternative_should_400(self, config):
         static_val = 'another header'
-        resp = requests.get(SRV_8001 + '/alternative', headers={
+        resp = httpx.get(SRV_8001 + '/alternative', headers={
             "hdr5": static_val
         })
         assert 400 == resp.status_code
         assert '\'Hdr4\' not in the request headers!' == resp.text
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+        resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr5": static_val
         })
         assert 400 == resp.status_code
@@ -965,7 +1083,7 @@ class TestHeaders():
         static_val = 'myValue'
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
-        resp = requests.get(SRV_8001 + '/alternative', headers={
+        resp = httpx.get(SRV_8001 + '/alternative', headers={
             "hdr1": static_val,
             "hdr2": param2,
             "hdr3": 'prefix-%s-suffix' % param3
@@ -975,7 +1093,7 @@ class TestHeaders():
         assert resp.cookies['name1'] == param2
         assert resp.cookies['name2'] == 'prefix-%s-suffix' % param3
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+        resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr1": static_val,
             "hdr2": param2,
             "hdr3": 'prefix-%s-suffix' % param3
@@ -987,14 +1105,14 @@ class TestHeaders():
 
     def test_response_headers_in_second_alternative(self, config):
         static_val = 'another header'
-        resp = requests.get(SRV_8001 + '/alternative', headers={
+        resp = httpx.get(SRV_8001 + '/alternative', headers={
             "hdr4": static_val
         })
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['Hdr4'] == 'hdr4 request header: %s' % static_val
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file', headers={
+        resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
             "hdr4": static_val
         })
         assert 200 == resp.status_code
@@ -1002,13 +1120,13 @@ class TestHeaders():
         assert resp.headers['Hdr4'] == 'hdr4 request header: %s' % static_val
 
     def test_global_headers(self, config):
-        resp = requests.get(SRV_8001 + '/global-headers')
+        resp = httpx.get(SRV_8001 + '/global-headers')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'globalval1'
         assert resp.headers['global-hdr2'] == 'globalval2'
 
-        resp = requests.get(SRV_8001 + '/global-headers-modified')
+        resp = httpx.get(SRV_8001 + '/global-headers-modified')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'overridden'
@@ -1032,51 +1150,51 @@ class TestPath():
 
     def test_parameter(self, config):
         param = str(int(time.time()))
-        resp = requests.get(SRV_8001 + '/parameterized1/text/%s/subval' % param)
+        resp = httpx.get(SRV_8001 + '/parameterized1/text/%s/subval' % param)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'intoVar capture: %s' % param
 
-        resp = requests.get(SRV_8001 + '/parameterized1/template-file/%s/subval' % param)
+        resp = httpx.get(SRV_8001 + '/parameterized1/template-file/%s/subval' % param)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['var'] == param
 
     def test_static_value_priority(self, config):
-        resp = requests.get(SRV_8001 + '/parameterized1/text/staticVal/subval')
+        resp = httpx.get(SRV_8001 + '/parameterized1/text/staticVal/subval')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'static path components have priority'
 
     def test_regex_match(self, config):
         path = '/parameterized2/text/prefix-%s/subval' % str(int(time.time()))
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'regex match: %s' % path
 
         path = '/parameterized2/template-file/prefix-%s/subval' % str(int(time.time()))
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['request']['path'] == path
 
         path = '/parameterized2/text/wrongprefix-%s/subval' % str(int(time.time()))
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 404 == resp.status_code
 
     def test_regex_capture_group(self, config):
         param = str(int(time.time()))
         path = '/parameterized1/text/prefix2-%s/subval2' % param
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'regex capture group: %s' % param
 
         path = '/parameterized1/template-file/prefix2-%s/subval2' % param
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1086,12 +1204,12 @@ class TestPath():
         param1 = str(int(time.time()))
         param2 = str(int(time.time()))
         param3 = str(int(time.time()))
-        resp = requests.get(SRV_8001 + '/parameterized3/text/%s/%s/%s' % (param1, param2, param3))
+        resp = httpx.get(SRV_8001 + '/parameterized3/text/%s/%s/%s' % (param1, param2, param3))
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var1: %s, var2: %s, var3: %s' % (param1, param2, param3)
 
-        resp = requests.get(SRV_8001 + '/parameterized3/template-file/%s/%s/%s' % (param1, param2, param3))
+        resp = httpx.get(SRV_8001 + '/parameterized3/template-file/%s/%s/%s' % (param1, param2, param3))
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1106,7 +1224,7 @@ class TestPath():
         param4 = str(int(time.time()))
         param5 = str(int(time.time()))
         path = '/parameterized4/text/prefix-%s-%s-%s-suffix/%s_%s' % (param1, param2, param3, param4, param5)
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var1: %s, var2: %s, var3: %s, var4: %s, var5: %s' % (
@@ -1118,7 +1236,7 @@ class TestPath():
         )
 
         path = '/parameterized4/template-file/prefix-%s-%s-%s-suffix/%s_%s' % (param1, param2, param3, param4, param5)
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1135,7 +1253,7 @@ class TestPath():
         param4 = str(int(time.time()))
         param5 = str(int(time.time()))
         path = '/parameterized5/text/%s/prefix-%s-%s-suffix/%s/prefix2-%s' % (param1, param2, param3, param4, param5)
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var1: %s, var2: %s, var3: %s, var4: %s, var5: %s' % (
@@ -1153,7 +1271,7 @@ class TestPath():
             param4,
             param5
         )
-        resp = requests.get(SRV_8001 + path)
+        resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1166,29 +1284,113 @@ class TestPath():
     def test_path_segment_capture_conflict(self, config):
         param1 = str(int(time.time()))
         param2 = str(int(time.time()))
-        resp = requests.delete(SRV_8001 + '/carts/%s' % param1)
+        resp = httpx.delete(SRV_8001 + '/carts/%s' % param1)
         assert 202 == resp.status_code
 
-        resp = requests.post(SRV_8001 + '/carts/%s/items' % param1)
+        resp = httpx.post(SRV_8001 + '/carts/%s/items' % param1)
         assert 201 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json'
         data = resp.json()
         assert data['id'] == 'L8VEqJRB4R'
 
-        resp = requests.get(SRV_8001 + '/carts/%s/merge' % param1)
+        resp = httpx.get(SRV_8001 + '/carts/%s/merge' % param1)
         assert 202 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/carts/%s/items' % param1)
+        resp = httpx.get(SRV_8001 + '/carts/%s/items' % param1)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json'
         data = resp.json()
         assert isinstance(data, list) and not data
 
-        resp = requests.patch(SRV_8001 + '/carts/%s/items' % param1)
+        resp = httpx.patch(SRV_8001 + '/carts/%s/items' % param1)
         assert 202 == resp.status_code
 
-        resp = requests.delete(SRV_8001 + '/carts/%s/items/%s' % (param1, param2))
+        resp = httpx.delete(SRV_8001 + '/carts/%s/items/%s' % (param1, param2))
         assert 202 == resp.status_code
+
+    def test_auto_regex(self, config):
+        hello = 'hello'
+        world = 'world'
+        x = 'x'
+        y = 'y'
+
+        resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+        resp = httpx.get(SRV_8001 + '/%s-middle-%s/another' % (x, y))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s' % (x, y)
+
+        resp = httpx.get(SRV_8001 + '/%s-middle2-7/another' % x)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % x
+
+        resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % world
+
+    def test_auto_query_string(self, config):
+        hello = 'hello'
+        world = 'world'
+        goodbye = 'goodbye'
+
+        resp = httpx.get(SRV_8001 + '/search?q=%s' % hello)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % hello
+
+        resp = httpx.get(SRV_8001 + '/search2?q=%s&s=%s' % (hello, world))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s' % (hello, world)
+
+        resp = httpx.get(SRV_8001 + '/abc1-xx%sxx' % hello)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s' % hello
+
+        resp = httpx.get(SRV_8001 + '/abc2-xx%sxx?q=%s&s=%s' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+        resp = httpx.get(SRV_8001 + '/abc3-xx%sxx?q=abc4-xx%sxx&s=%s' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+        resp = httpx.get(SRV_8001 + '/abc5-xx%sxx?q=%s&s=%s#some-string' % (hello, world, goodbye))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
+
+    def test_array_parameter_and_key_templating(self, config):
+        v1 = 'v1'
+        v2 = 'v2'
+        somedata = 'somedata'
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam1?param[]=%s&param[]=%s' % (v1, v2))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s %s' % (v1, v2)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param[]=%s' % v1)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param1=%s&param2=%s' % (v1, v2))
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s %s' % (v1, v2)
+
+        resp = httpx.get(SRV_8001 + '/qstr-multiparam3?prefix-%s-suffix' % somedata)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == '%s' % somedata
 
 
 @pytest.mark.parametrize(('config'), [
@@ -1209,12 +1411,12 @@ class TestQueryString():
     def test_parameter(self, config):
         param = str(int(time.time()))
         query = '?param1=%s' % param
-        resp = requests.get(SRV_8001 + '/parameter' + query)
+        resp = httpx.get(SRV_8001 + '/parameter' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with parameter: %s' % param
 
-        resp = requests.get(SRV_8001 + '/parameter/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/parameter/template-file' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1223,12 +1425,12 @@ class TestQueryString():
     def test_static_value(self, config):
         static_val = 'my Value'
         query = '?param1=%s' % static_val
-        resp = requests.get(SRV_8001 + '/static-value' + query)
+        resp = httpx.get(SRV_8001 + '/static-value' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with static value: %s' % static_val
 
-        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/static-value/template-file' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1237,12 +1439,12 @@ class TestQueryString():
     def test_regex_capture_group(self, config):
         param = str(int(time.time()))
         query = '?param1=prefix-%s-suffix' % param
-        resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
+        resp = httpx.get(SRV_8001 + '/regex-capture-group' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with regex capture group: %s' % param
 
-        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/regex-capture-group/template-file' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1251,33 +1453,33 @@ class TestQueryString():
     def test_missing_query_param_should_400(self, config):
         static_val = 'myValue'
         query = '?paramX=%s' % static_val
-        resp = requests.get(SRV_8001 + '/static-value' + query)
+        resp = httpx.get(SRV_8001 + '/static-value' + query)
         assert 400 == resp.status_code
         assert 'Key \'param1\' couldn\'t found in the query string!' == resp.text
 
-        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/static-value/template-file' + query)
         assert 400 == resp.status_code
         assert 'Key \'param1\' couldn\'t found in the query string!' == resp.text
 
     def test_wrong_static_value_should_400(self, config):
         static_val = 'wrong Value'
         query = '?param1=%s' % static_val
-        resp = requests.get(SRV_8001 + '/static-value' + query)
+        resp = httpx.get(SRV_8001 + '/static-value' + query)
         assert 400 == resp.status_code
         assert ('Request query parameter value \'%s\' on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
 
-        resp = requests.get(SRV_8001 + '/static-value/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/static-value/template-file' + query)
         assert 400 == resp.status_code
         assert ('Request query parameter value \'%s\' on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
 
     def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
         query = '?param1=idefix-%s-suffix' % param
-        resp = requests.get(SRV_8001 + '/regex-capture-group' + query)
+        resp = httpx.get(SRV_8001 + '/regex-capture-group' + query)
         assert 400 == resp.status_code
         assert ('Request query parameter value \'idefix-%s-suffix\' on key \'param1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
-        resp = requests.get(SRV_8001 + '/regex-capture-group/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/regex-capture-group/template-file' + query)
         assert 400 == resp.status_code
         assert ('Request query parameter value \'idefix-%s-suffix\' on key \'param1\' does not match to regex: ^prefix-(.+)-suffix$' % param) == resp.text
 
@@ -1286,12 +1488,12 @@ class TestQueryString():
         param2 = str(int(time.time()))
         param3 = str(int(time.time() / 2))
         query = '?param1=%s&param2=%s&param3=prefix-%s-suffix' % (static_val, param2, param3)
-        resp = requests.get(SRV_8001 + '/alternative' + query)
+        resp = httpx.get(SRV_8001 + '/alternative' + query)
         assert 201 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'query string match: %s %s %s' % (static_val, param2, param3)
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/alternative/template-file' + query)
         assert 201 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1302,12 +1504,12 @@ class TestQueryString():
     def test_second_alternative(self, config):
         static_val = 'another query string'
         query = '?param4=%s' % static_val
-        resp = requests.get(SRV_8001 + '/alternative' + query)
+        resp = httpx.get(SRV_8001 + '/alternative' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'param4 request query string: %s' % static_val
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/alternative/template-file' + query)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -1316,11 +1518,11 @@ class TestQueryString():
     def test_nonexisting_alternative_should_400(self, config):
         static_val = 'another query string'
         query = '?param5=%s' % static_val
-        resp = requests.get(SRV_8001 + '/alternative' + query)
+        resp = httpx.get(SRV_8001 + '/alternative' + query)
         assert 400 == resp.status_code
         assert 'Key \'param4\' couldn\'t found in the query string!' == resp.text
 
-        resp = requests.get(SRV_8001 + '/alternative/template-file' + query)
+        resp = httpx.get(SRV_8001 + '/alternative/template-file' + query)
         assert 400 == resp.status_code
         assert 'Key \'param4\' couldn\'t found in the query string!' == resp.text
 
@@ -1341,15 +1543,15 @@ class TestBody():
         self.mock_server_process.terminate()
 
     def test_jsonpath_templating(self, config):
-        resp = requests.post(SRV_8001 + '/body-jsonpath-tpl', json={"key": "val", "key2": 123})
+        resp = httpx.post(SRV_8001 + '/body-jsonpath-tpl', json={"key": "val", "key2": 123})
         assert 200 == resp.status_code
         assert 'body jsonpath matched: val 123' == resp.text
 
-        resp = requests.post(SRV_8001 + '/body-jsonpath-tpl', json={"key": None})
+        resp = httpx.post(SRV_8001 + '/body-jsonpath-tpl', json={"key": None})
         assert 200 == resp.status_code
         assert 'body jsonpath matched: null ' == resp.text
 
-        resp = requests.post(SRV_8001 + '/body-jsonpath-tpl', data="not json")
+        resp = httpx.post(SRV_8001 + '/body-jsonpath-tpl', data="not json")
         assert 200 == resp.status_code
         if 'j2' in config:
             assert "body jsonpath matched: {{jsonPath(request.json, '$.key')}} {{jsonPath(request.json, '$.key2')}}" == resp.text
@@ -1357,31 +1559,67 @@ class TestBody():
             assert "body jsonpath matched: {{jsonPath request.json '$.key'}} {{jsonPath request.json '$.key2'}}" == resp.text
 
     def test_body_json_schema(self, config):
-        resp = requests.post(SRV_8001 + '/body-json-schema', json={"somekey": "valid"})
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'body json schema matched'
+        paths = ['/body-json-schema', '/body-json-schema-file']
+        for path in paths:
+            resp = httpx.post(SRV_8001 + path, json={"somekey": "valid"})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'body json schema matched'
 
-        resp = requests.post(SRV_8001 + '/body-json-schema', json={"somekey2": "invalid"})
-        assert 400 == resp.status_code
+            resp = httpx.post(SRV_8001 + path, json={"somekey2": "invalid"})
+            assert 400 == resp.status_code
+
+            data = 'hello world'
+            resp = httpx.post(SRV_8001 + path, data=data)
+            assert 400 == resp.status_code
+            assert resp.text == 'JSON decode error of the request body:\n\n%s' % data
+
+        resp = httpx.post(SRV_8001 + '/body-json-schema-file-error', json={"somekey": "valid"})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'JSON decode error of the JSON schema file: @body_schema_error.json'
 
     def test_body_regex(self, config):
-        resp = requests.post(SRV_8001 + '/body-regex', data="somewhere 1-required-2 is present")
+        resp = httpx.post(SRV_8001 + '/body-regex', data="somewhere 1-required-2 is present")
         assert 200 == resp.status_code
         assert "body regex matched: 1 2" == resp.text
 
-        resp = requests.post(SRV_8001 + '/body-regex', data="somewhere a-required-b is not present")
+        resp = httpx.post(SRV_8001 + '/body-regex', data="somewhere a-required-b is not present")
         assert 400 == resp.status_code
 
     def test_body_urlencoded(self, config):
         data = {'key1': 'constant', 'key2': 'val1', 'key3': 'prefix-val2-val3-suffix'}
-        resp = requests.post(SRV_8001 + '/body-urlencoded', data=data)
+        resp = httpx.post(SRV_8001 + '/body-urlencoded', data=data)
         assert 200 == resp.status_code
         assert "body urlencoded matched: constant val1 val2 val3" == resp.text
 
         data_wrong = {'key1': 'val1', 'key2': 'prefix-val2-val3-idefix'}
-        resp = requests.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
+        resp = httpx.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
         assert 400 == resp.status_code
+
+        data_wrong = {'key2': 'val1', 'key3': 'prefix-val2-val3-idefix'}
+        resp = httpx.post(SRV_8001 + '/body-urlencoded', data=data_wrong)
+        assert 400 == resp.status_code
+
+    def test_body_multipart(self, config):
+        files = {'key1': 'constant', 'key2': 'val1', 'key3': 'prefix-val2-val3-suffix'}
+        resp = httpx.post(SRV_8001 + '/body-multipart', files=files)
+        assert 200 == resp.status_code
+        assert "body multipart matched: constant val1 val2 val3" == resp.text
+
+        files_wrong = {'key1': 'val1', 'key2': 'prefix-val2-val3-idefix'}
+        resp = httpx.post(SRV_8001 + '/body-multipart', files=files_wrong)
+        assert 400 == resp.status_code
+
+        files_wrong = {'key2': 'val1', 'key3': 'prefix-val2-val3-idefix'}
+        resp = httpx.post(SRV_8001 + '/body-multipart', files=files_wrong)
+        assert 400 == resp.status_code
+
+    def test_body_text(self, config):
+        data = 'hello world'
+        resp = httpx.post(SRV_8001 + '/body-text', data=data)
+        assert 200 == resp.status_code
+        assert "body text matched: %s" % data == resp.text
 
 
 class TestManagement():
@@ -1393,18 +1631,20 @@ class TestManagement():
         if self.mock_server_process is not None:
             self.mock_server_process.terminate()
 
-    @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+    @pytest.mark.parametrize(('config', 'suffix'), [
+        ('configs/json/hbs/management/config.json', '/'),
+        ('configs/yaml/hbs/management/config.yaml', '/'),
+        ('configs/json/hbs/management/config.json', ''),
+        ('configs/yaml/hbs/management/config.yaml', '')
     ])
-    def test_get_root(self, config):
+    def test_get_root(self, config, suffix):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/')
+        resp = httpx.get(MGMT + suffix, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
-        resp = requests.get(SRV_8001 + '/__admin/', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin' + suffix, headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
@@ -1415,32 +1655,32 @@ class TestManagement():
     def test_get_config(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = httpx.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_9000 + '/config?format=yaml')
+        resp = httpx.get(MGMT + '/config?format=yaml', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_config.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config_service1.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8001 + '/__admin/config?format=yaml', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin/config?format=yaml', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_config_service1.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_config_service2.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8002 + '/__admin/config?format=yaml', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/__admin/config?format=yaml', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_config_service2.yaml'), 'r').read()
@@ -1455,32 +1695,32 @@ class TestManagement():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
-            resp = requests.post(SRV_9000 + '/config', data=file.read())
+            resp = httpx.post(MGMT + '/config', data=file.read(), verify=False)
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-config'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = httpx.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         with open(get_config_path('configs/json/hbs/management/new_config.json'), 'r') as file:
             data = json.load(file)
             assert data == resp.json()
 
-        resp = requests.get(SRV_9000 + '/config?format=yaml')
+        resp = httpx.get(MGMT + '/config?format=yaml', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         with open(get_config_path('configs/json/hbs/management/new_config.yaml'), 'r') as file:
@@ -1488,43 +1728,110 @@ class TestManagement():
             assert data == yaml.safe_load(resp.text)
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
-            resp = requests.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read())
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-service'
 
-        resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service2'
 
         with open(get_config_path('configs/json/hbs/management/new_service2.%s' % _format), 'r') as file:
-            resp = requests.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, data=file.read())
+            resp = httpx.post(SRV_8002 + '/__admin/config', headers={'Host': SRV_8002_HOST}, data=file.read(), verify=False)
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1-new-service'
 
         param = str(int(time.time()))
-        resp = requests.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'var: %s' % param
+
+        # Bad httpx
+        resp = httpx.post(MGMT + '/config', data='hello: world:', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text.startswith('JSON/YAML decode error')
+
+        resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data='hello: world:', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text.startswith('JSON/YAML decode error')
+
+        with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['incorrectKey'] = ''
+            resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
+            assert 400 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text.startswith('JSON schema validation error:')
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['incorrectKey'] = ''
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
+            assert 400 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text.startswith('JSON schema validation error:')
+
+        # Restricted field
+        with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['services'][0]['port'] = 42
+            resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
+            assert 500 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == "'port' field is restricted!"
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            data = yaml.safe_load(file.read())
+            data['port'] = 42
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
+            assert 500 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == "'port' field is restricted!"
+
+    @pytest.mark.parametrize(('config', '_format'), [
+        ('configs/json/hbs/management/config.json', 'json'),
+        ('configs/yaml/hbs/management/config.yaml', 'json'),
+        ('configs/json/hbs/management/config.json', 'yaml'),
+        ('configs/yaml/hbs/management/config.yaml', 'yaml')
+    ])
+    def test_post_config_only_service_level(self, config, _format):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
+            assert 204 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = httpx.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1-new-service'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -1535,7 +1842,7 @@ class TestManagement():
         param = str(int(time.time()))
 
         for _ in range(2):
-            resp = requests.get(SRV_9000 + '/stats')
+            resp = httpx.get(MGMT + '/stats', verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1573,33 +1880,33 @@ class TestManagement():
             assert data['services'][1]['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(5):
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 201 == resp.status_code
                 assert resp.text == 'service1-second: %s' % param
 
             for _ in range(2):
-                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST})
-                except ConnectionError as e:
-                    assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+                    resp = httpx.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST}, verify=False)
+                except httpx.ReadError as e:
+                    assert str(e) == '[Errno 104] Connection reset by peer'
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST})
-                except ConnectionError as e:
-                    assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+                    resp = httpx.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST}, verify=False)
+                except httpx.RemoteProtocolError as e:
+                    assert 'ConnectionClosed' in str(e)
                 assert 200 == resp.status_code
 
-            resp = requests.get(SRV_9000 + '/stats')
+            resp = httpx.get(MGMT + '/stats', verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1628,7 +1935,7 @@ class TestManagement():
             assert data['services'][1]['status_code_distribution']['RST'] == 2
             assert data['services'][1]['status_code_distribution']['FIN'] == 2
 
-            resp = requests.delete(SRV_9000 + '/stats')
+            resp = httpx.delete(MGMT + '/stats', verify=False)
             assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
@@ -1640,7 +1947,7 @@ class TestManagement():
         param = str(int(time.time()))
 
         for _ in range(2):
-            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = httpx.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1658,15 +1965,15 @@ class TestManagement():
             assert data['endpoints'][1]['status_code_distribution'] == {}
 
             for _ in range(5):
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1-second/%s' % param, headers={'Host': SRV_8001_HOST}, verify=False)
                 assert 201 == resp.status_code
                 assert resp.text == 'service1-second: %s' % param
 
-            resp = requests.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = httpx.get(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1683,11 +1990,11 @@ class TestManagement():
             assert data['endpoints'][0]['status_code_distribution']['200'] == 5
             assert data['endpoints'][1]['status_code_distribution']['201'] == 3
 
-            resp = requests.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST})
+            resp = httpx.delete(SRV_8001 + '/__admin/stats', headers={'Host': SRV_8001_HOST}, verify=False)
             assert 204 == resp.status_code
 
         for _ in range(2):
-            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = httpx.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1709,24 +2016,24 @@ class TestManagement():
             assert data['endpoints'][2]['status_code_distribution'] == {}
 
             for _ in range(2):
-                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST})
-                except ConnectionError as e:
-                    assert str(e).split(',')[1].strip().startswith('ConnectionResetError')
+                    resp = httpx.get(SRV_8002 + '/service2-rst', headers={'Host': SRV_8002_HOST}, verify=False)
+                except httpx.ReadError as e:
+                    assert str(e) == '[Errno 104] Connection reset by peer'
                 assert 200 == resp.status_code
 
             for _ in range(2):
                 try:
-                    resp = requests.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST})
-                except ConnectionError as e:
-                    assert str(e).split(',')[1].strip().startswith('RemoteDisconnected')
+                    resp = httpx.get(SRV_8002 + '/service2-fin', headers={'Host': SRV_8002_HOST}, verify=False)
+                except httpx.RemoteProtocolError as e:
+                    assert 'ConnectionClosed' in str(e)
                 assert 200 == resp.status_code
 
-            resp = requests.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = httpx.get(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
 
@@ -1743,7 +2050,7 @@ class TestManagement():
             assert data['status_code_distribution']['RST'] == 2
             assert data['status_code_distribution']['FIN'] == 2
 
-            resp = requests.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST})
+            resp = httpx.delete(SRV_8002 + '/__admin/stats', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config, level'), [
@@ -1755,47 +2062,83 @@ class TestManagement():
 
         for _ in range(3):
             for i in range(2):
-                resp = requests.get(SRV_8001 + '/service1-multi-response-looped', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1-multi-response-looped', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'resp%d' % (i + 1)
 
-                resp = requests.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1-multi-response-looped-empty-list', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert not resp.text
+
+                resp = httpx.get(SRV_8001 + '/service1-no-response', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert not resp.text
+
+                resp = httpx.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'resp%d' % (i + 1)
 
-                resp = requests.get(SRV_8001 + '/service1-dataset-inline', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1-dataset-inline', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'dset: val%d' % (i + 1)
 
+                resp = httpx.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'dset: val%d' % (i + 1)
+
+                resp = httpx.get(SRV_8001 + '/service1-dataset-fromfile', headers={'Host': SRV_8001_HOST})
+                assert 200 == resp.status_code
+                assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+                assert resp.text == 'dset: val%d' % (i + 1)
+
+            resp = httpx.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'resp%d' % 3
+
+            resp = httpx.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
+            assert 410 == resp.status_code
+
+            resp = httpx.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == 'dset: val%d' % 3
+
+            resp = httpx.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
+            assert 410 == resp.status_code
+
             if level == 'service':
-                resp = requests.post(SRV_8001 + '/__admin/reset-iterators', headers={'Host': SRV_8001_HOST})
+                resp = httpx.post(SRV_8001 + '/__admin/reset-iterators', headers={'Host': SRV_8001_HOST})
                 assert 204 == resp.status_code
 
             for i in range(2):
-                resp = requests.get(SRV_8002 + '/service2-multi-response-looped', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2-multi-response-looped', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'resp%d' % (i + 1)
 
-                resp = requests.get(SRV_8002 + '/service2-multi-response-nonlooped', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2-multi-response-nonlooped', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'resp%d' % (i + 1)
 
-                resp = requests.get(SRV_8002 + '/service2-dataset-inline', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2-dataset-inline', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == 'dset: val%d' % (i + 1)
 
             if level == 'service':
-                resp = requests.post(SRV_8002 + '/__admin/reset-iterators', headers={'Host': SRV_8002_HOST})
+                resp = httpx.post(SRV_8002 + '/__admin/reset-iterators', headers={'Host': SRV_8002_HOST})
                 assert 204 == resp.status_code
 
             if level == 'global':
-                resp = requests.post(SRV_9000 + '/reset-iterators')
+                resp = httpx.post(MGMT + '/reset-iterators', verify=False)
                 assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
@@ -1804,105 +2147,111 @@ class TestManagement():
     def test_tagged_responses(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.post(SRV_9000 + '/tag', data="first")
+        resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/tag')
+        resp = httpx.post(MGMT + '/tag', data="first", verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.post(MGMT + '/tag?current=first', verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code
         data = resp.json()
         for tag in data['tags']:
             assert "first" == tag
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "1.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "1.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.3" == resp.text
 
         # no tag set - only untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="")
+        resp = httpx.post(SRV_8003 + '/__admin/tag', data="")
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.3" == resp.text
 
         # first tag set - "first" + untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="first")
+        resp = httpx.post(SRV_8003 + '/__admin/tag', data="first")
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8003 + '/__admin/tag')
+        resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 200 == resp.status_code
         assert "first" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "1.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "1.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.3" == resp.text
 
         # first tag set - "second" + untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="second")
+        resp = httpx.post(SRV_8003 + '/__admin/tag?current=second')
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "2.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "2.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-responses')
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
         assert "3.3" == resp.text
 
         # case of no valid response
-        resp = requests.get(SRV_8003 + '/tagged-confusing')
+        resp = httpx.get(SRV_8003 + '/tagged-confusing')
         assert 410 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
@@ -1911,105 +2260,105 @@ class TestManagement():
     def test_tagged_datasets(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.post(SRV_9000 + '/tag', data="first")
+        resp = httpx.post(MGMT + '/tag', data="first", verify=False)
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/tag')
+        resp = httpx.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code
         data = resp.json()
         for tag in data['tags']:
             assert "first" == tag
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 1.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 1.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.3" == resp.text
 
         # no tag set - only untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="")
+        resp = httpx.post(SRV_8003 + '/__admin/tag', data="")
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.3" == resp.text
 
         # first tag set - "first" + untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="first")
+        resp = httpx.post(SRV_8003 + '/__admin/tag', data="first")
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8003 + '/__admin/tag')
+        resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 200 == resp.status_code
         assert "first" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 1.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 1.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.3" == resp.text
 
         # first tag set - "second" + untagged responses
-        resp = requests.post(SRV_8003 + '/__admin/tag', data="second")
+        resp = httpx.post(SRV_8003 + '/__admin/tag', data="second")
         assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 2.1" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 2.2" == resp.text
 
-        resp = requests.get(SRV_8003 + '/tagged-datasets')
+        resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
         assert "dset: 3.3" == resp.text
 
         # case of no valid response
-        resp = requests.get(SRV_8003 + '/tagged-confusing')
+        resp = httpx.get(SRV_8003 + '/tagged-confusing')
         assert 410 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
@@ -2019,55 +2368,170 @@ class TestManagement():
     def test_get_unhandled(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
         assert expected_data == resp.json()
 
-        resp = requests.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
+        resp = httpx.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/service1y?a=b&c=d', headers={'Host': SRV_8001_HOST, 'Example-Header': 'Example-Value', 'User-Agent': 'mockintosh-test'})
+        resp = httpx.get(SRV_8001 + '/service1y?a=b&c=d', headers={'Host': SRV_8001_HOST, 'Example-Header': 'Example-Value', 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'})
+        resp = httpx.get(SRV_8002 + '/service2z', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = httpx.get(SRV_8002 + '/service2q?a=b&a=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = httpx.get(SRV_8002 + '/service2q?a[]=b&a[]=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_unhandled.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_9000 + '/unhandled?format=yaml')
+        resp = httpx.get(MGMT + '/unhandled?format=yaml', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_unhandled.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin/unhandled', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service1.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8001 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service1.yaml'), 'r').read()
 
-        resp = requests.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/__admin/unhandled', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service2.json'), 'r').read()[:-1]
 
-        resp = requests.get(SRV_8002 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/__admin/unhandled?format=yaml', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/x-yaml'
         assert resp.text == open(get_config_path('configs/stats_unhandled_service2.yaml'), 'r').read()
 
     @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/no_endpoints.json'
+    ])
+    def test_get_unhandled_no_endpoints(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        expected_data = {'services': []}
+        assert expected_data == resp.json()
+
+        resp = httpx.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert len(data['services']) == 1
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/config.json',
+        'configs/yaml/hbs/management/config.yaml'
+    ])
+    def test_get_unhandled_changing_headers(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(
+            SRV_8001 + '/service1x',
+            headers={
+                'Host': SRV_8001_HOST,
+                'User-Agent': 'mockintosh-test',
+                'hdr1': 'val1',
+                'hdr2': 'val2',
+                'hdr3': 'val3'
+            },
+            verify=False
+        )
+        assert 404 == resp.status_code
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        headers = [x.lower() for x in data['services'][0]['endpoints'][0]['headers']]
+        assert set(['hdr1', 'hdr2', 'hdr3']).issubset(set(headers))
+
+        resp = httpx.get(
+            SRV_8001 + '/service1x',
+            headers={
+                'Host': SRV_8001_HOST,
+                'User-Agent': 'mockintosh-test',
+                'hdr1': 'val1',
+                'hdr2': 'val22'
+            },
+            verify=False
+        )
+        assert 404 == resp.status_code
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        headers = [x.lower() for x in data['services'][0]['endpoints'][0]['headers']]
+        assert 'hdr1' in headers
+        assert 'hdr2' not in headers
+        assert 'hdr3' not in headers
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_delete_unhandled(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        ref = data['services'] if admin_url == MGMT else data['services'][0]['endpoints']
+        assert len(ref) == 0
+
+        resp = httpx.get(SRV_8001 + '/service1x', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        resp = httpx.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        ref = data['services'] if admin_url == MGMT else data['services'][0]['endpoints']
+        assert len(ref) == 1
+        if admin_url == MGMT:
+            len(data['services'][0]['endpoints']) == 1
+
+        resp = httpx.delete(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        ref = data['services'] if admin_url == MGMT else data['services'][0]['endpoints']
+        assert len(ref) == 0
+
+    @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml',
-        'tests_integrated/integration_config.json'
+        'tests_integrated/integration_config.yaml'
     ])
     def test_get_oas(self, config):
         config_path = None
@@ -2078,10 +2542,7 @@ class TestManagement():
         self.mock_server_process = run_mock_server(config_path)
 
         resp = None
-        if config.startswith('tests_integrated'):
-            resp = requests.get(MGMT + '/oas', verify=False)
-        else:
-            resp = requests.get(SRV_9000 + '/oas')
+        resp = httpx.get(MGMT + '/oas', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -2090,36 +2551,54 @@ class TestManagement():
             validate_spec(document)
 
         if config.startswith('tests_integrated'):
-            resp = requests.get(SRV_8001 + '/__admin/oas')
+            resp = httpx.get(SRV_8001 + '/__admin/oas')
         else:
-            resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+            resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         validate_spec(resp.json())
 
         if not config.startswith('tests_integrated'):
-            resp = requests.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST})
+            resp = httpx.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             validate_spec(resp.json())
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config_custom_oas.json'
+        'configs/json/hbs/management/config_custom_oas.json',
+        'configs/json/hbs/management/config_custom_oas2.json'
     ])
     def test_get_oas_custom(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/oas')
+        resp = httpx.get(MGMT + '/oas', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['documents'][0]['info']['title'] == 'Mock for Service1 CUSTOM'
 
-        resp = requests.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data['info']['title'] == 'Mock for Service1 CUSTOM'
+
+    @pytest.mark.parametrize(('config', 'path'), [
+        ('configs/json/hbs/management/config_custom_oas3.json', 'oas_documents/not_existing_file.json'),
+        ('configs/json/hbs/management/config_custom_oas4.json', '../common/config.json')
+    ])
+    def test_get_oas_custom_wrong_path(self, config, path):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(MGMT + '/oas', verify=False)
+        assert 500 == resp.status_code
+        # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        # assert resp.text == 'External OAS document \'%s\' couldn\'t be accessed or found!' % path
+
+        resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        # assert resp.text == 'External OAS document \'%s\' couldn\'t be accessed or found!' % path
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/resources.json'
@@ -2133,97 +2612,205 @@ class TestManagement():
         body_txt_rel_path = 'res/body.txt'
         body_txt_path = get_config_path('configs/json/hbs/management/%s' % body_txt_rel_path)
         new_body_txt_rel_path = 'new_res/new_body.txt'
+        new_body_txt_rel_path2 = 'new_res/new_body2.txt'
         os.makedirs(os.path.dirname(body_txt_path), exist_ok=True)
         with open(body_txt_path, 'w') as file:
             file.write(text_state_1)
 
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_1
 
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_1
 
-        resp = requests.get(SRV_9000 + '/resources')
+        resp = httpx.get(MGMT + '/resources?path=%s&format=stream' % body_txt_rel_path, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/octet-stream'
+        assert resp.text == text_state_1
+
+        resp = httpx.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert body_txt_rel_path in data['files']
 
-        resp = requests.get(SRV_8001 + '/__admin/resources', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/__admin/resources', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert body_txt_rel_path in data['files']
 
-        resp = requests.post(SRV_9000 + '/resources', data={'path': body_txt_rel_path, 'file': text_state_2})
+        resp = httpx.post(MGMT + '/resources', data={'path': body_txt_rel_path, 'file': text_state_2}, verify=False)
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_2
 
-        resp = requests.post(
-            SRV_9000 + '/resources',
+        resp = httpx.post(
+            MGMT + '/resources',
             data={'path': os.path.dirname(body_txt_rel_path)},
-            files={os.path.split(body_txt_rel_path)[1]: text_state_3}
+            files={os.path.split(body_txt_rel_path)[1]: text_state_3},
+            verify=False
         )
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_3
 
-        resp = requests.delete(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = httpx.delete(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 204 == resp.status_code
-        resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
-        assert 403 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = httpx.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'External template file \'res/body.txt\' couldn\'t be accessed or found!'
+        resp = httpx.get(SRV_8001 + '/service1-file2', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'External template file \'res/body.txt\' couldn\'t be accessed or found!'
+        resp = httpx.get(SRV_8001 + '/service1-file-forbidden-path', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'External template file \'../body/config.json\' couldn\'t be accessed or found!'
+        resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
         with open(get_config_path('configs/json/hbs/management/new_resources.json'), 'r') as file:
-            resp = requests.post(SRV_9000 + '/config', data=file.read())
+            resp = httpx.post(MGMT + '/config', data=file.read(), verify=False)
             assert 204 == resp.status_code
-        resp = requests.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
         assert 404 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % body_txt_rel_path)
+        resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
-        resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
-        assert 403 == resp.status_code
+        resp = httpx.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
 
-        resp = requests.post(
-            SRV_9000 + '/resources',
+        resp = httpx.post(
+            MGMT + '/resources',
             data={'path': os.path.dirname(new_body_txt_rel_path)},
-            files={os.path.split(new_body_txt_rel_path)[1]: text_state_4}
+            files={os.path.split(new_body_txt_rel_path)[1]: text_state_4},
+            verify=False
         )
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_4
 
-        resp = requests.post(SRV_9000 + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5})
+        resp = httpx.post(MGMT + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5}, verify=False)
         assert 204 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = httpx.post(MGMT + '/resources', data={'path': new_body_txt_rel_path2, 'file': text_state_5}, verify=False)
+        assert 204 == resp.status_code
+        resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_5
 
-        resp = requests.delete(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+        resp = httpx.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path2, verify=False)
         assert 204 == resp.status_code
-        resp = requests.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
+        resp = httpx.delete(MGMT + '/resources?path=%s' % os.path.dirname(new_body_txt_rel_path), verify=False)
+        assert 204 == resp.status_code
+        resp = httpx.get(SRV_8001 + '/service1-new-file', headers={'Host': SRV_8001_HOST})
+        assert 500 == resp.status_code
+        resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
+        assert 400 == resp.status_code
+
+    def test_resources_various(self):
+        config = 'tests_integrated/integration_config.yaml'
+        config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
+        self.mock_server_process = run_mock_server(config_path)
+
+        resp = httpx.get(MGMT + '/resources', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert 'subdir/empty_schema.json' in data['files']
+        assert 'cors.html' in data['files']
+        assert 'subdir/image.png' in data['files']
+        assert '/etc/hosts' not in data['files']
+        assert len(data['files']) == len(set(data['files']))
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/resources.json'
+    ])
+    def test_resources_bad(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(MGMT + '/resources?path=', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(MGMT + '/resources?path=../common/config.json', verify=False)
         assert 403 == resp.status_code
-        resp = requests.get(SRV_9000 + '/resources?path=%s' % new_body_txt_rel_path)
+
+        resp = httpx.get(MGMT + '/resources?path=not/defined/path', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(MGMT + '/resources?path=oas_documents/not_existing_file.txt', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(MGMT + '/resources?path=oas_documents', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.get(MGMT + '/resources?path=oas_documents/service1.json', verify=False)
+        assert 400 == resp.status_code
+
+        text = 'hello world'
+
+        resp = httpx.post(MGMT + '/resources', data={'path': '', 'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'path': '../common/config.json', 'file': text}, verify=False)
+        assert 403 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'path': 'somepath'}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'path': 'not/defined/path', 'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'path': 'oas_documents', 'file': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', files={'somepath': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'path': 'oas_documents/'}, files={'../../common/config.json': text}, verify=False)
+        assert 403 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', data={'path': 'not/defined'}, files={'path': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.post(MGMT + '/resources', files={'oas_documents': text}, verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.delete(MGMT + '/resources', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.delete(MGMT + '/resources?path=', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.delete(MGMT + '/resources?path=../common/config.json', verify=False)
+        assert 403 == resp.status_code
+
+        resp = httpx.delete(MGMT + '/resources?path=not/defined/path', verify=False)
+        assert 400 == resp.status_code
+
+        resp = httpx.delete(MGMT + '/resources?path=dataset.json', verify=False)
         assert 400 == resp.status_code
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
-        ('configs/json/hbs/management/config.json', SRV_9000, {}),
-        ('configs/yaml/hbs/management/config.yaml', SRV_9000, {}),
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
         ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
         ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
     ])
@@ -2234,7 +2821,7 @@ class TestManagement():
         service2_response = 'service2'
 
         for _ in range(2):
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2245,12 +2832,12 @@ class TestManagement():
             assert data['log']['creator']['version'] == mockintosh.__version__
             assert len(data['log']['entries']) == 0
 
-            resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+            resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == service1_response
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2258,10 +2845,10 @@ class TestManagement():
             assert not data['log']['_enabled']
             assert len(data['log']['entries']) == 0
 
-            resp = requests.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers)
+            resp = httpx.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
             assert 204 == resp.status_code
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2270,18 +2857,18 @@ class TestManagement():
             assert len(data['log']['entries']) == 0
 
             for _ in range(3):
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == service1_response
 
             for _ in range(2):
-                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == service2_response
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2303,8 +2890,8 @@ class TestManagement():
                 assert entry['request']['httpVersion'] == 'HTTP/1.1'
                 assert not entry['request']['cookies']
                 request_headers = {x['name']: x['value'] for x in entry['request']['headers']}
-                assert request_headers['User-Agent'] == 'python-requests/%s' % requests.__version__
-                assert request_headers['Accept-Encoding'] == 'gzip, deflate'
+                assert request_headers['User-Agent'] == 'python-httpx/%s' % httpx.__version__
+                assert request_headers['Accept-Encoding'].startswith('gzip, deflate')
                 assert request_headers['Accept'] == '*/*'
                 assert request_headers['Connection'] == 'keep-alive'
                 assert request_headers['Host'] == SRV_8001_HOST
@@ -2350,10 +2937,10 @@ class TestManagement():
                     assert entry['request']['url'] == '%s://%s:%s/service2' % (url_parsed2.scheme, SRV_8002_HOST, url_parsed2.port)
                     assert entry['response']['content']['text'] == service2_response
 
-            resp = requests.post(admin_url + '/traffic-log', data={"enable": False}, headers=admin_headers)
+            resp = httpx.post(admin_url + '/traffic-log', data={"enable": False}, headers=admin_headers, verify=False)
             assert 204 == resp.status_code
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2365,18 +2952,18 @@ class TestManagement():
                 assert len(data['log']['entries']) == 5
 
             for _ in range(1):
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == service1_response
 
             for _ in range(1):
-                resp = requests.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+                resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
                 assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
                 assert resp.text == service2_response
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2387,7 +2974,7 @@ class TestManagement():
             else:
                 assert len(data['log']['entries']) == 5
 
-            resp = requests.delete(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.delete(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
@@ -2398,13 +2985,170 @@ class TestManagement():
             else:
                 assert len(data['log']['entries']) == 5
 
-            resp = requests.get(admin_url + '/traffic-log', headers=admin_headers)
+            resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
             data = resp.json()
             jsonschema_validate(data, HAR_JSON_SCHEMA)
             assert not data['log']['_enabled']
             assert len(data['log']['entries']) == 0
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_traffic_log_query_string(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        somekey = 'somekey'
+        somevalue = 'somevalue'
+        somevalue2 = 'somevalue2'
+
+        resp = httpx.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/service1?%s=%s' % (somekey, somevalue), headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 1
+        assert len(data['log']['entries'][0]['request']['queryString']) == 1
+        assert data['log']['entries'][0]['request']['queryString'][0]['name'] == somekey
+        assert data['log']['entries'][0]['request']['queryString'][0]['value'] == somevalue
+
+        resp = httpx.get(SRV_8001 + '/service1?%s=%s&%s=%s' % (somekey, somevalue, somekey, somevalue2), headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service1'
+
+        resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 2
+        assert len(data['log']['entries'][1]['request']['queryString']) == 2
+        assert data['log']['entries'][1]['request']['queryString'][0]['name'] == somekey
+        assert data['log']['entries'][1]['request']['queryString'][0]['value'] == somevalue
+        assert data['log']['entries'][1]['request']['queryString'][1]['name'] == somekey
+        assert data['log']['entries'][1]['request']['queryString'][1]['value'] == somevalue2
+
+    @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
+        ('configs/json/hbs/management/config.json', MGMT, {}),
+        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
+        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+    ])
+    def test_traffic_log_post_data(self, config, admin_url, admin_headers):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        somekey = 'somekey'
+        somevalue = 'somevalue'
+        service1_response = 'service1'
+
+        resp = httpx.post(admin_url + '/traffic-log', data={"enable": True}, headers=admin_headers, verify=False)
+        assert 204 == resp.status_code
+
+        # POST form data
+        resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data={somekey: somevalue})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == service1_response
+
+        # POST multipart binary
+        image_file = None
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, files={somekey: image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+            assert resp.text == service1_response
+
+        # POST plain text
+        resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data=somevalue)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == service1_response
+
+        # POST binary
+        resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data=image_file)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == service1_response
+
+        resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 4
+
+        # POST form data
+        assert data['log']['entries'][0]['request']['bodySize'] == 17
+        assert len(data['log']['entries'][0]['request']['postData']['params']) == 1
+        assert data['log']['entries'][0]['request']['postData']['mimeType'] == 'application/x-www-form-urlencoded'
+        assert data['log']['entries'][0]['request']['postData']['params'][0]['name'] == somekey
+        assert data['log']['entries'][0]['request']['postData']['params'][0]['value'] == somevalue
+        assert not data['log']['entries'][0]['request']['postData']['text']
+
+        # POST multipart binary
+        assert data['log']['entries'][1]['request']['bodySize'] == 796
+        assert len(data['log']['entries'][1]['request']['postData']['params']) == 1
+        assert data['log']['entries'][1]['request']['postData']['mimeType'] == 'multipart/form-data'
+        assert data['log']['entries'][1]['request']['postData']['params'][0]['name'] == somekey
+        assert data['log']['entries'][1]['request']['postData']['params'][0]['value'] == _b64encode(image_file)
+        assert data['log']['entries'][1]['request']['postData']['params'][0]['_encoding'] == BASE64
+        assert not data['log']['entries'][1]['request']['postData']['text']
+
+        # POST plain text
+        assert data['log']['entries'][2]['request']['bodySize'] == 9
+        assert len(data['log']['entries'][2]['request']['postData']['params']) == 0
+        assert data['log']['entries'][2]['request']['postData']['mimeType'] == 'text/plain'
+        assert data['log']['entries'][2]['request']['postData']['text'] == somevalue
+
+        # POST binary
+        assert data['log']['entries'][3]['request']['bodySize'] == 611
+        assert len(data['log']['entries'][3]['request']['postData']['params']) == 0
+        assert data['log']['entries'][3]['request']['postData']['mimeType'] == 'text/plain'
+        assert data['log']['entries'][3]['request']['postData']['text'] == _b64encode(image_file)
+        assert data['log']['entries'][3]['request']['postData']['_encoding'] == BASE64
+
+    def test_traffic_log_binary_response(self):
+        config = 'configs/json/hbs/core/binary_response.json'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.post(SRV_8000 + '/traffic-log', data={"enable": True})
+        assert 204 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/image')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'image/png'
+        image_file = None
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            assert resp.content == image_file
+
+        resp = httpx.get(SRV_8000 + '/traffic-log')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+        assert data['log']['_enabled']
+        assert len(data['log']['entries']) == 1
+
+        assert data['log']['entries'][0]['response']['content']['size'] == 611
+        assert data['log']['entries'][0]['response']['content']['mimeType'] == 'image/png'
+        assert data['log']['entries'][0]['response']['content']['text'] == _b64encode(image_file)
+        assert data['log']['entries'][0]['response']['content']['encoding'] == BASE64
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/headers/config.json',
@@ -2413,7 +3157,7 @@ class TestManagement():
     def test_update_global_headers(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8001 + '/global-headers')
+        resp = httpx.get(SRV_8001 + '/global-headers')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'globalval1'
@@ -2423,10 +3167,10 @@ class TestManagement():
             data = yaml.safe_load(file.read())
             data['globals']['headers']['global-hdr1'] = 'globalvalX'
             data['globals']['headers']['global-hdr2'] = 'globalvalY'
-            resp = requests.post(SRV_9000 + '/config', data=json.dumps(data))
+            resp = httpx.post(SRV_8000 + '/config', data=json.dumps(data))
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_8001 + '/global-headers')
+        resp = httpx.get(SRV_8001 + '/global-headers')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'globalvalX'
@@ -2438,7 +3182,7 @@ class TestManagement():
     def test_update_performance_profile(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = httpx.get(SRV_8000 + '/config')
         assert 200 == resp.status_code
         data = resp.json()
         assert data['globals']['performanceProfile'] == 'profile1'
@@ -2446,10 +3190,10 @@ class TestManagement():
         with open(get_config_path(config), 'r') as file:
             data = yaml.safe_load(file.read())
             data['globals']['performanceProfile'] = 'profile2'
-            resp = requests.post(SRV_9000 + '/config', data=json.dumps(data))
+            resp = httpx.post(SRV_8000 + '/config', data=json.dumps(data))
             assert 204 == resp.status_code
 
-        resp = requests.get(SRV_9000 + '/config')
+        resp = httpx.get(SRV_8000 + '/config')
         assert 200 == resp.status_code
         data = resp.json()
         assert data['globals']['performanceProfile'] == 'profile2'
@@ -2461,24 +3205,24 @@ class TestManagement():
     def test_fallback_to(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = httpx.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
         assert expected_data == resp.json()
 
-        resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = httpx.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
         assert expected_data == resp.json()
 
-        resp = requests.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
         assert resp.headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
@@ -2492,7 +3236,7 @@ class TestManagement():
         assert len(data['data']) <= 20
         assert data['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
 
-        resp = requests.get(SRV_9000 + '/unhandled')
+        resp = httpx.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -2514,10 +3258,71 @@ class TestManagement():
         assert len(body['data']) <= 20
         assert body['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
 
-        resp = requests.get(SRV_8002 + '/service1', headers={'Host': SRV_8002_HOST})
+        resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json',
+        'configs/fallback_to.yaml'
+    ])
+    def test_fallback_to_query_string(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(SRV_8001 + '/service1q?a=b', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
+        assert 404 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/service1q?a=b&a=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
+        assert 404 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/service1q?a[]=b&a[]=c', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'})
+        assert 404 == resp.status_code
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json'
+    ])
+    def test_fallback_to_body_param(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        expected_data = {"code": 401, "meta": None, "data": {"message": "Authentication failed"}}
+        resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': 'example'})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+        assert resp.json() == expected_data
+
+        resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': 'example'})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+        assert resp.json() == expected_data
+
+        with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
+            image_file = file.read()
+            resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+            assert resp.json() == expected_data
+
+            resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': image_file})
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+            assert resp.json() == expected_data
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json'
+    ])
+    def test_fallback_to_binary_response(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(SRV_8003 + '/250/250', headers={'Host': SRV_8003_HOST})
+        assert 200 == resp.status_code
+
+        resp = httpx.get(SRV_8000 + '/unhandled')
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'image/jpeg'
 
     @pytest.mark.parametrize(('config'), [
         'configs/internal_circular_fallback_to.json'
@@ -2525,10 +3330,21 @@ class TestManagement():
     def test_internal_circular_fallback_to(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = requests.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST})
-        assert 408 == resp.status_code
+        resp = httpx.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST}, timeout=30)
+        assert 504 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Internal circular \'fallbackTo\' definition error! Fix your configuration file.'
+        assert resp.text == 'Redirected request to: GET http://service1.example.com:8001/serviceX is timed out!'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/fallback_to.json'
+    ])
+    def test_fallback_to_unknown_name(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.get(SRV_8004 + '/serviceX', headers={'Host': SRV_8004_HOST}, timeout=30)
+        assert 502 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Name or service not known: http://service4.example.com:8004'
 
 
 class TestPerformanceProfile():
@@ -2547,7 +3363,7 @@ class TestPerformanceProfile():
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         start = time.time()
-        resp = requests.get(SRV_8003 + '/service3', headers={'Host': SRV_8003_HOST})
+        resp = httpx.get(SRV_8003 + '/service3', headers={'Host': SRV_8003_HOST}, timeout=30)
         end = time.time()
         delta = end - start
         assert 200 == resp.status_code
@@ -2562,13 +3378,12 @@ class TestPerformanceProfile():
 
         for _ in range(10):
             try:
-                resp = requests.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
+                resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
                 assert resp.status_code in (200, 201, 400, 500, 503)
-            except ConnectionError as e:
-                msg = str(e).split(',')[1].strip()
-                assert msg.startswith('ConnectionResetError') or (
-                    msg.startswith('RemoteDisconnected')
-                )
+            except httpx.ReadError as e:
+                assert str(e) == '[Errno 104] Connection reset by peer'
+            except httpx.RemoteProtocolError as e:
+                assert 'ConnectionClosed' in str(e)
 
     def test_trigger(self):
         faults = {

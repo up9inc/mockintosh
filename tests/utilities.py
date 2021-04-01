@@ -6,6 +6,7 @@ import socket
 import time
 import signal
 import io
+import uuid
 from os import path
 from unittest.mock import patch
 from multiprocessing import Process
@@ -76,3 +77,15 @@ def nostderr():
     sys.stderr = io.StringIO()
     yield
     sys.stderr = save_stderr
+
+
+def is_valid_uuid(val, version=4):
+    try:
+        uuid.UUID(str(val), version=version)
+        return True
+    except ValueError:
+        return False
+
+
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)

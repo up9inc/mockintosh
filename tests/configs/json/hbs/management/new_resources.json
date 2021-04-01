@@ -1,6 +1,9 @@
 {
   "management": {
-    "port": 9000
+    "port": 8000,
+    "ssl": true,
+    "sslCertFile": "cert.pem",
+    "sslKeyFile": "key.pem"
   },
   "templatingEngine": "Handlebars",
   "services": [
@@ -29,6 +32,22 @@
           "response": {
             "status": 200,
             "body": "@new_res/new_body.txt"
+          }
+        },
+        {
+          "path": "/service1-new-file-2",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@new_res/new_body2.txt"
+          }
+        },
+        {
+          "path": "/service1-new-file-3-dir",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@new_res"
           }
         }
       ]

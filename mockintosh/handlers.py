@@ -13,7 +13,7 @@ import re
 import socket
 import struct
 import traceback
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from typing import (
     Union,
@@ -21,21 +21,19 @@ from typing import (
     Awaitable
 )
 
-import requests
+import httpx
 import jsonschema
 import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
 
 import mockintosh
-from mockintosh.constants import PROGRAM, SUPPORTED_ENGINES, PYBARS, JINJA, SPECIAL_CONTEXT
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.replicas import Request, Response
-from mockintosh.exceptions import UnsupportedTemplateEngine
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _safe_path_split, _detect_engine, _decoder, _is_mostly_bin, _b64encode
+from mockintosh.methods import _detect_engine, _b64encode
 from mockintosh.params import (
-    PathParam,
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
@@ -75,6 +73,8 @@ IMAGE_EXTENSIONS = [
     '.webp'
 ]
 
+FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
+
 hbs_random = hbs_Random()
 j2_random = j2_Random()
 
@@ -82,6 +82,8 @@ hbs_date = hbs_Date()
 j2_date = j2_Date()
 
 counters = {}
+
+client = httpx.AsyncClient()
 
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
@@ -115,14 +117,12 @@ class GenericHandler(tornado.web.RequestHandler):
                     self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(
                         str(self.get_status())
                     )
-        if self.is_unhandled_request:
-            self.insert_unhandled_data((self.request, self.special_response))
         super().on_finish()
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         super().write(chunk)
-        if hasattr(self, 'special_response'):
-            self.special_response.bodySize = len(b"".join(self._write_buffer))
+        if hasattr(self, 'replica_response'):
+            self.replica_response.bodySize = len(b"".join(self._write_buffer))
 
     def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
         """Method to calculate and store the elapsed time of the request handling to be used in stats."""
@@ -135,17 +135,14 @@ class GenericHandler(tornado.web.RequestHandler):
         if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
             return
 
-        if not hasattr(self, 'special_response'):
-            self.special_response = self.build_special_response()
-
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
         request_start_datetime.replace(tzinfo=timezone.utc)
         log_record = LogRecord(
             self.logs.services[self.service_id].name,
             request_start_datetime,
             elapsed_time_in_milliseconds,
-            self.special_request,
-            self.special_response,
+            self.replica_request,
+            self.replica_response,
             self.request.server_connection
         )
         self.logs.services[self.service_id].add_record(log_record)
@@ -163,8 +160,7 @@ class GenericHandler(tornado.web.RequestHandler):
         logs: Logs,
         unhandled_data,
         fallback_to: Union[str, None],
-        tag: Union[str, None],
-        is_unhandled_request: bool
+        tag: Union[str, None]
     ) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         try:
@@ -180,7 +176,6 @@ class GenericHandler(tornado.web.RequestHandler):
             self.unhandled_data = unhandled_data
             self.fallback_to = fallback_to
             self.tag = tag
-            self.is_unhandled_request = is_unhandled_request
 
             for path, methods in self.endpoints:
                 if re.fullmatch(path, self.request.path):
@@ -199,17 +194,17 @@ class GenericHandler(tornado.web.RequestHandler):
             self.is_options = False
             self.custom_dataset = {}
 
-            self.special_request = self.build_special_request()
+            self.replica_request = self.build_replica_request()
             self.default_context = {
-                'request': self.special_request
+                'request': self.replica_request
             }
             self.custom_context = {}
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
 
-    def super_verb(self, *args) -> None:
+    async def super_verb(self, *args) -> None:
         """A method to unify all the HTTP verbs under a single flow."""
         try:
             self.args_backup = args
@@ -219,10 +214,10 @@ class GenericHandler(tornado.web.RequestHandler):
                 if self.custom_args:
                     args = self.custom_args
                 if self.methods is None:
-                    self.raise_http_error(404)
-                self.dynamic_unimplemented_method_guard()
+                    await self.raise_http_error(404)
+                await self.dynamic_unimplemented_method_guard()
 
-            match_alternative_return = self.match_alternative()
+            match_alternative_return = await self.match_alternative()
             if not match_alternative_return:
                 return
             _id, response, params, context, dataset, internal_endpoint_id, performance_profile = match_alternative_return
@@ -244,44 +239,44 @@ class GenericHandler(tornado.web.RequestHandler):
 
             if self.rendered_body is None:
                 return
-            self.special_response = self.build_special_response()
+            self.replica_response = self.build_replica_response()
             if self.should_write():
                 self.write(self.rendered_body)
         except NewHTTPError:
             return
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self.set_status(500)
             self.write(''.join(traceback.format_tb(e.__traceback__)))
             self.write('%s' % str(e))
 
-    def get(self, *args) -> None:
+    async def get(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def post(self, *args) -> None:
+    async def post(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def head(self, *args) -> None:
+    async def head(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def delete(self, *args) -> None:
+    async def delete(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def patch(self, *args) -> None:
+    async def patch(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def put(self, *args) -> None:
+    async def put(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
-    def options(self, *args) -> None:
+    async def options(self, *args) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         self.is_options = True
-        self.super_verb(*args)
+        await self.super_verb(*args)
 
     def populate_context(self, *args) -> None:
         """Method to populate the context to be used by the templating engines."""
@@ -289,11 +284,13 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, value in self.custom_dataset.items():
             self.custom_context[key] = value
         if args:
-            if len(args) >= len(self.initial_context):
-                for i, key in enumerate(self.initial_context):
+            for i, key in enumerate(self.initial_context):
+                if key == SPECIAL_CONTEXT:
+                    continue
+                try:
                     self.custom_context[key] = args[i]
-            else:
-                self.raise_http_error(404)
+                except IndexError:
+                    pass
         self.custom_context.update(self.default_context)
         self.analyze_component('headers')
         self.analyze_component('queryString')
@@ -304,20 +301,15 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def populate_counters(self, context: [None, dict]) -> None:
         """Method that retrieves counters from template engine contexts."""
-        if context is None:
-            return
-
         if SPECIAL_CONTEXT in context and 'counters' in context[SPECIAL_CONTEXT]:
             for key, value in context[SPECIAL_CONTEXT]['counters'].items():
                 counters[key] = value
 
-    def dynamic_unimplemented_method_guard(self) -> None:
+    async def dynamic_unimplemented_method_guard(self) -> None:
         """Method to handle unimplemented HTTP verbs (`405`)."""
-        if self.methods is None:
-            self.raise_http_error(404)
         if self.request.method.lower() not in self.methods:
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
-            self.raise_http_error(405)
+            await self.raise_http_error(405)
 
     def log_request(self) -> None:
         """Method that logs the request."""
@@ -327,19 +319,33 @@ class GenericHandler(tornado.web.RequestHandler):
         """Method that injects parameters defined in the config into template engine contexts."""
         if not hasattr(self, 'custom_params'):
             return context
+        query_arguments = self.request.query_arguments
         for key, param in self.custom_params.items():
-            if isinstance(param, PathParam):
-                context[key] = _safe_path_split(self.request.path)[param.key]
             if isinstance(param, HeaderParam):
                 context[key] = self.request.headers.get(param.key.title())
             if isinstance(param, QueryStringParam):
-                context[key] = self.get_query_argument(param.key)
+                try:
+                    context[key] = query_arguments[param.key].pop(0).decode()
+                except IndexError:
+                    try:
+                        context[key] = self.get_query_argument(param.key)
+                    except tornado.web.MissingArgumentError:
+                        context[key] = self.get_argument(param.key)
+                except KeyError:
+                    for arg in query_arguments:
+                        match = re.search(key, arg)
+                        if match is not None:
+                            try:
+                                context[param.key] = match.group(1).strip()
+                                break
+                            except IndexError:
+                                continue
             if isinstance(param, BodyTextParam):
-                context[key] = _decoder(self.request.body)
+                context[key] = self.request.body.decode()
             if isinstance(param, BodyUrlencodedParam):
                 context[key] = self.get_body_argument(param.key)
             if isinstance(param, BodyMultipartParam):
-                context[key] = _decoder(self.request.files[param.key][0].body)
+                context[key] = self.request.files[param.key][0].body.decode()
         return context
 
     def render_template(self) -> str:
@@ -359,7 +365,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 logging.debug('Reading external file from path: %s', template_path)
                 source_text = file.read()
                 try:
-                    source_text = source_text.decode('utf-8')
+                    source_text = source_text.decode()
                     logging.debug('Template file text: %s', source_text)
                 except UnicodeDecodeError:
                     is_binary = True
@@ -378,7 +384,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         return compiled
 
-    def build_special_request(self) -> Request:
+    def build_replica_request(self) -> Request:
         """Method that builds the `Request` object to be injected into the response templating."""
         request = Request()
 
@@ -404,7 +410,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
         # Query String
         for key, value in self.request.query_arguments.items():
-            request.queryString[key] = [_decoder(x) for x in value]
+            request.queryString[key] = [x.decode() for x in value]
             if len(request.queryString[key]) == 1:
                 request.queryString[key] = request.queryString[key][0]
 
@@ -412,40 +418,40 @@ class GenericHandler(tornado.web.RequestHandler):
         if self.request.body_arguments:
             request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
-                if any(_is_mostly_bin(x) for x in value):
-                    request.bodyType[key] = 'base64'
-                    request.body[key] = [_b64encode(x) for x in value]
-                else:
+                try:
                     request.bodyType[key] = 'str'
-                    request.body[key] = [_decoder(x) for x in value]
+                    request.body[key] = [x.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    request.bodyType[key] = BASE64
+                    request.body[key] = [_b64encode(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
             request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
-                if any(_is_mostly_bin(x.body) for x in value):
-                    request.bodyType[key] = 'base64'
-                    request.body[key] = [_b64encode(x.body) for x in value]
-                else:
+                try:
                     request.bodyType[key] = 'str'
-                    request.body[key] = [_decoder(x.body) for x in value]
+                    request.body[key] = [x.body.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    request.bodyType[key] = BASE64
+                    request.body[key] = [_b64encode(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
             request.mimeType = 'text/plain'
-            if _is_mostly_bin(request.body):
-                request.bodyType = 'base64'
-                request.body = _b64encode(self.request.body)
-            else:
+            try:
                 request.bodyType = 'str'
-                request.body = _decoder(self.request.body)
+                request.body = self.request.body.decode()
+            except (AttributeError, UnicodeDecodeError):
+                request.bodyType = BASE64
+                request.body = _b64encode(self.request.body)
         request.bodySize = len(self.request.body)
 
         request.files = self.request.files
 
         return request
 
-    def build_special_response(self) -> Response:
+    def build_replica_response(self) -> Response:
         """Method that prepares `Response` object to be modified by the interceptors."""
         response = Response()
 
@@ -459,9 +465,9 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def update_response(self) -> None:
         """Updates the response according to modifications made in interceptors."""
-        self._status_code = self.special_response.status
-        self._headers = self.special_response.headers
-        self.rendered_body = self.special_response.body
+        self._status_code = self.replica_response.status
+        self._headers = self.replica_response.headers
+        self.rendered_body = self.replica_response.body
         self._write_buffer = []
         if self.rendered_body is None:
             self.rendered_body = ''
@@ -517,7 +523,7 @@ class GenericHandler(tornado.web.RequestHandler):
         elif component == 'queryString':
             payload = self.request.query_arguments
         elif component == 'bodyText':
-            payload = _decoder(self.request.body)
+            payload = self.request.body.decode()
         elif component == 'bodyUrlencoded':
             payload = self.request.body_arguments
         elif component == 'bodyMultipart':
@@ -539,7 +545,7 @@ class GenericHandler(tornado.web.RequestHandler):
                     elif component == 'bodyUrlencoded':
                         match_string = self.get_body_argument(key)
                     elif component == 'bodyMultipart':
-                        match_string = _decoder(self.request.files[key][0].body)
+                        match_string = self.request.files[key][0].body.decode()
 
                     match = re.search(value['regex'], match_string)
                     if match is not None:
@@ -585,19 +591,17 @@ class GenericHandler(tornado.web.RequestHandler):
                 else:
                     self.set_header(key, value)
 
-    def match_alternative(self) -> tuple:
+    async def match_alternative(self) -> tuple:
         """Method to handles all the request matching logic.
 
         If the request does not match to any alternatives defined in the config, it returns `400`.
 
         It also handles the automatic CORS.
         """
-        if self.should_cors():
+        if await self.should_cors():
             self.respond_cors()
             return ()
 
-        if self.methods is None:
-            return ()
         self.alternatives = self.methods[self.request.method.lower()]
 
         response = None
@@ -639,16 +643,21 @@ class GenericHandler(tornado.web.RequestHandler):
                     default = None
                     request_query_val = self.get_query_argument(key, default=default)
                     if request_query_val is default:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
-                        break
-                    if key not in self.request.query_arguments:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Key \'%s\' couldn\'t found in the query string!' % key
-                        break
+                        is_matched = False
+                        if re.escape(key) != key:
+                            for _key in self.request.query_arguments:
+                                match = re.search(key, _key)
+                                if match is not None:
+                                    is_matched = True
+                                    break
+                        if not is_matched:
+                            self.internal_endpoint_id = alternative['internalEndpointId']
+                            fail = True
+                            reason = 'Key \'%s\' couldn\'t found in the query string!' % key
+                            break
                     if value == request_query_val:
+                        continue
+                    if request_query_val is default:
                         continue
                     value = '^%s$' % value
                     match = re.search(value, request_query_val)
@@ -666,7 +675,7 @@ class GenericHandler(tornado.web.RequestHandler):
 
             # Body
             if 'body' in alternative:
-                body = _decoder(self.request.body)
+                body = self.request.body.decode()
 
                 # Schema
                 if 'schema' in alternative['body']:
@@ -675,7 +684,14 @@ class GenericHandler(tornado.web.RequestHandler):
                         json_schema_path = self.resolve_relative_path(json_schema)
                         with open(json_schema_path, 'r') as file:
                             logging.info('Reading JSON schema file from path: %s', json_schema_path)
-                            json_schema = json.load(file)
+                            try:
+                                json_schema = json.load(file)
+                            except json.decoder.JSONDecodeError:
+                                self.send_error(
+                                    500,
+                                    message='JSON decode error of the JSON schema file: %s' % json_schema
+                                )
+                                return
                             logging.debug('JSON schema: %s', json_schema)
                     json_data = None
 
@@ -711,18 +727,13 @@ class GenericHandler(tornado.web.RequestHandler):
                             reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
                             break
 
-                # Urlncoded
+                # Urlencoded
                 if 'urlencoded' in alternative['body']:
                     for key, value in alternative['body']['urlencoded'].items():
                         # To prevent 400, default=None
                         default = None
                         body_argument = self.get_body_argument(key, default=default)
                         if body_argument is default:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Key \'%s\' couldn\'t found in the form data!' % key
-                            break
-                        if key not in self.request.body_arguments:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
                             reason = 'Key \'%s\' couldn\'t found in the form data!' % key
@@ -751,7 +762,7 @@ class GenericHandler(tornado.web.RequestHandler):
                             fail = True
                             reason = 'Key \'%s\' couldn\'t found in the multipart data!' % key
                             break
-                        multipart_argument = _decoder(self.request.files[key][0].body)
+                        multipart_argument = self.request.files[key][0].body.decode()
                         if value == multipart_argument:
                             continue
                         value = '^%s$' % value
@@ -768,29 +779,20 @@ class GenericHandler(tornado.web.RequestHandler):
                     if fail:
                         continue
 
-            if self.should_cors():
-                self.respond_cors()
-
             # Multiple responses
             if 'response' in alternative:
                 response = alternative['response']
                 if isinstance(alternative['response'], list):
                     if not len(alternative['response']) > 0:
-                        response = {
-                            'body': None
-                        }
+                        response = {'body': None}
                     else:
                         response = self.loop_alternative(alternative, 'response', 'multiResponses')
                         if not response:
                             return ()
 
-                response = response if isinstance(response, dict) else {
-                    'body': response
-                }
+                response = response if isinstance(response, dict) else {'body': response}
             else:
-                response = {
-                    'body': None
-                }
+                response = {'body': None}
 
             # Dataset
             dataset = {}
@@ -809,19 +811,18 @@ class GenericHandler(tornado.web.RequestHandler):
             return (_id, response, params, context, dataset, internal_endpoint_id, performance_profile)
 
         self.write(reason)
-        self.raise_http_error(400)
-        self.finish()
+        await self.raise_http_error(400)
 
     def trigger_interceptors(self) -> None:
         """Method to trigger the interceptors"""
         for interceptor in self.interceptors:
-            interceptor(self.special_request, self.special_response)
+            interceptor(self.replica_request, self.replica_response)
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
         """Overriden method of tornado.web.RequestHandler"""
         if self._status_code not in (204, 500, 'RST', 'FIN'):
-            if not hasattr(self, 'special_response'):
-                self.special_response = self.build_special_response()
+            if not hasattr(self, 'replica_response'):
+                self.replica_response = self.build_replica_response()
             self.trigger_interceptors()
             if self.interceptors:
                 self.update_response()
@@ -845,16 +846,16 @@ class GenericHandler(tornado.web.RequestHandler):
         orig_relative_path, context = self.common_template_renderer(self.definition_engine, orig_relative_path)
         self.populate_counters(context)
 
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
+        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
         relative_path = os.path.join(self.config_dir, orig_relative_path)
         if not os.path.isfile(relative_path):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
         relative_path = os.path.abspath(relative_path)
         if not relative_path.startswith(self.config_dir):
-            self.send_error(403, message=error_msg)
+            self.send_error(500, message=error_msg)
             return None
 
         return relative_path
@@ -863,7 +864,7 @@ class GenericHandler(tornado.web.RequestHandler):
         """Overriden method of tornado.web.RequestHandler"""
         if 'message' in kwargs and kwargs['message']:
             self.finish(kwargs['message'])
-        else:
+        else:  # pragma: no cover
             self.finish()
 
     def respond_cors(self) -> None:
@@ -896,10 +897,10 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_header('X-Mockintosh-Prompt', "Hello, I'm Mockintosh.")  # clear signature that it's mock
         self.set_cors_headers()
 
-    def should_cors(self) -> bool:
+    async def should_cors(self) -> bool:
         """Method that decides whether the request is applicable for automatic CORS or not."""
         if self.is_options and self.methods is None:
-            self.raise_http_error(404)
+            await self.raise_http_error(404)
         return self.is_options and self.methods is not None and self.request.method.lower() not in self.methods.keys()
 
     def load_dataset(self, dataset: [list, str]) -> dict:
@@ -935,15 +936,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 return False
 
         if 'tag' in alternative[key][alternative[index_key]]:
-            if self.tag is None:
-                if resetted:
-                    self.internal_endpoint_id = alternative['internalEndpointId']
-                    self.set_status(410)
-                    self.finish()
-                    return False
-                else:
-                    return self.loop_alternative(alternative, key, subkey)
-            elif self.tag != alternative[key][alternative[index_key]]['tag']:
+            if self.tag is None or not self.tag or self.tag != alternative[key][alternative[index_key]]['tag']:
                 if resetted:
                     self.internal_endpoint_id = alternative['internalEndpointId']
                     self.set_status(410)
@@ -966,8 +959,6 @@ class GenericHandler(tornado.web.RequestHandler):
             from mockintosh.j2.methods import fake, counter, json_path, escape_html
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
-        else:
-            raise UnsupportedTemplateEngine(template_engine, SUPPORTED_ENGINES)
 
         renderer = TemplateRenderer(
             template_engine,
@@ -979,14 +970,13 @@ class GenericHandler(tornado.web.RequestHandler):
                 json_path,
                 escape_html
             ],
-            add_params_callback=self.add_params,
-            fill_undefineds=True
+            add_params_callback=self.add_params
         )
         return renderer.render()
 
-    def raise_http_error(self, status_code: int) -> None:
+    async def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""
-        self.resolve_unhandled_request()
+        await self.resolve_unhandled_request()
 
         self.set_status(status_code)
 
@@ -1003,21 +993,17 @@ class GenericHandler(tornado.web.RequestHandler):
 
         raise NewHTTPError()
 
-    def resolve_unhandled_request(self) -> None:
+    async def resolve_unhandled_request(self) -> None:
         if self.fallback_to is None:
             self.insert_unhandled_data((self.request, None))
             return
-
-        if self.is_unhandled_request:
-            self.set_status(408)
-            self.write('Internal circular \'fallbackTo\' definition error! Fix your configuration file.')
-            raise NewHTTPError()
 
         # Headers
         headers = {}
         for key, value in self.request.headers._dict.items():
             if key.title() in (
-                'Host'
+                'Host',
+                'Content-Length'
             ):
                 continue
             headers[key] = value
@@ -1029,7 +1015,7 @@ class GenericHandler(tornado.web.RequestHandler):
         for key, value in self.request.query_arguments.items():
             if not query_string:
                 query_string = '?'
-            values = [_decoder(x) for x in value]
+            values = [x.decode() for x in value]
             if len(values) == 1:
                 query_string += '%s=%s' % (key, values[0])
             else:
@@ -1037,49 +1023,48 @@ class GenericHandler(tornado.web.RequestHandler):
                     query_string += '%s[]=%s' % (key, _value)
 
         # Body
-        body = None
+        data = {}
+        files = {}
         if self.request.body_arguments:
-            body = {}
             for key, value in self.request.body_arguments.items():
-                body[key] = [_decoder(x) for x in value]
-                if len(body[key]) == 1:
-                    body[key] = body[key][0]
+                try:
+                    data[key] = [x.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    data[key] = [x for x in value]
+                if len(data[key]) == 1:
+                    data[key] = data[key][0]
         elif self.request.files:
-            body = {}
             for key, value in self.request.files.items():
-                body[key] = [_decoder(x.body) for x in value]
-                if len(body[key]) == 1:
-                    body[key] = body[key][0]
+                try:
+                    files[key] = [x.body.decode() for x in value]
+                except (AttributeError, UnicodeDecodeError):
+                    files[key] = [x.body for x in value]
+                if len(files[key]) == 1:
+                    files[key] = files[key][0]
         else:
-            body = _decoder(self.request.body)
+            data = self.request.body.decode()
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
-        url_parsed = urlparse(url)
-
-        for i, app in enumerate(self.http_server._apps.apps):
-            listener = self.http_server._apps.listeners[i]
-            if (
-                listener.hostname == url_parsed.hostname or listener.address == url_parsed.hostname
-            ) and listener.port == url_parsed.port:
-                # Found the service internally
-                logging.info('Redirecting the unhandled request to internal: %s %s' % (self.request.method, url))
-                for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
-                    if rule.target == GenericHandler:
-                        new_target_kwargs = rule.target_kwargs
-                        new_target_kwargs['is_unhandled_request'] = True
-                        new_target_kwargs['service_id'] = self.service_id
-                        rule.target.initialize(self, *new_target_kwargs.values())
-                        rule.target.super_verb(self, *self.args_backup)
-                logging.info('Returned back from the internal redirected request.')
-                raise NewHTTPError()
 
         # The service is external
-        logging.info('Redirecting the unhandled request to external: %s %s' % (self.request.method, url))
+        logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
 
-        http_verb = getattr(requests, self.request.method.lower())
-        resp = http_verb(url, headers=headers, timeout=5)
+        http_verb = getattr(client, self.request.method.lower())
+        try:
+            if self.request.method.upper() in ('POST', 'PUT', 'PATCH', 'DELETE'):
+                resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT, data=data, files=files)
+            else:
+                resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
+        except httpx.TimeoutException:
+            self.set_status(504)
+            self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
+            raise NewHTTPError()
+        except httpx.ConnectError:
+            self.set_status(502)
+            self.write('Name or service not known: %s' % self.fallback_to.rstrip('/'))
+            raise NewHTTPError()
 
-        logging.info('Returned back from the external redirected request.')
+        logging.info('Returned back from the redirected request.')
 
         self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():
@@ -1095,10 +1080,10 @@ class GenericHandler(tornado.web.RequestHandler):
             self.set_header(key, value)
 
         self.write(resp.content)
-        self.special_response = self.build_special_response()
-        self.special_response.body = resp.content
+        self.replica_response = self.build_replica_response()
+        self.replica_response.body = resp.content
 
-        self.insert_unhandled_data((self.request, self.special_response))
+        self.insert_unhandled_data((self.request, self.replica_response))
         raise NewHTTPError()
 
     def insert_unhandled_data(self, row: tuple) -> None:

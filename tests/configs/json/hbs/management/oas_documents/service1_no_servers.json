@@ -1,0 +1,38 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Mock for Service1 CUSTOM",
+    "description": "Automatically generated Open API Specification.",
+    "version": "0.1.9"
+  },
+  "paths": {
+    "/service1": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/service1-second/{var}": {
+      "get": {
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "var",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

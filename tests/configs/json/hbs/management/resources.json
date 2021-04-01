@@ -1,6 +1,9 @@
 {
   "management": {
-    "port": 9000
+    "port": 8000,
+    "ssl": true,
+    "sslCertFile": "cert.pem",
+    "sslKeyFile": "key.pem"
   },
   "templatingEngine": "Handlebars",
   "services": [
@@ -29,6 +32,30 @@
           "response": {
             "status": 200,
             "body": "@res/body.txt"
+          }
+        },
+        {
+          "path": "/service1-file2",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@/res/body.txt"
+          }
+        },
+        {
+          "path": "/service1-file3",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@../common/config.json"
+          }
+        },
+        {
+          "path": "/service1-file-forbidden-path",
+          "method": "GET",
+          "response": {
+            "status": 200,
+            "body": "@../body/config.json"
           }
         }
       ]

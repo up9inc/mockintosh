@@ -1,0 +1,18 @@
+{
+  "management": {
+    "port": 8000,
+    "ssl": true,
+    "sslCertFile": "cert.pem",
+    "sslKeyFile": "key.pem"
+  },
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "name": "Mock for Service1",
+      "hostname": "service1.example.com",
+      "port": 8001,
+      "managementRoot": "__admin",
+      "endpoints": []
+    }
+  ]
+}

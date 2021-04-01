@@ -133,6 +133,68 @@
           "response": {
             "status": 202
           }
+        },
+        {
+          "path": "/hello-{{somevar}}/another",
+          "method": "GET",
+          "response": "result: {{somevar}}"
+        },
+        {
+          "path": "/{{somevar1}}-middle-{{somevar2}}/another",
+          "method": "GET",
+          "response": "result: {{somevar1}} {{somevar2}}"
+        },
+        {
+          "path": "/{{somevar1}}-middle2-{{regEx('\\d')}}/another",
+          "method": "GET",
+          "response": "result: {{somevar1}}"
+        },
+        {
+          "path": "/hello2-{{regEx('prefix-(.*)', 'somevar')}}/another",
+          "method": "GET",
+          "response": "result: {{somevar}}"
+        },
+        {
+          "path": "/search?q={{keyword}}",
+          "method": "GET",
+          "response": "result: {{keyword}}"
+        },
+        {
+          "path": "/search2?q={{keyword1}}&s={{keyword2}}",
+          "method": "GET",
+          "response": "result: {{keyword1}} {{keyword2}}"
+        },
+        {
+          "path": "/{{regEx('abc1-xx(.*?)xx', 'keyword')}}",
+          "method": "GET",
+          "response": "result: {{keyword}}"
+        },
+        {
+          "path": "/{{regEx('abc2-xx(.*?)xx', 'keyword1')}}?q={{keyword2}}&s={{keyword3}}",
+          "method": "GET",
+          "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
+        },
+        {
+          "path": "/{{regEx('abc3-xx(.*?)xx', 'keyword1')}}?q={{regEx('abc4-xx(.*?)xx', 'keyword2')}}&s={{keyword3}}",
+          "method": "GET",
+          "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
+        },
+        {
+          "path": "/{{regEx('abc5-xx(.*?)xx', 'keyword1')}}?q={{keyword2}}&s={{keyword3}}#some-string",
+          "method": "GET",
+          "response": "result: {{keyword1}} {{keyword2}} {{keyword3}}"
+        },
+        {
+          "path": "/qstr-multiparam1?param[]={{val1}}&param[]={{val2}}",
+          "response": "{{val1}} {{val2}}"
+        },
+        {
+          "path": "/qstr-multiparam2?param1={{val1}}&param2={{val2}}",
+          "response": "{{val1}} {{val2}}"
+        },
+        {
+          "path": "/qstr-multiparam3?prefix-{{data}}-suffix",
+          "response": "{{data}}"
         }
       ]
     }

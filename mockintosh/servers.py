@@ -8,9 +8,10 @@
 
 import logging
 import sys
+import traceback
 from abc import abstractmethod
-from os import path, environ
 from collections import OrderedDict
+from os import path, environ
 from typing import Union
 
 import tornado.ioloop
@@ -19,6 +20,7 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
+from mockintosh.logs import Logs
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -41,7 +43,6 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
-from mockintosh.logs import Logs
 
 stats = Stats()
 logs = Logs()
@@ -52,11 +53,11 @@ __location__ = path.abspath(path.dirname(__file__))
 class Impl:
     @abstractmethod
     def get_server(self, app, is_ssl, ssl_options):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def serve(self):
-        pass
+        raise NotImplementedError
 
 
 class TornadoImpl(Impl):
@@ -69,7 +70,10 @@ class TornadoImpl(Impl):
         return server
 
     def serve(self):
-        tornado.ioloop.IOLoop.current().start()
+        try:
+            tornado.ioloop.IOLoop.current().start()
+        except KeyboardInterrupt:
+            logging.debug("Shutdown: %s", traceback.format_exc())
 
 
 class _Listener:
@@ -157,8 +161,8 @@ class HttpServer:
                     if 'name' in service:
                         if service['name'] not in self.services_list:
                             continue
-                    else:
-                        continue
+                    else:  # pragma: no cover
+                        continue  # https://github.com/nedbat/coveragepy/issues/198
 
                 endpoints = []
                 if 'endpoints' in service:
@@ -294,8 +298,7 @@ class HttpServer:
                     logs=self.logs,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
-                    tag=None,
-                    is_unhandled_request=False
+                    tag=None
                 )
             )
         )
@@ -394,9 +397,9 @@ class HttpServer:
 
     def resolve_cert_path(self, cert_path):
         relative_path = path.join(self.definition.source_dir, cert_path)
+        relative_path = path.abspath(relative_path)
         if not path.isfile(relative_path):
             raise CertificateLoadingError('File not found on path `%s`' % cert_path)
-        relative_path = path.abspath(relative_path)
         if not relative_path.startswith(self.definition.source_dir):
             raise CertificateLoadingError('Path `%s` is inaccessible!' % cert_path)
 

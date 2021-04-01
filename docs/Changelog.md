@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.8.1 - 2021-03-21
+
+1. Fix bug in management UI resource editor
+2. Proper support for query string written in `path` option
+
+## v0.8 - 2021-03-20
+
+1. [Management API/UI](Management.md) Improvements:
+    1. Overall visual look tuning
+    1. change config editor component in management UI
+    1. YAML format for unhandled requests
+    1. allow editing resource files via mgmt API/UI
+    1. traffic log API & viewer
+    1. mgmt UI change config global section didn't work
+    1. report error in case config apply fails
+    1. add UI for /tag management API
+    1. Improve stats display
+
+1. `fallbackTo` [option for service](Configuring.md#fallback-to) to help generate configuration
+1. "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header as sign of mock involved
+1. use proper `async` style for Tornado functions
+1. get rid of default config that runs with no params `mockintosh` command
+1. ctrl+c to produce debug message only
+
 ## v0.7 - 2021-02-07
 
 1. [Management API](Management.md) to get/set config, see stats, quick trying
@@ -80,40 +104,32 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-# Roadmap
-
-## Next Version
-
-- YAML format for unhandled requests
-- get rid of default config that runs with no params
-- allow editing resource files via mgmt API/UI
-- "Hello. I'm Mockintosh" in `x-mockintosh-prompt` header
-- traffic log API & viewer
-- mgmt UI change config global section didn't work
-- report error in case config apply fails
-- "fallback" mode for service to learn configuration
-
-- bug of applying status change via UI (Alon)
-- \r vs \n problem in mac
-- change config editor component
-
-- don't clear traffic log on page reload
+# Next Version
 
 
-# Ideas
 
+# Roadmap Ideas
+
+- support fragment same way we support query string - both in `path` and as standalone `fragment` option
+- cli argument to set the tag
+- add support of array/list parameters on query strings like
+  `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
+  matching logic
 - Nicer formatted error pages for known errors
-- admin UI to show available tags and allow switching  
+- Nicer debug logging of requests  
+- admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+- config editor to provide hyperlinks from resource files into corresponding editing
+
 1. base64-encoded body strings, for binary responses
 1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
    Accept etc)
 
 - mocks for Kafka & RabbitMQ
-  - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
-  - on schedule producer
-  - on demand producer
-  - reactive consumer+producer
-  - consumer fact validation
-  - avro + grpc + JSON 
+    - https://github.com/spotify/docker-kafka - self-contained, maybe https://hub.docker.com/r/solsson/kafka/
+    - on schedule producer
+    - on demand producer
+    - reactive consumer+producer
+    - consumer fact validation
+    - avro + grpc + JSON
 - mocks for gRPC servers
