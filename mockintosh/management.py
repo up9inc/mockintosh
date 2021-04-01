@@ -27,7 +27,7 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit
+from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import RestrictedFieldError
 from mockintosh import kafka
 

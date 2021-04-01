@@ -21,7 +21,7 @@ from jsonpath_ng import parse as jsonpath_parse
 from pybars import PybarsError
 from faker import Faker
 
-from mockintosh.methods import _handlebars_add_to_context
+from mockintosh.helpers import _handlebars_add_to_context
 
 
 def fake():

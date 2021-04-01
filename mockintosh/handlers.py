@@ -33,7 +33,7 @@ from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
-from mockintosh.methods import _detect_engine, _b64encode
+from mockintosh.helpers import _detect_engine, _b64encode
 from mockintosh.params import (
     HeaderParam,
     QueryStringParam,

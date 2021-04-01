@@ -11,7 +11,7 @@ import logging
 from urllib.parse import urlencode
 from http.client import responses
 
-from mockintosh.methods import _b64encode
+from mockintosh.helpers import _b64encode
 from mockintosh.constants import BASE64
 
 

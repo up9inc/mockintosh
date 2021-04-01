@@ -15,7 +15,7 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
-from mockintosh.methods import _safe_path_split
+from mockintosh.helpers import _safe_path_split
 
 
 class RecognizerBase():
