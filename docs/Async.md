@@ -166,7 +166,7 @@ services:
           key: "can reference as {{consumed.key}} and {{consumed.value}}"
           value: "reference from consumed: {{justName}} {{myCapturedVar}}"
           headers:
-            timestamp: '{{date.timestamp}}'  # regular Mockintosh templating can be used
+            propagated-hdr: '{{consumed.headers.hdr-name}}'
 ```
 
 _Note: Validating the consumer and triggering the producing would work for "reactive producer", too._
