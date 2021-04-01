@@ -13,7 +13,7 @@ from jsonschema.exceptions import ValidationError
 from mockintosh import Definition, get_schema
 from mockintosh.exceptions import UnrecognizedConfigFileFormat, CertificateLoadingError
 from mockintosh.servers import HttpServer, TornadoImpl
-from mockintosh.methods import _nostderr
+from mockintosh.helpers import _nostderr
 from utilities import get_config_path
 
 schema = get_schema()

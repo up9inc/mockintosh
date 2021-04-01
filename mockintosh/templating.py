@@ -16,7 +16,7 @@ from pybars import Compiler, PybarsError
 from faker import Faker
 
 from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
-from mockintosh.methods import _to_camel_case
+from mockintosh.helpers import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
 from mockintosh.j2.meta import find_undeclared_variables_in_order
 

@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains common methods.
+    :synopsis: module that contains helper methods.
 """
 
 import sys
