@@ -2547,7 +2547,8 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        'configs/yaml/hbs/management/config.yaml',
+        'configs/yaml/hbs/core/big_config.yaml'
     ])
     def test_get_oas(self, config):
         config_path = None
@@ -2563,15 +2564,19 @@ class TestManagement():
         for document in data['documents']:
             validate_spec(document)
 
-        resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST}, verify=False)
+        if config.endswith('big_config.yaml'):
+            resp = httpx.get(SRV_8001 + '/__admin/oas')
+        else:
+            resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         validate_spec(resp.json())
 
-        resp = httpx.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST}, verify=False)
-        assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
-        validate_spec(resp.json())
+        if not config.endswith('big_config.yaml'):
+            resp = httpx.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST}, verify=False)
+            assert 200 == resp.status_code
+            assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+            validate_spec(resp.json())
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config_custom_oas.json',
@@ -2732,7 +2737,7 @@ class TestManagement():
         assert 400 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
-        'configs/yaml/hbs/core/resources_various.yaml'
+        'configs/yaml/hbs/core/big_config.yaml'
     ])
     def test_resources_various(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2741,7 +2746,7 @@ class TestManagement():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
-        assert 'subdir/empty_schema.json' in data['files']
+        assert 'schema/empty_schema.json' in data['files']
         assert 'cors.html' in data['files']
         assert 'subdir/image.png' in data['files']
         assert '/etc/hosts' not in data['files']

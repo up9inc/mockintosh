@@ -115,7 +115,7 @@ services:
       - path: /cors-request
         method: post
         body:
-          schema: '@subdir/empty_schema.json'
+          schema: '@schema/empty_schema.json'
         response:
           status: 201
       - path: /cors-request-overridden
@@ -237,10 +237,18 @@ services:
       - path: /cors2
         response: '@cors.html'
 
+  - name: SSL with certfile
+    port: 8005
+    ssl: true
+    sslCertFile: cert.pem
+    sslKeyFile: key.pem
+    endpoints:
+      - path: /
+
   - name: Service for management API / Dynamic configs
     port: 8006
     managementRoot: /sub/__admin
-    oas: '@subdir/oas.json'
+    oas: '@oas/oas.json'
 
   - name: Service with fallback
     port: 8007
