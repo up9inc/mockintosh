@@ -1,0 +1,16 @@
+---
+templatingEngine: Handlebars
+services:
+  - name: Mock for Service1
+    port: 8001
+    endpoints:
+      - path: /cors-request
+        method: post
+        body:
+          schema: '@schema/empty_schema.json'
+        response:
+          status: 201
+      - path: /cors-request-overridden
+        method: options
+        response:
+          status: 401

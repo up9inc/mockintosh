@@ -1,0 +1,22 @@
+---
+templatingEngine: Handlebars
+management:
+  port: 8000
+  ssl: true
+services:
+  - name: Mock for Service1
+    port: 8001
+    endpoints:
+      - path: /cors-request
+        method: post
+        body:
+          schema: '@subdir/empty_schema.json'
+        response:
+          status: 201
+      - path: /multi-response-looped
+        response:
+          - '@cors.html'
+          - headers:
+              content-type: image/png
+            body: '@subdir/image.png'
+          - just some text
