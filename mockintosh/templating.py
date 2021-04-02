@@ -20,7 +20,6 @@ from mockintosh.helpers import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
 from mockintosh.j2.meta import find_undeclared_variables_in_order
 
-compiler = Compiler()
 faker = Faker()
 hbs_faker = HbsFaker()
 
@@ -55,6 +54,7 @@ class TemplateRenderer():
             return self.render_jinja()
 
     def render_handlebars(self):
+        compiler = Compiler()
         context, helpers = self.add_globals(compiler._compiler, helpers={})
         try:
             template = compiler.compile(self.text)
