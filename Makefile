@@ -56,7 +56,9 @@ copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/management/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/management/key.pem && \
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/kafka/cert.pem && \
-	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem && \
+	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/core/cert.pem && \
+	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/core/key.pem
 
 up-kafka:
 	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka

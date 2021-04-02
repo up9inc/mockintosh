@@ -876,10 +876,11 @@ class TestCore():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == '&amp; &lt; &quot; &gt;'
 
-    def test_cors(self):
-        config = 'tests_integrated/integration_config.yaml'
-        config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
-        self.mock_server_process = run_mock_server(config_path)
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/cors.yaml',
+    ])
+    def test_cors(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
         hdr = {
             "origin": "http://someorigin",
@@ -2547,14 +2548,11 @@ class TestManagement():
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
         'configs/yaml/hbs/management/config.yaml',
-        'tests_integrated/integration_config.yaml'
+        'configs/yaml/hbs/core/big_config.yaml'
     ])
     def test_get_oas(self, config):
         config_path = None
-        if config.startswith('tests_integrated'):
-            config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
-        else:
-            config_path = get_config_path(config)
+        config_path = get_config_path(config)
         self.mock_server_process = run_mock_server(config_path)
 
         resp = None
@@ -2566,7 +2564,7 @@ class TestManagement():
         for document in data['documents']:
             validate_spec(document)
 
-        if config.startswith('tests_integrated'):
+        if config.endswith('big_config.yaml'):
             resp = httpx.get(SRV_8001 + '/__admin/oas')
         else:
             resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST}, verify=False)
@@ -2574,7 +2572,7 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         validate_spec(resp.json())
 
-        if not config.startswith('tests_integrated'):
+        if not config.endswith('big_config.yaml'):
             resp = httpx.get(SRV_8002 + '/__admin/oas', headers={'Host': SRV_8002_HOST}, verify=False)
             assert 200 == resp.status_code
             assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -2738,16 +2736,17 @@ class TestManagement():
         resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
 
-    def test_resources_various(self):
-        config = 'tests_integrated/integration_config.yaml'
-        config_path = os.path.abspath(os.path.join(os.path.join(__location__, '..'), config))
-        self.mock_server_process = run_mock_server(config_path)
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/big_config.yaml'
+    ])
+    def test_resources_various(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
-        assert 'subdir/empty_schema.json' in data['files']
+        assert 'schema/empty_schema.json' in data['files']
         assert 'cors.html' in data['files']
         assert 'subdir/image.png' in data['files']
         assert '/etc/hosts' not in data['files']
