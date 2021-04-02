@@ -5,6 +5,10 @@ management:
   ssl: true
   sslCertFile: cert.pem
   sslKeyFile: key.pem
+globals:
+  headers:
+    global-hdr1: globalval1
+    global-hdr2: globalval2
 services:
 - name: Kafka Mocks
   type: kafka

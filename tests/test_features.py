@@ -3494,7 +3494,11 @@ class TestKafka():
     def test_get_kafka_produce_consume_loop(self):
         key = 'key3'
         value = 'value3'
-        headers = {'hdr3': 'val3'}
+        headers = {
+            'hdr3': 'val3',
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3548,7 +3552,11 @@ class TestKafka():
     def test_post_kafka_produce(self):
         key = 'key1'
         value = 'value1'
-        headers = {'hdr1': 'val1'}
+        headers = {
+            'hdr1': 'val1',
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         stop = {'val': False}
         log = []
@@ -3576,7 +3584,10 @@ class TestKafka():
     def test_post_kafka_produce_by_actor_name(self):
         key = None
         value = 'value6'
-        headers = {}
+        headers = {
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         stop = {'val': False}
         log = []
@@ -3610,7 +3621,11 @@ class TestKafka():
         consumer_topic = 'topic5'
         consumer_key = 'key5'
         consumer_value = 'value5'
-        consumer_headers = {'hdr5': 'val5'}
+        consumer_headers = {
+            'hdr5': 'val5',
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         stop = {'val': False}
         log = []
