@@ -46,6 +46,7 @@ class RenderingTask:
         inject_methods=[],
         add_params_callback=None,
         fill_undefineds_with=None,
+        counters=None
     ):
         self.job_id = job_id
         self.engine = engine
@@ -54,14 +55,24 @@ class RenderingTask:
         self.inject_methods = inject_methods
         self.add_params_callback = add_params_callback
         self.fill_undefineds_with = fill_undefineds_with
+        self.counters = counters
         self.keys_to_delete = []
         self.one_and_only_var = None
 
     def render(self):
+        self.update_counters()
+
         if self.engine == PYBARS:
             return self.render_handlebars()
         elif self.engine == JINJA:
             return self.render_jinja()
+
+    def update_counters(self) -> None:
+        if self.counters is None:
+            return
+
+        for key, value in self.counters.data.items():
+            self.inject_objects[key] = value
 
     def render_handlebars(self):
         context, helpers = self.add_globals(compiler._compiler, helpers={})
@@ -214,6 +225,7 @@ class TemplateRenderer:
         inject_methods=[],
         add_params_callback=None,
         fill_undefineds_with=None,
+        counters=None
     ):
         self.engine = engine
         self.text = text
@@ -223,6 +235,7 @@ class TemplateRenderer:
         self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
         self.add_params_callback = add_params_callback
         self.fill_undefineds_with = fill_undefineds_with
+        self.counters = counters
         self.keys_to_delete = []
         self.one_and_only_var = None
 
@@ -235,7 +248,8 @@ class TemplateRenderer:
             inject_objects=self.inject_objects,
             inject_methods=self.inject_methods,
             add_params_callback=self.add_params_callback,
-            fill_undefineds_with=self.fill_undefineds_with
+            fill_undefineds_with=self.fill_undefineds_with,
+            counters=self.counters
         )
         self.queue.push(task)
 
