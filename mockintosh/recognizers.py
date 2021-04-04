@@ -20,11 +20,12 @@ from mockintosh.helpers import _safe_path_split
 
 class RecognizerBase():
 
-    def __init__(self, payload, params, all_contexts, engine, scope):
+    def __init__(self, payload, params, all_contexts, engine, rendering_queue, scope):
         self.payload = payload
         self.params = params
         self.all_contexts = all_contexts
         self.engine = engine
+        self.rendering_queue = rendering_queue
         self.scope = scope
 
     def recognize(self):
@@ -104,6 +105,7 @@ class RecognizerBase():
         renderer = TemplateRenderer(
             self.engine,
             text,
+            self.rendering_queue,
             inject_objects=inject_objects,
             inject_methods=[reg_ex],
             fill_undefineds_with='([^/]+)' if self.scope == 'path' else '(.*)'
@@ -121,35 +123,35 @@ class RecognizerBase():
 
 class PathRecognizer(RecognizerBase):
 
-    def __init__(self, path, params, all_contexts, engine):
-        super().__init__(path, params, all_contexts, engine, 'path')
+    def __init__(self, path, params, all_contexts, engine, rendering_queue):
+        super().__init__(path, params, all_contexts, engine, rendering_queue, 'path')
 
 
 class HeadersRecognizer(RecognizerBase):
 
-    def __init__(self, headers, params, all_contexts, engine):
-        super().__init__(headers, params, all_contexts, engine, 'headers')
+    def __init__(self, headers, params, all_contexts, engine, rendering_queue):
+        super().__init__(headers, params, all_contexts, engine, rendering_queue, 'headers')
 
 
 class QueryStringRecognizer(RecognizerBase):
 
-    def __init__(self, query_string, params, all_contexts, engine):
-        super().__init__(query_string, params, all_contexts, engine, 'queryString')
+    def __init__(self, query_string, params, all_contexts, engine, rendering_queue):
+        super().__init__(query_string, params, all_contexts, engine, rendering_queue, 'queryString')
 
 
 class BodyTextRecognizer(RecognizerBase):
 
-    def __init__(self, body_text, params, all_contexts, engine):
-        super().__init__(body_text, params, all_contexts, engine, 'bodyText')
+    def __init__(self, body_text, params, all_contexts, engine, rendering_queue):
+        super().__init__(body_text, params, all_contexts, engine, rendering_queue, 'bodyText')
 
 
 class BodyUrlencodedRecognizer(RecognizerBase):
 
-    def __init__(self, urlencoded, params, all_contexts, engine):
-        super().__init__(urlencoded, params, all_contexts, engine, 'bodyUrlencoded')
+    def __init__(self, urlencoded, params, all_contexts, engine, rendering_queue):
+        super().__init__(urlencoded, params, all_contexts, engine, rendering_queue, 'bodyUrlencoded')
 
 
 class BodyMultipartRecognizer(RecognizerBase):
 
-    def __init__(self, multipart, params, all_contexts, engine):
-        super().__init__(multipart, params, all_contexts, engine, 'bodyMultipart')
+    def __init__(self, multipart, params, all_contexts, engine, rendering_queue):
+        super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'bodyMultipart')
