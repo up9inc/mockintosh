@@ -1148,7 +1148,8 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                                 actor_id,
                                 actor,
                                 self.http_server.definition.source_dir,
-                                self.http_server.definition.template_engine
+                                self.http_server.definition.template_engine,
+                                self.http_server.definition.rendering_queue
                             ))
                             t.daemon = True
                             t.start()
