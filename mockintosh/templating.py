@@ -37,7 +37,6 @@ class TemplateRenderer():
         inject_methods=[],
         add_params_callback=None,
         fill_undefineds_with=None,
-        _compiler=None
     ):
         self.engine = engine
         self.text = text
@@ -48,7 +47,6 @@ class TemplateRenderer():
         self.fill_undefineds_with = fill_undefineds_with
         self.keys_to_delete = []
         self.one_and_only_var = None
-        self.compiler = compiler if _compiler is None else _compiler
 
     def render(self):
         if self.engine == PYBARS:
@@ -57,9 +55,9 @@ class TemplateRenderer():
             return self.render_jinja()
 
     def render_handlebars(self):
-        context, helpers = self.add_globals(self.compiler._compiler, helpers={})
+        context, helpers = self.add_globals(compiler._compiler, helpers={})
         try:
-            template = self.compiler.compile(self.text)
+            template = compiler.compile(self.text)
             compiled = template(context, helpers=helpers)
         except (PybarsError, TypeError, SyntaxError) as e:
             if self.fill_undefineds_with is not None and str(e).startswith('Could not find variable'):
