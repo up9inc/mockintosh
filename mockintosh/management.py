@@ -1195,12 +1195,18 @@ class ManagementAsyncHandler(ManagementBaseHandler):
     def _produce(self, service_id, service, actor_id, actor, source_dir, template_engine):
         # Producing
         produce_data = actor['produce']
+
+        produce_headers = kafka._merge_global_headers(
+            self.http_server.globals,
+            produce_data
+        )
+
         kafka.produce(
             service.get('address'),
             produce_data.get('queue'),
             produce_data.get('key', None),
             produce_data.get('value'),
-            produce_data.get('headers', {}),
+            produce_headers,
             source_dir,
             template_engine
         )

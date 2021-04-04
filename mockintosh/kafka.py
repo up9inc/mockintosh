@@ -56,6 +56,15 @@ def _headers_decode(headers: list):
     return new_headers
 
 
+def _merge_global_headers(_globals, produce_data):
+    headers = {}
+    global_headers = _globals['headers'] if 'headers' in _globals else {}
+    headers.update(global_headers)
+    produce_data_headers = produce_data.get('headers', {})
+    headers.update(produce_data_headers)
+    return headers
+
+
 def produce(
     address: str,
     queue: str,
@@ -156,12 +165,19 @@ def consume(
             consumed.value = value
             consumed.headers = headers
 
+            produce_headers = {}
+            if definition is not None:
+                produce_headers = _merge_global_headers(
+                    definition.data['globals'] if 'globals' in definition.data else {},
+                    produce_data
+                )
+
             t = threading.Thread(target=produce, args=(
                 address,
                 produce_data.get('queue'),
                 produce_data.get('key', None),
                 produce_data.get('value'),
-                produce_data.get('headers', {}),
+                produce_headers,
                 definition.source_dir,
                 definition.template_engine
             ), kwargs={
@@ -181,12 +197,18 @@ def _run_produce_loop(definition, service_id: int, service: dict, actor_id: int,
 
     while actor['limit'] == -1 or actor['limit'] > 0:
         produce_data = actor['produce']
+
+        produce_headers = _merge_global_headers(
+            definition.data['globals'] if 'globals' in definition.data else {},
+            produce_data
+        )
+
         produce(
             service.get('address'),
             produce_data.get('queue'),
             produce_data.get('key', None),
             produce_data.get('value'),
-            produce_data.get('headers', {}),
+            produce_headers,
             definition.source_dir,
             definition.template_engine
         )
