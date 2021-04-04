@@ -139,7 +139,8 @@ class BaseHandler:
                 json_path,
                 escape_html
             ],
-            add_params_callback=self.add_params
+            add_params_callback=self.add_params,
+            counters=self.counters
         )
         return renderer.render()
 
