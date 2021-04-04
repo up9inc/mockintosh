@@ -32,7 +32,7 @@ hbs_faker = HbsFaker()
 
 debug_mode = environ.get('MOCKINTOSH_DEBUG', False)
 
-WAIT_DURATION = 0.001
+WAIT_DURATION = 0.0001  # 100 microseconds
 
 
 class RenderingTask:
@@ -176,7 +176,7 @@ class RenderingQueue:
         self._out[job_id] = result
 
     def get(self, job_id: str) -> Union[str, None]:
-        return None if job_id not in self._out else self._out[job_id]
+        return self._out.pop(job_id, None)
 
 
 class RenderingJob(threading.Thread):
