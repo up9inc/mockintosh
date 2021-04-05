@@ -9,8 +9,7 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-test: test-integration copy-certs up-kafka
-	flake8 && \
+test: test-style test-integration copy-certs up-kafka
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
@@ -18,10 +17,9 @@ test-integration: build
 	tests_integrated/acceptance.sh && \
 	docker stop $$(docker ps -a -q)
 
-test-with-coverage: copy-certs up-kafka
-	flake8 && \
+test-with-coverage: test-style copy-certs up-kafka
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
-	coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
+	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --quiet && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --verbose && \
@@ -29,9 +27,12 @@ test-with-coverage: copy-certs up-kafka
 		--logfile dummy.log && \
 	COVERAGE_NO_RUN=true DEBUG=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=.coveragerc pytest \
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
+
+test-style:
+	flake8
 
 coverage-after:
 	coverage combine && \

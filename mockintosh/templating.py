@@ -6,16 +6,10 @@
     :synopsis: module that contains templating related classes.
 """
 
-import time
 import copy
-import uuid
-import queue
 import logging
 import threading
 from os import environ
-from typing import (
-    Union
-)
 
 from jinja2 import Environment, StrictUndefined
 from jinja2.exceptions import TemplateSyntaxError, UndefinedError
@@ -26,6 +20,10 @@ from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONT
 from mockintosh.helpers import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
 from mockintosh.j2.meta import find_undeclared_variables_in_order
+
+cov_no_import = environ.get('COVERAGE_NO_IMPORT', False)
+if not cov_no_import:
+    import queue
 
 compiler = Compiler()
 faker = Faker()
@@ -169,7 +167,10 @@ class RenderingTask:
 class RenderingQueue:
 
     def __init__(self):
-        self._in = queue.Queue()
+        if cov_no_import:
+            self._in = None
+        else:
+            self._in = queue.Queue()
 
     def push(self, task: RenderingTask) -> None:
         self._in.put(task)
