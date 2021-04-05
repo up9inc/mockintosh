@@ -205,40 +205,31 @@ class RenderingJob(threading.Thread):
 
 class TemplateRenderer:
 
-    def __init__(
+    def __init__(self,):
+        self.keys_to_delete = []
+        self.one_and_only_var = None
+
+    def render(
         self,
         engine,
         text,
-        queue,
+        _queue,
         inject_objects={},
         inject_methods=[],
         add_params_callback=None,
         fill_undefineds_with=None,
         counters=None
     ):
-        self.engine = engine
-        self.text = text
-        self.queue = queue
-        self.inject_objects = inject_objects
-        self.inject_methods = inject_methods
-        self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
-        self.add_params_callback = add_params_callback
-        self.fill_undefineds_with = fill_undefineds_with
-        self.counters = counters
-        self.keys_to_delete = []
-        self.one_and_only_var = None
-
-    def render(self):
         task = RenderingTask(
-            self.engine,
-            self.text,
-            inject_objects=self.inject_objects,
-            inject_methods=self.inject_methods,
-            add_params_callback=self.add_params_callback,
-            fill_undefineds_with=self.fill_undefineds_with,
-            counters=self.counters
+            engine,
+            text,
+            inject_objects=inject_objects,
+            inject_methods=inject_methods,
+            add_params_callback=add_params_callback,
+            fill_undefineds_with=fill_undefineds_with,
+            counters=counters
         )
-        self.queue.push(task)
+        _queue.push(task)
 
         while True:
             result = None

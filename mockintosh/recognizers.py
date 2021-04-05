@@ -102,7 +102,8 @@ class RecognizerBase():
         else:
             inject_objects = {'scope': self.scope, 'key': key}
 
-        renderer = TemplateRenderer(
+        renderer = TemplateRenderer()
+        compiled, context = renderer.render(
             self.engine,
             text,
             self.rendering_queue,
@@ -110,7 +111,6 @@ class RecognizerBase():
             inject_methods=[reg_ex],
             fill_undefineds_with='([^/]+)' if self.scope == 'path' else '(.*)'
         )
-        compiled, context = renderer.render()
         if self.engine == PYBARS:
             del context['scope']
             if 'key' in inject_objects:

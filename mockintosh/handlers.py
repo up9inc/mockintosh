@@ -128,7 +128,8 @@ class BaseHandler:
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
 
-        renderer = TemplateRenderer(
+        renderer = TemplateRenderer()
+        return renderer.render(
             template_engine,
             text,
             self.rendering_queue,
@@ -142,7 +143,6 @@ class BaseHandler:
             add_params_callback=self.add_params,
             counters=self.counters
         )
-        return renderer.render()
 
     def populate_counters(self, context: [None, dict]) -> None:
         """Method that retrieves counters from template engine contexts."""
