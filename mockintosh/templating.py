@@ -55,7 +55,7 @@ class RenderingTask:
         self.counters = counters
         self.keys_to_delete = []
         self.one_and_only_var = None
-        self.result_queue = queue.SimpleQueue()
+        self.result_queue = queue.Queue()
 
     def render(self):
         self.update_counters()
@@ -169,7 +169,7 @@ class RenderingTask:
 class RenderingQueue:
 
     def __init__(self):
-        self._in = queue.SimpleQueue()
+        self._in = queue.Queue()
 
     def push(self, task: RenderingTask) -> None:
         self._in.put(task)
