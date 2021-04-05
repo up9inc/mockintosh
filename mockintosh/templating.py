@@ -38,7 +38,6 @@ class RenderingTask:
 
     def __init__(
         self,
-        job_id,
         engine,
         text,
         inject_objects={},
@@ -47,7 +46,6 @@ class RenderingTask:
         fill_undefineds_with=None,
         counters=None
     ):
-        self.job_id = job_id
         self.engine = engine
         self.text = text
         self.inject_objects = inject_objects
@@ -57,14 +55,15 @@ class RenderingTask:
         self.counters = counters
         self.keys_to_delete = []
         self.one_and_only_var = None
+        self.result_queue = queue.Queue()
 
     def render(self):
         self.update_counters()
 
         if self.engine == PYBARS:
-            return self.render_handlebars()
+            self.result_queue.put(self.render_handlebars())
         elif self.engine == JINJA:
-            return self.render_jinja()
+            self.result_queue.put(self.render_jinja())
 
     def update_counters(self) -> None:
         if self.counters is None:
@@ -171,7 +170,6 @@ class RenderingQueue:
 
     def __init__(self):
         self._in = queue.Queue()
-        self._out = {}
 
     def push(self, task: RenderingTask) -> None:
         self._in.put(task)
@@ -181,12 +179,6 @@ class RenderingQueue:
             return self._in.get()
         except queue.Empty:
             return None
-
-    def write(self, job_id: str, result: str):
-        self._out[job_id] = result
-
-    def get(self, job_id: str) -> Union[str, None]:
-        return self._out.pop(job_id, None)
 
 
 class RenderingJob(threading.Thread):
@@ -205,8 +197,7 @@ class RenderingJob(threading.Thread):
             if task is None:
                 continue
 
-            result = task.render()
-            self.queue.write(task.job_id, result)
+            task.render()
 
     def kill(self):
         self.stop = True
@@ -238,9 +229,7 @@ class TemplateRenderer:
         self.one_and_only_var = None
 
     def render(self):
-        job_id = uuid.uuid4()
         task = RenderingTask(
-            job_id,
             self.engine,
             self.text,
             inject_objects=self.inject_objects,
@@ -252,8 +241,10 @@ class TemplateRenderer:
         self.queue.push(task)
 
         while True:
-            result = self.queue.get(job_id)
-            if result is None:
+            result = None
+            try:
+                result = task.result_queue.get()
+            except queue.Empty:
                 continue
 
             self.keys_to_delete = task.keys_to_delete
