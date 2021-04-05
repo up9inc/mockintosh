@@ -180,9 +180,9 @@ class RenderingQueue:
 
 class RenderingJob(threading.Thread):
 
-    def __init__(self, queue: RenderingQueue):
+    def __init__(self, _queue: RenderingQueue):
         threading.Thread.__init__(self)
-        self.queue = queue
+        self.queue = _queue
         self.stop = False
 
     def run(self):
