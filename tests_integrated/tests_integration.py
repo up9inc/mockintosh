@@ -927,6 +927,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("{{", val)
         headers = dict(msgs[0].headers() if msgs[0].headers() else [])
         self.assertEqual("justvalue", headers['constant'].decode())
+        self.assertEqual("globalval1", headers['global-hdr1'].decode())
         self.assertTrue(headers['timestamp'].decode().isdigit())
 
     @pytest.mark.kafka
