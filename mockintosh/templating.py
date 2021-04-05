@@ -55,7 +55,7 @@ class RenderingTask:
         self.counters = counters
         self.keys_to_delete = []
         self.one_and_only_var = None
-        self.result_queue = queue.Queue()
+        self.result_queue = queue.SimpleQueue()
 
     def render(self):
         self.update_counters()
@@ -169,16 +169,13 @@ class RenderingTask:
 class RenderingQueue:
 
     def __init__(self):
-        self._in = queue.Queue()
+        self._in = queue.SimpleQueue()
 
     def push(self, task: RenderingTask) -> None:
         self._in.put(task)
 
-    def pop(self) -> Union[RenderingTask, None]:
-        try:
-            return self._in.get()
-        except queue.Empty:
-            return None
+    def pop(self) -> RenderingTask:
+        return self._in.get(block=True)
 
 
 class RenderingJob(threading.Thread):
@@ -194,8 +191,6 @@ class RenderingJob(threading.Thread):
                 break
 
             task = self.queue.pop()
-            if task is None:
-                continue
 
             task.render()
 
@@ -232,11 +227,7 @@ class TemplateRenderer:
         _queue.push(task)
 
         while True:
-            result = None
-            try:
-                result = task.result_queue.get()
-            except queue.Empty:
-                continue
+            result = task.result_queue.get(block=True)
 
             self.keys_to_delete = task.keys_to_delete
             self.one_and_only_var = task.one_and_only_var
