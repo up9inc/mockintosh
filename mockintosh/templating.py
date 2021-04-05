@@ -196,6 +196,8 @@ class RenderingJob(threading.Thread):
 
     def kill(self):
         self.stop = True
+        # To pass `task = self.queue.pop()` line, send a dummy task
+        self.queue.push(RenderingTask(PYBARS, 'dummy'))
 
 
 class TemplateRenderer:
