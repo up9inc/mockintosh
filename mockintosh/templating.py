@@ -9,6 +9,7 @@
 import time
 import copy
 import uuid
+import queue
 import logging
 import threading
 from os import environ
@@ -31,8 +32,6 @@ faker = Faker()
 hbs_faker = HbsFaker()
 
 debug_mode = environ.get('MOCKINTOSH_DEBUG', False)
-
-WAIT_DURATION = 0.0001  # 100 microseconds
 
 
 class RenderingTask:
@@ -171,16 +170,16 @@ class RenderingTask:
 class RenderingQueue:
 
     def __init__(self):
-        self._in = []
+        self._in = queue.Queue()
         self._out = {}
 
     def push(self, task: RenderingTask) -> None:
-        self._in.append(task)
+        self._in.put(task)
 
     def pop(self) -> Union[RenderingTask, None]:
         try:
-            return self._in.pop(0)
-        except IndexError:
+            return self._in.get()
+        except queue.Empty:
             return None
 
     def write(self, job_id: str, result: str):
@@ -204,7 +203,6 @@ class RenderingJob(threading.Thread):
 
             task = self.queue.pop()
             if task is None:
-                time.sleep(WAIT_DURATION)
                 continue
 
             result = task.render()
@@ -256,7 +254,6 @@ class TemplateRenderer:
         while True:
             result = self.queue.get(job_id)
             if result is None:
-                time.sleep(WAIT_DURATION)
                 continue
 
             self.keys_to_delete = task.keys_to_delete
