@@ -45,7 +45,9 @@ class LogRecord:
         if server_connection.stream.socket is not None:
             self.server_ip_address = server_connection.stream.socket.getsockname()[0]
             self.connection = str(server_connection.stream.socket.getsockname()[1])
-        else:
+        else:  # pragma: no cover
+            # It branches to here only if there is a proxy in front of Mockintosh
+            # and socket connection is not used.
             self.server_ip_address = None
             self.connection = None
 

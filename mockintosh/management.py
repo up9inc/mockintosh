@@ -54,7 +54,8 @@ __location__ = os.path.abspath(os.path.dirname(__file__))
 
 
 def str_representer(dumper, data):
-    if "\n" in data.strip():  # check for multiline string
+    if "\n" in data.strip():  # pragma: no cover
+        # Check for multiline string
         return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
