@@ -1728,8 +1728,20 @@ class TestManagement():
             assert data == yaml.safe_load(resp.text)
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
-            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
+            text = file.read()
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=text, verify=False)
             assert 204 == resp.status_code
+
+            resp = httpx.get(SRV_8001 + '/__admin/config?format=%s' % _format,  headers={'Host': SRV_8001_HOST}, verify=False)
+            assert 200 == resp.status_code
+            if _format == 'yaml':
+                assert resp.headers['Content-Type'] == 'application/x-yaml'
+                data = yaml.safe_load(text)
+                assert data == yaml.safe_load(resp.text)
+            else:
+                assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+                data = json.loads(text)
+                assert data == resp.json()
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
