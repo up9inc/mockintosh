@@ -851,9 +851,6 @@ class IntegrationTests(unittest.TestCase):
              'path': '/Changelog.html',
              'response': {'status': 200}},
             {'method': 'GET',
-             'path': '/img/logo.png',
-             'response': {'status': 200}},
-            {'method': 'GET',
              'path': '/not-exists',
              'response': {'status': 404}}],
             'name': 'Service with fallback',
@@ -862,10 +859,8 @@ class IntegrationTests(unittest.TestCase):
         endps = rdata['services'][0]['endpoints']
         self.assertIn('<html', endps[0]['response'].pop('body'))
         endps[1]['response'].pop('body')
-        endps[2]['response'].pop('body')
         endps[0]['response'].pop('headers')
         endps[1]['response'].pop('headers')
-        endps[2]['response'].pop('headers')
         self.assertEqual(exp, rdata)
 
     def test_qstr_multiparam(self):
