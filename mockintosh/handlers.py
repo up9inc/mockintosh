@@ -133,7 +133,7 @@ class GenericHandler(tornado.web.RequestHandler):
     def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
         """Method that creates a log record and inserts it to log tracking system."""
         if not self.logs.services[self.service_id].is_enabled():
-            loggind.debug('Not logging the request because logging is disabled.')
+            logging.debug('Not logging the request because logging is disabled.')
             return
 
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
