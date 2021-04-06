@@ -41,8 +41,7 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
-from mockintosh.stats import Stats
-from mockintosh.logs import Logs, LogRecord
+from mockintosh.logs import LogRecord
 from mockintosh.templating import TemplateRenderer, RenderingQueue
 
 OPTIONS = 'options'
@@ -223,8 +222,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         definition_engine: str,
         rendering_queue: RenderingQueue,
         interceptors: list,
-        stats: Stats,
-        logs: Logs,
         unhandled_data,
         fallback_to: Union[str, None],
         tag: Union[str, None]
@@ -236,8 +233,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.endpoints = endpoints
             self.methods = None
             self.custom_args = ()
-            self.stats = stats
-            self.logs = logs
+            self.stats = self.http_server.definition.stats
+            self.logs = self.http_server.definition.logs
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data

@@ -1192,9 +1192,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 service,
                 actor_id,
                 actor,
-                self.http_server.definition.source_dir,
-                self.http_server.definition.template_engine,
-                self.http_server.definition.rendering_queue
+                self.http_server.definition
             ))
             t.daemon = True
             t.start()
@@ -1205,9 +1203,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
         service,
         actor_id,
         actor,
-        source_dir,
-        template_engine,
-        rendering_queue
+        definition
     ):
         # Producing
         produce_data = actor['produce']
@@ -1223,7 +1219,5 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             produce_data.get('key', None),
             produce_data.get('value'),
             produce_headers,
-            source_dir,
-            template_engine,
-            rendering_queue
+            definition
         )

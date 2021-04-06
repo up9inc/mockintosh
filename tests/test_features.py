@@ -75,6 +75,13 @@ HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonsch
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 
 
+class DefinitionMockForKafka():
+    def __init__(self, source_dir, template_engine, rendering_queue):
+        self.source_dir = source_dir
+        self.template_engine = template_engine
+        self.rendering_queue = rendering_queue
+
+
 @pytest.mark.parametrize(('config'), configs)
 class TestCommon:
 
@@ -3479,9 +3486,7 @@ class TestKafka():
             key,
             value,
             headers,
-            None,
-            PYBARS,
-            queue
+            DefinitionMockForKafka(None, PYBARS, queue)
         )
         job.kill()
 
@@ -3524,9 +3529,7 @@ class TestKafka():
             key,
             value,
             headers,
-            None,
-            JINJA,
-            queue
+            DefinitionMockForKafka(None, JINJA, queue)
         )
         job.kill()
 
@@ -3654,9 +3657,7 @@ class TestKafka():
             producer_key,
             producer_value,
             producer_headers,
-            None,
-            PYBARS,
-            queue
+            DefinitionMockForKafka(None, PYBARS, queue)
         )
         job.kill()
 

@@ -39,12 +39,17 @@ from mockintosh.recognizers import (
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
 from mockintosh.templating import RenderingQueue, RenderingJob
+from mockintosh.stats import Stats
+from mockintosh.logs import Logs
 
 __version__ = "0.8.1"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
 cov_no_run = environ.get('COVERAGE_NO_RUN', False)
+
+stats = Stats()
+logs = Logs()
 
 
 class Definition():
@@ -63,6 +68,8 @@ class Definition():
             service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
         self.data = Definition.analyze(self.data, self.template_engine, self.rendering_queue)
+        self.stats = stats
+        self.logs = logs
 
     def load(self):
         if self.source_text is None:
