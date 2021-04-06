@@ -2401,6 +2401,14 @@ class TestManagement():
         resp = httpx.get(SRV_8002 + '/service2q?a[]=b&a[]=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
         assert 404 == resp.status_code
 
+        # Image like requests are ignored.
+        resp = httpx.get(SRV_8001 + '/image.png', headers={
+            'Host': SRV_8001_HOST,
+            'User-Agent': 'mockintosh-test',
+            'Content-Type': 'image/png'
+        }, verify=False)
+        assert 404 == resp.status_code
+
         resp = httpx.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'

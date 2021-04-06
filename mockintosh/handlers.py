@@ -981,22 +981,19 @@ class GenericHandler(tornado.web.RequestHandler):
 
         self.set_status(status_code)
 
-        if status_code == 404:
-            ext = os.path.splitext(self.request.path)[1]
-            parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
-            client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
-            if (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS:
-                with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
-                    image = file.read()
-                    self.set_header('content-type', 'image/png')
-                    self.write(image)
-                    self.rendered_body = image
+        if status_code == 404 and self.is_request_image_like():
+            with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
+                image = file.read()
+                self.set_header('content-type', 'image/png')
+                self.write(image)
+                self.rendered_body = image
 
         raise NewHTTPError()
 
     async def resolve_unhandled_request(self) -> None:
         if self.fallback_to is None:
-            self.insert_unhandled_data((self.request, None))
+            if not self.is_request_image_like():
+                self.insert_unhandled_data((self.request, None))
             return
 
         # Headers
@@ -1083,7 +1080,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.replica_response = self.build_replica_response()
         self.replica_response.body = resp.content
 
-        self.insert_unhandled_data((self.request, self.replica_response))
+        if not self.is_request_image_like():
+            self.insert_unhandled_data((self.request, self.replica_response))
         raise NewHTTPError()
 
     def insert_unhandled_data(self, row: tuple) -> None:
@@ -1094,3 +1092,9 @@ class GenericHandler(tornado.web.RequestHandler):
         if identifier not in self.unhandled_data.requests[self.service_id]:
             self.unhandled_data.requests[self.service_id][identifier] = []
         self.unhandled_data.requests[self.service_id][identifier].append(row)
+
+    def is_request_image_like(self) -> bool:
+        ext = os.path.splitext(self.request.path)[1]
+        parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+        client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+        return (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS
