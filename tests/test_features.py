@@ -1732,7 +1732,7 @@ class TestManagement():
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=text, verify=False)
             assert 204 == resp.status_code
 
-            resp = httpx.get(SRV_8001 + '/__admin/config?format=%s' % _format,  headers={'Host': SRV_8001_HOST}, verify=False)
+            resp = httpx.get(SRV_8001 + '/__admin/config?format=%s' % _format, headers={'Host': SRV_8001_HOST}, verify=False)
             assert 200 == resp.status_code
             if _format == 'yaml':
                 assert resp.headers['Content-Type'] == 'application/x-yaml'

@@ -26,6 +26,7 @@ import jsonschema
 import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
+from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -313,9 +314,20 @@ class GenericHandler(tornado.web.RequestHandler):
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
             await self.raise_http_error(405)
 
+    def _request_object_to_dict(self, obj):
+        result = {}
+        for key, value in obj.__dict__.items():
+            if not (
+                isinstance(value, HTTP1Connection) or isinstance(value, HTTP1ServerConnection)
+            ) and hasattr(value, '__dict__'):
+                result[key] = self._request_object_to_dict(value)
+            else:
+                result[key] = value
+        return result
+
     def log_request(self) -> None:
         """Method that logs the request."""
-        logging.debug('Received request:\n%s', self.request.__dict__)
+        logging.debug('Received request:\n%s', self._request_object_to_dict(self.request))
 
     def add_params(self, context: [None, dict]) -> [None, dict]:
         """Method that injects parameters defined in the config into template engine contexts."""
