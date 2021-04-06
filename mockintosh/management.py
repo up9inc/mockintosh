@@ -338,7 +338,6 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             if response is None:
                 config_template['response'] = ''
             else:
-                response.headers.pop('Server', None)
                 response.headers.pop('Content-Length', None)
 
                 config_template['response'] = {

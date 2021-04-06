@@ -3225,8 +3225,7 @@ class TestManagement():
         resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-        assert resp.headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
-        assert resp.headers['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert resp.headers['Server'] == 'nginx'
         assert resp.headers['X-Content-Type-Options'] == 'nosniff'
         data = resp.json()
 
@@ -3247,8 +3246,7 @@ class TestManagement():
         assert data['services'][0]['endpoints'][0]['method'] == 'GET'
         assert data['services'][0]['endpoints'][0]['response']['status'] == 200
         assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/json; charset=utf-8'
-        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
-        assert data['services'][0]['endpoints'][0]['response']['headers']['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == 'nginx'
         assert data['services'][0]['endpoints'][0]['response']['headers']['X-Content-Type-Options'] == 'nosniff'
         body = json.loads(data['services'][0]['endpoints'][0]['response']['body'])
 

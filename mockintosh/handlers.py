@@ -1070,7 +1070,6 @@ class GenericHandler(tornado.web.RequestHandler):
         self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():
             if key.title() in (
-                'Server',
                 'Transfer-Encoding',
                 'Content-Length',
                 'Content-Encoding',
