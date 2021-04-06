@@ -910,6 +910,8 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         self.http_server.stats.reset()
+        self.http_server.definition.orig_data['services'][self.service_id] = orig_data
+        self.http_server.definition.data['services'][self.service_id] = data
 
         self.set_status(204)
 
