@@ -17,6 +17,9 @@ from collections import OrderedDict
 from os import path, environ
 from gettext import gettext
 from urllib.parse import parse_qs
+from typing import (
+    Tuple
+)
 
 import yaml
 from jsonschema import validate
@@ -35,6 +38,7 @@ from mockintosh.recognizers import (
 )
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
+from mockintosh.templating import RenderingQueue, RenderingJob
 
 __version__ = "0.8.1"
 __location__ = path.abspath(path.dirname(__file__))
@@ -45,19 +49,20 @@ cov_no_run = environ.get('COVERAGE_NO_RUN', False)
 
 class Definition():
 
-    def __init__(self, source, schema, is_file=True):
+    def __init__(self, source, schema, rendering_queue, is_file=True):
         self.source = source
         self.source_text = None if is_file else source
         self.source_dir = path.dirname(path.abspath(source)) if source is not None and is_file else None
         self.data = None
         self.schema = schema
+        self.rendering_queue = rendering_queue
         self.load()
         self.orig_data = copy.deepcopy(self.data)
         self.validate()
         for service in self.data['services']:
             service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
-        self.data = Definition.analyze(self.data, self.template_engine)
+        self.data = Definition.analyze(self.data, self.template_engine, self.rendering_queue)
 
     def load(self):
         if self.source_text is None:
@@ -81,7 +86,7 @@ class Definition():
         logging.info('Configuration file is valid according to the JSON schema.')
 
     @staticmethod
-    def analyze(data, template_engine):
+    def analyze(data, template_engine, rendering_queue: RenderingQueue):
         if 'performanceProfiles' in data:
             for key, performance_profile in data['performanceProfiles'].items():
                 ratio = performance_profile.get('ratio')
@@ -112,13 +117,20 @@ class Definition():
             service = Definition.analyze_service(
                 service,
                 template_engine,
+                rendering_queue,
                 performance_profiles=data['performanceProfiles'],
                 global_performance_profile=global_performance_profile
             )
         return data
 
     @staticmethod
-    def analyze_service(service, template_engine, performance_profiles={}, global_performance_profile=None):
+    def analyze_service(
+        service,
+        template_engine,
+        rendering_queue,
+        performance_profiles={},
+        global_performance_profile=None
+    ):
         service_perfomance_profile = service.get('performanceProfile', global_performance_profile)
         for endpoint in service['endpoints']:
             endpoint['internalOrigPath'] = endpoint['path']
@@ -139,7 +151,8 @@ class Definition():
                 path,
                 endpoint['params'],
                 endpoint['context'],
-                template_engine
+                template_engine,
+                rendering_queue
             )
             endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
 
@@ -148,7 +161,8 @@ class Definition():
                     endpoint['headers'],
                     endpoint['params'],
                     endpoint['context'],
-                    template_engine
+                    template_engine,
+                    rendering_queue
                 )
                 endpoint['headers'] = headers_recognizer.recognize()
 
@@ -157,7 +171,8 @@ class Definition():
                     endpoint['queryString'],
                     endpoint['params'],
                     endpoint['context'],
-                    template_engine
+                    template_engine,
+                    rendering_queue
                 )
                 endpoint['queryString'] = query_string_recognizer.recognize()
 
@@ -167,7 +182,8 @@ class Definition():
                         endpoint['body']['text'],
                         endpoint['params'],
                         endpoint['context'],
-                        template_engine
+                        template_engine,
+                        rendering_queue
                     )
                     endpoint['body']['text'] = body_text_recognizer.recognize()
 
@@ -176,7 +192,8 @@ class Definition():
                         endpoint['body']['urlencoded'],
                         endpoint['params'],
                         endpoint['context'],
-                        template_engine
+                        template_engine,
+                        rendering_queue
                     )
                     endpoint['body']['urlencoded'] = body_urlencoded_recognizer.recognize()
 
@@ -185,7 +202,8 @@ class Definition():
                         endpoint['body']['multipart'],
                         endpoint['params'],
                         endpoint['context'],
-                        template_engine
+                        template_engine,
+                        rendering_queue
                     )
                     endpoint['body']['multipart'] = body_multipart_recognizer.recognize()
 
@@ -221,13 +239,24 @@ def import_interceptors(interceptors):
     return imported_interceptors
 
 
+def start_render_queue() -> Tuple[RenderingQueue, RenderingJob]:
+    queue = RenderingQueue()
+    t = RenderingJob(queue)
+    t.daemon = True
+    t.start()
+
+    return queue, t
+
+
 def run(source, is_file=True, debug=False, interceptors=(), address='', services_list=[]):
+    queue, _ = start_render_queue()
+
     if address:
         logging.info('Bind address: %s' % address)
     schema = get_schema()
 
     try:
-        definition = Definition(source, schema, is_file=is_file)
+        definition = Definition(source, schema, queue, is_file=is_file)
         http_server = HttpServer(
             definition,
             TornadoImpl(),

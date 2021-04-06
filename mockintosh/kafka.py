@@ -19,6 +19,7 @@ from confluent_kafka.cimpl import KafkaException
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
+from mockintosh.templating import RenderingQueue
 
 
 def _kafka_delivery_report(err, msg):
@@ -73,6 +74,7 @@ def produce(
     headers: dict,
     config_dir: [str, None],
     template_engine: str,
+    rendering_queue: RenderingQueue,
     delay: int = 0,
     consumed: Consumed = None
 ) -> None:
@@ -81,7 +83,11 @@ def produce(
     _create_topic(address, queue)
 
     # Templating
-    kafka_handler = KafkaHandler(config_dir, template_engine)
+    kafka_handler = KafkaHandler(
+        config_dir,
+        template_engine,
+        rendering_queue
+    )
     if consumed is not None:
         kafka_handler.custom_context = {
             'consumed': consumed
@@ -179,7 +185,8 @@ def consume(
                 produce_data.get('value'),
                 produce_headers,
                 definition.source_dir,
-                definition.template_engine
+                definition.template_engine,
+                definition.rendering_queue
             ), kwargs={
                 'delay': delay,
                 'consumed': consumed
@@ -210,7 +217,8 @@ def _run_produce_loop(definition, service_id: int, service: dict, actor_id: int,
             produce_data.get('value'),
             produce_headers,
             definition.source_dir,
-            definition.template_engine
+            definition.template_engine,
+            definition.rendering_queue
         )
 
         _delay(int(actor['delay']))

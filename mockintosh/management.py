@@ -117,7 +117,11 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if not self.validate(data):
             return
 
-        data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
+        data = mockintosh.Definition.analyze(
+            data,
+            self.http_server.definition.template_engine,
+            self.http_server.definition.rendering_queue
+        )
         self.http_server.stats.services = []
         for service in data['services']:
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
@@ -918,6 +922,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         data = mockintosh.Definition.analyze_service(
             data,
             self.http_server.definition.template_engine,
+            self.http_server.definition.rendering_queue,
             performance_profiles=self.http_server.definition.data['performanceProfiles'],
             global_performance_profile=global_performance_profile
         )
@@ -1143,7 +1148,8 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                                 actor_id,
                                 actor,
                                 self.http_server.definition.source_dir,
-                                self.http_server.definition.template_engine
+                                self.http_server.definition.template_engine,
+                                self.http_server.definition.rendering_queue
                             ))
                             t.daemon = True
                             t.start()
@@ -1187,12 +1193,22 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 actor_id,
                 actor,
                 self.http_server.definition.source_dir,
-                self.http_server.definition.template_engine
+                self.http_server.definition.template_engine,
+                self.http_server.definition.rendering_queue
             ))
             t.daemon = True
             t.start()
 
-    def _produce(self, service_id, service, actor_id, actor, source_dir, template_engine):
+    def _produce(
+        self,
+        service_id,
+        service,
+        actor_id,
+        actor,
+        source_dir,
+        template_engine,
+        rendering_queue
+    ):
         # Producing
         produce_data = actor['produce']
 
@@ -1208,5 +1224,6 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             produce_data.get('value'),
             produce_headers,
             source_dir,
-            template_engine
+            template_engine,
+            rendering_queue
         )

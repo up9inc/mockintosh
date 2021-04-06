@@ -27,7 +27,6 @@ import jsonschema
 import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
-from pybars import Compiler
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -44,7 +43,7 @@ from mockintosh.params import (
 )
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs, LogRecord
-from mockintosh.templating import TemplateRenderer
+from mockintosh.templating import TemplateRenderer, RenderingQueue
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -118,7 +117,7 @@ class BaseHandler:
             orig_relative_path = orig_relative_path[1:]
         return os.path.join(self.config_dir, orig_relative_path), orig_relative_path
 
-    def common_template_renderer(self, template_engine: str, text: str, compiler: Compiler = None) -> Tuple[str, dict]:
+    def common_template_renderer(self, template_engine: str, text: str) -> Tuple[str, dict]:
         """Common method to initialize `TemplateRenderer` and call `render()`."""
         if template_engine == PYBARS:
             from mockintosh.hbs.methods import fake, counter, json_path, escape_html
@@ -129,9 +128,11 @@ class BaseHandler:
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
 
-        renderer = TemplateRenderer(
+        renderer = TemplateRenderer()
+        return renderer.render(
             template_engine,
             text,
+            self.rendering_queue,
             inject_objects=self.custom_context,
             inject_methods=[
                 fake,
@@ -140,9 +141,8 @@ class BaseHandler:
                 escape_html
             ],
             add_params_callback=self.add_params,
-            _compiler=compiler
+            counters=self.counters
         )
-        return renderer.render()
 
     def populate_counters(self, context: [None, dict]) -> None:
         """Method that retrieves counters from template engine contexts."""
@@ -221,6 +221,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         endpoints: list,
         _globals: dict,
         definition_engine: str,
+        rendering_queue: RenderingQueue,
         interceptors: list,
         stats: Stats,
         logs: Logs,
@@ -256,6 +257,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.alternatives = None
             self.globals = _globals
             self.definition_engine = definition_engine
+            self.rendering_queue = rendering_queue
             self.interceptors = interceptors
             self.is_options = False
             self.custom_dataset = {}
@@ -1119,12 +1121,17 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 class KafkaHandler(BaseHandler):
     """Class to handle mocked Kafka data."""
 
-    def __init__(self, config_dir: [str, None], template_engine: str):
+    def __init__(
+        self,
+        config_dir: [str, None],
+        template_engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__()
         self.config_dir = config_dir
         self.definition_engine = template_engine
+        self.rendering_queue = rendering_queue
         self.custom_context = {}
-        self.compiler = Compiler() if self.definition_engine == PYBARS else None
 
         self.analyze_counters()
 
@@ -1134,8 +1141,7 @@ class KafkaHandler(BaseHandler):
             with open(template_path, 'r') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 value = file.read()
-
-        compiled, context = self.common_template_renderer(self.definition_engine, value, compiler=self.compiler)
+        compiled, context = self.common_template_renderer(self.definition_engine, value)
         self.populate_counters(context)
         return compiled
 

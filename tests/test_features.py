@@ -26,7 +26,7 @@ from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
-from mockintosh import kafka
+from mockintosh import kafka, start_render_queue
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
@@ -3472,6 +3472,7 @@ class TestKafka():
         value = 'value2'
         headers = {'hdr2': 'val2'}
 
+        queue, job = start_render_queue()
         kafka.produce(
             KAFKA_ADDR,
             'topic2',
@@ -3479,8 +3480,10 @@ class TestKafka():
             value,
             headers,
             None,
-            PYBARS
+            PYBARS,
+            queue
         )
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3514,6 +3517,7 @@ class TestKafka():
         value = 'value10'
         headers = {}
 
+        queue, job = start_render_queue()
         kafka.produce(
             KAFKA_ADDR,
             'topic10',
@@ -3521,8 +3525,10 @@ class TestKafka():
             value,
             headers,
             None,
-            JINJA
+            JINJA,
+            queue
         )
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3641,6 +3647,7 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
+        queue, job = start_render_queue()
         kafka.produce(
             KAFKA_ADDR,
             producer_topic,
@@ -3648,8 +3655,10 @@ class TestKafka():
             producer_value,
             producer_headers,
             None,
-            PYBARS
+            PYBARS,
+            queue
         )
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 

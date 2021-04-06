@@ -302,6 +302,7 @@ class HttpServer:
                     endpoints=merged_endpoints,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
+                    rendering_queue=self.definition.rendering_queue,
                     interceptors=self.interceptors,
                     stats=self.stats,
                     logs=self.logs,
