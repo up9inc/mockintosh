@@ -19,6 +19,7 @@ from confluent_kafka.cimpl import KafkaException
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
+from mockintosh.templating import RenderingQueue
 
 
 def _kafka_delivery_report(err, msg):
@@ -56,6 +57,15 @@ def _headers_decode(headers: list):
     return new_headers
 
 
+def _merge_global_headers(_globals, produce_data):
+    headers = {}
+    global_headers = _globals['headers'] if 'headers' in _globals else {}
+    headers.update(global_headers)
+    produce_data_headers = produce_data.get('headers', {})
+    headers.update(produce_data_headers)
+    return headers
+
+
 def produce(
     address: str,
     queue: str,
@@ -64,6 +74,7 @@ def produce(
     headers: dict,
     config_dir: [str, None],
     template_engine: str,
+    rendering_queue: RenderingQueue,
     delay: int = 0,
     consumed: Consumed = None
 ) -> None:
@@ -72,7 +83,11 @@ def produce(
     _create_topic(address, queue)
 
     # Templating
-    kafka_handler = KafkaHandler(config_dir, template_engine)
+    kafka_handler = KafkaHandler(
+        config_dir,
+        template_engine,
+        rendering_queue
+    )
     if consumed is not None:
         kafka_handler.custom_context = {
             'consumed': consumed
@@ -156,14 +171,22 @@ def consume(
             consumed.value = value
             consumed.headers = headers
 
+            produce_headers = {}
+            if definition is not None:
+                produce_headers = _merge_global_headers(
+                    definition.data['globals'] if 'globals' in definition.data else {},
+                    produce_data
+                )
+
             t = threading.Thread(target=produce, args=(
                 address,
                 produce_data.get('queue'),
                 produce_data.get('key', None),
                 produce_data.get('value'),
-                produce_data.get('headers', {}),
+                produce_headers,
                 definition.source_dir,
-                definition.template_engine
+                definition.template_engine,
+                definition.rendering_queue
             ), kwargs={
                 'delay': delay,
                 'consumed': consumed
@@ -181,14 +204,21 @@ def _run_produce_loop(definition, service_id: int, service: dict, actor_id: int,
 
     while actor['limit'] == -1 or actor['limit'] > 0:
         produce_data = actor['produce']
+
+        produce_headers = _merge_global_headers(
+            definition.data['globals'] if 'globals' in definition.data else {},
+            produce_data
+        )
+
         produce(
             service.get('address'),
             produce_data.get('queue'),
             produce_data.get('key', None),
             produce_data.get('value'),
-            produce_data.get('headers', {}),
+            produce_headers,
             definition.source_dir,
-            definition.template_engine
+            definition.template_engine,
+            definition.rendering_queue
         )
 
         _delay(int(actor['delay']))

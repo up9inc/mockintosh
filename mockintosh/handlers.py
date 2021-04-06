@@ -43,7 +43,7 @@ from mockintosh.params import (
 )
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs, LogRecord
-from mockintosh.templating import TemplateRenderer
+from mockintosh.templating import TemplateRenderer, RenderingQueue
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -128,9 +128,11 @@ class BaseHandler:
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
 
-        renderer = TemplateRenderer(
+        renderer = TemplateRenderer()
+        return renderer.render(
             template_engine,
             text,
+            self.rendering_queue,
             inject_objects=self.custom_context,
             inject_methods=[
                 fake,
@@ -138,9 +140,9 @@ class BaseHandler:
                 json_path,
                 escape_html
             ],
-            add_params_callback=self.add_params
+            add_params_callback=self.add_params,
+            counters=self.counters
         )
-        return renderer.render()
 
     def populate_counters(self, context: [None, dict]) -> None:
         """Method that retrieves counters from template engine contexts."""
@@ -219,6 +221,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         endpoints: list,
         _globals: dict,
         definition_engine: str,
+        rendering_queue: RenderingQueue,
         interceptors: list,
         stats: Stats,
         logs: Logs,
@@ -254,6 +257,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.alternatives = None
             self.globals = _globals
             self.definition_engine = definition_engine
+            self.rendering_queue = rendering_queue
             self.interceptors = interceptors
             self.is_options = False
             self.custom_dataset = {}
@@ -1117,10 +1121,16 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 class KafkaHandler(BaseHandler):
     """Class to handle mocked Kafka data."""
 
-    def __init__(self, config_dir: [str, None], template_engine: str):
+    def __init__(
+        self,
+        config_dir: [str, None],
+        template_engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__()
         self.config_dir = config_dir
         self.definition_engine = template_engine
+        self.rendering_queue = rendering_queue
         self.custom_context = {}
 
         self.analyze_counters()

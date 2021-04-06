@@ -26,7 +26,7 @@ from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
-from mockintosh import kafka
+from mockintosh import kafka, start_render_queue
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
@@ -3472,6 +3472,7 @@ class TestKafka():
         value = 'value2'
         headers = {'hdr2': 'val2'}
 
+        queue, job = start_render_queue()
         kafka.produce(
             KAFKA_ADDR,
             'topic2',
@@ -3479,8 +3480,10 @@ class TestKafka():
             value,
             headers,
             None,
-            PYBARS
+            PYBARS,
+            queue
         )
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3494,7 +3497,11 @@ class TestKafka():
     def test_get_kafka_produce_consume_loop(self):
         key = 'key3'
         value = 'value3'
-        headers = {'hdr3': 'val3'}
+        headers = {
+            'hdr3': 'val3',
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3510,6 +3517,7 @@ class TestKafka():
         value = 'value10'
         headers = {}
 
+        queue, job = start_render_queue()
         kafka.produce(
             KAFKA_ADDR,
             'topic10',
@@ -3517,8 +3525,10 @@ class TestKafka():
             value,
             headers,
             None,
-            JINJA
+            JINJA,
+            queue
         )
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3548,7 +3558,11 @@ class TestKafka():
     def test_post_kafka_produce(self):
         key = 'key1'
         value = 'value1'
-        headers = {'hdr1': 'val1'}
+        headers = {
+            'hdr1': 'val1',
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         stop = {'val': False}
         log = []
@@ -3576,7 +3590,10 @@ class TestKafka():
     def test_post_kafka_produce_by_actor_name(self):
         key = None
         value = 'value6'
-        headers = {}
+        headers = {
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         stop = {'val': False}
         log = []
@@ -3610,7 +3627,11 @@ class TestKafka():
         consumer_topic = 'topic5'
         consumer_key = 'key5'
         consumer_value = 'value5'
-        consumer_headers = {'hdr5': 'val5'}
+        consumer_headers = {
+            'hdr5': 'val5',
+            'global-hdr1': 'globalval1',
+            'global-hdr2': 'globalval2'
+        }
 
         stop = {'val': False}
         log = []
@@ -3626,6 +3647,7 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
+        queue, job = start_render_queue()
         kafka.produce(
             KAFKA_ADDR,
             producer_topic,
@@ -3633,8 +3655,10 @@ class TestKafka():
             producer_value,
             producer_headers,
             None,
-            PYBARS
+            PYBARS,
+            queue
         )
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
