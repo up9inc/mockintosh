@@ -113,18 +113,22 @@ TODO:
     - on demand producer
     - reactive consumer+producer
     - consumer fact validation
-    - global headers considered
-    - avro + grpc + JSON
-    - what to do with binary headers?
-    - bodies from file
+     
     - traffic log to display kafka comms
     - interceptors to access kafka comms
     - stats to count kafka comms
-    - allow overriding on-demand producer fields via mgmt API
+
+    - consumer field matchers
+
     - config reloading to work
+    - allow overriding on-demand producer fields via mgmt API
+
+  - avro + grpc + JSON
+  - what to do with binary headers?
 
 1. Display timestamps in traffic log
 1. Do not respond with Content-Type=text/html if no content-type header is configured
+In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 
 # Roadmap Ideas
 
@@ -134,7 +138,7 @@ TODO:
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
 - Nicer formatted error pages for known errors
-- Nicer debug logging of requests
+- Nicer logging of requests, with special option to enable it.
 - admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - config editor to provide hyperlinks from resource files into corresponding editing
