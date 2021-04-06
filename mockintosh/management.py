@@ -302,6 +302,10 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
             request = requests[-1][0]
             response = requests[-1][1]
+
+            response.headers.pop('Server', None)
+            response.headers.pop('Content-Length', None)
+
             config_template = {}
 
             # Path

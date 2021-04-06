@@ -208,7 +208,6 @@ class GenericHandler(tornado.web.RequestHandler):
         """A method to unify all the HTTP verbs under a single flow."""
         try:
             self.args_backup = args
-            self.set_default_headers()
 
             if not self.is_options:
                 if self.custom_args:
@@ -216,6 +215,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 if self.methods is None:
                     await self.raise_http_error(404)
                 await self.dynamic_unimplemented_method_guard()
+
+            self._set_default_headers()
 
             match_alternative_return = await self.match_alternative()
             if not match_alternative_return:
@@ -888,7 +889,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
                 self.set_header('Access-Control-Allow-Headers', ac_request_headers)
 
-    def set_default_headers(self) -> None:
+    def _set_default_headers(self) -> None:
         """Method that sets the default headers."""
         self.set_header('Server', '%s/%s' % (
             PROGRAM.capitalize(),
