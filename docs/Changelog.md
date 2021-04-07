@@ -110,6 +110,8 @@
 
 # Roadmap Ideas
 
+- add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+  
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - cli argument to set the tag
 - add support of array/list parameters on query strings like
