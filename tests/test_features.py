@@ -3351,7 +3351,7 @@ class TestManagement():
         resp = httpx.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST}, timeout=30)
         assert 504 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Redirected request to: GET http://service1.example.com:8001/serviceX is timed out!'
+        assert resp.text == 'Forwarded request to: GET http://service1.example.com:8001/serviceX is timed out!'
 
     @pytest.mark.parametrize(('config'), [
         'configs/fallback_to.json'
