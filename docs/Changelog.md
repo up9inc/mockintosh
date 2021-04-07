@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.2 - 2021-04-07
+
+1. Cleaner config templates from "unhandled" in mgmt API
+2. Fix traffic not logged inside docker-compose setup
+3. Less logging around fallback
+
 ## v0.8.1 - 2021-03-21
 
 1. Fix bug in management UI resource editor
