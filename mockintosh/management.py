@@ -1074,21 +1074,21 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 return
 
             try:
-                actor = service['actors'][actor_id]
+                actor = service.actors[actor_id]
             except IndexError:
                 self.set_status(400)
                 self.write('Actor not found!')
                 return
 
-            if 'consume' not in actor:
+            if actor.consumer is None:
                 self.set_status(400)
                 self.write('This actor is not a consumer!')
                 return
             else:
-                data['queue'] = actor['consume']['queue']
+                data['queue'] = actor.consumer.topic
 
-            if 'log' in actor:
-                rows = actor['log']
+            if actor.consumer.log is not None:
+                rows = actor.consumer.log
                 for row in rows:
                     data['log'].append(
                         {
@@ -1106,13 +1106,11 @@ class ManagementAsyncHandler(ManagementBaseHandler):
 
             services = self.http_server.definition.data['kafka_services']
             for i, service in enumerate(services):
-                filtered_actors = []
-                for actor in service['actors']:
-                    filtered_actors.append({k: v for k, v in actor.items() if k not in ('log')})
+                filtered_actors = [actor.json() for actor in service.actors if actor.consumer is None]
                 data['services'].append(
                     {
-                        'name': service['name'],
-                        'address': service['address'],
+                        'name': service.name,
+                        'address': service.address,
                         'actors': filtered_actors
                     }
                 )
@@ -1136,11 +1134,11 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             no_match = True
             services = self.http_server.definition.data['kafka_services']
             for service_id, service in enumerate(services):
-                for actor_id, actor in enumerate(service['actors']):
-                    if 'name' in actor:
-                        match = re.search(actor_regex, actor['name'])
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name is not None:
+                        match = re.search(actor_regex, actor.name)
                         if match is not None:
-                            if 'produce' not in actor:
+                            if actor.producer is None:
                                 continue
                             t = threading.Thread(target=self._produce, args=(
                                 service_id,
@@ -1163,6 +1161,10 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             service_id, actor_id = args
             service_id = int(service_id)
             actor_id = int(actor_id)
+
+            service = None
+            actor = None
+
             try:
                 service = self.http_server.definition.data['kafka_services'][service_id]
             except IndexError:
@@ -1171,26 +1173,19 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 return
 
             try:
-                actor = service['actors'][actor_id]
+                actor = service.actors[actor_id]
             except IndexError:
                 self.set_status(400)
                 self.write('Actor not found!')
                 return
 
-            if 'produce' not in actor:
+            if actor.producer is None:
                 self.set_status(400)
                 self.write('This actor is not a producer!')
                 return
 
-            service_id = int(service_id)
-            actor_id = int(actor_id)
-            service = self.http_server.definition.data['kafka_services'][service_id]
-            actor = service['actors'][actor_id]
-
             t = threading.Thread(target=self._produce, args=(
-                service_id,
                 service,
-                actor_id,
                 actor,
                 self.http_server.definition
             ))
@@ -1199,25 +1194,18 @@ class ManagementAsyncHandler(ManagementBaseHandler):
 
     def _produce(
         self,
-        service_id,
         service,
-        actor_id,
         actor,
         definition
     ):
         # Producing
-        produce_data = actor['produce']
-
         produce_headers = kafka._merge_global_headers(
             self.http_server.globals,
-            produce_data
+            actor.producer
         )
 
         kafka.produce(
-            service.get('address'),
-            produce_data.get('queue'),
-            produce_data.get('key', None),
-            produce_data.get('value'),
-            produce_headers,
+            service,
+            actor.producer,
             definition
         )

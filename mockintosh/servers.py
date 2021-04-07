@@ -117,7 +117,8 @@ class HttpServer:
             service_id_counter += 1
 
             self.unhandled_data.requests.append({})
-            hint = '%s:%s%s' % (
+            hint = '%s://%s:%s%s' % (
+                'https' if service.get('ssl', False) else 'http',
                 service['hostname'] if 'hostname' in service else (
                     self.address if self.address else 'localhost'
                 ),

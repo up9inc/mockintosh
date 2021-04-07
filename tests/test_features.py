@@ -3481,11 +3481,13 @@ class TestKafka():
 
         queue, job = start_render_queue()
         kafka.produce(
-            KAFKA_ADDR,
-            'topic2',
-            key,
-            value,
-            headers,
+            kafka.KafkaService(KAFKA_ADDR),
+            kafka.KafkaProducer(
+                'topic2',
+                value,
+                key=key,
+                headers=headers
+            ),
             DefinitionMockForKafka(None, PYBARS, queue)
         )
         job.kill()
@@ -3524,11 +3526,13 @@ class TestKafka():
 
         queue, job = start_render_queue()
         kafka.produce(
-            KAFKA_ADDR,
-            'topic10',
-            key,
-            value,
-            headers,
+            kafka.KafkaService(KAFKA_ADDR),
+            kafka.KafkaProducer(
+                'topic10',
+                value,
+                key=key,
+                headers=headers
+            ),
             DefinitionMockForKafka(None, JINJA, queue)
         )
         job.kill()
@@ -3569,9 +3573,11 @@ class TestKafka():
 
         stop = {'val': False}
         log = []
+        actor = kafka.KafkaActor()
+        actor.set_consumer(kafka.KafkaConsumer('topic1'))
         t = threading.Thread(target=kafka.consume, args=(
-            KAFKA_ADDR,
-            'topic1'
+            kafka.KafkaService(KAFKA_ADDR),
+            actor,
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3600,9 +3606,11 @@ class TestKafka():
 
         stop = {'val': False}
         log = []
+        actor = kafka.KafkaActor()
+        actor.set_consumer(kafka.KafkaConsumer('topic6'))
         t = threading.Thread(target=kafka.consume, args=(
-            KAFKA_ADDR,
-            'topic6'
+            kafka.KafkaService(KAFKA_ADDR),
+            actor,
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3638,9 +3646,11 @@ class TestKafka():
 
         stop = {'val': False}
         log = []
+        actor = kafka.KafkaActor()
+        actor.set_consumer(kafka.KafkaConsumer(consumer_topic))
         t = threading.Thread(target=kafka.consume, args=(
-            KAFKA_ADDR,
-            consumer_topic
+            kafka.KafkaService(KAFKA_ADDR),
+            actor,
         ), kwargs={
             'log': log,
             'stop': stop
@@ -3652,11 +3662,13 @@ class TestKafka():
 
         queue, job = start_render_queue()
         kafka.produce(
-            KAFKA_ADDR,
-            producer_topic,
-            producer_key,
-            producer_value,
-            producer_headers,
+            kafka.KafkaService(KAFKA_ADDR),
+            kafka.KafkaProducer(
+                producer_topic,
+                producer_value,
+                key=producer_key,
+                headers=producer_headers
+            ),
             DefinitionMockForKafka(None, PYBARS, queue)
         )
         job.kill()
@@ -3704,9 +3716,11 @@ class TestKafka():
     def test_post_kafka_producer_templated(self):
         stop = {'val': False}
         log = []
+        actor = kafka.KafkaActor()
+        actor.set_consumer(kafka.KafkaConsumer('templated-producer'))
         t = threading.Thread(target=kafka.consume, args=(
-            KAFKA_ADDR,
-            'templated-producer'
+            kafka.KafkaService(KAFKA_ADDR),
+            actor,
         ), kwargs={
             'log': log,
             'stop': stop

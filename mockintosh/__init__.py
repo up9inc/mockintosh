@@ -41,6 +41,7 @@ from mockintosh.performance import PerformanceProfile
 from mockintosh.templating import RenderingQueue, RenderingJob
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
+from mockintosh.kafka import KafkaService, KafkaActor, KafkaConsumer, KafkaProducer
 
 __version__ = "0.8.1"
 __location__ = path.abspath(path.dirname(__file__))
@@ -111,10 +112,31 @@ class Definition():
         for service in data['services']:
             if 'type' in service:
                 if service['type'] == 'kafka':
-                    for i, actor in enumerate(service['actors']):
-                        if 'counters' not in actor:
-                            service['actors'][i]['counters'] = {}
-                    data['kafka_services'].append(service)
+                    kafka_service = KafkaService(
+                        service['address'],
+                        service.get('name', None)
+                    )
+                    data['kafka_services'].append(kafka_service)
+
+                    for actor in service['actors']:
+                        kafka_actor = KafkaActor(actor.get('name', None))
+                        kafka_service.add_actor(kafka_actor)
+
+                        if 'consume' in actor:
+                            kafka_consumer = KafkaConsumer(actor['consume']['queue'])
+                            kafka_actor.set_consumer(kafka_consumer)
+                        if 'delay' in actor:
+                            kafka_actor.set_delay(actor['delay'])
+                        if 'produce' in actor:
+                            kafka_producer = KafkaProducer(
+                                actor['produce']['queue'],
+                                actor['produce']['value'],
+                                key=actor['produce'].get('key', None),
+                                headers=actor['produce'].get('headers', {})
+                            )
+                            kafka_actor.set_producer(kafka_producer)
+                        if 'limit' in actor:
+                            kafka_actor.set_limit(actor['limit'])
 
                 if service['type'] != 'http':
                     continue
