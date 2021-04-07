@@ -110,7 +110,9 @@
 
 # Roadmap Ideas
 
+- unhandled requests to not get into traffic log?
 - add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+- upon navigating between mgmt UI tabs, refresh unhandled, stats
   
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - cli argument to set the tag

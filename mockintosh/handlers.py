@@ -1058,7 +1058,7 @@ class GenericHandler(tornado.web.RequestHandler):
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
         # The service is external
-        logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
+        logging.info('Forwarding the unhandled request to: %s %s' % (self.request.method, url))
 
         http_verb = getattr(client, self.request.method.lower())
         try:
@@ -1068,14 +1068,14 @@ class GenericHandler(tornado.web.RequestHandler):
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
         except httpx.TimeoutException:
             self.set_status(504)
-            self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
+            self.write('Forwarded request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()
         except httpx.ConnectError:
             self.set_status(502)
             self.write('Name or service not known: %s' % self.fallback_to.rstrip('/'))
             raise NewHTTPError()
 
-        logging.info('Returned back from the redirected request.')
+        logging.debug('Returned back from the forwarded request.')
 
         self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():
