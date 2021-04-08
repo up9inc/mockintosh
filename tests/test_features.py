@@ -80,6 +80,7 @@ class DefinitionMockForKafka():
         self.source_dir = source_dir
         self.template_engine = template_engine
         self.rendering_queue = rendering_queue
+        self.data = {}
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -3480,16 +3481,20 @@ class TestKafka():
         headers = {'hdr2': 'val2'}
 
         queue, job = start_render_queue()
-        kafka.produce(
-            kafka.KafkaService(KAFKA_ADDR),
-            kafka.KafkaProducer(
-                'topic2',
-                value,
-                key=key,
-                headers=headers
-            ),
-            DefinitionMockForKafka(None, PYBARS, queue)
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value,
+            key=key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
         job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
@@ -3525,16 +3530,20 @@ class TestKafka():
         headers = {}
 
         queue, job = start_render_queue()
-        kafka.produce(
-            kafka.KafkaService(KAFKA_ADDR),
-            kafka.KafkaProducer(
-                'topic10',
-                value,
-                key=key,
-                headers=headers
-            ),
-            DefinitionMockForKafka(None, JINJA, queue)
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, JINJA, queue)
         )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.KafkaProducer(
+            'topic10',
+            value,
+            key=key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
         job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
@@ -3572,18 +3581,21 @@ class TestKafka():
         }
 
         stop = {'val': False}
-        log = []
-        actor = kafka.KafkaActor()
-        actor.set_consumer(kafka.KafkaConsumer('topic1'))
-        t = threading.Thread(target=kafka.consume, args=(
-            kafka.KafkaService(KAFKA_ADDR),
-            actor,
-        ), kwargs={
-            'log': log,
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('topic1')
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
         t.start()
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
@@ -3594,7 +3606,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
     def test_post_kafka_produce_by_actor_name(self):
         key = None
@@ -3605,18 +3617,21 @@ class TestKafka():
         }
 
         stop = {'val': False}
-        log = []
-        actor = kafka.KafkaActor()
-        actor.set_consumer(kafka.KafkaConsumer('topic6'))
-        t = threading.Thread(target=kafka.consume, args=(
-            kafka.KafkaService(KAFKA_ADDR),
-            actor,
-        ), kwargs={
-            'log': log,
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, JINJA, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('topic6')
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
         t.start()
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
@@ -3627,7 +3642,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
     def test_post_kafka_reactive_consumer(self):
         producer_topic = 'topic4'
@@ -3645,14 +3660,16 @@ class TestKafka():
         }
 
         stop = {'val': False}
-        log = []
-        actor = kafka.KafkaActor()
-        actor.set_consumer(kafka.KafkaConsumer(consumer_topic))
-        t = threading.Thread(target=kafka.consume, args=(
-            kafka.KafkaService(KAFKA_ADDR),
-            actor,
-        ), kwargs={
-            'log': log,
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer(consumer_topic)
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3660,17 +3677,20 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        queue, job = start_render_queue()
-        kafka.produce(
-            kafka.KafkaService(KAFKA_ADDR),
-            kafka.KafkaProducer(
-                producer_topic,
-                producer_value,
-                key=producer_key,
-                headers=producer_headers
-            ),
-            DefinitionMockForKafka(None, PYBARS, queue)
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.KafkaProducer(
+            producer_topic,
+            producer_value,
+            key=producer_key,
+            headers=producer_headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
         job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
@@ -3688,7 +3708,7 @@ class TestKafka():
             ))
             and  # noqa: W504, W503
             (row[2] == consumer_headers)
-            for row in log
+            for row in kafka_consumer.log
         )
 
     def test_post_kafka_bad_requests(self):
@@ -3715,18 +3735,21 @@ class TestKafka():
 
     def test_post_kafka_producer_templated(self):
         stop = {'val': False}
-        log = []
-        actor = kafka.KafkaActor()
-        actor.set_consumer(kafka.KafkaConsumer('templated-producer'))
-        t = threading.Thread(target=kafka.consume, args=(
-            kafka.KafkaService(KAFKA_ADDR),
-            actor,
-        ), kwargs={
-            'log': log,
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('templated-producer')
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
         t.start()
+        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
@@ -3755,5 +3778,5 @@ class TestKafka():
                 (int(row[2]['counter']) == i + 1)
                 and  # noqa: W504, W503
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
-                for row in log
+                for row in kafka_consumer.log
             )

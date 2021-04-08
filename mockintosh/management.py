@@ -29,7 +29,6 @@ import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import RestrictedFieldError
-from mockintosh import kafka
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -117,11 +116,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if not self.validate(data):
             return
 
-        data = mockintosh.Definition.analyze(
-            data,
-            self.http_server.definition.template_engine,
-            self.http_server.definition.rendering_queue
-        )
+        data = self.http_server.definition.analyze(data)
         self.http_server.definition.stats.services = []
         for service in data['services']:
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
@@ -1140,11 +1135,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                         if match is not None:
                             if actor.producer is None:
                                 continue
-                            t = threading.Thread(target=self._produce, args=(
-                                service,
-                                actor,
-                                self.http_server.definition
-                            ))
+                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
                             t.daemon = True
                             t.start()
                             no_match = False
@@ -1180,28 +1171,6 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 self.write('This actor is not a producer!')
                 return
 
-            t = threading.Thread(target=self._produce, args=(
-                service,
-                actor,
-                self.http_server.definition
-            ))
+            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
             t.daemon = True
             t.start()
-
-    def _produce(
-        self,
-        service,
-        actor,
-        definition
-    ):
-        # Producing
-        actor.producer.headers = kafka._merge_global_headers(
-            self.http_server.globals,
-            actor.producer
-        )
-
-        kafka.produce(
-            service,
-            actor.producer,
-            definition
-        )

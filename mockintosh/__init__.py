@@ -68,7 +68,7 @@ class Definition():
         for service in self.data['services']:
             service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
-        self.data = Definition.analyze(self.data, self.template_engine, self.rendering_queue)
+        self.data = self.analyze(self.data)
         self.stats = stats
         self.logs = logs
 
@@ -93,8 +93,7 @@ class Definition():
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    @staticmethod
-    def analyze(data, template_engine, rendering_queue: RenderingQueue):
+    def analyze(self, data):
         if 'performanceProfiles' in data:
             for key, performance_profile in data['performanceProfiles'].items():
                 ratio = performance_profile.get('ratio')
@@ -114,7 +113,8 @@ class Definition():
                 if service['type'] == 'kafka':
                     kafka_service = KafkaService(
                         service['address'],
-                        service.get('name', None)
+                        name=service.get('name', None),
+                        definition=self
                     )
                     data['kafka_services'].append(kafka_service)
 
@@ -145,8 +145,8 @@ class Definition():
                 continue
             service = Definition.analyze_service(
                 service,
-                template_engine,
-                rendering_queue,
+                self.template_engine,
+                self.rendering_queue,
                 performance_profiles=data['performanceProfiles'],
                 global_performance_profile=global_performance_profile
             )
