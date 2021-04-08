@@ -1141,13 +1141,9 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                             if actor.producer is None:
                                 continue
                             t = threading.Thread(target=self._produce, args=(
-                                service_id,
                                 service,
-                                actor_id,
                                 actor,
-                                self.http_server.definition.source_dir,
-                                self.http_server.definition.template_engine,
-                                self.http_server.definition.rendering_queue
+                                self.http_server.definition
                             ))
                             t.daemon = True
                             t.start()
@@ -1199,7 +1195,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
         definition
     ):
         # Producing
-        produce_headers = kafka._merge_global_headers(
+        actor.producer.headers = kafka._merge_global_headers(
             self.http_server.globals,
             actor.producer
         )
