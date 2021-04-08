@@ -122,7 +122,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self.http_server.definition.template_engine,
             self.http_server.definition.rendering_queue
         )
-        self.http_server.stats.services = []
+        self.http_server.definition.stats.services = []
         for service in data['services']:
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
@@ -134,7 +134,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 service['port'],
                 ' - %s' % service['name'] if 'name' in service else ''
             )
-            self.http_server.stats.add_service(hint)
+            self.http_server.definition.stats.add_service(hint)
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
@@ -143,7 +143,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.update_service(service, i):
                 return
 
-        self.http_server.stats.reset()
+        self.http_server.definition.stats.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
@@ -163,14 +163,14 @@ class ManagementConfigHandler(ManagementBaseHandler):
     def _update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
-        self.http_server.stats.services[service_index].endpoints = []
-        self.http_server.logs.services[service_index].name = service['name'] if 'name' in service else ''
+        self.http_server.definition.stats.services[service_index].endpoints = []
+        self.http_server.definition.logs.services[service_index].name = service['name'] if 'name' in service else ''
 
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(
                 service,
-                self.http_server.stats,
-                self.http_server.logs
+                self.http_server.definition.stats,
+                self.http_server.definition.logs
             )
         merged_endpoints = []
         for endpoint in endpoints:
@@ -930,7 +930,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         if not self.update_service(data, self.service_id):
             return
 
-        self.http_server.stats.reset()
+        self.http_server.definition.stats.reset()
 
         self.set_status(204)
 
