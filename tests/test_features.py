@@ -81,6 +81,7 @@ class DefinitionMockForKafka():
         self.template_engine = template_engine
         self.rendering_queue = rendering_queue
         self.data = {}
+        self.logs = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -3495,7 +3496,6 @@ class TestKafka():
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
-        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3504,6 +3504,7 @@ class TestKafka():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
+        job.kill()
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_get_kafka_produce_consume_loop(self):
@@ -3544,7 +3545,6 @@ class TestKafka():
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
-        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3553,6 +3553,7 @@ class TestKafka():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
+        job.kill()
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_get_kafka_bad_requests(self):
@@ -3595,7 +3596,6 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
-        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
@@ -3606,6 +3606,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
+        job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
     def test_post_kafka_produce_by_actor_name(self):
@@ -3631,7 +3632,6 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
-        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
@@ -3642,6 +3642,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
+        job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
     def test_post_kafka_reactive_consumer(self):
@@ -3691,12 +3692,12 @@ class TestKafka():
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
-        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
+        job.kill()
         assert any(
             (row[0] == consumer_key)
             and  # noqa: W504, W503
@@ -3749,7 +3750,6 @@ class TestKafka():
         })
         t.daemon = True
         t.start()
-        job.kill()
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
@@ -3763,6 +3763,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
+        job.kill()
         for i in range(2):
             assert any(
                 (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))

@@ -41,7 +41,7 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
-from mockintosh.logs import LogRecord
+from mockintosh.logs import Logs, LogRecord
 from mockintosh.templating import TemplateRenderer, RenderingQueue
 
 OPTIONS = 'options'
@@ -1122,13 +1122,27 @@ class KafkaHandler(BaseHandler):
         self,
         config_dir: [str, None],
         template_engine: str,
-        rendering_queue: RenderingQueue
+        rendering_queue: RenderingQueue,
+        logs: [Logs, None],
+        address: str,
+        topic: str,
+        service_id: int = None,
+        value: Union[str, None] = None,
+        key: Union[str, None] = None,
+        headers: dict = {}
     ):
         super().__init__()
         self.config_dir = config_dir
         self.definition_engine = template_engine
         self.rendering_queue = rendering_queue
         self.custom_context = {}
+        self.logs = logs
+        self.address = address
+        self.topic = topic
+        self.service_id = service_id
+        self.value = value
+        self.key = key
+        self.headers = headers
 
         self.analyze_counters()
 
@@ -1142,7 +1156,7 @@ class KafkaHandler(BaseHandler):
         self.populate_counters(context)
         return compiled
 
-    def render_attributes(self, *args):
+    def _render_attributes(self, *args):
         rendered = []
         for arg in args:
             if arg is None:
@@ -1158,5 +1172,15 @@ class KafkaHandler(BaseHandler):
 
         return rendered
 
+    def render_attributes(self):
+        return self._render_attributes(
+            self.key,
+            self.value,
+            self.headers
+        )
+
     def add_params(self, context):
         return context
+
+    def finish(self):
+        pass

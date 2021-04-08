@@ -81,6 +81,16 @@ class KafkaConsumer:
         }
 
     def consume(self, stop: dict = {}) -> None:
+        kafka_handler = KafkaHandler(
+            self.actor.service.definition.source_dir,
+            self.actor.service.definition.template_engine,
+            self.actor.service.definition.rendering_queue,
+            self.actor.service.definition.logs,
+            self.actor.service.address,
+            self.topic,
+            service_id=self.actor.service.id
+        )
+
         _create_topic(self.actor.service.address, self.topic)
 
         if self.actor is not None:
@@ -120,6 +130,8 @@ class KafkaConsumer:
                 (key, value, headers)
             )
 
+            kafka_handler.finish()
+
             if self.actor.producer is not None:
                 consumed = Consumed()
                 consumed.key = key
@@ -148,6 +160,19 @@ class KafkaProducer:
         self.actor = None
 
     def produce(self, consumed: Consumed = None) -> None:
+        kafka_handler = KafkaHandler(
+            self.actor.service.definition.source_dir,
+            self.actor.service.definition.template_engine,
+            self.actor.service.definition.rendering_queue,
+            self.actor.service.definition.logs,
+            self.actor.service.address,
+            self.topic,
+            service_id=self.actor.service.id,
+            value=self.value,
+            key=self.key,
+            headers=self.headers
+        )
+
         if self.actor.delay is not None:
             _delay(self.actor.delay)
 
@@ -155,26 +180,18 @@ class KafkaProducer:
 
         definition = self.actor.service.definition
         if definition is not None:
-            self.headers = _merge_global_headers(
+            kafka_handler.headers = _merge_global_headers(
                 definition.data['globals'] if 'globals' in definition.data else {},
                 self
             )
 
-        # Templating
-        kafka_handler = KafkaHandler(
-            self.actor.service.definition.source_dir,
-            self.actor.service.definition.template_engine,
-            self.actor.service.definition.rendering_queue
-        )
         if consumed is not None:
             kafka_handler.custom_context = {
                 'consumed': consumed
             }
-        key, value, headers = kafka_handler.render_attributes(
-            self.key,
-            self.value,
-            self.headers
-        )
+
+        # Templating
+        key, value, headers = kafka_handler.render_attributes()
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
@@ -189,6 +206,8 @@ class KafkaProducer:
             value,
             headers
         ))
+
+        kafka_handler.finish()
 
     def json(self):
         data = {
@@ -253,11 +272,12 @@ class KafkaActor:
 
 class KafkaService:
 
-    def __init__(self, address: str, name: str = None, definition=None):
+    def __init__(self, address: str, name: str = None, definition=None, _id: int = None):
         self.address = address
         self.name = name
         self.definition = definition
         self.actors = []
+        self.id = _id
 
     def get_actor(self, index: int):
         return self.actors[index]

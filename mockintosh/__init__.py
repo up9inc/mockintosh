@@ -68,9 +68,9 @@ class Definition():
         for service in self.data['services']:
             service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
-        self.data = self.analyze(self.data)
         self.stats = stats
         self.logs = logs
+        self.data = self.analyze(self.data)
 
     def load(self):
         if self.source_text is None:
@@ -108,13 +108,16 @@ class Definition():
             global_performance_profile = data['globals'].get('performanceProfile', None)
 
         data['kafka_services'] = []
-        for service in data['services']:
+        for i, service in enumerate(data['services']):
+            self.logs.add_service(service.get('name', ''))
+
             if 'type' in service:
                 if service['type'] == 'kafka':
                     kafka_service = KafkaService(
                         service['address'],
                         name=service.get('name', None),
-                        definition=self
+                        definition=self,
+                        _id=i
                     )
                     data['kafka_services'].append(kafka_service)
 
