@@ -88,6 +88,7 @@ class KafkaConsumer:
             self.actor.service.definition.logs,
             self.actor.service.address,
             self.topic,
+            False,
             service_id=self.actor.service.id
         )
 
@@ -167,6 +168,7 @@ class KafkaProducer:
             self.actor.service.definition.logs,
             self.actor.service.address,
             self.topic,
+            True,
             service_id=self.actor.service.id,
             value=self.value,
             key=self.key,

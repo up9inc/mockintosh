@@ -105,6 +105,8 @@ class BaseHandler:
     def __init__(self):
         self.custom_context = {}
         self.counters = counters
+        self.replica_request = None
+        self.replica_response = None
 
     def resolve_relative_path(self, source_text: str) -> Tuple[str, str]:
         """Method to resolve the relative path (relative to the config file)."""
@@ -158,6 +160,27 @@ class BaseHandler:
     def add_params(self, context: [None, dict]) -> [None, dict]:
         raise NotImplementedError
 
+    def add_log_record(
+        self,
+        elapsed_time_in_milliseconds: int,
+        request_start_datetime: datetime,
+        server_connection: Union[HTTP1ServerConnection, None]
+    ) -> None:
+        """Method that creates a log record and inserts it to log tracking system."""
+        if not self.logs.services[self.service_id].is_enabled():
+            logging.debug('Not logging the request because logging is disabled.')
+            return
+
+        log_record = LogRecord(
+            self.logs.services[self.service_id].name,
+            request_start_datetime,
+            elapsed_time_in_milliseconds,
+            self.replica_request,
+            self.replica_response,
+            server_connection
+        )
+        self.logs.services[self.service_id].add_record(log_record)
+
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     """Class to handle all mocked requests."""
@@ -170,7 +193,13 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     def on_finish(self) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         elapsed_time = self.request.request_time()
-        self.add_log_record(int(round(elapsed_time * 1000)))
+        request_start_datetime = datetime.fromtimestamp(self.request._start_time)
+        request_start_datetime.replace(tzinfo=timezone.utc)
+        self.add_log_record(
+            int(round(elapsed_time * 1000)),
+            request_start_datetime,
+            self.request.server_connection
+        )
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
                 self.set_elapsed_time(elapsed_time)
@@ -195,24 +224,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
             elapsed_time_in_seconds
         )
-
-    def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
-        """Method that creates a log record and inserts it to log tracking system."""
-        if not self.logs.services[self.service_id].is_enabled():
-            logging.debug('Not logging the request because logging is disabled.')
-            return
-
-        request_start_datetime = datetime.fromtimestamp(self.request._start_time)
-        request_start_datetime.replace(tzinfo=timezone.utc)
-        log_record = LogRecord(
-            self.logs.services[self.service_id].name,
-            request_start_datetime,
-            elapsed_time_in_milliseconds,
-            self.replica_request,
-            self.replica_response,
-            self.request.server_connection
-        )
-        self.logs.services[self.service_id].add_record(log_record)
 
     def initialize(
         self,
@@ -457,7 +468,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         return compiled
 
     def build_replica_request(self) -> Request:
-        """Method that builds the `Request` object to be injected into the response templating."""
+        """Method that builds the replica `Request` object to be injected into the response templating."""
         request = Request()
 
         # Details
@@ -519,12 +530,13 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 request.body = _b64encode(self.request.body)
         request.bodySize = len(self.request.body)
 
+        # Files
         request.files = self.request.files
 
         return request
 
     def build_replica_response(self) -> Response:
-        """Method that prepares `Response` object to be modified by the interceptors."""
+        """Method that prepares replica `Response` object to be modified by the interceptors."""
         response = Response()
 
         response.status = self._status_code
@@ -1143,12 +1155,14 @@ class KafkaHandler(BaseHandler):
         logs: [Logs, None],
         address: str,
         topic: str,
+        is_producer: bool,
         service_id: int = None,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: dict = {}
     ):
         super().__init__()
+        self.request_start_datetime = datetime.now()
         self.config_dir = config_dir
         self.definition_engine = template_engine
         self.rendering_queue = rendering_queue
@@ -1157,11 +1171,13 @@ class KafkaHandler(BaseHandler):
         self.address = address
         self.topic = topic
         self.service_id = service_id
+        self.is_producer = is_producer
         self.value = value
         self.key = key
         self.headers = headers
 
         self.analyze_counters()
+        self.replica_request = self.build_replica_request()
 
     def _render_value(self, value):
         if len(value) > 1 and value[0] == '@':
@@ -1200,4 +1216,57 @@ class KafkaHandler(BaseHandler):
         return context
 
     def finish(self):
-        pass
+        self.replica_response = self.build_replica_response()
+
+        elapsed_time = datetime.now() - self.request_start_datetime
+        self.add_log_record(
+            int(round(elapsed_time.microseconds * 1000)),
+            self.request_start_datetime,
+            None
+        )
+
+    def build_replica_request(self) -> Request:
+        """Method that builds the replica `Request` object."""
+        request = Request()
+
+        hostname, port = self.address.split(':')
+
+        # Details
+        request.version = None
+        request.remoteIp = None
+        request.protocol = 'kafka'
+        request.host = self.address
+        request.hostName = hostname
+        request.port = port
+        request.uri = None
+
+        # Method
+        request.method = NON_PREFLIGHT_METHODS[5] if self.is_producer else NON_PREFLIGHT_METHODS[0]
+
+        # Path
+        request.path = '/%s' % self.topic
+
+        # Headers
+        for key, value in self.headers.items():
+            request.headers[key.title()] = value
+
+        # Query String
+        if self.key is not None:
+            request.queryString['key'] = self.key
+
+        # Body
+        request.mimeType = 'text/plain'
+        request.bodyType = 'str'
+        request.body = self.value
+        request.bodySize = 0 if self.value is None else len(self.value)
+
+        # Files
+        request.files = []
+
+        return request
+
+    def build_replica_response(self) -> Response:
+        """Method that prepares replica `Response` object."""
+        response = Response()
+
+        return response
