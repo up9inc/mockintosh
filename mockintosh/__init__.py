@@ -109,6 +109,7 @@ class Definition():
 
         data['kafka_services'] = []
         for i, service in enumerate(data['services']):
+            data['services'][i]['internalServiceId'] = i
             self.logs.add_service(service.get('name', ''))
 
             if 'type' in service:

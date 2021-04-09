@@ -281,6 +281,9 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         for app in self.http_server._apps.apps:
+            if app is None:
+                continue
+
             _reset_iterators(app)
         self.set_status(204)
 
@@ -651,6 +654,9 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
+            if app is None:
+                continue
+
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     data['tags'].append(rule.target_kwargs['tag'])

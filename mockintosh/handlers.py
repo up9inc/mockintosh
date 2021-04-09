@@ -216,7 +216,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         super().write(chunk)
-        if hasattr(self, 'replica_response'):
+        if self.replica_response is not None:
             self.replica_response.bodySize = len(b"".join(self._write_buffer))
 
     def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
@@ -900,7 +900,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
         """Overriden method of tornado.web.RequestHandler"""
         if self._status_code not in (204, 500, 'RST', 'FIN'):
-            if not hasattr(self, 'replica_response'):
+            if self.replica_response is None:
                 self.replica_response = self.build_replica_response()
             self.trigger_interceptors()
             if self.interceptors:
@@ -1217,6 +1217,9 @@ class KafkaHandler(BaseHandler):
 
     def finish(self):
         self.replica_response = self.build_replica_response()
+
+        if self.logs is None:
+            return
 
         elapsed_time = datetime.now() - self.request_start_datetime
         self.add_log_record(

@@ -108,15 +108,13 @@ class HttpServer:
         port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
 
         services = self.definition.data['services']
-        service_id_counter = 0
+        self._apps.apps = len(services) * [None]
+        self._apps.listeners = len(services) * [None]
         for service in services:
+            self.unhandled_data.requests.append({})
             if 'type' in service and service['type'] != 'http':
                 continue
 
-            service['internalServiceId'] = service_id_counter
-            service_id_counter += 1
-
-            self.unhandled_data.requests.append({})
             hint = '%s://%s:%s%s' % (
                 'https' if service.get('ssl', False) else 'http',
                 service['hostname'] if 'hostname' in service else (
@@ -177,13 +175,11 @@ class HttpServer:
                     management_root = service['managementRoot']
 
                 app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-                self._apps.apps.append(app)
-                self._apps.listeners.append(
-                    _Listener(
-                        service['hostname'] if 'hostname' in service else None,
-                        service['port'],
-                        self.address if self.address else 'localhost'
-                    )
+                self._apps.apps[service['internalServiceId']] = app
+                self._apps.listeners[service['internalServiceId']] = _Listener(
+                    service['hostname'] if 'hostname' in service else None,
+                    service['port'],
+                    self.address if self.address else 'localhost'
                 )
 
                 if 'hostname' not in service:
