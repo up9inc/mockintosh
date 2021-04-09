@@ -3460,6 +3460,9 @@ class TestKafka():
         )
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
+        resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
+        assert 204 == resp.status_code
+
     @classmethod
     def teardown_class(cls):
         TestKafka.mock_server_process.kill()
@@ -3799,3 +3802,60 @@ class TestKafka():
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
                 for row in kafka_consumer.log
             )
+
+    def test_traffic_log_kafka(self):
+        resp = httpx.get(MGMT + '/traffic-log', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        entries = data['log']['entries']
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic1?key=key1'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'GET'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic2'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'GET'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic3'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic6'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic7?key=key7'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic8?key=key8'
+            for entry in entries
+        )

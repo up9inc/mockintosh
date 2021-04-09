@@ -131,6 +131,10 @@ class KafkaConsumer:
                 (key, value, headers)
             )
 
+            kafka_handler.set_response(
+                key=key, value=value, headers=headers
+            )
+
             kafka_handler.finish()
 
             if self.actor.producer is not None:

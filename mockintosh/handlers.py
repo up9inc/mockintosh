@@ -1175,6 +1175,8 @@ class KafkaHandler(BaseHandler):
         self.value = value
         self.key = key
         self.headers = headers
+        self.response_body = None
+        self.response_headers = None
 
         self.analyze_counters()
         self.replica_request = self.build_replica_request()
@@ -1214,6 +1216,18 @@ class KafkaHandler(BaseHandler):
 
     def add_params(self, context):
         return context
+
+    def set_response(
+        self,
+        key: Union[str, None] = None,
+        value: Union[str, None] = None,
+        headers: dict = {}
+    ):
+        self.response_body = {
+            'key': key,
+            'value': value
+        }
+        self.response_headers = headers
 
     def finish(self):
         self.replica_response = self.build_replica_response()
@@ -1271,5 +1285,12 @@ class KafkaHandler(BaseHandler):
     def build_replica_response(self) -> Response:
         """Method that prepares replica `Response` object."""
         response = Response()
+
+        if self.response_body is None:
+            return response
+
+        response.status = 200
+        response.headers = self.response_headers
+        response.body = str(self.response_body)
 
         return response
