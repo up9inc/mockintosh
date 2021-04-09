@@ -26,6 +26,7 @@ import jsonschema
 import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
+from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -132,7 +133,8 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
         """Method that creates a log record and inserts it to log tracking system."""
-        if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
+        if not self.logs.services[self.service_id].is_enabled():
+            logging.debug('Not logging the request because logging is disabled.')
             return
 
         request_start_datetime = datetime.fromtimestamp(self.request._start_time)
@@ -208,7 +210,6 @@ class GenericHandler(tornado.web.RequestHandler):
         """A method to unify all the HTTP verbs under a single flow."""
         try:
             self.args_backup = args
-            self.set_default_headers()
 
             if not self.is_options:
                 if self.custom_args:
@@ -216,6 +217,8 @@ class GenericHandler(tornado.web.RequestHandler):
                 if self.methods is None:
                     await self.raise_http_error(404)
                 await self.dynamic_unimplemented_method_guard()
+
+            self._set_default_headers()
 
             match_alternative_return = await self.match_alternative()
             if not match_alternative_return:
@@ -311,9 +314,20 @@ class GenericHandler(tornado.web.RequestHandler):
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
             await self.raise_http_error(405)
 
+    def _request_object_to_dict(self, obj):
+        result = {}
+        for key, value in obj.__dict__.items():
+            if not (
+                isinstance(value, HTTP1Connection) or isinstance(value, HTTP1ServerConnection)
+            ) and hasattr(value, '__dict__'):
+                result[key] = self._request_object_to_dict(value)
+            else:
+                result[key] = value
+        return result
+
     def log_request(self) -> None:
         """Method that logs the request."""
-        logging.debug('Received request:\n%s', self.request.__dict__)
+        logging.debug('Received request:\n%s', self._request_object_to_dict(self.request))
 
     def add_params(self, context: [None, dict]) -> [None, dict]:
         """Method that injects parameters defined in the config into template engine contexts."""
@@ -888,7 +902,7 @@ class GenericHandler(tornado.web.RequestHandler):
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
                 self.set_header('Access-Control-Allow-Headers', ac_request_headers)
 
-    def set_default_headers(self) -> None:
+    def _set_default_headers(self) -> None:
         """Method that sets the default headers."""
         self.set_header('Server', '%s/%s' % (
             PROGRAM.capitalize(),
@@ -980,22 +994,19 @@ class GenericHandler(tornado.web.RequestHandler):
 
         self.set_status(status_code)
 
-        if status_code == 404:
-            ext = os.path.splitext(self.request.path)[1]
-            parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
-            client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
-            if (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS:
-                with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
-                    image = file.read()
-                    self.set_header('content-type', 'image/png')
-                    self.write(image)
-                    self.rendered_body = image
+        if status_code == 404 and self.is_request_image_like():
+            with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
+                image = file.read()
+                self.set_header('content-type', 'image/png')
+                self.write(image)
+                self.rendered_body = image
 
         raise NewHTTPError()
 
     async def resolve_unhandled_request(self) -> None:
         if self.fallback_to is None:
-            self.insert_unhandled_data((self.request, None))
+            if not self.is_request_image_like():
+                self.insert_unhandled_data((self.request, None))
             return
 
         # Headers
@@ -1047,7 +1058,7 @@ class GenericHandler(tornado.web.RequestHandler):
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
         # The service is external
-        logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
+        logging.info('Forwarding the unhandled request to: %s %s' % (self.request.method, url))
 
         http_verb = getattr(client, self.request.method.lower())
         try:
@@ -1057,19 +1068,18 @@ class GenericHandler(tornado.web.RequestHandler):
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
         except httpx.TimeoutException:
             self.set_status(504)
-            self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
+            self.write('Forwarded request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()
         except httpx.ConnectError:
             self.set_status(502)
             self.write('Name or service not known: %s' % self.fallback_to.rstrip('/'))
             raise NewHTTPError()
 
-        logging.info('Returned back from the redirected request.')
+        logging.debug('Returned back from the forwarded request.')
 
         self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():
             if key.title() in (
-                'Server',
                 'Transfer-Encoding',
                 'Content-Length',
                 'Content-Encoding',
@@ -1083,7 +1093,8 @@ class GenericHandler(tornado.web.RequestHandler):
         self.replica_response = self.build_replica_response()
         self.replica_response.body = resp.content
 
-        self.insert_unhandled_data((self.request, self.replica_response))
+        if not self.is_request_image_like():
+            self.insert_unhandled_data((self.request, self.replica_response))
         raise NewHTTPError()
 
     def insert_unhandled_data(self, row: tuple) -> None:
@@ -1094,3 +1105,9 @@ class GenericHandler(tornado.web.RequestHandler):
         if identifier not in self.unhandled_data.requests[self.service_id]:
             self.unhandled_data.requests[self.service_id][identifier] = []
         self.unhandled_data.requests[self.service_id][identifier].append(row)
+
+    def is_request_image_like(self) -> bool:
+        ext = os.path.splitext(self.request.path)[1]
+        parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+        client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+        return (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS

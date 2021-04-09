@@ -42,8 +42,14 @@ class LogRecord:
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
         self.response = response
-        self.server_ip_address = server_connection.stream.socket.getsockname()[0]
-        self.connection = str(server_connection.stream.socket.getsockname()[1])
+        if server_connection.stream.socket is not None:
+            self.server_ip_address = server_connection.stream.socket.getsockname()[0]
+            self.connection = str(server_connection.stream.socket.getsockname()[1])
+        else:  # pragma: no cover
+            # It branches to here only if there is a proxy in front of Mockintosh
+            # and socket connection is not used.
+            self.server_ip_address = None
+            self.connection = None
 
     def json(self):
         data = {
@@ -63,6 +69,10 @@ class LogRecord:
             'serverIPAddress': self.server_ip_address,
             'connection': self.connection
         }
+
+        data['serverIPAddress'] = self.server_ip_address
+        data['connection'] = self.connection
+
         return data
 
 
