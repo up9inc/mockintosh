@@ -1754,8 +1754,20 @@ class TestManagement():
             assert data == yaml.safe_load(resp.text)
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
-            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
+            text = file.read()
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=text, verify=False)
             assert 204 == resp.status_code
+
+            resp = httpx.get(SRV_8001 + '/__admin/config?format=%s' % _format, headers={'Host': SRV_8001_HOST}, verify=False)
+            assert 200 == resp.status_code
+            if _format == 'yaml':
+                assert resp.headers['Content-Type'] == 'application/x-yaml'
+                data = yaml.safe_load(text)
+                assert data == yaml.safe_load(resp.text)
+            else:
+                assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+                data = json.loads(text)
+                assert data == resp.json()
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
@@ -2413,6 +2425,14 @@ class TestManagement():
         assert 404 == resp.status_code
 
         resp = httpx.get(SRV_8002 + '/service2q?a[]=b&a[]=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        # Image like requests are ignored.
+        resp = httpx.get(SRV_8001 + '/image.png', headers={
+            'Host': SRV_8001_HOST,
+            'User-Agent': 'mockintosh-test',
+            'Content-Type': 'image/png'
+        }, verify=False)
         assert 404 == resp.status_code
 
         resp = httpx.get(MGMT + '/unhandled', verify=False)
@@ -3249,8 +3269,7 @@ class TestManagement():
         resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-        assert resp.headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
-        assert resp.headers['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert resp.headers['Server'] == 'nginx'
         assert resp.headers['X-Content-Type-Options'] == 'nosniff'
         data = resp.json()
 
@@ -3271,8 +3290,7 @@ class TestManagement():
         assert data['services'][0]['endpoints'][0]['method'] == 'GET'
         assert data['services'][0]['endpoints'][0]['response']['status'] == 200
         assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/json; charset=utf-8'
-        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
-        assert data['services'][0]['endpoints'][0]['response']['headers']['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == 'nginx'
         assert data['services'][0]['endpoints'][0]['response']['headers']['X-Content-Type-Options'] == 'nosniff'
         body = json.loads(data['services'][0]['endpoints'][0]['response']['body'])
 
@@ -3357,7 +3375,7 @@ class TestManagement():
         resp = httpx.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST}, timeout=30)
         assert 504 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Redirected request to: GET http://service1.example.com:8001/serviceX is timed out!'
+        assert resp.text == 'Forwarded request to: GET http://service1.example.com:8001/serviceX is timed out!'
 
     @pytest.mark.parametrize(('config'), [
         'configs/fallback_to.json'

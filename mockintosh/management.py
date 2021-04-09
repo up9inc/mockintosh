@@ -20,6 +20,7 @@ from collections import OrderedDict
 from urllib.parse import parse_qs
 
 import yaml
+from yaml.representer import Representer
 import jsonschema
 import tornado.web
 from tornado.util import unicode_type
@@ -51,6 +52,17 @@ UNHANDLED_IGNORED_HEADERS = (
 )
 
 __location__ = os.path.abspath(os.path.dirname(__file__))
+
+
+def str_representer(dumper, data):
+    if "\n" in data.strip():  # pragma: no cover
+        # Check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+yaml.add_representer(str, str_representer)
+yaml.add_representer(OrderedDict, Representer.represent_dict)
 
 
 def _reset_iterators(app):
@@ -315,6 +327,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
             request = requests[-1][0]
             response = requests[-1][1]
+
             config_template = {}
 
             # Path
@@ -350,6 +363,8 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             if response is None:
                 config_template['response'] = ''
             else:
+                response.headers.pop('Content-Length', None)
+
                 config_template['response'] = {
                     'status': response.status,
                     'headers': {},
@@ -926,6 +941,8 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
             return
 
         self.http_server.definition.stats.reset()
+        self.http_server.definition.orig_data['services'][self.service_id] = orig_data
+        self.http_server.definition.data['services'][self.service_id] = data
 
         self.set_status(204)
 

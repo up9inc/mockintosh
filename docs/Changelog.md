@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.2 - 2021-04-07
+
+1. Cleaner config templates from "unhandled" in mgmt API
+2. Fix traffic not logged inside docker-compose setup
+3. Less logging around fallback
+
 ## v0.8.1 - 2021-03-21
 
 1. Fix bug in management UI resource editor
@@ -127,6 +133,11 @@ TODO:
 1. Do not respond with Content-Type=text/html if no content-type header is configured
 
 # Roadmap Ideas
+
+- unhandled requests to not get into traffic log?
+- add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+- upon navigating between mgmt UI tabs, refresh unhandled, stats
+- Tornado has auto-multicpu startup mode, use it optionally  
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - cli argument to set the tag

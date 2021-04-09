@@ -43,7 +43,7 @@ from mockintosh.stats import Stats
 from mockintosh.logs import Logs
 from mockintosh.kafka import KafkaService, KafkaActor, KafkaConsumer, KafkaProducer
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
