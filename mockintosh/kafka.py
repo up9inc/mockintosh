@@ -285,9 +285,6 @@ class KafkaService:
         self.actors = []
         self.id = _id
 
-    def get_actor(self, index: int):
-        return self.actors[index]
-
     def add_actor(self, actor: KafkaActor):
         actor.service = self
         self.actors.append(actor)

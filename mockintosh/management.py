@@ -281,7 +281,7 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         for app in self.http_server._apps.apps:
-            if app is None:
+            if app is None:  # pragma: no cover
                 continue
 
             _reset_iterators(app)
@@ -654,7 +654,7 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
-            if app is None:
+            if app is None:  # pragma: no cover
                 continue
 
             for rule in app.default_router.rules[0].target.rules:
