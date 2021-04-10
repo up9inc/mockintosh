@@ -1164,9 +1164,6 @@ class KafkaHandler(BaseHandler):
         headers: dict = {}
     ):
         super().__init__()
-        self._start_time = time.time()
-        self.request_start_datetime = datetime.fromtimestamp(self._start_time)
-        self.request_start_datetime.replace(tzinfo=timezone.utc)
         self.config_dir = config_dir
         self.definition_engine = template_engine
         self.rendering_queue = rendering_queue
@@ -1240,10 +1237,12 @@ class KafkaHandler(BaseHandler):
         if self.logs is None:
             return
 
-        elapsed_time = time.time() - self._start_time
+        timestamp = datetime.fromtimestamp(time.time())
+        timestamp.replace(tzinfo=timezone.utc)
+
         self.add_log_record(
-            int(round(elapsed_time * 1000)),
-            self.request_start_datetime,
+            0,
+            timestamp,
             None
         )
 
