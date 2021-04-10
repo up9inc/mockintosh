@@ -75,11 +75,6 @@ class KafkaConsumer:
         self.actor = None
         self.log = []
 
-    def json(self):
-        return {
-            'topic': self.topic
-        }
-
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
             self.actor.service.definition.source_dir,
@@ -261,9 +256,6 @@ class KafkaActor:
         if self.name is not None:
             data['name'] = self.name
 
-        if self.consumer is not None:
-            data['consume'] = self.consumer.json()
-
         if self.producer is not None:
             data['produce'] = self.producer.json()
 
@@ -293,11 +285,10 @@ class KafkaService:
 def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
     if actor.limit is None:
         logging.info('Running a Kafka loop indefinitely...')
-        actor.limit = -1
     else:
         logging.info('Running a Kafka loop for %d iterations...' % actor.limit)
 
-    while actor.limit == -1 or actor.limit > 0:
+    while actor.limit is None or actor.limit > 0:
 
         actor.producer.headers = _merge_global_headers(
             definition.data['globals'] if 'globals' in definition.data else {},
@@ -309,7 +300,7 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
         if actor.delay is not None:
             _delay(actor.delay)
 
-        if actor.limit > 1:
+        if actor.limit is not None and actor.limit > 0:
             actor.limit -= 1
 
     logging.info('Kafka loop is finished.')
