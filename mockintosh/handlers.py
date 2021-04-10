@@ -964,7 +964,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
-        self.set_header('X-Mockintosh-Prompt', "Hello, I'm Mockintosh.")  # clear signature that it's mock
+        self.set_header('x-%s-prompt' % PROGRAM.lower(), "Hello, I'm Mockintosh.")  # clear signature that it's mock
         self.set_cors_headers()
 
     async def should_cors(self) -> bool:
@@ -1225,11 +1225,9 @@ class KafkaHandler(BaseHandler):
         value: Union[str, None] = None,
         headers: dict = {}
     ):
-        self.response_body = {
-            'key': key,
-            'value': value
-        }
+        self.response_body = value
         self.response_headers = headers
+        self.response_headers['x-%s-message-key' % PROGRAM.lower()] = key
 
     def finish(self):
         self.replica_response = self.build_replica_response()
