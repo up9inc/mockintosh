@@ -470,7 +470,7 @@
      */
     function clearEditorData(jqNode) {
         // This resolves #38 issue in Codejar
-        if(!!jqNode) jqNode.html('<code></code>');
+        if (!!jqNode) jqNode.html('<code></code>');
     }
 
     function useCodeHighlight(jqNode, text, type) {
@@ -479,6 +479,7 @@
         jqNode.addClass('hljs');
         jqNode.html(highlightedText);
     }
+
     function details(item) {
         $(".traffic-items .selected").removeClass('selected');
         item.addClass('selected');
@@ -492,12 +493,14 @@
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
 
         const label = $(".traffic-details .request .headers .header");
-        $(".traffic-details .request .headers").empty().append(label);
+        const req_hdr_block = $(".traffic-details .request .headers");
+        if (entry.request.headers.length) req_hdr_block.show(); else req_hdr_block.hide();
+        req_hdr_block.empty().append(label);
         let req_ctype = null;
         for (let n = 0; n < entry.request.headers.length; n++) {
             const hdr = entry.request.headers[n];
-            $(".traffic-details .request .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
-            if (hdr.name.toLowerCase() == 'content-type') {
+            req_hdr_block.append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            if (hdr.name.toLowerCase() === 'content-type') {
                 req_ctype = hdr.value;
             }
         }
@@ -526,12 +529,14 @@
         $(".traffic-details .response > span >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
             .text(entry.response.status + " " + entry.response.statusText);
         const rlabel = $(".traffic-details .response .headers .header");
-        $(".traffic-details .response .headers").empty().append(rlabel);
+        const resp_hdr_block = $(".traffic-details .response .headers");
+        if (entry.response.headers.length) resp_hdr_block.show(); else resp_hdr_block.hide();
+        resp_hdr_block.empty().append(rlabel);
         let resp_ctype = null;
         for (let n = 0; n < entry.response.headers.length; n++) {
             const hdr = entry.response.headers[n];
-            $(".traffic-details .response .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
-            if (hdr.name.toLowerCase() == 'content-type') {
+            resp_hdr_block.append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            if (hdr.name.toLowerCase() === 'content-type') {
                 resp_ctype = hdr.value;
             }
         }
@@ -575,13 +580,28 @@
                 let prev = 0;
                 for (; traffic_offset < result.log.entries.length; traffic_offset++) {
                     const entry = result.log.entries[traffic_offset];
+                    const url = new URL(entry.request.url);
                     const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
                     const ts = new Date(entry.startedDateTime);
                     li.append('<span class="small text-muted">+' + timediff(prev ? (ts - prev) : 0) + '</span>');
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
-                    li.append($('<span class="badge">' + entry.response.status + '</span>').addClass("badge-" + status_color(entry.response.status)));
-                    const url = new URL(entry.request.url);
-                    li.append($('<span class="url"></span>').text(url.pathname + url.search));
+
+                    const sbadge = $('<span class="badge"></span>').addClass("badge-" + status_color(entry.response.status));
+                    if (url.protocol === 'kafka:') {
+                        sbadge.append('K');
+
+                    } else {
+                        sbadge.append(entry.response.status);
+                    }
+
+
+                    li.append(sbadge);
+                    const parts = entry.request.url.split('/');
+                    parts.shift();
+                    parts.shift();
+                    parts.shift();
+                    parts.unshift("");
+                    li.append($('<span class="url"></span>').text(parts.join("/")));
 
                     li.click(function () {
                         details($(this));
