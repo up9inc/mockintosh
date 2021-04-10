@@ -3816,6 +3816,8 @@ class TestKafka():
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic1?key=key1'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
             for entry in entries
         )
 
@@ -3823,6 +3825,8 @@ class TestKafka():
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic2'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 200
             for entry in entries
         )
 
@@ -3830,6 +3834,8 @@ class TestKafka():
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic3'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 200
             for entry in entries
         )
 
@@ -3837,6 +3843,8 @@ class TestKafka():
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
             for entry in entries
         )
 
@@ -3844,6 +3852,8 @@ class TestKafka():
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic6'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
             for entry in entries
         )
 
@@ -3851,6 +3861,8 @@ class TestKafka():
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic7?key=key7'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
             for entry in entries
         )
 
@@ -3858,5 +3870,20 @@ class TestKafka():
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
             entry['request']['url'] == 'kafka://localhost:9092/topic8?key=key8'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'].startswith('kafka://localhost:9092/templated-producer?key=prefix-')
+            and  # noqa: W504, W503
+            entry['request']['headers'][-2]['value'].isnumeric()
+            and  # noqa: W504, W503
+            entry['request']['headers'][-1]['value'].startswith('Some text')
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
             for entry in entries
         )

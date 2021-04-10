@@ -1208,11 +1208,13 @@ class KafkaHandler(BaseHandler):
         return rendered
 
     def render_attributes(self):
-        return self._render_attributes(
+        self.key, self.value, self.headers = self._render_attributes(
             self.key,
             self.value,
             self.headers
         )
+        self.replica_request = self.build_replica_request()
+        return self.key, self.value, self.headers
 
     def add_params(self, context):
         return context
