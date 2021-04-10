@@ -3808,6 +3808,7 @@ class TestKafka():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
 
         entries = data['log']['entries']
 

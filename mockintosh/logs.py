@@ -52,8 +52,8 @@ class LogRecord:
         else:  # pragma: no cover
             # It branches to here only if there is a proxy in front of Mockintosh
             # and socket connection is not used.
-            self.server_ip_address = None
-            self.connection = None
+            self.server_ip_address = ''
+            self.connection = ''
 
     def json(self):
         data = {

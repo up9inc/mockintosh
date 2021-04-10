@@ -1285,11 +1285,12 @@ class KafkaHandler(BaseHandler):
     def build_replica_response(self) -> Response:
         """Method that prepares replica `Response` object."""
         response = Response()
+        response.status = 200
 
         if self.response_body is None:
+            response.body = ''
             return response
 
-        response.status = 200
         response.headers = self.response_headers
         response.body = str(self.response_body)
 
