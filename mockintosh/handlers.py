@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import time
 import socket
 import struct
 import traceback
@@ -1162,7 +1163,9 @@ class KafkaHandler(BaseHandler):
         headers: dict = {}
     ):
         super().__init__()
-        self.request_start_datetime = datetime.now()
+        self._start_time = time.time()
+        self.request_start_datetime = datetime.fromtimestamp(self._start_time)
+        self.request_start_datetime.replace(tzinfo=timezone.utc)
         self.config_dir = config_dir
         self.definition_engine = template_engine
         self.rendering_queue = rendering_queue
@@ -1235,9 +1238,9 @@ class KafkaHandler(BaseHandler):
         if self.logs is None:
             return
 
-        elapsed_time = datetime.now() - self.request_start_datetime
+        elapsed_time = time.time() - self._start_time
         self.add_log_record(
-            int(round(elapsed_time.microseconds * 1000)),
+            int(round(elapsed_time * 1000)),
             self.request_start_datetime,
             None
         )
