@@ -3827,6 +3827,10 @@ class TestKafka():
             entry['request']['url'] == 'kafka://localhost:9092/topic2'
             and  # noqa: W504, W503
             entry['response']['status'] == 200
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['value'] == 'key2'
             for entry in entries
         )
 
@@ -3836,6 +3840,10 @@ class TestKafka():
             entry['request']['url'] == 'kafka://localhost:9092/topic3'
             and  # noqa: W504, W503
             entry['response']['status'] == 200
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['value'] == 'key3'
             for entry in entries
         )
 

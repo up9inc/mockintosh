@@ -14,6 +14,7 @@ import time
 import socket
 import struct
 import traceback
+import copy
 from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from typing import (
@@ -1229,8 +1230,9 @@ class KafkaHandler(BaseHandler):
         headers: dict = {}
     ):
         self.response_body = value
-        self.response_headers = headers
-        self.response_headers['x-%s-message-key' % PROGRAM.lower()] = key
+        self.response_headers = copy.deepcopy(headers)
+        if key is not None:
+            self.response_headers['x-%s-message-key' % PROGRAM.lower()] = key
 
     def finish(self):
         self.replica_response = self.build_replica_response()
