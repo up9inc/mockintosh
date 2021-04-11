@@ -19,7 +19,6 @@ from confluent_kafka.cimpl import KafkaException
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
-from mockintosh.templating import RenderingQueue
 
 
 def _kafka_delivery_report(err, msg):
@@ -29,10 +28,10 @@ def _kafka_delivery_report(err, msg):
         logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
 
 
-def _create_topic(address: str, queue: str):
+def _create_topic(address: str, topic: str):
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
-    new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in [queue]]
+    new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1)]
     futures = admin_client.create_topics(new_topics)
 
     for topic, future in futures.items():
@@ -57,199 +56,265 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _merge_global_headers(_globals, produce_data):
+def _merge_global_headers(_globals, kafka_producer):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
-    produce_data_headers = produce_data.get('headers', {})
+    produce_data_headers = kafka_producer.headers
     headers.update(produce_data_headers)
     return headers
 
 
-def produce(
-    address: str,
-    queue: str,
-    key: Union[str, None],
-    value: str,
-    headers: dict,
-    config_dir: [str, None],
-    template_engine: str,
-    rendering_queue: RenderingQueue,
-    delay: int = 0,
-    consumed: Consumed = None
-) -> None:
-    _delay(delay)
+class KafkaConsumer:
 
-    _create_topic(address, queue)
+    def __init__(
+        self,
+        topic: str
+    ):
+        self.topic = topic
+        self.actor = None
+        self.log = []
 
-    # Templating
-    kafka_handler = KafkaHandler(
-        config_dir,
-        template_engine,
-        rendering_queue
-    )
-    if consumed is not None:
-        kafka_handler.custom_context = {
-            'consumed': consumed
-        }
-    key, value, headers = kafka_handler.render_attributes(key, value, headers)
+    def consume(self, stop: dict = {}) -> None:
+        kafka_handler = KafkaHandler(
+            self.actor.service.definition.source_dir,
+            self.actor.service.definition.template_engine,
+            self.actor.service.definition.rendering_queue,
+            self.actor.service.definition.logs,
+            self.actor.service.address,
+            self.topic,
+            False,
+            service_id=self.actor.service.id
+        )
 
-    # Producing
-    producer = Producer({'bootstrap.servers': address})
-    producer.poll(0)
-    producer.produce(queue, value, key=key, headers=headers, callback=_kafka_delivery_report)
-    producer.flush()
+        _create_topic(self.actor.service.address, self.topic)
 
-    logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-        address,
-        queue,
-        key,
-        value,
-        headers
-    ))
+        if self.actor is not None:
+            self.log = []
+
+        consumer = Consumer({
+            'bootstrap.servers': self.actor.service.address,
+            'group.id': '0',
+            'auto.offset.reset': 'earliest'
+        })
+        consumer.subscribe([self.actor.consumer.topic])
+
+        while True:
+            if stop.get('val', False):  # pragma: no cover
+                break
+
+            msg = consumer.poll(1.0)
+
+            if msg is None:
+                continue
+
+            if msg.error():  # pragma: no cover
+                logging.warning("Consumer error: {}".format(msg.error()))
+                continue
+
+            key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
+
+            logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                self.actor.service.address,
+                self.actor.consumer.topic,
+                key,
+                value,
+                headers
+            ))
+
+            self.log.append(
+                (key, value, headers)
+            )
+
+            kafka_handler.set_response(
+                key=key, value=value, headers=headers
+            )
+
+            kafka_handler.finish()
+
+            if self.actor.producer is not None:
+                consumed = Consumed()
+                consumed.key = key
+                consumed.value = value
+                consumed.headers = headers
+
+                t = threading.Thread(target=self.actor.producer.produce, args=(), kwargs={
+                    'consumed': consumed
+                })
+                t.daemon = True
+                t.start()
 
 
-def consume(
-    address: str,
-    queue: str,
-    produce_data: dict = None,
-    definition=None,
-    service_id: int = None,
-    actor_id: int = None,
-    log: Union[None, list] = None,
-    delay: int = 0,
-    stop: dict = {}
-) -> None:
-    _create_topic(address, queue)
+class KafkaProducer:
+    def __init__(
+        self,
+        topic: str,
+        value: str,
+        key: Union[str, None] = None,
+        headers: dict = {}
+    ):
+        self.topic = topic
+        self.value = value
+        self.key = key
+        self.headers = headers
+        self.actor = None
 
-    if definition is not None:
-        definition.data['kafka_services'][service_id]['actors'][actor_id]['log'] = []
+    def produce(self, consumed: Consumed = None) -> None:
+        kafka_handler = KafkaHandler(
+            self.actor.service.definition.source_dir,
+            self.actor.service.definition.template_engine,
+            self.actor.service.definition.rendering_queue,
+            self.actor.service.definition.logs,
+            self.actor.service.address,
+            self.topic,
+            True,
+            service_id=self.actor.service.id,
+            value=self.value,
+            key=self.key,
+            headers=self.headers
+        )
 
-    consumer = Consumer({
-        'bootstrap.servers': address,
-        'group.id': '0',
-        'auto.offset.reset': 'earliest'
-    })
-    consumer.subscribe([queue])
+        if self.actor.delay is not None:
+            _delay(self.actor.delay)
 
-    while True:
-        if stop.get('val', False):  # pragma: no cover
-            break
+        _create_topic(self.actor.service.address, self.topic)
 
-        msg = consumer.poll(1.0)
+        definition = self.actor.service.definition
+        if definition is not None:
+            kafka_handler.headers = _merge_global_headers(
+                definition.data['globals'] if 'globals' in definition.data else {},
+                self
+            )
 
-        if msg is None:
-            continue
+        if consumed is not None:
+            kafka_handler.custom_context = {
+                'consumed': consumed
+            }
 
-        if msg.error():  # pragma: no cover
-            logging.warning("Consumer error: {}".format(msg.error()))
-            continue
+        # Templating
+        key, value, headers = kafka_handler.render_attributes()
 
-        key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
+        # Producing
+        producer = Producer({'bootstrap.servers': self.actor.service.address})
+        producer.poll(0)
+        producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
+        producer.flush()
 
-        logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-            address,
-            queue,
+        logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            self.actor.service.address,
+            self.topic,
             key,
             value,
             headers
         ))
 
-        if definition is not None:
-            definition.data['kafka_services'][service_id]['actors'][actor_id]['log'].append(
-                (key, value, headers)
-            )
+        kafka_handler.finish()
 
-        if log is not None:  # pragma: no cover
-            log.append(
-                (key, value, headers)
-            )
+    def json(self):
+        data = {
+            'queue': self.topic,
+            'value': self.value,
+        }
 
-        if produce_data is not None:
-            consumed = Consumed()
-            consumed.key = key
-            consumed.value = value
-            consumed.headers = headers
+        if self.key is not None:
+            data['key'] = self.key
 
-            produce_headers = {}
-            if definition is not None:
-                produce_headers = _merge_global_headers(
-                    definition.data['globals'] if 'globals' in definition.data else {},
-                    produce_data
-                )
+        if self.headers:
+            data['headers'] = self.headers
 
-            t = threading.Thread(target=produce, args=(
-                address,
-                produce_data.get('queue'),
-                produce_data.get('key', None),
-                produce_data.get('value'),
-                produce_headers,
-                definition.source_dir,
-                definition.template_engine,
-                definition.rendering_queue
-            ), kwargs={
-                'delay': delay,
-                'consumed': consumed
-            })
-            t.daemon = True
-            t.start()
+        return data
 
 
-def _run_produce_loop(definition, service_id: int, service: dict, actor_id: int, actor: dict):
-    if 'limit' not in actor:
+class KafkaActor:
+
+    def __init__(self, name: str = None):
+        self.name = name
+        self.counters = {}
+        self.consumer = None
+        self.producer = None
+        self.delay = None
+        self.limit = None
+        self.service = None
+
+    def set_consumer(self, consumer: KafkaConsumer):
+        self.consumer = consumer
+        self.consumer.actor = self
+
+    def set_producer(self, producer: KafkaProducer):
+        self.producer = producer
+        self.producer.actor = self
+
+    def set_delay(self, value: Union[int, float]):
+        self.delay = value
+
+    def set_limit(self, value: int):
+        self.limit = value
+
+    def json(self):
+        data = {}
+
+        if self.name is not None:
+            data['name'] = self.name
+
+        if self.producer is not None:
+            data['produce'] = self.producer.json()
+
+        if self.delay is not None:
+            data['delay'] = self.delay
+
+        if self.limit is not None:
+            data['limit'] = self.limit
+
+        return data
+
+
+class KafkaService:
+
+    def __init__(self, address: str, name: str = None, definition=None, _id: int = None):
+        self.address = address
+        self.name = name
+        self.definition = definition
+        self.actors = []
+        self.id = _id
+
+    def add_actor(self, actor: KafkaActor):
+        actor.service = self
+        self.actors.append(actor)
+
+
+def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
+    if actor.limit is None:
         logging.info('Running a Kafka loop indefinitely...')
-        actor['limit'] = -1
     else:
-        logging.info('Running a Kafka loop for %d iterations...' % actor['limit'])
+        logging.info('Running a Kafka loop for %d iterations...' % actor.limit)
 
-    while actor['limit'] == -1 or actor['limit'] > 0:
-        produce_data = actor['produce']
+    while actor.limit is None or actor.limit > 0:
 
-        produce_headers = _merge_global_headers(
+        actor.producer.headers = _merge_global_headers(
             definition.data['globals'] if 'globals' in definition.data else {},
-            produce_data
+            actor.producer
         )
 
-        produce(
-            service.get('address'),
-            produce_data.get('queue'),
-            produce_data.get('key', None),
-            produce_data.get('value'),
-            produce_headers,
-            definition.source_dir,
-            definition.template_engine,
-            definition.rendering_queue
-        )
+        actor.producer.produce()
 
-        _delay(int(actor['delay']))
+        if actor.delay is not None:
+            _delay(actor.delay)
 
-        if actor['limit'] > 1:
-            actor['limit'] -= 1
-            definition.data['kafka_services'][service_id]['actors'][actor_id]['limit'] -= 1
+        if actor.limit is not None and actor.limit > 0:
+            actor.limit -= 1
 
     logging.info('Kafka loop is finished.')
 
 
 def run_loops(definition):
     for service_id, service in enumerate(definition.data['kafka_services']):
-        for actor_id, actor in enumerate(service['actors']):
-            if 'consume' not in actor and 'produce' in actor and 'delay' in actor:
-                t = threading.Thread(target=_run_produce_loop, args=(definition, service_id, service, actor_id, actor))
+        for actor_id, actor in enumerate(service.actors):
+            if actor.consumer is None and actor.producer is not None and actor.delay is not None:
+                t = threading.Thread(target=_run_produce_loop, args=(definition, service, actor), kwargs={})
                 t.daemon = True
                 t.start()
 
-            if 'consume' in actor:
-                consume_data = actor['consume']
-                produce_data = None if 'produce' not in actor else actor['produce']
-                t = threading.Thread(target=consume, args=(
-                    service.get('address'),
-                    consume_data.get('queue')
-                ), kwargs={
-                    'produce_data': produce_data,
-                    'definition': definition,
-                    'service_id': service_id,
-                    'actor_id': actor_id,
-                    'delay': int(actor['delay']) if 'delay' in actor else 0
-                })
+            if actor.consumer is not None:
+                t = threading.Thread(target=actor.consumer.consume, args=(), kwargs={})
                 t.daemon = True
                 t.start()

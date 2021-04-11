@@ -146,7 +146,7 @@ class Response:
 
         return {
             "status": self.status,
-            "statusText": responses[self.status],
+            "statusText": None if self.status is None else responses[self.status],
             "httpVersion": "HTTP/1.1",
             "cookies": [],
             "headers": headers,

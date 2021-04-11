@@ -6,6 +6,10 @@
     :synopsis: module that contains logging related classes.
 """
 
+from typing import (
+    Union
+)
+
 from tornado.http1connection import HTTP1ServerConnection
 
 import mockintosh
@@ -35,21 +39,21 @@ class LogRecord:
         elapsed_time_in_milliseconds: int,
         request: Request,
         response: Response,
-        server_connection: HTTP1ServerConnection
+        server_connection: Union[HTTP1ServerConnection, None]
     ):
         self.service_name = service_name
         self.request_start_time = request_start_time
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
         self.response = response
-        if server_connection.stream.socket is not None:
+        if server_connection is not None and server_connection.stream.socket is not None:
             self.server_ip_address = server_connection.stream.socket.getsockname()[0]
             self.connection = str(server_connection.stream.socket.getsockname()[1])
-        else:  # pragma: no cover
+        else:
             # It branches to here only if there is a proxy in front of Mockintosh
-            # and socket connection is not used.
-            self.server_ip_address = None
-            self.connection = None
+            # and socket connection is not used or the log comes from a non-HTTP service.
+            self.server_ip_address = ''
+            self.connection = ''
 
     def json(self):
         data = {

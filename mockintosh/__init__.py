@@ -39,12 +39,18 @@ from mockintosh.recognizers import (
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
 from mockintosh.templating import RenderingQueue, RenderingJob
+from mockintosh.stats import Stats
+from mockintosh.logs import Logs
+from mockintosh.kafka import KafkaService, KafkaActor, KafkaConsumer, KafkaProducer
 
 __version__ = "0.8.2"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
 cov_no_run = environ.get('COVERAGE_NO_RUN', False)
+
+stats = Stats()
+logs = Logs()
 
 
 class Definition():
@@ -62,7 +68,9 @@ class Definition():
         for service in self.data['services']:
             service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
-        self.data = Definition.analyze(self.data, self.template_engine, self.rendering_queue)
+        self.stats = stats
+        self.logs = logs
+        self.data = self.analyze(self.data)
 
     def load(self):
         if self.source_text is None:
@@ -85,8 +93,7 @@ class Definition():
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    @staticmethod
-    def analyze(data, template_engine, rendering_queue: RenderingQueue):
+    def analyze(self, data):
         if 'performanceProfiles' in data:
             for key, performance_profile in data['performanceProfiles'].items():
                 ratio = performance_profile.get('ratio')
@@ -101,13 +108,39 @@ class Definition():
             global_performance_profile = data['globals'].get('performanceProfile', None)
 
         data['kafka_services'] = []
-        for service in data['services']:
+        for i, service in enumerate(data['services']):
+            data['services'][i]['internalServiceId'] = i
+            self.logs.add_service(service.get('name', ''))
+
             if 'type' in service:
                 if service['type'] == 'kafka':
-                    for i, actor in enumerate(service['actors']):
-                        if 'counters' not in actor:
-                            service['actors'][i]['counters'] = {}
-                    data['kafka_services'].append(service)
+                    kafka_service = KafkaService(
+                        service['address'],
+                        name=service.get('name', None),
+                        definition=self,
+                        _id=i
+                    )
+                    data['kafka_services'].append(kafka_service)
+
+                    for actor in service['actors']:
+                        kafka_actor = KafkaActor(actor.get('name', None))
+                        kafka_service.add_actor(kafka_actor)
+
+                        if 'consume' in actor:
+                            kafka_consumer = KafkaConsumer(actor['consume']['queue'])
+                            kafka_actor.set_consumer(kafka_consumer)
+                        if 'delay' in actor:
+                            kafka_actor.set_delay(actor['delay'])
+                        if 'produce' in actor:
+                            kafka_producer = KafkaProducer(
+                                actor['produce']['queue'],
+                                actor['produce']['value'],
+                                key=actor['produce'].get('key', None),
+                                headers=actor['produce'].get('headers', {})
+                            )
+                            kafka_actor.set_producer(kafka_producer)
+                        if 'limit' in actor:
+                            kafka_actor.set_limit(actor['limit'])
 
                 if service['type'] != 'http':
                     continue
@@ -116,8 +149,8 @@ class Definition():
                 continue
             service = Definition.analyze_service(
                 service,
-                template_engine,
-                rendering_queue,
+                self.template_engine,
+                self.rendering_queue,
                 performance_profiles=data['performanceProfiles'],
                 global_performance_profile=global_performance_profile
             )

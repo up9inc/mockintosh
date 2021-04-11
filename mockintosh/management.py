@@ -30,7 +30,6 @@ import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import RestrictedFieldError
-from mockintosh import kafka
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -129,12 +128,8 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if not self.validate(data):
             return
 
-        data = mockintosh.Definition.analyze(
-            data,
-            self.http_server.definition.template_engine,
-            self.http_server.definition.rendering_queue
-        )
-        self.http_server.stats.services = []
+        data = self.http_server.definition.analyze(data)
+        self.http_server.definition.stats.services = []
         for service in data['services']:
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
@@ -146,7 +141,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 service['port'],
                 ' - %s' % service['name'] if 'name' in service else ''
             )
-            self.http_server.stats.add_service(hint)
+            self.http_server.definition.stats.add_service(hint)
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
@@ -155,7 +150,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.update_service(service, i):
                 return
 
-        self.http_server.stats.reset()
+        self.http_server.definition.stats.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
@@ -175,14 +170,14 @@ class ManagementConfigHandler(ManagementBaseHandler):
     def _update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
-        self.http_server.stats.services[service_index].endpoints = []
-        self.http_server.logs.services[service_index].name = service['name'] if 'name' in service else ''
+        self.http_server.definition.stats.services[service_index].endpoints = []
+        self.http_server.definition.logs.services[service_index].name = service['name'] if 'name' in service else ''
 
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(
                 service,
-                self.http_server.stats,
-                self.http_server.logs
+                self.http_server.definition.stats,
+                self.http_server.definition.logs
             )
         merged_endpoints = []
         for endpoint in endpoints:
@@ -286,6 +281,9 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         for app in self.http_server._apps.apps:
+            if app is None:  # pragma: no cover
+                continue
+
             _reset_iterators(app)
         self.set_status(204)
 
@@ -656,6 +654,9 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
+            if app is None:  # pragma: no cover
+                continue
+
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     data['tags'].append(rule.target_kwargs['tag'])
@@ -945,7 +946,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         if not self.update_service(data, self.service_id):
             return
 
-        self.http_server.stats.reset()
+        self.http_server.definition.stats.reset()
         self.http_server.definition.orig_data['services'][self.service_id] = orig_data
         self.http_server.definition.data['services'][self.service_id] = data
 
@@ -1091,21 +1092,21 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 return
 
             try:
-                actor = service['actors'][actor_id]
+                actor = service.actors[actor_id]
             except IndexError:
                 self.set_status(400)
                 self.write('Actor not found!')
                 return
 
-            if 'consume' not in actor:
+            if actor.consumer is None:
                 self.set_status(400)
                 self.write('This actor is not a consumer!')
                 return
             else:
-                data['queue'] = actor['consume']['queue']
+                data['queue'] = actor.consumer.topic
 
-            if 'log' in actor:
-                rows = actor['log']
+            if actor.consumer.log is not None:
+                rows = actor.consumer.log
                 for row in rows:
                     data['log'].append(
                         {
@@ -1123,13 +1124,11 @@ class ManagementAsyncHandler(ManagementBaseHandler):
 
             services = self.http_server.definition.data['kafka_services']
             for i, service in enumerate(services):
-                filtered_actors = []
-                for actor in service['actors']:
-                    filtered_actors.append({k: v for k, v in actor.items() if k not in ('log')})
+                filtered_actors = [actor.json() for actor in service.actors if actor.consumer is None]
                 data['services'].append(
                     {
-                        'name': service['name'],
-                        'address': service['address'],
+                        'name': service.name,
+                        'address': service.address,
                         'actors': filtered_actors
                     }
                 )
@@ -1153,21 +1152,13 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             no_match = True
             services = self.http_server.definition.data['kafka_services']
             for service_id, service in enumerate(services):
-                for actor_id, actor in enumerate(service['actors']):
-                    if 'name' in actor:
-                        match = re.search(actor_regex, actor['name'])
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name is not None:
+                        match = re.search(actor_regex, actor.name)
                         if match is not None:
-                            if 'produce' not in actor:
+                            if actor.producer is None:
                                 continue
-                            t = threading.Thread(target=self._produce, args=(
-                                service_id,
-                                service,
-                                actor_id,
-                                actor,
-                                self.http_server.definition.source_dir,
-                                self.http_server.definition.template_engine,
-                                self.http_server.definition.rendering_queue
-                            ))
+                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
                             t.daemon = True
                             t.start()
                             no_match = False
@@ -1180,6 +1171,10 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             service_id, actor_id = args
             service_id = int(service_id)
             actor_id = int(actor_id)
+
+            service = None
+            actor = None
+
             try:
                 service = self.http_server.definition.data['kafka_services'][service_id]
             except IndexError:
@@ -1188,59 +1183,17 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                 return
 
             try:
-                actor = service['actors'][actor_id]
+                actor = service.actors[actor_id]
             except IndexError:
                 self.set_status(400)
                 self.write('Actor not found!')
                 return
 
-            if 'produce' not in actor:
+            if actor.producer is None:
                 self.set_status(400)
                 self.write('This actor is not a producer!')
                 return
 
-            service_id = int(service_id)
-            actor_id = int(actor_id)
-            service = self.http_server.definition.data['kafka_services'][service_id]
-            actor = service['actors'][actor_id]
-
-            t = threading.Thread(target=self._produce, args=(
-                service_id,
-                service,
-                actor_id,
-                actor,
-                self.http_server.definition.source_dir,
-                self.http_server.definition.template_engine,
-                self.http_server.definition.rendering_queue
-            ))
+            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
             t.daemon = True
             t.start()
-
-    def _produce(
-        self,
-        service_id,
-        service,
-        actor_id,
-        actor,
-        source_dir,
-        template_engine,
-        rendering_queue
-    ):
-        # Producing
-        produce_data = actor['produce']
-
-        produce_headers = kafka._merge_global_headers(
-            self.http_server.globals,
-            produce_data
-        )
-
-        kafka.produce(
-            service.get('address'),
-            produce_data.get('queue'),
-            produce_data.get('key', None),
-            produce_data.get('value'),
-            produce_headers,
-            source_dir,
-            template_engine,
-            rendering_queue
-        )
