@@ -20,7 +20,6 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
-from mockintosh.logs import Logs
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -43,11 +42,10 @@ from mockintosh.management import (
     ManagementServiceTagHandler,
     UnhandledData
 )
+from mockintosh.logs import Logs
 from mockintosh.stats import Stats
 from mockintosh import kafka
 
-stats = Stats()
-logs = Logs()
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -103,8 +101,6 @@ class HttpServer:
         self.services_list = services_list
         self.services_log = []
         self._apps = _Apps()
-        self.stats = stats
-        self.logs = logs
         self.unhandled_data = UnhandledData()
         self.load()
 
@@ -112,24 +108,22 @@ class HttpServer:
         port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
 
         services = self.definition.data['services']
-        service_id_counter = 0
+        self._apps.apps = len(services) * [None]
+        self._apps.listeners = len(services) * [None]
         for service in services:
+            self.unhandled_data.requests.append({})
             if 'type' in service and service['type'] != 'http':
                 continue
 
-            service['internalServiceId'] = service_id_counter
-            service_id_counter += 1
-
-            self.unhandled_data.requests.append({})
-            hint = '%s:%s%s' % (
+            hint = '%s://%s:%s%s' % (
+                'https' if service.get('ssl', False) else 'http',
                 service['hostname'] if 'hostname' in service else (
                     self.address if self.address else 'localhost'
                 ),
                 service['port'],
                 ' - %s' % service['name'] if 'name' in service else ''
             )
-            self.stats.add_service(hint)
-            self.logs.add_service(service['name'] if 'name' in service else '')
+            self.definition.stats.add_service(hint)
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
@@ -174,20 +168,18 @@ class HttpServer:
 
                 endpoints = []
                 if 'endpoints' in service:
-                    endpoints = HttpServer.merge_alternatives(service, self.stats, self.logs)
+                    endpoints = HttpServer.merge_alternatives(service, self.definition.stats, self.definition.logs)
 
                 management_root = None
                 if 'managementRoot' in service:
                     management_root = service['managementRoot']
 
                 app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-                self._apps.apps.append(app)
-                self._apps.listeners.append(
-                    _Listener(
-                        service['hostname'] if 'hostname' in service else None,
-                        service['port'],
-                        self.address if self.address else 'localhost'
-                    )
+                self._apps.apps[service['internalServiceId']] = app
+                self._apps.listeners[service['internalServiceId']] = _Listener(
+                    service['hostname'] if 'hostname' in service else None,
+                    service['port'],
+                    self.address if self.address else 'localhost'
                 )
 
                 if 'hostname' not in service:
@@ -304,8 +296,6 @@ class HttpServer:
                     definition_engine=self.definition.template_engine,
                     rendering_queue=self.definition.rendering_queue,
                     interceptors=self.interceptors,
-                    stats=self.stats,
-                    logs=self.logs,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
                     tag=None
@@ -343,7 +333,7 @@ class HttpServer:
                     '/%s/stats' % management_root,
                     ManagementServiceStatsHandler,
                     dict(
-                        stats=stats,
+                        stats=self.definition.stats,
                         service_id=service['internalServiceId']
                     )
                 ),
@@ -351,7 +341,7 @@ class HttpServer:
                     '/%s/traffic-log' % management_root,
                     ManagementServiceLogsHandler,
                     dict(
-                        logs=logs,
+                        logs=self.definition.logs,
                         service_id=service['internalServiceId']
                     )
                 ),
@@ -454,14 +444,14 @@ class HttpServer:
                     '/stats',
                     ManagementStatsHandler,
                     dict(
-                        stats=stats
+                        stats=self.definition.stats
                     )
                 ),
                 (
                     '/traffic-log',
                     ManagementLogsHandler,
                     dict(
-                        logs=logs
+                        logs=self.definition.logs
                     )
                 ),
                 (

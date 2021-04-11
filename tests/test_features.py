@@ -75,6 +75,15 @@ HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonsch
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 
 
+class DefinitionMockForKafka():
+    def __init__(self, source_dir, template_engine, rendering_queue):
+        self.source_dir = source_dir
+        self.template_engine = template_engine
+        self.rendering_queue = rendering_queue
+        self.data = {}
+        self.logs = None
+
+
 @pytest.mark.parametrize(('config'), configs)
 class TestCommon:
 
@@ -1745,8 +1754,20 @@ class TestManagement():
             assert data == yaml.safe_load(resp.text)
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
-            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=file.read(), verify=False)
+            text = file.read()
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=text, verify=False)
             assert 204 == resp.status_code
+
+            resp = httpx.get(SRV_8001 + '/__admin/config?format=%s' % _format, headers={'Host': SRV_8001_HOST}, verify=False)
+            assert 200 == resp.status_code
+            if _format == 'yaml':
+                assert resp.headers['Content-Type'] == 'application/x-yaml'
+                data = yaml.safe_load(text)
+                assert data == yaml.safe_load(resp.text)
+            else:
+                assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+                data = json.loads(text)
+                assert data == resp.json()
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
@@ -1867,7 +1888,7 @@ class TestManagement():
             assert data['global']['request_counter'] == 0
             assert data['global']['avg_resp_time'] == 0
             assert data['global']['status_code_distribution'] == {}
-            assert data['services'][0]['hint'] == 'service1.example.com:8001 - Mock for Service1'
+            assert data['services'][0]['hint'] == 'http://service1.example.com:8001 - Mock for Service1'
             assert data['services'][0]['request_counter'] == 0
             assert data['services'][0]['avg_resp_time'] == 0
             assert data['services'][0]['status_code_distribution'] == {}
@@ -1879,7 +1900,7 @@ class TestManagement():
             assert data['services'][0]['endpoints'][1]['request_counter'] == 0
             assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
             assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {}
-            assert data['services'][1]['hint'] == 'service2.example.com:8002 - Mock for Service2'
+            assert data['services'][1]['hint'] == 'http://service2.example.com:8002 - Mock for Service2'
             assert data['services'][1]['request_counter'] == 0
             assert data['services'][1]['avg_resp_time'] == 0
             assert data['services'][1]['status_code_distribution'] == {}
@@ -2404,6 +2425,14 @@ class TestManagement():
         assert 404 == resp.status_code
 
         resp = httpx.get(SRV_8002 + '/service2q?a[]=b&a[]=c', headers={'Host': SRV_8002_HOST, 'User-Agent': 'mockintosh-test'}, verify=False)
+        assert 404 == resp.status_code
+
+        # Image like requests are ignored.
+        resp = httpx.get(SRV_8001 + '/image.png', headers={
+            'Host': SRV_8001_HOST,
+            'User-Agent': 'mockintosh-test',
+            'Content-Type': 'image/png'
+        }, verify=False)
         assert 404 == resp.status_code
 
         resp = httpx.get(MGMT + '/unhandled', verify=False)
@@ -3240,8 +3269,7 @@ class TestManagement():
         resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-        assert resp.headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
-        assert resp.headers['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert resp.headers['Server'] == 'nginx'
         assert resp.headers['X-Content-Type-Options'] == 'nosniff'
         data = resp.json()
 
@@ -3262,8 +3290,7 @@ class TestManagement():
         assert data['services'][0]['endpoints'][0]['method'] == 'GET'
         assert data['services'][0]['endpoints'][0]['response']['status'] == 200
         assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/json; charset=utf-8'
-        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
-        assert data['services'][0]['endpoints'][0]['response']['headers']['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == 'nginx'
         assert data['services'][0]['endpoints'][0]['response']['headers']['X-Content-Type-Options'] == 'nosniff'
         body = json.loads(data['services'][0]['endpoints'][0]['response']['body'])
 
@@ -3348,7 +3375,7 @@ class TestManagement():
         resp = httpx.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST}, timeout=30)
         assert 504 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Redirected request to: GET http://service1.example.com:8001/serviceX is timed out!'
+        assert resp.text == 'Forwarded request to: GET http://service1.example.com:8001/serviceX is timed out!'
 
     @pytest.mark.parametrize(('config'), [
         'configs/fallback_to.json'
@@ -3433,6 +3460,9 @@ class TestKafka():
         )
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
+        resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
+        assert 204 == resp.status_code
+
     @classmethod
     def teardown_class(cls):
         TestKafka.mock_server_process.kill()
@@ -3473,17 +3503,20 @@ class TestKafka():
         headers = {'hdr2': 'val2'}
 
         queue, job = start_render_queue()
-        kafka.produce(
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            'topic2',
-            key,
-            value,
-            headers,
-            None,
-            PYBARS,
-            queue
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        job.kill()
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value,
+            key=key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3492,6 +3525,7 @@ class TestKafka():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
+        job.kill()
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_get_kafka_produce_consume_loop(self):
@@ -3518,17 +3552,20 @@ class TestKafka():
         headers = {}
 
         queue, job = start_render_queue()
-        kafka.produce(
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            'topic10',
-            key,
-            value,
-            headers,
-            None,
-            JINJA,
-            queue
+            definition=DefinitionMockForKafka(None, JINJA, queue)
         )
-        job.kill()
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.KafkaProducer(
+            'topic10',
+            value,
+            key=key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3537,6 +3574,7 @@ class TestKafka():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
+        job.kill()
         assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
 
     def test_get_kafka_bad_requests(self):
@@ -3565,12 +3603,16 @@ class TestKafka():
         }
 
         stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            'topic1'
-        ), kwargs={
-            'log': log,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('topic1')
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3585,7 +3627,8 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+        job.kill()
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
     def test_post_kafka_produce_by_actor_name(self):
         key = None
@@ -3596,12 +3639,16 @@ class TestKafka():
         }
 
         stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            'topic6'
-        ), kwargs={
-            'log': log,
+            definition=DefinitionMockForKafka(None, JINJA, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('topic6')
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3616,7 +3663,8 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in log)
+        job.kill()
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
     def test_post_kafka_reactive_consumer(self):
         producer_topic = 'topic4'
@@ -3634,12 +3682,16 @@ class TestKafka():
         }
 
         stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            consumer_topic
-        ), kwargs={
-            'log': log,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer(consumer_topic)
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3647,23 +3699,26 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        queue, job = start_render_queue()
-        kafka.produce(
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            producer_topic,
-            producer_key,
-            producer_value,
-            producer_headers,
-            None,
-            PYBARS,
-            queue
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        job.kill()
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.KafkaProducer(
+            producer_topic,
+            producer_value,
+            key=producer_key,
+            headers=producer_headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
         stop['val'] = True
         t.join()
+        job.kill()
         assert any(
             (row[0] == consumer_key)
             and  # noqa: W504, W503
@@ -3675,7 +3730,7 @@ class TestKafka():
             ))
             and  # noqa: W504, W503
             (row[2] == consumer_headers)
-            for row in log
+            for row in kafka_consumer.log
         )
 
     def test_post_kafka_bad_requests(self):
@@ -3702,12 +3757,16 @@ class TestKafka():
 
     def test_post_kafka_producer_templated(self):
         stop = {'val': False}
-        log = []
-        t = threading.Thread(target=kafka.consume, args=(
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            'templated-producer'
-        ), kwargs={
-            'log': log,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor()
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('templated-producer')
+        kafka_actor.set_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3725,6 +3784,7 @@ class TestKafka():
 
         stop['val'] = True
         t.join()
+        job.kill()
         for i in range(2):
             assert any(
                 (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
@@ -3740,5 +3800,98 @@ class TestKafka():
                 (int(row[2]['counter']) == i + 1)
                 and  # noqa: W504, W503
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
-                for row in log
+                for row in kafka_consumer.log
             )
+
+    def test_traffic_log_kafka(self):
+        resp = httpx.get(MGMT + '/traffic-log', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+
+        entries = data['log']['entries']
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic1?key=key1'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'GET'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic2'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 200
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['value'] == 'key2'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'GET'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic3'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 200
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+            and  # noqa: W504, W503
+            entry['response']['headers'][-1]['value'] == 'key3'
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic6'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic7?key=key7'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == 'kafka://localhost:9092/topic8?key=key8'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'].startswith('kafka://localhost:9092/templated-producer?key=prefix-')
+            and  # noqa: W504, W503
+            entry['request']['headers'][-2]['value'].isnumeric()
+            and  # noqa: W504, W503
+            entry['request']['headers'][-1]['value'].startswith('Some text')
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )

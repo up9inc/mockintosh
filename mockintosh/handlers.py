@@ -10,9 +10,11 @@ import json
 import logging
 import os
 import re
+import time
 import socket
 import struct
 import traceback
+import copy
 from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from typing import (
@@ -27,6 +29,7 @@ import jsonschema
 import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
+from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -41,7 +44,6 @@ from mockintosh.params import (
     BodyUrlencodedParam,
     BodyMultipartParam
 )
-from mockintosh.stats import Stats
 from mockintosh.logs import Logs, LogRecord
 from mockintosh.templating import TemplateRenderer, RenderingQueue
 
@@ -105,6 +107,8 @@ class BaseHandler:
     def __init__(self):
         self.custom_context = {}
         self.counters = counters
+        self.replica_request = None
+        self.replica_response = None
 
     def resolve_relative_path(self, source_text: str) -> Tuple[str, str]:
         """Method to resolve the relative path (relative to the config file)."""
@@ -158,6 +162,27 @@ class BaseHandler:
     def add_params(self, context: [None, dict]) -> [None, dict]:
         raise NotImplementedError
 
+    def add_log_record(
+        self,
+        elapsed_time_in_milliseconds: int,
+        request_start_datetime: datetime,
+        server_connection: Union[HTTP1ServerConnection, None]
+    ) -> None:
+        """Method that creates a log record and inserts it to log tracking system."""
+        if not self.logs.services[self.service_id].is_enabled():
+            logging.debug('Not logging the request because logging is disabled.')
+            return
+
+        log_record = LogRecord(
+            self.logs.services[self.service_id].name,
+            request_start_datetime,
+            elapsed_time_in_milliseconds,
+            self.replica_request,
+            self.replica_response,
+            server_connection
+        )
+        self.logs.services[self.service_id].add_record(log_record)
+
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     """Class to handle all mocked requests."""
@@ -170,7 +195,13 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     def on_finish(self) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         elapsed_time = self.request.request_time()
-        self.add_log_record(int(round(elapsed_time * 1000)))
+        request_start_datetime = datetime.fromtimestamp(self.request._start_time)
+        request_start_datetime.replace(tzinfo=timezone.utc)
+        self.add_log_record(
+            int(round(elapsed_time * 1000)),
+            request_start_datetime,
+            self.request.server_connection
+        )
         if self.get_status() != 500 and not self.is_options and self.methods is not None:
             if self.get_status() != 405:
                 self.set_elapsed_time(elapsed_time)
@@ -187,7 +218,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         super().write(chunk)
-        if hasattr(self, 'replica_response'):
+        if self.replica_response is not None:
             self.replica_response.bodySize = len(b"".join(self._write_buffer))
 
     def set_elapsed_time(self, elapsed_time_in_seconds: float) -> None:
@@ -195,23 +226,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_request_elapsed_time(
             elapsed_time_in_seconds
         )
-
-    def add_log_record(self, elapsed_time_in_milliseconds: int) -> None:
-        """Method that creates a log record and inserts it to log tracking system."""
-        if not self.logs.services[self.service_id].is_enabled() or self.request.server_connection.stream.socket is None:
-            return
-
-        request_start_datetime = datetime.fromtimestamp(self.request._start_time)
-        request_start_datetime.replace(tzinfo=timezone.utc)
-        log_record = LogRecord(
-            self.logs.services[self.service_id].name,
-            request_start_datetime,
-            elapsed_time_in_milliseconds,
-            self.replica_request,
-            self.replica_response,
-            self.request.server_connection
-        )
-        self.logs.services[self.service_id].add_record(log_record)
 
     def initialize(
         self,
@@ -223,8 +237,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         definition_engine: str,
         rendering_queue: RenderingQueue,
         interceptors: list,
-        stats: Stats,
-        logs: Logs,
         unhandled_data,
         fallback_to: Union[str, None],
         tag: Union[str, None]
@@ -236,8 +248,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.endpoints = endpoints
             self.methods = None
             self.custom_args = ()
-            self.stats = stats
-            self.logs = logs
+            self.stats = self.http_server.definition.stats
+            self.logs = self.http_server.definition.logs
             self.service_id = service_id
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
@@ -275,7 +287,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         """A method to unify all the HTTP verbs under a single flow."""
         try:
             self.args_backup = args
-            self.set_default_headers()
 
             if not self.is_options:
                 if self.custom_args:
@@ -283,6 +294,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 if self.methods is None:
                     await self.raise_http_error(404)
                 await self.dynamic_unimplemented_method_guard()
+
+            self._set_default_headers()
 
             match_alternative_return = await self.match_alternative()
             if not match_alternative_return:
@@ -372,9 +385,20 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.write('Supported HTTP methods: %s' % ', '.join([x.upper() for x in self.methods.keys()]))
             await self.raise_http_error(405)
 
+    def _request_object_to_dict(self, obj):
+        result = {}
+        for key, value in obj.__dict__.items():
+            if not (
+                isinstance(value, HTTP1Connection) or isinstance(value, HTTP1ServerConnection)
+            ) and hasattr(value, '__dict__'):
+                result[key] = self._request_object_to_dict(value)
+            else:
+                result[key] = value
+        return result
+
     def log_request(self) -> None:
         """Method that logs the request."""
-        logging.debug('Received request:\n%s', self.request.__dict__)
+        logging.debug('Received request:\n%s', self._request_object_to_dict(self.request))
 
     def add_params(self, context: [None, dict]) -> [None, dict]:
         """Method that injects parameters defined in the config into template engine contexts."""
@@ -446,7 +470,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         return compiled
 
     def build_replica_request(self) -> Request:
-        """Method that builds the `Request` object to be injected into the response templating."""
+        """Method that builds the replica `Request` object to be injected into the response templating."""
         request = Request()
 
         # Details
@@ -508,12 +532,13 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 request.body = _b64encode(self.request.body)
         request.bodySize = len(self.request.body)
 
+        # Files
         request.files = self.request.files
 
         return request
 
     def build_replica_response(self) -> Response:
-        """Method that prepares `Response` object to be modified by the interceptors."""
+        """Method that prepares replica `Response` object to be modified by the interceptors."""
         response = Response()
 
         response.status = self._status_code
@@ -877,7 +902,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
         """Overriden method of tornado.web.RequestHandler"""
         if self._status_code not in (204, 500, 'RST', 'FIN'):
-            if not hasattr(self, 'replica_response'):
+            if self.replica_response is None:
                 self.replica_response = self.build_replica_response()
             self.trigger_interceptors()
             if self.interceptors:
@@ -935,13 +960,13 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 ac_request_headers = self.request.headers.get(AC_REQUEST_HEADERS)
                 self.set_header('Access-Control-Allow-Headers', ac_request_headers)
 
-    def set_default_headers(self) -> None:
+    def _set_default_headers(self) -> None:
         """Method that sets the default headers."""
         self.set_header('Server', '%s/%s' % (
             PROGRAM.capitalize(),
             mockintosh.__version__
         ))
-        self.set_header('X-Mockintosh-Prompt', "Hello, I'm Mockintosh.")  # clear signature that it's mock
+        self.set_header('x-%s-prompt' % PROGRAM.lower(), "Hello, I'm Mockintosh.")  # clear signature that it's mock
         self.set_cors_headers()
 
     async def should_cors(self) -> bool:
@@ -1002,22 +1027,19 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         self.set_status(status_code)
 
-        if status_code == 404:
-            ext = os.path.splitext(self.request.path)[1]
-            parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
-            client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
-            if (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS:
-                with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
-                    image = file.read()
-                    self.set_header('content-type', 'image/png')
-                    self.write(image)
-                    self.rendered_body = image
+        if status_code == 404 and self.is_request_image_like():
+            with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
+                image = file.read()
+                self.set_header('content-type', 'image/png')
+                self.write(image)
+                self.rendered_body = image
 
         raise NewHTTPError()
 
     async def resolve_unhandled_request(self) -> None:
         if self.fallback_to is None:
-            self.insert_unhandled_data((self.request, None))
+            if not self.is_request_image_like():
+                self.insert_unhandled_data((self.request, None))
             return
 
         # Headers
@@ -1069,7 +1091,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
         # The service is external
-        logging.info('Redirecting the unhandled request to: %s %s' % (self.request.method, url))
+        logging.info('Forwarding the unhandled request to: %s %s' % (self.request.method, url))
 
         http_verb = getattr(client, self.request.method.lower())
         try:
@@ -1079,19 +1101,18 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
         except httpx.TimeoutException:
             self.set_status(504)
-            self.write('Redirected request to: %s %s is timed out!' % (self.request.method, url))
+            self.write('Forwarded request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()
         except httpx.ConnectError:
             self.set_status(502)
             self.write('Name or service not known: %s' % self.fallback_to.rstrip('/'))
             raise NewHTTPError()
 
-        logging.info('Returned back from the redirected request.')
+        logging.debug('Returned back from the forwarded request.')
 
         self.set_status(resp.status_code if resp.status_code != 304 else 200)
         for key, value in resp.headers.items():
             if key.title() in (
-                'Server',
                 'Transfer-Encoding',
                 'Content-Length',
                 'Content-Encoding',
@@ -1105,7 +1126,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         self.replica_response = self.build_replica_response()
         self.replica_response.body = resp.content
 
-        self.insert_unhandled_data((self.request, self.replica_response))
+        if not self.is_request_image_like():
+            self.insert_unhandled_data((self.request, self.replica_response))
         raise NewHTTPError()
 
     def insert_unhandled_data(self, row: tuple) -> None:
@@ -1117,6 +1139,12 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.unhandled_data.requests[self.service_id][identifier] = []
         self.unhandled_data.requests[self.service_id][identifier].append(row)
 
+    def is_request_image_like(self) -> bool:
+        ext = os.path.splitext(self.request.path)[1]
+        parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
+        client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
+        return (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS
+
 
 class KafkaHandler(BaseHandler):
     """Class to handle mocked Kafka data."""
@@ -1125,15 +1153,34 @@ class KafkaHandler(BaseHandler):
         self,
         config_dir: [str, None],
         template_engine: str,
-        rendering_queue: RenderingQueue
+        rendering_queue: RenderingQueue,
+        logs: [Logs, None],
+        address: str,
+        topic: str,
+        is_producer: bool,
+        service_id: int = None,
+        value: Union[str, None] = None,
+        key: Union[str, None] = None,
+        headers: dict = {}
     ):
         super().__init__()
         self.config_dir = config_dir
         self.definition_engine = template_engine
         self.rendering_queue = rendering_queue
         self.custom_context = {}
+        self.logs = logs
+        self.address = address
+        self.topic = topic
+        self.service_id = service_id
+        self.is_producer = is_producer
+        self.value = value
+        self.key = key
+        self.headers = headers
+        self.response_body = None
+        self.response_headers = None
 
         self.analyze_counters()
+        self.replica_request = self.build_replica_request()
 
     def _render_value(self, value):
         if len(value) > 1 and value[0] == '@':
@@ -1145,7 +1192,7 @@ class KafkaHandler(BaseHandler):
         self.populate_counters(context)
         return compiled
 
-    def render_attributes(self, *args):
+    def _render_attributes(self, *args):
         rendered = []
         for arg in args:
             if arg is None:
@@ -1161,5 +1208,94 @@ class KafkaHandler(BaseHandler):
 
         return rendered
 
+    def render_attributes(self):
+        self.key, self.value, self.headers = self._render_attributes(
+            self.key,
+            self.value,
+            self.headers
+        )
+        self.replica_request = self.build_replica_request()
+        return self.key, self.value, self.headers
+
     def add_params(self, context):
         return context
+
+    def set_response(
+        self,
+        key: Union[str, None] = None,
+        value: Union[str, None] = None,
+        headers: dict = {}
+    ):
+        self.response_body = value
+        self.response_headers = copy.deepcopy(headers)
+        if key is not None:
+            self.response_headers['x-%s-message-key' % PROGRAM.lower()] = key
+
+    def finish(self):
+        self.replica_response = self.build_replica_response()
+
+        if self.logs is None:
+            return
+
+        timestamp = datetime.fromtimestamp(time.time())
+        timestamp.replace(tzinfo=timezone.utc)
+
+        self.add_log_record(
+            0,
+            timestamp,
+            None
+        )
+
+    def build_replica_request(self) -> Request:
+        """Method that builds the replica `Request` object."""
+        request = Request()
+
+        hostname, port = self.address.split(':')
+
+        # Details
+        request.version = None
+        request.remoteIp = None
+        request.protocol = 'kafka'
+        request.host = self.address
+        request.hostName = hostname
+        request.port = port
+        request.uri = None
+
+        # Method
+        request.method = NON_PREFLIGHT_METHODS[5] if self.is_producer else NON_PREFLIGHT_METHODS[0]
+
+        # Path
+        request.path = '/%s' % self.topic
+
+        # Headers
+        for key, value in self.headers.items():
+            request.headers[key.title()] = value
+
+        # Query String
+        if self.key is not None:
+            request.queryString['key'] = self.key
+
+        # Body
+        request.mimeType = 'text/plain'
+        request.bodyType = 'str'
+        request.body = self.value
+        request.bodySize = 0 if self.value is None else len(self.value)
+
+        # Files
+        request.files = []
+
+        return request
+
+    def build_replica_response(self) -> Response:
+        """Method that prepares replica `Response` object."""
+        response = Response()
+        response.status = 202 if self.is_producer else 200
+
+        if self.response_body is None:
+            response.body = ''
+            return response
+
+        response.headers = self.response_headers
+        response.body = str(self.response_body)
+
+        return response
