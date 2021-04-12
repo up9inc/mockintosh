@@ -130,6 +130,9 @@ class HttpServer:
             if 'type' in service and service['type'] != 'http':
                 continue
 
+            if port_override is not None:
+                service['port'] = int(port_override)
+
             port = str(service['port'])
             if port not in port_mapping:
                 port_mapping[port] = []
@@ -157,8 +160,6 @@ class HttpServer:
 
             for service in services:
                 if self.services_list:
-                    if port_override is not None:
-                        service['port'] = int(port_override)
 
                     if 'name' in service:
                         if service['name'] not in self.services_list:

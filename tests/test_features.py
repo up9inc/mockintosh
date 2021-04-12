@@ -241,15 +241,22 @@ class TestCommandLineArguments():
     def test_port_override(self):
         os.environ['MOCKINTOSH_FORCE_PORT'] = '8002'
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
-        self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'service1'
 
+        resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'service2'
+
         result, _ = tcping('localhost', '8001')
         assert not result
+
+        del os.environ['MOCKINTOSH_FORCE_PORT']
 
 
 class TestInterceptors():
