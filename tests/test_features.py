@@ -256,6 +256,8 @@ class TestCommandLineArguments():
         result, _ = tcping('localhost', '8001')
         assert not result
 
+        del os.environ['MOCKINTOSH_FORCE_PORT']
+
 
 class TestInterceptors():
 
