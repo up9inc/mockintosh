@@ -112,6 +112,20 @@ class Definition():
             data['services'][i]['internalServiceId'] = i
             self.logs.add_service(service.get('name', ''))
 
+            hint = None
+            if 'type' in service and service['type'] != 'http':
+                hint = 'kafka/actor/%d' % i if 'name' not in service else service['name']
+            else:
+                hint = '%s://%s:%s%s' % (
+                    'https' if service.get('ssl', False) else 'http',
+                    service['hostname'] if 'hostname' in service else (
+                        self.address if self.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
+                )
+            self.stats.add_service(hint)
+
             if 'type' in service:
                 if service['type'] == 'kafka':
                     kafka_service = KafkaService(
@@ -122,8 +136,8 @@ class Definition():
                     )
                     data['kafka_services'].append(kafka_service)
 
-                    for actor in service['actors']:
-                        kafka_actor = KafkaActor(actor.get('name', None))
+                    for i, actor in enumerate(service['actors']):
+                        kafka_actor = KafkaActor(i, actor.get('name', None))
                         kafka_service.add_actor(kafka_actor)
 
                         if 'consume' in actor:

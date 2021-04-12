@@ -176,8 +176,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(
                 service,
-                self.http_server.definition.stats,
-                self.http_server.definition.logs
+                self.http_server.definition.stats
             )
         merged_endpoints = []
         for endpoint in endpoints:

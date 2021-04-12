@@ -42,7 +42,6 @@ from mockintosh.management import (
     ManagementServiceTagHandler,
     UnhandledData
 )
-from mockintosh.logs import Logs
 from mockintosh.stats import Stats
 from mockintosh import kafka
 
@@ -112,18 +111,6 @@ class HttpServer:
         self._apps.listeners = len(services) * [None]
         for service in services:
             self.unhandled_data.requests.append({})
-            if 'type' in service and service['type'] != 'http':
-                continue
-
-            hint = '%s://%s:%s%s' % (
-                'https' if service.get('ssl', False) else 'http',
-                service['hostname'] if 'hostname' in service else (
-                    self.address if self.address else 'localhost'
-                ),
-                service['port'],
-                ' - %s' % service['name'] if 'name' in service else ''
-            )
-            self.definition.stats.add_service(hint)
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
@@ -168,7 +155,7 @@ class HttpServer:
 
                 endpoints = []
                 if 'endpoints' in service:
-                    endpoints = HttpServer.merge_alternatives(service, self.definition.stats, self.definition.logs)
+                    endpoints = HttpServer.merge_alternatives(service, self.definition.stats)
 
                 management_root = None
                 if 'managementRoot' in service:
@@ -221,7 +208,7 @@ class HttpServer:
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(service: dict, stats: Stats, logs: Logs):
+    def merge_alternatives(service: dict, stats: Stats):
         new_endpoints = {}
         i = 0
         for endpoint in service['endpoints']:

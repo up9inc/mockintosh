@@ -82,6 +82,7 @@ class DefinitionMockForKafka():
         self.rendering_queue = rendering_queue
         self.data = {}
         self.logs = None
+        self.stats = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -3507,7 +3508,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_producer = kafka.KafkaProducer(
             'topic2',
@@ -3556,7 +3557,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, JINJA, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_producer = kafka.KafkaProducer(
             'topic10',
@@ -3608,7 +3609,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic1')
         kafka_actor.set_consumer(kafka_consumer)
@@ -3644,7 +3645,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, JINJA, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic6')
         kafka_actor.set_consumer(kafka_consumer)
@@ -3687,7 +3688,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer(consumer_topic)
         kafka_actor.set_consumer(kafka_consumer)
@@ -3703,7 +3704,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_producer = kafka.KafkaProducer(
             producer_topic,
@@ -3762,7 +3763,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('templated-producer')
         kafka_actor.set_consumer(kafka_consumer)
