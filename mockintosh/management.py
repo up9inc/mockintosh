@@ -1155,7 +1155,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                     if actor.name is not None:
                         match = re.search(actor_regex, actor.name)
                         if match is not None:
-                            if actor.producer is None:
+                            if actor.producer is None:  # pragma: no cover
                                 continue
                             t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
                             t.daemon = True
