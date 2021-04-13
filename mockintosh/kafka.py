@@ -256,6 +256,8 @@ class KafkaActor:
             self.consumer.topic,
             ' - %d' % self.id
         )
+        if self.name is not None:
+            hint = '%s (actor: %s)' % (hint, self.name)
         self.service.definition.stats.services[self.service.id].add_endpoint(hint)
         self.consumer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
@@ -270,6 +272,8 @@ class KafkaActor:
             self.producer.topic,
             ' - %d' % self.id
         )
+        if self.name is not None:
+            hint = '%s (actor: %s)' % (hint, self.name)
         self.service.definition.stats.services[self.service.id].add_endpoint(hint)
         self.producer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 

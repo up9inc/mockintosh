@@ -114,7 +114,7 @@ class Definition():
 
             hint = None
             if 'type' in service and service['type'] != 'http':
-                hint = 'kafka/actor/%d' % i if 'name' not in service else service['name']
+                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
             else:
                 hint = '%s://%s:%s%s' % (
                     'https' if service.get('ssl', False) else 'http',
