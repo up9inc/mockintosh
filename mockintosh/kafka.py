@@ -74,13 +74,17 @@ class KafkaConsumer:
         self.topic = topic
         self.actor = None
         self.log = []
+        self.internal_endpoint_id = None
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
+            self.actor.id,
+            self.internal_endpoint_id,
             self.actor.service.definition.source_dir,
             self.actor.service.definition.template_engine,
             self.actor.service.definition.rendering_queue,
             self.actor.service.definition.logs,
+            self.actor.service.definition.stats,
             self.actor.service.address,
             self.topic,
             False,
@@ -158,13 +162,17 @@ class KafkaProducer:
         self.key = key
         self.headers = headers
         self.actor = None
+        self.internal_endpoint_id = None
 
     def produce(self, consumed: Consumed = None) -> None:
         kafka_handler = KafkaHandler(
+            self.actor.id,
+            self.internal_endpoint_id,
             self.actor.service.definition.source_dir,
             self.actor.service.definition.template_engine,
             self.actor.service.definition.rendering_queue,
             self.actor.service.definition.logs,
+            self.actor.service.definition.stats,
             self.actor.service.address,
             self.topic,
             True,
@@ -227,7 +235,8 @@ class KafkaProducer:
 
 class KafkaActor:
 
-    def __init__(self, name: str = None):
+    def __init__(self, _id, name: str = None):
+        self.id = _id
         self.name = name
         self.counters = {}
         self.consumer = None
@@ -239,10 +248,34 @@ class KafkaActor:
     def set_consumer(self, consumer: KafkaConsumer):
         self.consumer = consumer
         self.consumer.actor = self
+        if self.service.definition.stats is None:
+            return
+
+        hint = '%s %s%s' % (
+            'GET',
+            self.consumer.topic,
+            ' - %d' % self.id
+        )
+        if self.name is not None:
+            hint = '%s (actor: %s)' % (hint, self.name)
+        self.service.definition.stats.services[self.service.id].add_endpoint(hint)
+        self.consumer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
     def set_producer(self, producer: KafkaProducer):
         self.producer = producer
         self.producer.actor = self
+        if self.service.definition.stats is None:
+            return
+
+        hint = '%s %s%s' % (
+            'PUT',
+            self.producer.topic,
+            ' - %d' % self.id
+        )
+        if self.name is not None:
+            hint = '%s (actor: %s)' % (hint, self.name)
+        self.service.definition.stats.services[self.service.id].add_endpoint(hint)
+        self.producer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
     def set_delay(self, value: Union[int, float]):
         self.delay = value
