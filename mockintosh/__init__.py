@@ -119,7 +119,7 @@ class Definition():
                 hint = '%s://%s:%s%s' % (
                     'https' if service.get('ssl', False) else 'http',
                     service['hostname'] if 'hostname' in service else (
-                        self.address if self.address else 'localhost'
+                        service['address'] if 'address' in service else 'localhost'
                     ),
                     service['port'],
                     ' - %s' % service['name'] if 'name' in service else ''
