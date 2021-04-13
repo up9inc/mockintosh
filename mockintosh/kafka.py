@@ -19,7 +19,6 @@ from confluent_kafka.cimpl import KafkaException
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
-from mockintosh.stats import Stats
 
 
 def _kafka_delivery_report(err, msg):
