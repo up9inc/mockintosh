@@ -128,6 +128,13 @@ TODO:
     - stats to count kafka comms
     - allow overriding on-demand producer fields via mgmt API
     - config reloading to work
+    
+    GET /async => list of consumers and producers
+    POST /async/producers/<name> ?key=...&hdr=
+    GET /async/consumers/<name>
+    
+  - avro + grpc + JSON
+  - what to do with binary headers?
 
 1. Display timestamps in traffic log
 1. Do not respond with Content-Type=text/html if no content-type header is configured
