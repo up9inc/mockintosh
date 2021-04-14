@@ -39,10 +39,10 @@
           "type": "string"
         },
         "produce": {
-          "$ref": "#/definitions/message_ref"
+          "$ref": "#/definitions/produce_ref"
         },
         "consume": {
-          "$ref": "#/definitions/message_ref"
+          "$ref": "#/definitions/consume_ref"
         },
         "delay": {
           "type": "number"
@@ -53,12 +53,36 @@
       },
       "additionalProperties": false
     },
-    "message_ref": {
+    "produce_ref": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "queue",
         "value"
+      ],
+      "properties": {
+        "queue": {
+          "type": "string"
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "headers": {
+          "$ref": "#/definitions/headers_ref"
+        }
+      }
+    },
+    "consume_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queue"
       ],
       "properties": {
         "group": {
