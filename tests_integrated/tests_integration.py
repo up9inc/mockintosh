@@ -885,9 +885,16 @@ class IntegrationTests(unittest.TestCase):
 
     @pytest.mark.kafka
     def test_kafka_producer_ondemand(self):
-        # resp = httpx.get(MGMT + '/async/producer', verify=False)  # gets the list of available producers
-        # resp.raise_for_status()
-        # self.assertIn("on-demand-1", resp.json()["actors"])
+        resp = httpx.get(MGMT + '/async', verify=False)  # gets the list of available actors
+        resp.raise_for_status()
+        desired = [x for x in resp.json()["producers"] if x['name'] == 'on-demand-1']
+        self.assertEqual({
+            "type": "kafka",
+            "name": "on-demand-1",
+            "queue": "on-demand1",
+            "index": 0,  # TODO
+            "lastProduced": 12355.345  # TODO
+        }, desired[0])
 
         topic = "on-demand1"
         produce(topic, None, None)
