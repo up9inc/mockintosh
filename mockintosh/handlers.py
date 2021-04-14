@@ -45,6 +45,7 @@ from mockintosh.params import (
     BodyMultipartParam
 )
 from mockintosh.logs import Logs, LogRecord
+from mockintosh.stats import Stats
 from mockintosh.templating import TemplateRenderer, RenderingQueue
 
 OPTIONS = 'options'
@@ -1151,10 +1152,13 @@ class KafkaHandler(BaseHandler):
 
     def __init__(
         self,
+        actor_id: int,
+        internal_endpoint_id: [int, None],
         config_dir: [str, None],
         template_engine: str,
         rendering_queue: RenderingQueue,
-        logs: [Logs, None],
+        logs: Logs,
+        stats: Stats,
         address: str,
         topic: str,
         is_producer: bool,
@@ -1164,11 +1168,14 @@ class KafkaHandler(BaseHandler):
         headers: dict = {}
     ):
         super().__init__()
+        self.actor_id = actor_id
+        self.internal_endpoint_id = internal_endpoint_id
         self.config_dir = config_dir
         self.definition_engine = template_engine
         self.rendering_queue = rendering_queue
         self.custom_context = {}
         self.logs = logs
+        self.stats = stats
         self.address = address
         self.topic = topic
         self.service_id = service_id
@@ -1289,7 +1296,13 @@ class KafkaHandler(BaseHandler):
     def build_replica_response(self) -> Response:
         """Method that prepares replica `Response` object."""
         response = Response()
-        response.status = 202 if self.is_producer else 200
+        status_code = 202 if self.is_producer else 200
+        response.status = status_code
+
+        if self.stats is not None:
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
+            self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].add_status_code(status_code)
+            self.stats.services[self.service_id].endpoints[self.actor_id].add_request_elapsed_time(0)
 
         if self.response_body is None:
             response.body = ''

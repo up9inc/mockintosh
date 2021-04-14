@@ -74,7 +74,7 @@ services:
         hdr8: val8
     delay: 2
     limit: 2
-  - name: actor6
+  - name: actor9
     consume:
       queue: topic9
       key: key9
@@ -99,3 +99,12 @@ services:
   hostname: service1.example.com
   port: 8001
   endpoints: []
+- type: kafka
+  address: localhost:9093
+  actors:
+  - produce:
+      queue: topic1
+      key: key1
+      value: value1
+      headers:
+        hdr1: val1

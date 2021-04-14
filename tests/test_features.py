@@ -82,6 +82,7 @@ class DefinitionMockForKafka():
         self.rendering_queue = rendering_queue
         self.data = {}
         self.logs = None
+        self.stats = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -3490,6 +3491,7 @@ class TestKafka():
 
             with open(get_config_path(TestKafka.config), 'r') as file:
                 data2 = yaml.safe_load(file.read())
+                data2['services'] = [service for service in data2['services'] if 'type' in service and service['type'] == 'kafka']
                 for i, service in enumerate(data['services']):
                     service2 = data2['services'][i]
                     new_actors = []
@@ -3500,7 +3502,8 @@ class TestKafka():
                     for actor2 in service['actors']:
                         actor2.pop('limit', None)
                         new_actors2.append(actor2)
-                    assert service['name'] == service2['name']
+                    if 'name' in service2:
+                        assert service['name'] == service2['name']
                     assert service['address'] == service2['address']
                     assert new_actors == new_actors2
 
@@ -3514,7 +3517,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_producer = kafka.KafkaProducer(
             'topic2',
@@ -3563,7 +3566,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, JINJA, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_producer = kafka.KafkaProducer(
             'topic10',
@@ -3615,7 +3618,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic1')
         kafka_actor.set_consumer(kafka_consumer)
@@ -3651,7 +3654,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, JINJA, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic6')
         kafka_actor.set_consumer(kafka_consumer)
@@ -3694,7 +3697,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer(consumer_topic)
         kafka_actor.set_consumer(kafka_consumer)
@@ -3710,7 +3713,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_producer = kafka.KafkaProducer(
             producer_topic,
@@ -3769,7 +3772,7 @@ class TestKafka():
             KAFKA_ADDR,
             definition=DefinitionMockForKafka(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor()
+        kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('templated-producer')
         kafka_actor.set_consumer(kafka_consumer)
@@ -3902,3 +3905,96 @@ class TestKafka():
             entry['response']['status'] == 202
             for entry in entries
         )
+
+    def test_stats(self):
+        resp = httpx.get(MGMT + '/stats', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+
+        data = resp.json()
+        assert data['global']['request_counter'] > 20
+        assert data['global']['avg_resp_time'] == 0
+        assert data['global']['status_code_distribution']['200'] > 8
+        assert data['global']['status_code_distribution']['202'] > 8
+
+        assert data['services'][0]['hint'] == 'Kafka Mocks'
+        assert data['services'][0]['request_counter'] > 20
+        assert data['services'][0]['avg_resp_time'] == 0
+        assert data['services'][0]['status_code_distribution']['200'] > 8
+        assert data['services'][0]['status_code_distribution']['202'] > 8
+        assert len(data['services'][0]['endpoints']) == 12
+
+        assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
+        assert data['services'][0]['endpoints'][0]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][0]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {'202': 1}
+
+        assert data['services'][0]['endpoints'][1]['hint'] == 'GET topic2 - 1'
+        assert data['services'][0]['endpoints'][1]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 1}
+
+        assert data['services'][0]['endpoints'][2]['hint'] == 'PUT topic3 - 2'
+        assert data['services'][0]['endpoints'][2]['request_counter'] > 2
+        assert data['services'][0]['endpoints'][2]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][2]['status_code_distribution']['202'] > 8
+        assert data['services'][0]['endpoints'][2]['status_code_distribution']['202'] == data['services'][0]['endpoints'][2]['request_counter']
+
+        assert data['services'][0]['endpoints'][3]['hint'] == 'GET topic3 - 3'
+        assert data['services'][0]['endpoints'][3]['request_counter'] > 2
+        assert data['services'][0]['endpoints'][3]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][3]['status_code_distribution']['200'] > 8
+        assert data['services'][0]['endpoints'][3]['status_code_distribution']['200'] == data['services'][0]['endpoints'][3]['request_counter']
+
+        assert data['services'][0]['endpoints'][4]['hint'] == 'GET topic4 - 4'
+        assert data['services'][0]['endpoints'][4]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][4]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][4]['status_code_distribution'] == {'200': 1}
+
+        assert data['services'][0]['endpoints'][5]['hint'] == 'PUT topic5 - 4'
+        assert data['services'][0]['endpoints'][5]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][5]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][5]['status_code_distribution'] == {'202': 1}
+
+        assert data['services'][0]['endpoints'][6]['hint'] == 'PUT topic6 - 5 (actor: actor6)'
+        assert data['services'][0]['endpoints'][6]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][6]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][6]['status_code_distribution'] == {'202': 1}
+
+        assert data['services'][0]['endpoints'][7]['hint'] == 'PUT topic7 - 6 (actor: limitless)'
+        assert data['services'][0]['endpoints'][7]['request_counter'] > 1
+        assert data['services'][0]['endpoints'][7]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] > 1
+        assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] == data['services'][0]['endpoints'][7]['request_counter']
+
+        assert data['services'][0]['endpoints'][8]['hint'] == 'PUT topic8 - 7 (actor: short-loop)'
+        assert data['services'][0]['endpoints'][8]['request_counter'] == 2
+        assert data['services'][0]['endpoints'][8]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][8]['status_code_distribution'] == {'202': 2}
+
+        assert data['services'][0]['endpoints'][9]['hint'] == 'GET topic9 - 8 (actor: actor9)'
+        assert data['services'][0]['endpoints'][9]['request_counter'] == 0
+        assert data['services'][0]['endpoints'][9]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][9]['status_code_distribution'] == {}
+
+        assert data['services'][0]['endpoints'][10]['hint'] == 'PUT templated-producer - 9 (actor: templated-producer)'
+        assert data['services'][0]['endpoints'][10]['request_counter'] == 2
+        assert data['services'][0]['endpoints'][10]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][10]['status_code_distribution'] == {'202': 2}
+
+        assert data['services'][0]['endpoints'][11]['hint'] == 'GET topic10 - 10'
+        assert data['services'][0]['endpoints'][11]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][11]['avg_resp_time'] == 0
+        assert data['services'][0]['endpoints'][11]['status_code_distribution'] == {'200': 1}
+
+        assert data['services'][1]['hint'] == 'http://service1.example.com:8001 - Mock for Service1'
+        assert data['services'][1]['request_counter'] == 0
+        assert data['services'][1]['avg_resp_time'] == 0
+        assert data['services'][1]['status_code_distribution'] == {}
+        assert len(data['services'][1]['endpoints']) == 0
+
+        assert data['services'][2]['hint'] == 'kafka://localhost:9093'
+        assert data['services'][2]['request_counter'] == 0
+        assert data['services'][2]['avg_resp_time'] == 0
+        assert data['services'][2]['status_code_distribution'] == {}
+        assert len(data['services'][2]['endpoints']) == 1

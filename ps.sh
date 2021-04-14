@@ -2,7 +2,7 @@
 
 while true
  do
-  sleep 600
+  sleep 720
   echo Below is the process list
   ps auxff
  done

@@ -1,0 +1,124 @@
+{
+  "global": {
+    "request_counter": 62,
+    "avg_resp_time": 0.0,
+    "status_code_distribution": {
+      "202": 36,
+      "200": 26
+    }
+  },
+  "services": [
+    {
+      "hint": "Kafka Mocks",
+      "request_counter": 62,
+      "avg_resp_time": 0.0,
+      "status_code_distribution": {
+        "202": 36,
+        "200": 26
+      },
+      "endpoints": [
+        {
+          "hint": "PUT topic1 - 0",
+          "request_counter": 1,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 1
+          }
+        },
+        {
+          "hint": "GET topic2 - 1",
+          "request_counter": 1,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "200": 1
+          }
+        },
+        {
+          "hint": "PUT topic3 - 2",
+          "request_counter": 23,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 23
+          }
+        },
+        {
+          "hint": "GET topic3 - 3",
+          "request_counter": 23,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "200": 23
+          }
+        },
+        {
+          "hint": "GET topic4 - 4",
+          "request_counter": 1,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "200": 1
+          }
+        },
+        {
+          "hint": "PUT topic5 - 4",
+          "request_counter": 1,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 1
+          }
+        },
+        {
+          "hint": "PUT topic6 - 5",
+          "request_counter": 1,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 1
+          }
+        },
+        {
+          "hint": "PUT topic7 - 6",
+          "request_counter": 6,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 6
+          }
+        },
+        {
+          "hint": "PUT topic8 - 7",
+          "request_counter": 2,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 2
+          }
+        },
+        {
+          "hint": "GET topic9 - 8",
+          "request_counter": 0,
+          "avg_resp_time": 0,
+          "status_code_distribution": {}
+        },
+        {
+          "hint": "PUT templated-producer - 9",
+          "request_counter": 2,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "202": 2
+          }
+        },
+        {
+          "hint": "GET topic10 - 10",
+          "request_counter": 1,
+          "avg_resp_time": 0.0,
+          "status_code_distribution": {
+            "200": 1
+          }
+        }
+      ]
+    },
+    {
+      "hint": "http://service1.example.com:8001 - Mock for Service1",
+      "request_counter": 0,
+      "avg_resp_time": 0,
+      "status_code_distribution": {},
+      "endpoints": []
+    }
+  ]
+}

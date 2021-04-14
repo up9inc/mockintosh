@@ -176,8 +176,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(
                 service,
-                self.http_server.definition.stats,
-                self.http_server.definition.logs
+                self.http_server.definition.stats
             )
         merged_endpoints = []
         for endpoint in endpoints:
@@ -1156,7 +1155,7 @@ class ManagementAsyncHandler(ManagementBaseHandler):
                     if actor.name is not None:
                         match = re.search(actor_regex, actor.name)
                         if match is not None:
-                            if actor.producer is None:
+                            if actor.producer is None:  # pragma: no cover
                                 continue
                             t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
                             t.daemon = True
