@@ -108,6 +108,8 @@ class Definition():
             global_performance_profile = data['globals'].get('performanceProfile', None)
 
         data['kafka_services'] = []
+        data['async_producers'] = []
+        data['async_consumers'] = []
         for i, service in enumerate(data['services']):
             data['services'][i]['internalServiceId'] = i
             self.logs.add_service(service.get('name', ''))
@@ -143,8 +145,13 @@ class Definition():
                         if 'consume' in actor:
                             kafka_consumer = KafkaConsumer(actor['consume']['queue'])
                             kafka_actor.set_consumer(kafka_consumer)
+
+                            kafka_consumer.index = len(data['async_consumers'])
+                            data['async_consumers'].append(kafka_consumer)
+
                         if 'delay' in actor:
                             kafka_actor.set_delay(actor['delay'])
+
                         if 'produce' in actor:
                             kafka_producer = KafkaProducer(
                                 actor['produce']['queue'],
@@ -153,6 +160,10 @@ class Definition():
                                 headers=actor['produce'].get('headers', {})
                             )
                             kafka_actor.set_producer(kafka_producer)
+
+                            kafka_producer.index = len(data['async_producers'])
+                            data['async_producers'].append(kafka_producer)
+
                         if 'limit' in actor:
                             kafka_actor.set_limit(actor['limit'])
 

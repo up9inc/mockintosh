@@ -75,6 +75,7 @@ class KafkaConsumer:
         self.actor = None
         self.log = []
         self.internal_endpoint_id = None
+        self.index = None
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
@@ -148,6 +149,16 @@ class KafkaConsumer:
                 t.daemon = True
                 t.start()
 
+    def info(self):
+        return {
+            'type': 'kafka',
+            'name': self.actor.name,
+            'index': self.index,
+            'queue': self.topic,
+            'consumedMessages': 0,
+            'lastConsumed': 0
+        }
+
 
 class KafkaProducer:
     def __init__(
@@ -163,6 +174,7 @@ class KafkaProducer:
         self.headers = headers
         self.actor = None
         self.internal_endpoint_id = None
+        self.index = None
 
     def produce(self, consumed: Consumed = None) -> None:
         kafka_handler = KafkaHandler(
@@ -231,6 +243,16 @@ class KafkaProducer:
             data['headers'] = self.headers
 
         return data
+
+    def info(self):
+        return {
+            'type': 'kafka',
+            'name': self.actor.name,
+            'index': self.index,
+            'queue': self.topic,
+            'producedMessages': 0,
+            'lastProduced': 0
+        }
 
 
 class KafkaActor:

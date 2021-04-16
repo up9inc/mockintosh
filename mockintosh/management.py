@@ -1073,66 +1073,19 @@ class ManagementAsyncHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    async def get(self, *args):
-        if (len(args) == 2):
-            data = {
-                'queue': None,
-                'log': []
-            }
+    async def get(self):
+        data = {
+            'producers': [],
+            'consumers': []
+        }
 
-            service_id, actor_id = args
-            service_id = int(service_id)
-            actor_id = int(actor_id)
-            try:
-                service = self.http_server.definition.data['kafka_services'][service_id]
-            except IndexError:
-                self.set_status(400)
-                self.write('Service not found!')
-                return
+        for producer in self.http_server.definition.data['async_producers']:
+            data['producers'].append(producer.info())
 
-            try:
-                actor = service.actors[actor_id]
-            except IndexError:
-                self.set_status(400)
-                self.write('Actor not found!')
-                return
+        for consumer in self.http_server.definition.data['async_consumers']:
+            data['consumers'].append(consumer.info())
 
-            if actor.consumer is None:
-                self.set_status(400)
-                self.write('This actor is not a consumer!')
-                return
-            else:
-                data['queue'] = actor.consumer.topic
-
-            if actor.consumer.log is not None:
-                rows = actor.consumer.log
-                for row in rows:
-                    data['log'].append(
-                        {
-                            'key': row[0],
-                            'value': row[1],
-                            'headers': row[2]
-                        }
-                    )
-
-            self.dump(data)
-        else:
-            data = {
-                'services': []
-            }
-
-            services = self.http_server.definition.data['kafka_services']
-            for i, service in enumerate(services):
-                filtered_actors = [actor.json() for actor in service.actors if actor.consumer is None]
-                data['services'].append(
-                    {
-                        'name': service.name,
-                        'address': service.address,
-                        'actors': filtered_actors
-                    }
-                )
-
-            self.dump(data)
+        self.dump(data)
 
     def dump(self, data) -> None:
         _format = self.get_query_argument('format', default='json')
