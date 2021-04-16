@@ -1106,7 +1106,9 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
             try:
                 index = int(value)
                 producer = self.http_server.definition.data['async_producers'][index]
-                producer.produce()
+                t = threading.Thread(target=producer.produce, args=(), kwargs={})
+                t.daemon = True
+                t.start()
                 self.set_status(202)
                 self.write(producer.info())
             except IndexError:
@@ -1130,7 +1132,9 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                                 if actor.producer is None:  # pragma: no cover
                                     continue
                                 producers.append(actor.producer)
-                                actor.producer.produce()
+                                t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
+                                t.daemon = True
+                                t.start()
                                 no_match = False
 
                 if no_match:
