@@ -17,7 +17,7 @@ from typing import (
     Union
 )
 from collections import OrderedDict
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
 import yaml
 from yaml.representer import Representer
@@ -1095,57 +1095,50 @@ class ManagementAsyncHandler(ManagementBaseHandler):
         else:
             self.write(data)
 
-    async def post(self, *args):
-        actor_regex = self.get_body_argument('actor', default=None)
-        actor_regex_orig = actor_regex
-        if actor_regex is not None:
-            actor_regex = '^%s$' % actor_regex
 
-            no_match = True
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
-                for actor_id, actor in enumerate(service.actors):
-                    if actor.name is not None:
-                        match = re.search(actor_regex, actor.name)
-                        if match is not None:
-                            if actor.producer is None:  # pragma: no cover
-                                continue
-                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
-                            t.daemon = True
-                            t.start()
-                            no_match = False
+class ManagementAsyncProducersHandler(ManagementBaseHandler):
 
-            if no_match:
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def post(self, value):
+        producer = None
+
+        if value.isnumeric():
+            try:
+                index = int(value)
+                self.set_status(202)
+                producer = self.http_server.definition.data['async_producers'][index]
+                t = threading.Thread(target=producer.produce, args=(), kwargs={})
+                t.daemon = True
+                t.start()
+            except IndexError:
                 self.set_status(400)
-                self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
+                self.write('Invalid producer index!')
                 return
         else:
-            service_id, actor_id = args
-            service_id = int(service_id)
-            actor_id = int(actor_id)
+            actor_regex = unquote(value)
+            actor_regex_orig = actor_regex
+            if actor_regex is not None:
+                actor_regex = '^%s$' % actor_regex
 
-            service = None
-            actor = None
+                no_match = True
+                services = self.http_server.definition.data['kafka_services']
+                for service_id, service in enumerate(services):
+                    for actor_id, actor in enumerate(service.actors):
+                        if actor.name is not None:
+                            match = re.search(actor_regex, actor.name)
+                            if match is not None:
+                                if actor.producer is None:  # pragma: no cover
+                                    continue
+                                t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
+                                t.daemon = True
+                                t.start()
+                                no_match = False
 
-            try:
-                service = self.http_server.definition.data['kafka_services'][service_id]
-            except IndexError:
-                self.set_status(400)
-                self.write('Service not found!')
-                return
-
-            try:
-                actor = service.actors[actor_id]
-            except IndexError:
-                self.set_status(400)
-                self.write('Actor not found!')
-                return
-
-            if actor.producer is None:
-                self.set_status(400)
-                self.write('This actor is not a producer!')
-                return
-
-            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
-            t.daemon = True
-            t.start()
+                if no_match:
+                    self.set_status(400)
+                    self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
+                    return
+                else:
+                    self.set_status(202)
