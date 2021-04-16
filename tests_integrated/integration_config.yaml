@@ -299,7 +299,8 @@ services:
             name: '{{consumed.headers.hdr-name}}'
 
       # validating consumer
-      - consume:
+      - name: validating-consumer1
+        consume:
           capture: 10  # limit len of messages to store for validation
           queue: another-queue-name
           key: matching keys

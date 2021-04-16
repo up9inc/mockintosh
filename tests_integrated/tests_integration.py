@@ -887,6 +887,8 @@ class IntegrationTests(unittest.TestCase):
     def test_kafka_producer_ondemand(self):
         resp = httpx.get(MGMT + '/async', verify=False)  # gets the list of available actors
         resp.raise_for_status()
+        self.assertEqual(3, len(resp.json()["producers"]))
+        self.assertEqual(2, len(resp.json()["consumers"]))
         desired = [x for x in resp.json()["producers"] if x['name'] == 'on-demand-1']
         self.assertEqual({
             "type": "kafka",

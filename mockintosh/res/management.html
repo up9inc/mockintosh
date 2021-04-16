@@ -191,6 +191,10 @@
         #unhandled pre {
             height: 100%;
         }
+
+        #async .card {
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 
@@ -374,13 +378,54 @@
         <div class="tab-pane fade" id="async" role="tabpanel" aria-labelledby="async-tab">
             <div class="tab-data">
                 <div class="controls">
-                    <span class="small text-muted">Async actors:</span>
-                    <button class="btn btn-sm btn-primary pull-right">Refresh</button>
+                    <span class="small text-muted">Async actors appear if config contains services of type kafka/rabbitmq/redis.</span>
+                    <button class="btn btn-sm btn-secondary pull-right">Refresh</button>
                 </div>
 
                 <div class="row">
-                    <div class="col-md-6"><h3>Producers</h3></div>
-                    <div class="col-md-6"><h3>Consumers</h3></div>
+                    <div class="col-md-5" id="producers">
+                        <h3>Producers</h3>
+
+                        <div class="card border-primary" style="display: none">
+                            <div class="card-header">
+                                <span class="pull-left text-primary">Actor #<span class="index">0</span>:
+                                    <span class="name">The name of it</span></span>
+                                <span class="pull-right small"><span class="text-success"
+                                                                     style="display: none; margin-right: 0.25rem">Produced!</span>
+                                    <button class="btn btn-sm btn-primary">Trigger</button></span>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Queue Name: <span class="queue-name">somequeue1</span></p>
+                                <p class="card-text">Last Produced: <span class="date">2021-01-01T12:00:00</span></p>
+                                <p class="card-text">Message Count: <span class="count">1</span></p>
+                            </div>
+                        </div>
+
+                        <div class="card-list">
+                        </div>
+                    </div>
+                    <div class="col-md-1"></div>
+                    <div class="col-md-5" id="consumers">
+                        <h3>Consumers</h3>
+
+                        <div class="card border-info" style="display: none">
+                            <div class="card-header">
+                                <span class="pull-left text-info">Actor #<span class="index">0</span>: <span
+                                        class="name">The name of it</span></span>
+                                <span class="pull-right small">
+                                <button class="btn btn-sm btn-info">View Captured Messages</button>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Queue Name: <span class="queue-name">somequeue1</span></p>
+                                <p class="card-text">Last Consumed: <span class="date">2021-01-01T12:00:00</span></p>
+                                <p class="card-text">Message Count: <span class="count">1</span></p>
+                            </div>
+                        </div>
+
+                        <div class="card-list">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -874,6 +919,63 @@
                 $(obj).click();
             }
         });
+
+        $("#async .controls .btn-secondary").click(function () {
+            $.getJSON('./async').done(function (data) {
+                const producers_list = $("#producers .card-list");
+                producers_list.empty();
+                if (!data.producers.length) {
+                    producers_list.text("No consumers defined")
+                }
+                for (let p = 0; p < data.producers.length; p++) {
+                    const producer = data.producers[p];
+                    const newItem = $("#producers > .card").clone();
+                    newItem.find(".index").text(producer.index);
+                    newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
+                    newItem.find(".queue-name").text(producer.queue);
+                    newItem.find(".date").text(producer.lastProduced);
+                    newItem.find(".count").text(producer.producedMessages);
+                    newItem.find("button").data("id", producer.name ? producer.name : producer.index);
+                    producers_list.append(newItem);
+                }
+                producers_list.find(".card").show();
+                producers_list.find("button").click(function () {
+                    const btn = $(this);
+                    $.post("./async/producers/" + btn.data('id')).done(function () {
+                        btn.parent().find("span").show().fadeOut(500);
+                    }).fail(function () {
+                        alert("failed");
+                    });
+                });
+
+                const consumers_list = $("#consumers .card-list");
+                consumers_list.empty();
+                if (!data.consumers.length) {
+                    consumers_list.text("No consumers defined")
+                }
+
+                for (let p = 0; p < data.consumers.length; p++) {
+                    const consumer = data.consumers[p];
+                    const newItem = $("#consumers > .card").clone();
+                    newItem.find(".index").text(consumer.index);
+                    newItem.find(".name").text(consumer.name ? consumer.name : "<Name not set>");
+                    newItem.find(".queue-name").text(consumer.queue);
+                    newItem.find(".date").text(consumer.lastConsumed);
+                    newItem.find(".count").text(consumer.consumedMessages);
+                    newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index);
+                    consumers_list.append(newItem);
+                }
+                consumers_list.find(".card").show();
+                consumers_list.find("button").click(function () {
+                    const btn = $(this);
+                    $.getJSON("./async/consumers/" + btn.data('id')).done(function () {
+                        btn.parent().find("span").show().fadeOut(500);
+                    }).fail(function () {
+                        alert("failed");
+                    });
+                });
+            });
+        }).click();
     });
 </script>
 
