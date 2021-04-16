@@ -20,6 +20,7 @@ from confluent_kafka.cimpl import KafkaException
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
+from mockintosh.logs import Logs
 
 
 def _kafka_delivery_report(err, msg):
@@ -101,6 +102,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     ):
         super().__init__(topic)
         self.log = []
+        self.single_log_service = None
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
@@ -160,7 +162,9 @@ class KafkaConsumer(KafkaConsumerProducerBase):
                 key=key, value=value, headers=headers
             )
 
-            kafka_handler.finish()
+            log_record = kafka_handler.finish()
+            if self.single_log_service is not None:
+                self.single_log_service.add_record(log_record)
 
             if self.actor.producer is not None:
                 consumed = Consumed()
@@ -183,6 +187,12 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             }
         )
         return data
+
+    def init_single_log_service(self):
+        logs = Logs()
+        logs.add_service(self.actor.service.name if self.actor.service.name is not None else '')
+        self.single_log_service = logs.services[0] 
+        self.single_log_service.enabled = True
 
 
 class KafkaProducer(KafkaConsumerProducerBase):
@@ -293,6 +303,7 @@ class KafkaActor:
     def set_consumer(self, consumer: KafkaConsumer):
         self.consumer = consumer
         self.consumer.actor = self
+        self.consumer.init_single_log_service()
         if self.service.definition.stats is None:
             return
 

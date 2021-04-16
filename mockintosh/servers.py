@@ -31,6 +31,7 @@ from mockintosh.management import (
     ManagementTagHandler,
     ManagementAsyncHandler,
     ManagementAsyncProducersHandler,
+    ManagementAsyncConsumersHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -488,6 +489,13 @@ class HttpServer:
                 (
                     '/async/producers/(.+)',
                     ManagementAsyncProducersHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async/consumers/(.+)',
+                    ManagementAsyncConsumersHandler,
                     dict(
                         http_server=self
                     )
