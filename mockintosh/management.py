@@ -1107,16 +1107,18 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                self.set_status(202)
                 producer = self.http_server.definition.data['async_producers'][index]
                 t = threading.Thread(target=producer.produce, args=(), kwargs={})
                 t.daemon = True
                 t.start()
+                self.set_status(202)
+                self.write(producer.info())
             except IndexError:
                 self.set_status(400)
                 self.write('Invalid producer index!')
                 return
         else:
+            producers = []
             actor_regex = unquote(value)
             actor_regex_orig = actor_regex
             if actor_regex is not None:
@@ -1131,6 +1133,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                             if match is not None:
                                 if actor.producer is None:  # pragma: no cover
                                     continue
+                                producers.append(actor.producer)
                                 t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
                                 t.daemon = True
                                 t.start()
@@ -1141,4 +1144,10 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                     self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
                     return
                 else:
+                    data = {
+                        'producers': []
+                    }
+                    for producer in producers:
+                        data['producers'].append(producer.info())
                     self.set_status(202)
+                    self.write(data)
