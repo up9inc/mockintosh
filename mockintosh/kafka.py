@@ -8,6 +8,7 @@
 
 import logging
 import threading
+from datetime import datetime, timezone
 from typing import (
     Union
 )
@@ -65,7 +66,7 @@ def _merge_global_headers(_globals, kafka_producer):
     return headers
 
 
-class KafkaConsumer:
+class KafkaConsumerProducerBase:
 
     def __init__(
         self,
@@ -73,9 +74,33 @@ class KafkaConsumer:
     ):
         self.topic = topic
         self.actor = None
-        self.log = []
         self.internal_endpoint_id = None
         self.index = None
+        self.counter = 0
+        self.last_timestamp = None
+
+    def info(self):
+        return {
+            'type': 'kafka',
+            'name': self.actor.name,
+            'index': self.index,
+            'queue': self.topic
+        }
+
+    def set_last_timestamp_and_inc_counter(self):
+        self.counter += 1
+        self.last_timestamp = datetime.fromtimestamp(time.time())
+        self.last_timestamp.replace(tzinfo=timezone.utc)
+
+
+class KafkaConsumer(KafkaConsumerProducerBase):
+
+    def __init__(
+        self,
+        topic: str
+    ):
+        super().__init__(topic)
+        self.log = []
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
@@ -150,17 +175,18 @@ class KafkaConsumer:
                 t.start()
 
     def info(self):
-        return {
-            'type': 'kafka',
-            'name': self.actor.name,
-            'index': self.index,
-            'queue': self.topic,
-            'consumedMessages': 0,
-            'lastConsumed': 0
-        }
+        data = super().info()
+        data.update(
+            {
+                'consumedMessages': self.counter,
+                'lastConsumed': self.last_timestamp
+            }
+        )
+        return data
 
 
-class KafkaProducer:
+class KafkaProducer(KafkaConsumerProducerBase):
+
     def __init__(
         self,
         topic: str,
@@ -168,13 +194,10 @@ class KafkaProducer:
         key: Union[str, None] = None,
         headers: dict = {}
     ):
-        self.topic = topic
+        super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
-        self.actor = None
-        self.internal_endpoint_id = None
-        self.index = None
 
     def produce(self, consumed: Consumed = None) -> None:
         kafka_handler = KafkaHandler(
@@ -245,14 +268,14 @@ class KafkaProducer:
         return data
 
     def info(self):
-        return {
-            'type': 'kafka',
-            'name': self.actor.name,
-            'index': self.index,
-            'queue': self.topic,
-            'producedMessages': 0,
-            'lastProduced': 0
-        }
+        data = super().info()
+        data.update(
+            {
+                'producedMessages': self.counter,
+                'lastProduced': self.last_timestamp
+            }
+        )
+        return data
 
 
 class KafkaActor:
