@@ -1118,38 +1118,28 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                 self.write('Invalid producer index!')
                 return
         else:
-            producers = []
-            actor_regex = unquote(value)
-            actor_regex_orig = actor_regex
-            if actor_regex is not None:
-                actor_regex = '^%s$' % actor_regex
+            producer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.producer is None:  # pragma: no cover
+                            continue
+                        producer = actor.producer
+                        t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
+                            'ignore_delay': True
+                        })
+                        t.daemon = True
+                        t.start()
 
-                no_match = True
-                services = self.http_server.definition.data['kafka_services']
-                for service_id, service in enumerate(services):
-                    for actor_id, actor in enumerate(service.actors):
-                        if actor.name is not None:
-                            match = re.search(actor_regex, actor.name)
-                            if match is not None:
-                                if actor.producer is None:  # pragma: no cover
-                                    continue
-                                producers.append(actor.producer)
-                                t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
-                                    'ignore_delay': True
-                                })
-                                t.daemon = True
-                                t.start()
-                                no_match = False
-
-                if no_match:
-                    self.set_status(400)
-                    self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
-                    return
-                else:
-                    self.set_status(202)
-                    self.write({
-                        'producers': [producer.info() for producer in producers]
-                    })
+            if producer is None:
+                self.set_status(400)
+                self.write('No producer actor is found for: \'%s\'' % actor_name)
+                return
+            else:
+                self.set_status(202)
+                self.write(producer.info())
 
 
 class ManagementAsyncConsumersHandler(ManagementBaseHandler):
@@ -1168,29 +1158,19 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
                 self.write('Invalid consumer index!')
                 return
         else:
-            consumers = []
-            actor_regex = unquote(value)
-            actor_regex_orig = actor_regex
-            if actor_regex is not None:
-                actor_regex = '^%s$' % actor_regex
+            consumer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.consumer is None:  # pragma: no cover
+                            continue
+                        consumer = actor.consumer
 
-                no_match = True
-                services = self.http_server.definition.data['kafka_services']
-                for service_id, service in enumerate(services):
-                    for actor_id, actor in enumerate(service.actors):
-                        if actor.name is not None:
-                            match = re.search(actor_regex, actor.name)
-                            if match is not None:
-                                if actor.consumer is None:  # pragma: no cover
-                                    continue
-                                consumers.append(actor.consumer)
-                                no_match = False
-
-                if no_match:
-                    self.set_status(400)
-                    self.write('No consumer actor is found for: \'%s\'' % actor_regex_orig)
-                    return
-                else:
-                    self.write({
-                        'consumers': [consumer.single_log.json() for consumer in consumers]
-                    })
+            if no_match:
+                self.set_status(400)
+                self.write('No consumer actor is found for: \'%s\'' % actor_name)
+                return
+            else:
+                self.write(consumer.single_log_service.json())

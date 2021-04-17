@@ -89,13 +89,12 @@ class KafkaConsumerProducerBase:
             'queue': self.topic
         }
 
-    def set_last_timestamp_and_inc_counter(self, timestamp):
+    def set_last_timestamp_and_inc_counter(self, request_start_datetime: datetime):
         self.counter += 1
-        if timestamp is None:
-            self.last_timestamp = datetime.fromtimestamp(time.time())
-            self.last_timestamp.replace(tzinfo=timezone.utc)
-        else:
-            self.last_timestamp = timestamp
+        if request_start_datetime is None:
+            self.last_timestamp = time.time()
+            return
+        self.last_timestamp = datetime.timestamp(request_start_datetime)
 
 
 class KafkaConsumer(KafkaConsumerProducerBase):
@@ -167,7 +166,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             )
 
             log_record = kafka_handler.finish()
-            self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_time)
+            self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
             if self.single_log_service is not None:
                 self.single_log_service.add_record(log_record)
 
@@ -188,7 +187,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         data.update(
             {
                 'consumedMessages': self.counter,
-                'lastConsumed': str(self.last_timestamp)
+                'lastConsumed': self.last_timestamp
             }
         )
         return data
@@ -267,7 +266,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         ))
 
         log_record = kafka_handler.finish()
-        self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_time)
+        self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
 
     def json(self):
         data = {
@@ -288,7 +287,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         data.update(
             {
                 'producedMessages': self.counter,
-                'lastProduced': str(self.last_timestamp)
+                'lastProduced': self.last_timestamp
             }
         )
         return data
