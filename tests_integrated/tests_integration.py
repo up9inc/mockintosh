@@ -890,21 +890,25 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(4, len(resp.json()["producers"]))
         self.assertEqual(2, len(resp.json()["consumers"]))
         desired = [x for x in resp.json()["producers"] if x['name'] == 'on-demand-1']
+        desired[0].pop('producedMessages')
+        desired[0].pop('lastProduced')
         self.assertEqual({
             "type": "kafka",
             "name": "on-demand-1",
             "queue": "on-demand1",
             "index": 0,  # TODO
-            "lastProduced": 12355.345  # TODO
+            # "lastProduced": 12355.345  # TODO
         }, desired[0])
 
         topic = "on-demand1"
         produce(topic, None, None)
-        resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
+        resp = httpx.post(MGMT + '/async/producers/on-demand-1', verify=False)
         resp.raise_for_status()
+        self.assertGreater(resp.json()['lastProduced'], 0)
+        self.assertGreater(resp.json()['producedMessages'], 0)
         kafka_consume_expected(topic)  # to clear queue from any preceding messages
 
-        resp = httpx.post(MGMT + '/async/0/0', data={"actor": "on-demand-1"}, verify=False)
+        resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         resp.raise_for_status()
         msgs = kafka_consume_expected(topic)
         # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
