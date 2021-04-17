@@ -933,6 +933,14 @@
             }
         });
 
+        function fill_producer(newItem, producer) {
+            newItem.find(".index").text(producer.index);
+            newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
+            newItem.find(".queue-name").text(producer.queue);
+            newItem.find(".date").text(producer.lastProduced);
+            newItem.find(".count").text(producer.producedMessages);
+        }
+
         $("#async .controls .btn-secondary").click(function () {
             $.getJSON('./async').done(function (data) {
                 const producers_list = $("#producers .card-list");
@@ -943,19 +951,16 @@
                 for (let p = 0; p < data.producers.length; p++) {
                     const producer = data.producers[p];
                     const newItem = $("#producers > .card").clone();
-                    newItem.find(".index").text(producer.index);
-                    newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
-                    newItem.find(".queue-name").text(producer.queue);
-                    newItem.find(".date").text(producer.lastProduced);
-                    newItem.find(".count").text(producer.producedMessages);
                     newItem.find("button").data("id", producer.name ? producer.name : producer.index);
+                    fill_producer(newItem, producer);
                     producers_list.append(newItem);
                 }
                 producers_list.find(".card").show();
                 producers_list.find("button").click(function () {
                     const btn = $(this);
-                    $.post("./async/producers/" + btn.data('id')).done(function () {
+                    $.post("./async/producers/" + btn.data('id')).done(function (data) {
                         btn.parent().find("span").show().fadeOut(500);
+                        fill_producer(btn.parent().parent().parent(), data);
                     }).fail(function () {
                         alert("failed");
                     });
@@ -981,14 +986,14 @@
                 consumers_list.find(".card").show();
                 consumers_list.find("button").click(function () {
                     const btn = $(this);
-                    $.getJSON("./traffic-log?" + btn.data('id')).done(function (data) {
+                    $.getJSON("./async/consumers/" + btn.data('id')).done(function (data) {
                         const asyncModal = $('#asyncModal');
                         asyncModal.find(".modal-title").text("Captured Messages for Actor '" + btn.data('id') + "'");
                         const btns = asyncModal.find(".btn-group");
                         btns.empty();
                         for (let n = 0; n < data.log.entries.length; n++) {
                             const entry = data.log.entries[n];
-                            const btn = $('<button type="button" class="btn"></button>').text("#"+(n + 1)).data("entry", entry);
+                            const btn = $('<button type="button" class="btn"></button>').text("#" + (n + 1)).data("entry", entry);
                             btns.append(btn);
                         }
                         btns.find("button").click(function () {
