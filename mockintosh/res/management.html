@@ -106,7 +106,7 @@
         .traffic-items .list-group-item .small {
             position: absolute;
             top: 0;
-            left: 0;
+            left: 0.25rem;
         }
 
         .traffic-items .list-group-item .pull-left {
@@ -120,7 +120,7 @@
         }
 
         .traffic-items .list-group-item {
-            padding: 0.9rem 0.25rem 0.25rem 0.25rem;
+            padding: 1rem 0.25rem 0.25rem 0.25rem;
             cursor: pointer;
         }
 
@@ -465,6 +465,9 @@
 <script type="module">
     import {CodeJar} from 'https://medv.io/codejar/codejar.js';
     import {withLineNumbers} from 'https://medv.io/codejar/linenumbers.js';
+    var language = navigator.languages && navigator.languages[0] || // Chrome / Firefox
+        navigator.language ||   // All browsers
+        navigator.userLanguage; // IE <= 10
 
     function addOAS(config, parent) {
         const el = document.createElement('div');
@@ -560,7 +563,7 @@
     function details(entry, container) {
         container.find(".traffic-details>span").hide();
         container.find(".traffic-details>div").show();
-        container.find(".traffic-details .ts").text(entry.startedDateTime);
+        container.find(".traffic-details .ts").text(new Date(entry.startedDateTime).toLocaleString(language));
         container.find(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
         container.find(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
         let method = container.find(".traffic-details .method");
@@ -651,23 +654,19 @@
             type: 'GET',
             success: function (result) {
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
-                let prev = 0;
                 for (; traffic_offset < result.log.entries.length; traffic_offset++) {
                     const entry = result.log.entries[traffic_offset];
                     const url = new URL(entry.request.url);
                     const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
-                    const ts = new Date(entry.startedDateTime);
-                    li.append('<span class="small text-muted">+' + timediff(prev ? (ts - prev) : 0) + '</span>');
+                    li.append('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
 
                     const sbadge = $('<span class="badge"></span>').addClass("badge-" + status_color(entry.response.status));
                     if (url.protocol === 'kafka:') {
                         sbadge.append('K');
-
                     } else {
                         sbadge.append(entry.response.status);
                     }
-
 
                     li.append(sbadge);
                     const parts = entry.request.url.split('/');
@@ -687,7 +686,6 @@
                     if (!$(".traffic-items .selected").length) {
                         document.querySelector("#reqlog .traffic-items li:last-child").scrollIntoView();
                     }
-                    prev = ts;
                 }
             },
             complete: function () {
@@ -937,7 +935,7 @@
             newItem.find(".index").text(producer.index);
             newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
             newItem.find(".queue-name").text(producer.queue);
-            newItem.find(".date").text(producer.lastConsumed ? (new Date(producer.lastProduced * 1000).toISOString()) : 'N/A');
+            newItem.find(".date").text(producer.lastConsumed ? (new Date(producer.lastProduced * 1000).toLocaleString(language)) : 'N/A');
             newItem.find(".count").text(producer.producedMessages);
         }
 

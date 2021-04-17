@@ -113,6 +113,7 @@
 # Next Version
 
 1. Make `MOCKINTOSH_FORCE_PORT` to work always
+1. Display timestamps in traffic log, instead of offset
 
 TODO:
 
@@ -134,7 +135,7 @@ TODO:
     - avro + grpc + JSON
     - what to do with binary headers?
 
-1. Display timestamps in traffic log
+
 1. Do not respond with Content-Type=text/html if no content-type header is configured
 1. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 
