@@ -1106,7 +1106,9 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
             try:
                 index = int(value)
                 producer = self.http_server.definition.data['async_producers'][index]
-                t = threading.Thread(target=producer.produce, args=(), kwargs={})
+                t = threading.Thread(target=producer.produce, args=(), kwargs={
+                    'ignore_delay': True
+                })
                 t.daemon = True
                 t.start()
                 self.set_status(202)
@@ -1132,7 +1134,9 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                                 if actor.producer is None:  # pragma: no cover
                                     continue
                                 producers.append(actor.producer)
-                                t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
+                                t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
+                                    'ignore_delay': True
+                                })
                                 t.daemon = True
                                 t.start()
                                 no_match = False
@@ -1143,7 +1147,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                     return
                 else:
                     self.set_status(202)
-                    self.write(data = {
+                    self.write({
                         'producers': [producer.info() for producer in producers]
                     })
 
