@@ -3502,11 +3502,11 @@ class TestAsync():
             assert len(consumers) == 6
 
             assert producers[0]['type'] == 'kafka'
-            assert producers[0]['name'] == None
+            assert producers[0]['name'] is None
             assert producers[0]['index'] == 0
             assert producers[0]['queue'] == 'topic1'
             assert producers[0]['producedMessages'] == 0
-            assert producers[0]['lastProduced'] == None
+            assert producers[0]['lastProduced'] is None
 
             assert producers[3]['type'] == 'kafka'
             assert producers[3]['name'] == 'actor6'
@@ -3514,11 +3514,11 @@ class TestAsync():
             assert producers[3]['queue'] == 'topic6'
 
             assert consumers[0]['type'] == 'kafka'
-            assert consumers[0]['name'] == None
+            assert consumers[0]['name'] is None
             assert consumers[0]['index'] == 0
             assert consumers[0]['queue'] == 'topic2'
             assert consumers[0]['consumedMessages'] == 0
-            assert consumers[0]['lastConsumed'] == None
+            assert consumers[0]['lastConsumed'] is None
 
             assert consumers[3]['type'] == 'kafka'
             assert consumers[3]['name'] == 'actor9'
