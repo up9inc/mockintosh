@@ -937,7 +937,7 @@
             newItem.find(".index").text(producer.index);
             newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
             newItem.find(".queue-name").text(producer.queue);
-            newItem.find(".date").text(producer.lastProduced);
+            newItem.find(".date").text(producer.lastConsumed ? (new Date(producer.lastProduced * 1000).toISOString()) : 'N/A');
             newItem.find(".count").text(producer.producedMessages);
         }
 
@@ -978,7 +978,7 @@
                     newItem.find(".index").text(consumer.index);
                     newItem.find(".name").text(consumer.name ? consumer.name : "<Name not set>");
                     newItem.find(".queue-name").text(consumer.queue);
-                    newItem.find(".date").text(consumer.lastConsumed);
+                    newItem.find(".date").text(consumer.lastConsumed ? (new Date(consumer.lastConsumed * 1000).toISOString()) : 'N/A');
                     newItem.find(".count").text(consumer.consumedMessages);
                     newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index).text();
                     consumers_list.append(newItem);
