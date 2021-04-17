@@ -89,10 +89,13 @@ class KafkaConsumerProducerBase:
             'queue': self.topic
         }
 
-    def set_last_timestamp_and_inc_counter(self):
+    def set_last_timestamp_and_inc_counter(self, timestamp):
         self.counter += 1
-        self.last_timestamp = datetime.fromtimestamp(time.time())
-        self.last_timestamp.replace(tzinfo=timezone.utc)
+        if timestamp is None:
+            self.last_timestamp = datetime.fromtimestamp(time.time())
+            self.last_timestamp.replace(tzinfo=timezone.utc)
+        else:
+            self.last_timestamp = timestamp
 
 
 class KafkaConsumer(KafkaConsumerProducerBase):
@@ -145,8 +148,6 @@ class KafkaConsumer(KafkaConsumerProducerBase):
                 logging.warning("Consumer error: {}".format(msg.error()))
                 continue
 
-            self.set_last_timestamp_and_inc_counter()
-
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
             logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
@@ -166,6 +167,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             )
 
             log_record = kafka_handler.finish()
+            self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_time)
             if self.single_log_service is not None:
                 self.single_log_service.add_record(log_record)
 
@@ -212,7 +214,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.key = key
         self.headers = headers
 
-    def produce(self, consumed: Consumed = None) -> None:
+    def produce(self, consumed: Consumed = None, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,
@@ -230,7 +232,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
             headers=self.headers
         )
 
-        if self.actor.delay is not None:
+        if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
         _create_topic(self.actor.service.address, self.topic)
@@ -256,8 +258,6 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
-        self.set_last_timestamp_and_inc_counter()
-
         logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
             self.actor.service.address,
             self.topic,
@@ -266,7 +266,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
             headers
         ))
 
-        kafka_handler.finish()
+        log_record = kafka_handler.finish()
+        self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_time)
 
     def json(self):
         data = {
