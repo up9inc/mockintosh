@@ -231,7 +231,12 @@
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link active" id="contact-tab" data-toggle="tab" href="#trynow" role="tab"
-               aria-controls="contact" aria-selected="false">Query APIs</a>
+               aria-controls="contact" aria-selected="false">HTTP Endpoints</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="async-tab" data-toggle="tab" href="#async" role="tab"
+               aria-controls="async"
+               aria-selected="false">Async Actors</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="reqlog-tab" data-toggle="tab" href="#reqlog" role="tab"
@@ -241,11 +246,6 @@
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="stats-tab" data-toggle="tab" href="#stats" role="tab" aria-controls="profile"
                aria-selected="true">Statistics</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" id="async-tab" data-toggle="tab" href="#async" role="tab"
-               aria-controls="async"
-               aria-selected="false">Async Actors</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
@@ -465,6 +465,7 @@
 <script type="module">
     import {CodeJar} from 'https://medv.io/codejar/codejar.js';
     import {withLineNumbers} from 'https://medv.io/codejar/linenumbers.js';
+
     var language = navigator.languages && navigator.languages[0] || // Chrome / Firefox
         navigator.language ||   // All browsers
         navigator.userLanguage; // IE <= 10
@@ -976,7 +977,7 @@
                     newItem.find(".index").text(consumer.index);
                     newItem.find(".name").text(consumer.name ? consumer.name : "<Name not set>");
                     newItem.find(".queue-name").text(consumer.queue);
-                    newItem.find(".date").text(consumer.lastConsumed ? (new Date(consumer.lastConsumed * 1000).toISOString()) : 'N/A');
+                    newItem.find(".date").text(consumer.lastConsumed ? (new Date(consumer.lastConsumed * 1000).toLocaleString(language)) : 'N/A');
                     newItem.find(".count").text(consumer.consumedMessages);
                     newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index).text();
                     consumers_list.append(newItem);
@@ -1008,7 +1009,13 @@
                             details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
                         });
 
-                        btns.find("button")[0].click();
+                        if (data.log.entries.length) {
+                            asyncModal.find(".traffic-details").show();
+                            btns.find("button")[0].click();
+                        } else {
+                            btns.text("No messages captured");
+                            asyncModal.find(".traffic-details").hide();
+                        }
 
                         asyncModal.modal();
                     }).fail(function () {
