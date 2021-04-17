@@ -195,6 +195,20 @@
         #async .card {
             margin-bottom: 1rem;
         }
+
+        #async .row {
+            height: 100%;
+            overflow: auto;
+        }
+
+        #asyncModal .btn-toolbar {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 0.5rem;
+        }
+
+        #asyncModal .modal-body {
+            padding-top: 0;
+        }
     </style>
 </head>
 
@@ -413,13 +427,12 @@
                                 <span class="pull-left text-info">Actor #<span class="index">0</span>: <span
                                         class="name">The name of it</span></span>
                                 <span class="pull-right small">
-                                <button class="btn btn-sm btn-info">View Captured Messages</button>
+                                <button class="btn btn-sm btn-info">View Captured Messages [<span class="count">0</span>]</button>
                                 </span>
                             </div>
                             <div class="card-body">
                                 <p class="card-text">Queue Name: <span class="queue-name">somequeue1</span></p>
                                 <p class="card-text">Last Consumed: <span class="date">2021-01-01T12:00:00</span></p>
-                                <p class="card-text">Message Count: <span class="count">1</span></p>
                             </div>
                         </div>
 
@@ -544,20 +557,17 @@
         jqNode.html(highlightedText);
     }
 
-    function details(item) {
-        $(".traffic-items .selected").removeClass('selected');
-        item.addClass('selected');
-        const entry = item.data("obj");
-        $(".traffic-details>span").hide();
-        $(".traffic-details>div").show();
-        $(".traffic-details .ts").text(entry.startedDateTime);
-        $(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
-        $(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
-        let method = $(".traffic-details .method");
+    function details(entry, container) {
+        container.find(".traffic-details>span").hide();
+        container.find(".traffic-details>div").show();
+        container.find(".traffic-details .ts").text(entry.startedDateTime);
+        container.find(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        container.find(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
+        let method = container.find(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
 
-        const label = $(".traffic-details .request .headers .header");
-        const req_hdr_block = $(".traffic-details .request .headers");
+        const label = container.find(".traffic-details .request .headers .header");
+        const req_hdr_block = container.find(".traffic-details .request .headers");
         if (entry.request.headers.length) req_hdr_block.show(); else req_hdr_block.hide();
         req_hdr_block.empty().append(label);
         let req_ctype = null;
@@ -584,16 +594,16 @@
                 useCodeHighlight(body, body.text(), 'txt');
             }
 
-            $(".traffic-details .request .body").show();
+            container.find(".traffic-details .request .body").show();
         } else {
-            $(".traffic-details .request .body").hide();
+            container.find(".traffic-details .request .body").hide();
         }
 
         // Response
-        $(".traffic-details .response > span >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
+        container.find(".traffic-details .response > span >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
             .text(entry.response.status + " " + entry.response.statusText);
-        const rlabel = $(".traffic-details .response .headers .header");
-        const resp_hdr_block = $(".traffic-details .response .headers");
+        const rlabel = container.find(".traffic-details .response .headers .header");
+        const resp_hdr_block = container.find(".traffic-details .response .headers");
         if (entry.response.headers.length) resp_hdr_block.show(); else resp_hdr_block.hide();
         resp_hdr_block.empty().append(rlabel);
         let resp_ctype = null;
@@ -607,7 +617,7 @@
 
         if (entry.response.content && entry.response.content.text) {
             const img = is_img(entry.response);
-            let body = $(".traffic-details .response .actual-body");
+            let body = container.find(".traffic-details .response .actual-body");
             if (img) {
                 body.empty().append("<img src='" + img + "' alt='Response Image'/>");
             } else {
@@ -627,9 +637,9 @@
                 }
             }
 
-            $(".traffic-details .response .body").show();
+            container.find(".traffic-details .response .body").show();
         } else {
-            $(".traffic-details .response .body").hide();
+            container.find(".traffic-details .response .body").hide();
         }
     }
 
@@ -668,7 +678,10 @@
                     li.append($('<span class="url"></span>').text(parts.join("/")));
 
                     li.click(function () {
-                        details($(this));
+                        $(".traffic-items .selected").removeClass('selected');
+                        const item = $(this);
+                        item.addClass('selected');
+                        details(item.data("obj"), $("#reqlog"));
                     });
                     $("#reqlog .traffic-items").append(li);
                     if (!$(".traffic-items .selected").length) {
@@ -962,14 +975,39 @@
                     newItem.find(".queue-name").text(consumer.queue);
                     newItem.find(".date").text(consumer.lastConsumed);
                     newItem.find(".count").text(consumer.consumedMessages);
-                    newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index);
+                    newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index).text();
                     consumers_list.append(newItem);
                 }
                 consumers_list.find(".card").show();
                 consumers_list.find("button").click(function () {
                     const btn = $(this);
-                    $.getJSON("./async/consumers/" + btn.data('id')).done(function () {
-                        btn.parent().find("span").show().fadeOut(500);
+                    $.getJSON("./traffic-log?" + btn.data('id')).done(function (data) {
+                        const asyncModal = $('#asyncModal');
+                        asyncModal.find(".modal-title").text("Captured Messages for Actor '" + btn.data('id') + "'");
+                        const btns = asyncModal.find(".btn-group");
+                        btns.empty();
+                        for (let n = 0; n < data.log.entries.length; n++) {
+                            const entry = data.log.entries[n];
+                            const btn = $('<button type="button" class="btn"></button>').text("#"+(n + 1)).data("entry", entry);
+                            btns.append(btn);
+                        }
+                        btns.find("button").click(function () {
+                            btns.find("button").removeClass("btn-info");
+                            const btn = $(this);
+                            btn.addClass("btn-info");
+
+                            if (!asyncModal.find('.modal-body > .content > ').length) {
+                                const details = $("#reqlog .traffic-details").clone().removeClass("right");
+                                details.find(".fa-times").hide();
+                                asyncModal.find('.modal-body > .content').append(details);
+                            }
+
+                            details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
+                        });
+
+                        btns.find("button")[0].click();
+
+                        asyncModal.modal();
                     }).fail(function () {
                         alert("failed");
                     });
@@ -979,5 +1017,32 @@
     });
 </script>
 
+<!-- Async Log Modal -->
+<div class="modal fade" id="asyncModal" tabindex="-1" role="dialog" aria-labelledby="asyncModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modal title</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                    <div class="btn-group mr-2" role="group">
+                    </div>
+                </div>
+                <div class="content"></div>
+            </div>
+            <!--
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+            </div>
+            -->
+        </div>
+    </div>
+</div>
 </body>
 </html>
