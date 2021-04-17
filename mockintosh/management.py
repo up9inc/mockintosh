@@ -1174,3 +1174,33 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
                 return
             else:
                 self.write(consumer.single_log_service.json())
+
+    async def delete(self, value):
+        if value.isnumeric():
+            try:
+                index = int(value)
+                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer.single_log_service.reset()
+                self.set_status(204)
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid consumer index!')
+                return
+        else:
+            consumer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.consumer is None:  # pragma: no cover
+                            continue
+                        consumer = actor.consumer
+
+            if consumer is None:
+                self.set_status(400)
+                self.write('No consumer actor is found for: \'%s\'' % actor_name)
+                return
+            else:
+                consumer.single_log_service.reset()
+                self.set_status(204)

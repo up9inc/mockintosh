@@ -3665,7 +3665,7 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/consumers/5', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/capture-limit', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
@@ -3673,6 +3673,23 @@ class TestAsync():
         assert any(entry['response']['content']['text'] == value11_1 for entry in data['log']['entries'])
         assert any(entry['response']['content']['text'] == value11_2 for entry in data['log']['entries'])
         # topic11 END
+
+        # DELETE endpoint
+        resp = httpx.delete(MGMT + '/async/consumers/4', verify=False)
+        assert 204 == resp.status_code
+        resp = httpx.get(MGMT + '/async/consumers/4', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert not data['log']['entries']
+
+        resp = httpx.delete(MGMT + '/async/consumers/capture-limit', verify=False)
+        assert 204 == resp.status_code
+        resp = httpx.get(MGMT + '/async/consumers/capture-limit', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert not data['log']['entries']
 
         job.kill()
 
@@ -3887,6 +3904,18 @@ class TestAsync():
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
                 for row in kafka_consumer.log
             )
+
+    def test_delete_async_consumer_bad_requests(self):
+        resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Invalid consumer index!'
+
+        actor_name = 'not-existing-actor'
+        resp = httpx.delete(MGMT + '/async/consumers/%s' % actor_name, verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
 
     def test_traffic_log_kafka(self):
         resp = httpx.get(MGMT + '/traffic-log', verify=False)
