@@ -6,6 +6,7 @@
     :synopsis: module that contains Kafka related methods.
 """
 
+import time
 import logging
 import threading
 from datetime import datetime, timezone
@@ -144,6 +145,8 @@ class KafkaConsumer(KafkaConsumerProducerBase):
                 logging.warning("Consumer error: {}".format(msg.error()))
                 continue
 
+            self.set_last_timestamp_and_inc_counter()
+
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
             logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
@@ -183,7 +186,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         data.update(
             {
                 'consumedMessages': self.counter,
-                'lastConsumed': self.last_timestamp
+                'lastConsumed': str(self.last_timestamp)
             }
         )
         return data
@@ -191,7 +194,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     def init_single_log_service(self):
         logs = Logs()
         logs.add_service(self.actor.service.name if self.actor.service.name is not None else '')
-        self.single_log_service = logs.services[0] 
+        self.single_log_service = logs.services[0]
         self.single_log_service.enabled = True
 
 
@@ -253,6 +256,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
+        self.set_last_timestamp_and_inc_counter()
+
         logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
             self.actor.service.address,
             self.topic,
@@ -282,7 +287,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         data.update(
             {
                 'producedMessages': self.counter,
-                'lastProduced': self.last_timestamp
+                'lastProduced': str(self.last_timestamp)
             }
         )
         return data
