@@ -1244,14 +1244,23 @@ class KafkaHandler(BaseHandler):
         self.replica_response = self.build_replica_response()
 
         if self.logs is None:
-            return
+            return None
 
         timestamp = datetime.fromtimestamp(time.time())
         timestamp.replace(tzinfo=timezone.utc)
 
-        return self.add_log_record(
+        self.add_log_record(
             0,
             timestamp,
+            None
+        )
+
+        return LogRecord(
+            self.logs.services[self.service_id].name,
+            timestamp,
+            0,
+            self.replica_request,
+            self.replica_response,
             None
         )
 
