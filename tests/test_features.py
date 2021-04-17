@@ -3480,7 +3480,8 @@ class TestAsync():
         os.system('killall -2 %s' % name)
 
     def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict):
-        assert any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
+        if key is not None:
+            assert any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
         assert any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
         for n, v in headers.items():
             assert any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
@@ -3573,7 +3574,7 @@ class TestAsync():
 
         self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_kafka_consume_no_key(self):
+    def test_get_async_consume_no_key(self):
         key = None
         value = 'value10'
         headers = {}
@@ -3596,29 +3597,25 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/0/10', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/4', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
         job.kill()
-        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+        self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_kafka_bad_requests(self):
-        resp = httpx.get(MGMT + '/async/13/0', verify=False)
+    def test_get_async_bad_requests(self):
+        resp = httpx.get(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Service not found!'
+        assert resp.text == 'Invalid consumer index!'
 
-        resp = httpx.get(MGMT + '/async/0/13', verify=False)
+        actor_name = 'not-existing-actor'
+        resp = httpx.get(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Actor not found!'
-
-        resp = httpx.get(MGMT + '/async/0/0', verify=False)
-        assert 400 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'This actor is not a consumer!'
+        assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
 
     def test_post_kafka_produce(self):
         key = 'key1'
