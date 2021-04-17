@@ -3617,7 +3617,7 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
 
-    def test_post_kafka_produce(self):
+    def test_post_async_produce(self):
         key = 'key1'
         value = 'value1'
         headers = {
@@ -3644,8 +3644,8 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async/0/0', verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/0', verify=False)
+        assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3654,7 +3654,7 @@ class TestAsync():
         job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
-    def test_post_kafka_produce_by_actor_name(self):
+    def test_post_async_produce_by_actor_name(self):
         key = None
         value = 'value6'
         headers = {
@@ -3680,8 +3680,8 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async', data={'actor': 'actor6'}, verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/actor6', verify=False)
+        assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3690,7 +3690,7 @@ class TestAsync():
         job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
-    def test_post_kafka_reactive_consumer(self):
+    def test_post_async_reactive_consumer(self):
         producer_topic = 'topic4'
         producer_key = 'key4'
         producer_value = 'value4'
@@ -3757,29 +3757,19 @@ class TestAsync():
             for row in kafka_consumer.log
         )
 
-    def test_post_kafka_bad_requests(self):
+    def test_post_async_bad_requests(self):
         actor13 = 'actor13'
-        resp = httpx.post(MGMT + '/async', data={'actor': actor13}, verify=False)
+        resp = httpx.post(MGMT + '/async/producers/%s' % actor13, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No producer actor is found for: \'%s\'' % actor13
 
-        resp = httpx.post(MGMT + '/async/13/0', verify=False)
+        resp = httpx.post(MGMT + '/async/producers/13', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Service not found!'
+        assert resp.text == 'Invalid producer index!'
 
-        resp = httpx.post(MGMT + '/async/0/13', verify=False)
-        assert 400 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Actor not found!'
-
-        resp = httpx.post(MGMT + '/async/0/1', verify=False)
-        assert 400 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'This actor is not a producer!'
-
-    def test_post_kafka_producer_templated(self):
+    def test_post_async_producer_templated(self):
         stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
@@ -3798,11 +3788,11 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
+        assert 202 == resp.status_code
 
-        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
+        assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
