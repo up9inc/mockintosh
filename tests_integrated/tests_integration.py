@@ -904,12 +904,12 @@ class IntegrationTests(unittest.TestCase):
         produce(topic, None, None)
         resp = httpx.post(MGMT + '/async/producers/on-demand-1', verify=False)
         resp.raise_for_status()
-        self.assertGreater(resp.json()['lastProduced'], 0)
-        self.assertGreater(resp.json()['producedMessages'], 0)
         kafka_consume_expected(topic)  # to clear queue from any preceding messages
 
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         resp.raise_for_status()
+        self.assertGreater(resp.json()['lastProduced'], 0)
+        self.assertGreater(resp.json()['producedMessages'], 0)
         msgs = kafka_consume_expected(topic)
         # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
 
