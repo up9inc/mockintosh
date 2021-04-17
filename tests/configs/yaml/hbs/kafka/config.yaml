@@ -95,6 +95,10 @@ services:
   - consume:
       queue: topic10
       value: value10
+  - consume:
+      capture: 2
+      queue: topic11
+      value: value11
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

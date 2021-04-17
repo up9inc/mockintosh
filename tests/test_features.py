@@ -3499,7 +3499,7 @@ class TestAsync():
             producers = data['producers']
             consumers = data['consumers']
             assert len(producers) == 8
-            assert len(consumers) == 5
+            assert len(consumers) == 6
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] == None
@@ -3604,6 +3604,77 @@ class TestAsync():
 
         job.kill()
         self.assert_consumer_log(data, key, value, headers)
+
+    def test_get_async_consume_capture_limit(self):
+        topic10 = 'topic10'
+        value10_1 = 'value10_1'
+        value10_2 = 'value10_2'
+
+        topic11 = 'topic11'
+        value11_1 = 'value11_1'
+        value11_2 = 'value11_2'
+
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor(0)
+        kafka_service.add_actor(kafka_actor)
+
+        # topic10 START
+        kafka_producer = kafka.KafkaProducer(
+            topic10,
+            value10_1
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            topic10,
+            value10_2
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/4', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert not any(entry['response']['content']['text'] == value10_1 for entry in data['log']['entries'])
+        assert any(entry['response']['content']['text'] == value10_2 for entry in data['log']['entries'])
+        # topic10 END
+
+        # topic11 START
+        kafka_producer = kafka.KafkaProducer(
+            topic11,
+            value11_1
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            topic11,
+            value11_2
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/5', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert any(entry['response']['content']['text'] == value11_1 for entry in data['log']['entries'])
+        assert any(entry['response']['content']['text'] == value11_2 for entry in data['log']['entries'])
+        # topic11 END
+
+        job.kill()
 
     def test_get_async_bad_requests(self):
         resp = httpx.get(MGMT + '/async/consumers/13', verify=False)
@@ -3778,7 +3849,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('templated-producer')
+        kafka_consumer = kafka.KafkaConsumer('templated-producer', capture_limit=2)
         kafka_actor.set_consumer(kafka_consumer)
         t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
@@ -3926,7 +3997,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 12
+        assert len(data['services'][0]['endpoints']) == 13
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
@@ -3987,9 +4058,9 @@ class TestAsync():
         assert data['services'][0]['endpoints'][10]['status_code_distribution'] == {'202': 2}
 
         assert data['services'][0]['endpoints'][11]['hint'] == 'GET topic10 - 10'
-        assert data['services'][0]['endpoints'][11]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][11]['request_counter'] == 3
         assert data['services'][0]['endpoints'][11]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][11]['status_code_distribution'] == {'200': 1}
+        assert data['services'][0]['endpoints'][11]['status_code_distribution'] == {'200': 3}
 
         assert data['services'][1]['hint'] == 'http://service1.example.com:8001 - Mock for Service1'
         assert data['services'][1]['request_counter'] == 0

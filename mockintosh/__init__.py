@@ -143,7 +143,8 @@ class Definition():
                         kafka_service.add_actor(kafka_actor)
 
                         if 'consume' in actor:
-                            kafka_consumer = KafkaConsumer(actor['consume']['queue'])
+                            capture_limit = 1 if 'capture' not in actor['consume'] else actor['consume']['capture']
+                            kafka_consumer = KafkaConsumer(actor['consume']['queue'], capture_limit=capture_limit)
                             kafka_actor.set_consumer(kafka_consumer)
 
                             kafka_consumer.index = len(data['async_consumers'])

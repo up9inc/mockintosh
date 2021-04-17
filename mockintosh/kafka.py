@@ -101,9 +101,11 @@ class KafkaConsumer(KafkaConsumerProducerBase):
 
     def __init__(
         self,
-        topic: str
+        topic: str,
+        capture_limit: int = 1
     ):
         super().__init__(topic)
+        self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
 
@@ -169,6 +171,12 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
             if self.single_log_service is not None:
                 self.single_log_service.add_record(log_record)
+
+            if len(self.log) > self.capture_limit:
+                self.log.pop(0)
+
+            if len(self.single_log_service.records) > self.capture_limit:
+                self.single_log_service.records.pop(0)
 
             if self.actor.producer is not None:
                 consumed = Consumed()
