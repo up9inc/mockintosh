@@ -20,6 +20,60 @@ services:
 
 Below are the configuration patterns for Mock Actors:
 
+## Asynchronous Index
+
+For a configuration file like;
+
+```yaml
+management:
+  port: 8000
+services:
+  - name: Kafka Mock Actors
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: on-demand-1
+        produce:
+          queue: on-demand1
+          key: somekey or null
+          value: "@value/from/file.json"
+      - name: validate-consume-1
+        consume:
+          queue: another-queue-name
+          group: "consumer-group"
+          key: matching keys
+          value: "expected value"
+          capture: 10
+```
+
+the `/async` management endpoint, returns an index that contains `producers` and `consumers` lists:
+
+```bash
+$ curl http://localhost:8000/async
+{
+  "producers": [
+    {
+      "type": "kafka",
+      "name": "on-demand-1",
+      "index": 0,
+      "queue": "on-demand1",
+      "producedMessages": 0,
+      "lastProduced": null
+    }
+  ],
+  "consumers": [
+    {
+      "type": "kafka",
+      "name": "validate-consume-1",
+      "index": 0,
+      "queue": "another-queue-name",
+      "consumedMessages": 0,
+      "lastConsumed": null
+    }
+  ]
+}
+```
+
 ## Scheduled Producer
 
 Below is the configuration snippet for Mock Actor that will produce configured message each `delay` seconds, up
@@ -34,7 +88,7 @@ services:
     actors:
       - name: scheduled-producer-1  # just the name
         produce:
-          queue: scheduled-queue1  # topic/queue name 
+          queue: scheduled-queue1  # topic/queue name
           key: "message key, can be null"
           value: "message value"
           headers:
@@ -42,7 +96,7 @@ services:
             timestamp: '{{date.timestamp}}'  # regular Mockintosh templating can be used
 
         delay: 5  # seconds between producing
-        limit: 100  # limit of how many messages to produce, optional 
+        limit: 100  # limit of how many messages to produce, optional
 ```
 
 You can use most of Mockintosh [templating](Templating.md) equations, with exception of those dependant on `request`.
@@ -74,7 +128,25 @@ services:
 Now, to trigger producing the message on-demand, you need to issue an API call using actor's `name`, like this:
 
 ```shell
-curl -X POST http://localhost:8000/async/on-demand-1 
+curl -X POST http://localhost:8000/async/producers/on-demand-1
+```
+
+and the response of this request would be;
+
+```json
+{
+    "type": "kafka",
+    "name": "on-demand-1",
+    "index": 0,
+    "queue": "on-demand1",
+    "lastProduced": 1618695168.6416173
+}
+```
+
+It's also possible to select the producer using its `index` number as an alternative to the actor's `name` like:
+
+```shell
+curl -X POST http://localhost:8000/async/producers/0
 ```
 
 _Note: The `limit` option actually works for any kind of producer._
@@ -106,19 +178,17 @@ services:
 To validate that message has appeared on the bus, you have to query Management API endpoint, like this:
 
 ```shell
-curl http://localhost:8000/async/validate-consume-1 
+curl http://localhost:8000/async/consumers/validate-consume-1
 ```
 
-That would respond with JSON containing the list of captured messages, for example:
-
-```json5
-TODO
-```
+That would respond with a JSON containing the list of captured messages in the **HTTP Archive 1.2 (HAR)** format,
+that's quite similar to the responses you can see in [Traffic Logs]((Management.md#traffic-log)). This traffic logging
+is specific to the selected consumer.
 
 To clear the captured message list, issue a `DELETE` call on the same URL:
 
 ```shell
-curl -X DELETE http://localhost:8000/async/validate-consume-1
+curl -X DELETE http://localhost:8000/async/consumers/validate-consume-1
 ```
 
 To narrow down the expected message, you can use regular [matching](Management.md) equations in `key`, `value`
@@ -136,7 +206,7 @@ services:
         consume:
           queue: another-queue-name
           key: "{{regEx 'prefix-(.*)'}}"
-          value: "expected prefix-{{justName}}"  # see also "reactive producer" section 
+          value: "expected prefix-{{justName}}"  # see also "reactive producer" section
           headers:
             hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section
 ```
@@ -157,7 +227,7 @@ services:
         consume:
           queue: consume-from-topic-1
           key: "{{regEx 'prefix-(.*)'}}"
-          value: "expected prefix-{{justName}}"  # see also "reactive producer" section 
+          value: "expected prefix-{{justName}}"  # see also "reactive producer" section
           headers:
             hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section
         delay: 5  # optional delay before producing
