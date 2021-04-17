@@ -1147,7 +1147,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                     return
                 else:
                     self.set_status(202)
-                    self.write(data = {
+                    self.write({
                         'producers': [producer.info() for producer in producers]
                     })
 
