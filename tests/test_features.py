@@ -3448,18 +3448,18 @@ class TestPerformanceProfile():
             assert str(status_code) in faults or status_code == 201
 
 
-class TestKafka():
+class TestAsync():
 
     mock_server_process = None
     config = 'configs/yaml/hbs/kafka/config.yaml'
 
     @classmethod
     def setup_class(cls):
-        cmd = '%s %s' % (PROGRAM, get_config_path(TestKafka.config))
+        cmd = '%s %s' % (PROGRAM, get_config_path(TestAsync.config))
         if should_cov:
             cmd = 'coverage run --parallel -m %s' % cmd
         this_env = os.environ.copy()
-        TestKafka.mock_server_process = subprocess.Popen(
+        TestAsync.mock_server_process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -3473,13 +3473,19 @@ class TestKafka():
 
     @classmethod
     def teardown_class(cls):
-        TestKafka.mock_server_process.kill()
+        TestAsync.mock_server_process.kill()
         name = PROGRAM
         if should_cov:
             name = 'coverage'
         os.system('killall -2 %s' % name)
 
-    def test_get_kafka(self):
+    def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict):
+        assert any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
+        assert any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
+        for n, v in headers.items():
+            assert any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+
+    def test_get_async(self):
         for _format in ('json', 'yaml'):
             resp = httpx.get(MGMT + '/async?format=%s' % _format, verify=False)
             assert 200 == resp.status_code
@@ -3489,25 +3495,36 @@ class TestKafka():
                 assert resp.headers['Content-Type'] == 'application/x-yaml'
             data = yaml.safe_load(resp.text)
 
-            with open(get_config_path(TestKafka.config), 'r') as file:
-                data2 = yaml.safe_load(file.read())
-                data2['services'] = [service for service in data2['services'] if 'type' in service and service['type'] == 'kafka']
-                for i, service in enumerate(data['services']):
-                    service2 = data2['services'][i]
-                    new_actors = []
-                    for actor in service['actors']:
-                        actor.pop('limit', None)
-                        new_actors.append(actor)
-                    new_actors2 = []
-                    for actor2 in service['actors']:
-                        actor2.pop('limit', None)
-                        new_actors2.append(actor2)
-                    if 'name' in service2:
-                        assert service['name'] == service2['name']
-                    assert service['address'] == service2['address']
-                    assert new_actors == new_actors2
+            producers = data['producers']
+            consumers = data['consumers']
+            assert len(producers) == 8
+            assert len(consumers) == 5
 
-    def test_get_kafka_consume(self):
+            assert producers[0]['type'] == 'kafka'
+            assert producers[0]['name'] == None
+            assert producers[0]['index'] == 0
+            assert producers[0]['queue'] == 'topic1'
+            assert producers[0]['producedMessages'] == 0
+            assert producers[0]['lastProduced'] == None
+
+            assert producers[3]['type'] == 'kafka'
+            assert producers[3]['name'] == 'actor6'
+            assert producers[3]['index'] == 3
+            assert producers[3]['queue'] == 'topic6'
+
+            assert consumers[0]['type'] == 'kafka'
+            assert consumers[0]['name'] == None
+            assert consumers[0]['index'] == 0
+            assert consumers[0]['queue'] == 'topic2'
+            assert consumers[0]['consumedMessages'] == 0
+            assert consumers[0]['lastConsumed'] == None
+
+            assert consumers[3]['type'] == 'kafka'
+            assert consumers[3]['name'] == 'actor9'
+            assert consumers[3]['index'] == 3
+            assert consumers[3]['queue'] == 'topic9'
+
+    def test_get_async_consume(self):
         key = 'key2'
         value = 'value2'
         headers = {'hdr2': 'val2'}
@@ -3530,15 +3547,15 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/0/1', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/0', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
         job.kill()
-        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+        self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_kafka_produce_consume_loop(self):
+    def test_get_async_produce_consume_loop(self):
         key = 'key3'
         value = 'value3'
         headers = {
@@ -3549,12 +3566,12 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/0/3', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/1', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+        self.assert_consumer_log(data, key, value, headers)
 
     def test_get_kafka_consume_no_key(self):
         key = None
