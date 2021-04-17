@@ -1168,7 +1168,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
                             continue
                         consumer = actor.consumer
 
-            if no_match:
+            if consumer is None:
                 self.set_status(400)
                 self.write('No consumer actor is found for: \'%s\'' % actor_name)
                 return
