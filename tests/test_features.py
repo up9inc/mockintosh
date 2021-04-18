@@ -3448,18 +3448,18 @@ class TestPerformanceProfile():
             assert str(status_code) in faults or status_code == 201
 
 
-class TestKafka():
+class TestAsync():
 
     mock_server_process = None
     config = 'configs/yaml/hbs/kafka/config.yaml'
 
     @classmethod
     def setup_class(cls):
-        cmd = '%s %s' % (PROGRAM, get_config_path(TestKafka.config))
+        cmd = '%s %s' % (PROGRAM, get_config_path(TestAsync.config))
         if should_cov:
             cmd = 'coverage run --parallel -m %s' % cmd
         this_env = os.environ.copy()
-        TestKafka.mock_server_process = subprocess.Popen(
+        TestAsync.mock_server_process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -3473,13 +3473,20 @@ class TestKafka():
 
     @classmethod
     def teardown_class(cls):
-        TestKafka.mock_server_process.kill()
+        TestAsync.mock_server_process.kill()
         name = PROGRAM
         if should_cov:
             name = 'coverage'
         os.system('killall -2 %s' % name)
 
-    def test_get_kafka(self):
+    def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict):
+        if key is not None:
+            assert any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
+        assert any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
+        for n, v in headers.items():
+            assert any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+
+    def test_get_async(self):
         for _format in ('json', 'yaml'):
             resp = httpx.get(MGMT + '/async?format=%s' % _format, verify=False)
             assert 200 == resp.status_code
@@ -3489,25 +3496,37 @@ class TestKafka():
                 assert resp.headers['Content-Type'] == 'application/x-yaml'
             data = yaml.safe_load(resp.text)
 
-            with open(get_config_path(TestKafka.config), 'r') as file:
-                data2 = yaml.safe_load(file.read())
-                data2['services'] = [service for service in data2['services'] if 'type' in service and service['type'] == 'kafka']
-                for i, service in enumerate(data['services']):
-                    service2 = data2['services'][i]
-                    new_actors = []
-                    for actor in service['actors']:
-                        actor.pop('limit', None)
-                        new_actors.append(actor)
-                    new_actors2 = []
-                    for actor2 in service['actors']:
-                        actor2.pop('limit', None)
-                        new_actors2.append(actor2)
-                    if 'name' in service2:
-                        assert service['name'] == service2['name']
-                    assert service['address'] == service2['address']
-                    assert new_actors == new_actors2
+            producers = data['producers']
+            consumers = data['consumers']
+            assert len(producers) == 8
+            assert len(consumers) == 6
 
-    def test_get_kafka_consume(self):
+            assert producers[0]['type'] == 'kafka'
+            assert producers[0]['name'] is None
+            assert producers[0]['index'] == 0
+            assert producers[0]['queue'] == 'topic1'
+            assert producers[0]['producedMessages'] == 0
+            assert producers[0]['lastProduced'] is None
+
+            assert producers[3]['type'] == 'kafka'
+            assert producers[3]['name'] == 'actor6'
+            assert producers[3]['index'] == 3
+            assert producers[3]['queue'] == 'topic6'
+
+            assert consumers[0]['type'] == 'kafka'
+            assert consumers[0]['name'] is None
+            assert consumers[0]['index'] == 0
+            assert consumers[0]['queue'] == 'topic2'
+            assert consumers[0]['captured'] == 0
+            assert consumers[0]['consumedMessages'] == 0
+            assert consumers[0]['lastConsumed'] is None
+
+            assert consumers[3]['type'] == 'kafka'
+            assert consumers[3]['name'] == 'actor9'
+            assert consumers[3]['index'] == 3
+            assert consumers[3]['queue'] == 'topic9'
+
+    def test_get_async_consume(self):
         key = 'key2'
         value = 'value2'
         headers = {'hdr2': 'val2'}
@@ -3527,18 +3546,28 @@ class TestKafka():
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
+        kafka_producer.produce()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/0/1', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/0', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        job.kill()
-        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+        self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_kafka_produce_consume_loop(self):
+        resp = httpx.get(MGMT + '/async', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        consumers = data['consumers']
+        assert consumers[0]['captured'] == 1
+        assert consumers[0]['consumedMessages'] == 2
+
+        job.kill()
+
+    def test_get_async_produce_consume_loop(self):
         key = 'key3'
         value = 'value3'
         headers = {
@@ -3549,14 +3578,14 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/0/3', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/1', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+        self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_kafka_consume_no_key(self):
+    def test_get_async_consume_no_key(self):
         key = None
         value = 'value10'
         headers = {}
@@ -3579,31 +3608,115 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
-        resp = httpx.get(MGMT + '/async/0/10', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/4', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
         job.kill()
-        assert any(row['key'] == key and row['value'] == value and row['headers'] == headers for row in data['log'])
+        self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_kafka_bad_requests(self):
-        resp = httpx.get(MGMT + '/async/13/0', verify=False)
+    def test_get_async_consume_capture_limit(self):
+        topic10 = 'topic10'
+        value10_1 = 'value10_1'
+        value10_2 = 'value10_2'
+
+        topic11 = 'topic11'
+        value11_1 = 'value11_1'
+        value11_2 = 'value11_2'
+
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor(0)
+        kafka_service.add_actor(kafka_actor)
+
+        # topic10 START
+        kafka_producer = kafka.KafkaProducer(
+            topic10,
+            value10_1
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            topic10,
+            value10_2
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/4', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert not any(entry['response']['content']['text'] == value10_1 for entry in data['log']['entries'])
+        assert any(entry['response']['content']['text'] == value10_2 for entry in data['log']['entries'])
+        # topic10 END
+
+        # topic11 START
+        kafka_producer = kafka.KafkaProducer(
+            topic11,
+            value11_1
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            topic11,
+            value11_2
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/capture-limit', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        assert any(entry['response']['content']['text'] == value11_1 for entry in data['log']['entries'])
+        assert any(entry['response']['content']['text'] == value11_2 for entry in data['log']['entries'])
+        # topic11 END
+
+        # DELETE endpoint
+        resp = httpx.delete(MGMT + '/async/consumers/4', verify=False)
+        assert 204 == resp.status_code
+        resp = httpx.get(MGMT + '/async/consumers/4', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert not data['log']['entries']
+
+        resp = httpx.delete(MGMT + '/async/consumers/capture-limit', verify=False)
+        assert 204 == resp.status_code
+        resp = httpx.get(MGMT + '/async/consumers/capture-limit', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert not data['log']['entries']
+
+        job.kill()
+
+    def test_get_async_bad_requests(self):
+        resp = httpx.get(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Service not found!'
+        assert resp.text == 'Invalid consumer index!'
 
-        resp = httpx.get(MGMT + '/async/0/13', verify=False)
+        actor_name = 'not-existing-actor'
+        resp = httpx.get(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Actor not found!'
+        assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
 
-        resp = httpx.get(MGMT + '/async/0/0', verify=False)
-        assert 400 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'This actor is not a consumer!'
-
-    def test_post_kafka_produce(self):
+    def test_post_async_produce(self):
         key = 'key1'
         value = 'value1'
         headers = {
@@ -3630,8 +3743,8 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async/0/0', verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/0', verify=False)
+        assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3640,7 +3753,7 @@ class TestKafka():
         job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
-    def test_post_kafka_produce_by_actor_name(self):
+    def test_post_async_produce_by_actor_name(self):
         key = None
         value = 'value6'
         headers = {
@@ -3666,8 +3779,8 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async', data={'actor': 'actor6'}, verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/actor6', verify=False)
+        assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3676,7 +3789,7 @@ class TestKafka():
         job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
 
-    def test_post_kafka_reactive_consumer(self):
+    def test_post_async_reactive_consumer(self):
         producer_topic = 'topic4'
         producer_key = 'key4'
         producer_value = 'value4'
@@ -3743,29 +3856,19 @@ class TestKafka():
             for row in kafka_consumer.log
         )
 
-    def test_post_kafka_bad_requests(self):
+    def test_post_async_bad_requests(self):
         actor13 = 'actor13'
-        resp = httpx.post(MGMT + '/async', data={'actor': actor13}, verify=False)
+        resp = httpx.post(MGMT + '/async/producers/%s' % actor13, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No producer actor is found for: \'%s\'' % actor13
 
-        resp = httpx.post(MGMT + '/async/13/0', verify=False)
+        resp = httpx.post(MGMT + '/async/producers/13', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Service not found!'
+        assert resp.text == 'Invalid producer index!'
 
-        resp = httpx.post(MGMT + '/async/0/13', verify=False)
-        assert 400 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'Actor not found!'
-
-        resp = httpx.post(MGMT + '/async/0/1', verify=False)
-        assert 400 == resp.status_code
-        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'This actor is not a producer!'
-
-    def test_post_kafka_producer_templated(self):
+    def test_post_async_producer_templated(self):
         stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
@@ -3774,7 +3877,7 @@ class TestKafka():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('templated-producer')
+        kafka_consumer = kafka.KafkaConsumer('templated-producer', capture_limit=2)
         kafka_actor.set_consumer(kafka_consumer)
         t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
@@ -3784,11 +3887,11 @@ class TestKafka():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
+        assert 202 == resp.status_code
 
-        resp = httpx.post(MGMT + '/async', data={'actor': 'templated-producer'}, verify=False)
-        assert 200 == resp.status_code
+        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
+        assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3812,6 +3915,18 @@ class TestKafka():
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
                 for row in kafka_consumer.log
             )
+
+    def test_delete_async_consumer_bad_requests(self):
+        resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'Invalid consumer index!'
+
+        actor_name = 'not-existing-actor'
+        resp = httpx.delete(MGMT + '/async/consumers/%s' % actor_name, verify=False)
+        assert 400 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
+        assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
 
     def test_traffic_log_kafka(self):
         resp = httpx.get(MGMT + '/traffic-log', verify=False)
@@ -3922,7 +4037,7 @@ class TestKafka():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 12
+        assert len(data['services'][0]['endpoints']) == 13
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
@@ -3930,9 +4045,9 @@ class TestKafka():
         assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {'202': 1}
 
         assert data['services'][0]['endpoints'][1]['hint'] == 'GET topic2 - 1'
-        assert data['services'][0]['endpoints'][1]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][1]['request_counter'] == 2
         assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 1}
+        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 2}
 
         assert data['services'][0]['endpoints'][2]['hint'] == 'PUT topic3 - 2'
         assert data['services'][0]['endpoints'][2]['request_counter'] > 2
@@ -3983,9 +4098,9 @@ class TestKafka():
         assert data['services'][0]['endpoints'][10]['status_code_distribution'] == {'202': 2}
 
         assert data['services'][0]['endpoints'][11]['hint'] == 'GET topic10 - 10'
-        assert data['services'][0]['endpoints'][11]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][11]['request_counter'] == 3
         assert data['services'][0]['endpoints'][11]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][11]['status_code_distribution'] == {'200': 1}
+        assert data['services'][0]['endpoints'][11]['status_code_distribution'] == {'200': 3}
 
         assert data['services'][1]['hint'] == 'http://service1.example.com:8001 - Mock for Service1'
         assert data['services'][1]['request_counter'] == 0

@@ -112,6 +112,9 @@
 
 # Next Version
 
+1. Make `MOCKINTOSH_FORCE_PORT` to work always
+1. Display timestamps in traffic log, instead of offset
+
 TODO:
 
 - mocks for Kafka & RabbitMQ
@@ -119,32 +122,29 @@ TODO:
     - on demand producer
     - reactive consumer+producer
     - consumer fact validation
-    - global headers considered
-    - avro + grpc + JSON
-    - what to do with binary headers?
-    - bodies from file
+
     - traffic log to display kafka comms
     - interceptors to access kafka comms
     - stats to count kafka comms
-    - allow overriding on-demand producer fields via mgmt API
-    - config reloading to work
-    
-    GET /async => list of consumers and producers
-    POST /async/producers/<name> ?key=...&hdr=
-    GET /async/consumers/<name>
-    
-  - avro + grpc + JSON
-  - what to do with binary headers?
 
-1. Display timestamps in traffic log
+    - consumer field matchers
+
+    - config reloading to work
+    - allow overriding on-demand producer fields via mgmt API
+
+    - avro + grpc + JSON
+    - what to do with binary headers?
+
+
 1. Do not respond with Content-Type=text/html if no content-type header is configured
+1. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 
 # Roadmap Ideas
 
 - unhandled requests to not get into traffic log?
 - add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
-- Tornado has auto-multicpu startup mode, use it optionally  
+- Tornado has auto-multicpu startup mode, use it optionally
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - cli argument to set the tag
@@ -152,7 +152,7 @@ TODO:
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
 - Nicer formatted error pages for known errors
-- Nicer debug logging of requests
+- Nicer logging of requests, with special option to enable it.
 - admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - config editor to provide hyperlinks from resource files into corresponding editing
