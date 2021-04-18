@@ -13,7 +13,10 @@ from mockintosh.params import (
     QueryStringParam,
     BodyTextParam,
     BodyUrlencodedParam,
-    BodyMultipartParam
+    BodyMultipartParam,
+    AsyncValueParam,
+    AsyncKeyParam,
+    AsyncHeadersParam
 )
 from mockintosh.helpers import _safe_path_split
 
@@ -34,6 +37,21 @@ class RecognizerBase():
             var, compiled, context = self.render_part(key, self.payload)
             if var is not None:
                 param = BodyTextParam(key, var)
+                self.params[var] = param
+            self.all_contexts.update(context)
+
+            return compiled
+        if self.scope.startswith('async'):
+            key = self.scope
+            var, compiled, context = self.render_part(key, self.payload)
+            if var is not None:
+                param = None
+                if self.scope == 'asyncValue':
+                    param = AsyncValueParam(key, var)
+                elif self.scope == 'asyncKey':
+                    param = AsyncKeyParam(key, var)
+                elif self.scope == 'asyncHeaders':
+                    param = AsyncHeadersParam(key, var)
                 self.params[var] = param
             self.all_contexts.update(context)
 
@@ -155,3 +173,18 @@ class BodyMultipartRecognizer(RecognizerBase):
 
     def __init__(self, multipart, params, all_contexts, engine, rendering_queue):
         super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'bodyMultipart')
+
+class AsyncProducerValueRecognizer(RecognizerBase):
+
+    def __init__(self, value, params, all_contexts, engine, rendering_queue):
+        super().__init__(value, params, all_contexts, engine, rendering_queue, 'asyncValue')
+
+class AsyncProducerKeyRecognizer(RecognizerBase):
+
+    def __init__(self, key, params, all_contexts, engine, rendering_queue):
+        super().__init__(key, params, all_contexts, engine, rendering_queue, 'asyncKey')
+
+class AsyncProducerHeadersRecognizer(RecognizerBase):
+
+    def __init__(self, headers, params, all_contexts, engine, rendering_queue):
+        super().__init__(headers, params, all_contexts, engine, rendering_queue, 'asyncHeaders')

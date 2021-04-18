@@ -102,9 +102,16 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     def __init__(
         self,
         topic: str,
+        value: Union[str, None] = None,
+        key: Union[str, None] = None,
+        headers: dict = {},
         capture_limit: int = 1
     ):
         super().__init__(topic)
+        # TODO: Implement matching logic
+        # self.match_value = value
+        # self.match_key = key
+        # self.match_headers = headers
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
