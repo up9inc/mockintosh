@@ -17,7 +17,7 @@ from typing import (
     Union
 )
 from collections import OrderedDict
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
 import yaml
 from yaml.representer import Representer
@@ -1073,66 +1073,19 @@ class ManagementAsyncHandler(ManagementBaseHandler):
     def initialize(self, http_server):
         self.http_server = http_server
 
-    async def get(self, *args):
-        if (len(args) == 2):
-            data = {
-                'queue': None,
-                'log': []
-            }
+    async def get(self):
+        data = {
+            'producers': [],
+            'consumers': []
+        }
 
-            service_id, actor_id = args
-            service_id = int(service_id)
-            actor_id = int(actor_id)
-            try:
-                service = self.http_server.definition.data['kafka_services'][service_id]
-            except IndexError:
-                self.set_status(400)
-                self.write('Service not found!')
-                return
+        for producer in self.http_server.definition.data['async_producers']:
+            data['producers'].append(producer.info())
 
-            try:
-                actor = service.actors[actor_id]
-            except IndexError:
-                self.set_status(400)
-                self.write('Actor not found!')
-                return
+        for consumer in self.http_server.definition.data['async_consumers']:
+            data['consumers'].append(consumer.info())
 
-            if actor.consumer is None:
-                self.set_status(400)
-                self.write('This actor is not a consumer!')
-                return
-            else:
-                data['queue'] = actor.consumer.topic
-
-            if actor.consumer.log is not None:
-                rows = actor.consumer.log
-                for row in rows:
-                    data['log'].append(
-                        {
-                            'key': row[0],
-                            'value': row[1],
-                            'headers': row[2]
-                        }
-                    )
-
-            self.dump(data)
-        else:
-            data = {
-                'services': []
-            }
-
-            services = self.http_server.definition.data['kafka_services']
-            for i, service in enumerate(services):
-                filtered_actors = [actor.json() for actor in service.actors if actor.consumer is None]
-                data['services'].append(
-                    {
-                        'name': service.name,
-                        'address': service.address,
-                        'actors': filtered_actors
-                    }
-                )
-
-            self.dump(data)
+        self.dump(data)
 
     def dump(self, data) -> None:
         _format = self.get_query_argument('format', default='json')
@@ -1142,57 +1095,112 @@ class ManagementAsyncHandler(ManagementBaseHandler):
         else:
             self.write(data)
 
-    async def post(self, *args):
-        actor_regex = self.get_body_argument('actor', default=None)
-        actor_regex_orig = actor_regex
-        if actor_regex is not None:
-            actor_regex = '^%s$' % actor_regex
 
-            no_match = True
+class ManagementAsyncProducersHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def post(self, value):
+        if value.isnumeric():
+            try:
+                index = int(value)
+                producer = self.http_server.definition.data['async_producers'][index]
+                t = threading.Thread(target=producer.produce, args=(), kwargs={
+                    'ignore_delay': True
+                })
+                t.daemon = True
+                t.start()
+                self.set_status(202)
+                self.write(producer.info())
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid producer index!')
+                return
+        else:
+            producer = None
+            actor_name = unquote(value)
             services = self.http_server.definition.data['kafka_services']
             for service_id, service in enumerate(services):
                 for actor_id, actor in enumerate(service.actors):
-                    if actor.name is not None:
-                        match = re.search(actor_regex, actor.name)
-                        if match is not None:
-                            if actor.producer is None:  # pragma: no cover
-                                continue
-                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
-                            t.daemon = True
-                            t.start()
-                            no_match = False
+                    if actor.name == actor_name:
+                        if actor.producer is None:  # pragma: no cover
+                            continue
+                        producer = actor.producer
+                        t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
+                            'ignore_delay': True
+                        })
+                        t.daemon = True
+                        t.start()
 
-            if no_match:
+            if producer is None:
                 self.set_status(400)
-                self.write('No producer actor is found for: \'%s\'' % actor_regex_orig)
+                self.write('No producer actor is found for: \'%s\'' % actor_name)
+                return
+            else:
+                self.set_status(202)
+                self.write(producer.info())
+
+
+class ManagementAsyncConsumersHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self, value):
+        if value.isnumeric():
+            try:
+                index = int(value)
+                consumer = self.http_server.definition.data['async_consumers'][index]
+                self.write(consumer.single_log_service.json())
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid consumer index!')
                 return
         else:
-            service_id, actor_id = args
-            service_id = int(service_id)
-            actor_id = int(actor_id)
+            consumer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.consumer is None:  # pragma: no cover
+                            continue
+                        consumer = actor.consumer
 
-            service = None
-            actor = None
+            if consumer is None:
+                self.set_status(400)
+                self.write('No consumer actor is found for: \'%s\'' % actor_name)
+                return
+            else:
+                self.write(consumer.single_log_service.json())
 
+    async def delete(self, value):
+        if value.isnumeric():
             try:
-                service = self.http_server.definition.data['kafka_services'][service_id]
+                index = int(value)
+                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer.single_log_service.reset()
+                self.set_status(204)
             except IndexError:
                 self.set_status(400)
-                self.write('Service not found!')
+                self.write('Invalid consumer index!')
                 return
+        else:
+            consumer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.consumer is None:  # pragma: no cover
+                            continue
+                        consumer = actor.consumer
 
-            try:
-                actor = service.actors[actor_id]
-            except IndexError:
+            if consumer is None:
                 self.set_status(400)
-                self.write('Actor not found!')
+                self.write('No consumer actor is found for: \'%s\'' % actor_name)
                 return
-
-            if actor.producer is None:
-                self.set_status(400)
-                self.write('This actor is not a producer!')
-                return
-
-            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={})
-            t.daemon = True
-            t.start()
+            else:
+                consumer.single_log_service.reset()
+                self.set_status(204)

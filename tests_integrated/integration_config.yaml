@@ -283,6 +283,13 @@ services:
         limit: 100 # produce up to N messages
 
       # reactive producer
+      - name: trigger for reactive case testing
+        produce:
+          queue: consume-trigger1
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
       - consume:
           queue: consume-trigger1
           group: optional consumer group
@@ -299,7 +306,8 @@ services:
             name: '{{consumed.headers.hdr-name}}'
 
       # validating consumer
-      - consume:
+      - name: validating-consumer1
+        consume:
           capture: 10  # limit len of messages to store for validation
           queue: another-queue-name
           key: matching keys
