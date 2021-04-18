@@ -6,6 +6,7 @@
     :synopsis: module that contains Kafka related methods.
 """
 
+import re
 import time
 import logging
 import threading
@@ -108,40 +109,89 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         capture_limit: int = 1
     ):
         super().__init__(topic)
-        # TODO: Implement matching logic
-        # self.match_value = value
-        # self.match_key = key
-        # self.match_headers = headers
+        self.match_value = value
+        self.match_key = key
+        self.match_headers = headers
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
 
-    def consume(self, stop: dict = {}) -> None:
-        kafka_handler = KafkaHandler(
-            self.actor.id,
-            self.internal_endpoint_id,
-            self.actor.service.definition.source_dir,
-            self.actor.service.definition.template_engine,
-            self.actor.service.definition.rendering_queue,
-            self.actor.service.definition.logs,
-            self.actor.service.definition.stats,
-            self.actor.service.address,
-            self.topic,
-            False,
-            service_id=self.actor.service.id
+    def _match_str(self, x: str, y: str):
+        x = '^%s$' % x
+        match = re.search(x, y)
+        if match is None:
+            return False
+        else:
+            return True
+
+    def match_attr(self, x: Union[str, dict, None], y: Union[str, dict]):
+        if x is None:
+            return True
+
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k not in y and k.title() not in y:
+                    return False
+                elif not self._match_str(v, y[k]):
+                    return False
+            return True
+        elif isinstance(x, str):
+            return self._match_str(x, y)
+        else:
+            return False
+
+    def match(self, key: str, value: str, headers: dict) -> bool:
+        if (
+            (not self.match_attr(self.match_value, value))
+            or  # noqa: W504, W503
+            (not self.match_attr(self.match_key, key))
+            or  # noqa: W504, W503
+            (not self.match_attr(self.match_headers, headers))
+        ):
+            return False
+        else:
+            return True
+
+    def info(self) -> dict:
+        data = super().info()
+        data.update(
+            {
+                'captured': len(self.single_log_service.records),
+                'consumedMessages': self.counter,
+                'lastConsumed': self.last_timestamp
+            }
         )
+        return data
 
-        _create_topic(self.actor.service.address, self.topic)
+    def init_single_log_service(self) -> None:
+        logs = Logs()
+        logs.add_service(self.actor.service.name if self.actor.service.name is not None else '')
+        self.single_log_service = logs.services[0]
+        self.single_log_service.enabled = True
 
-        if self.actor is not None:
-            self.log = []
+
+class KafkaConsumerGroup:
+
+    def __init__(self):
+        self.consumers = []
+
+    def add_consumer(self, consumer: KafkaConsumer):
+        self.consumers.append(consumer)
+
+    def consume(self, stop: dict = {}) -> None:
+        if not len(self.consumers) > 0:
+            raise Exception()
+
+        first_actor = self.consumers[0].actor
+
+        _create_topic(first_actor.service.address, first_actor.consumer.topic)
 
         consumer = Consumer({
-            'bootstrap.servers': self.actor.service.address,
+            'bootstrap.servers': first_actor.service.address,
             'group.id': '0',
             'auto.offset.reset': 'earliest'
         })
-        consumer.subscribe([self.actor.consumer.topic])
+        consumer.subscribe([first_actor.consumer.topic])
 
         while True:
             if stop.get('val', False):  # pragma: no cover
@@ -159,14 +209,53 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
             logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-                self.actor.service.address,
-                self.actor.consumer.topic,
+                first_actor.service.address,
+                first_actor.consumer.topic,
                 key,
                 value,
                 headers
             ))
 
-            self.log.append(
+            matched_consumer = None
+
+            for _consumer in self.consumers:
+                if _consumer.match(key, value, headers):
+                    matched_consumer = _consumer
+                    break
+
+            if matched_consumer is None:
+                logging.debug('NOT MATCHED Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                    first_actor.service.address,
+                    first_actor.consumer.topic,
+                    key,
+                    value,
+                    headers
+                ))
+                continue
+
+            logging.info('MATCHED Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                matched_consumer.actor.service.address,
+                matched_consumer.actor.consumer.topic,
+                key,
+                value,
+                headers
+            ))
+
+            kafka_handler = KafkaHandler(
+                matched_consumer.actor.id,
+                matched_consumer.internal_endpoint_id,
+                matched_consumer.actor.service.definition.source_dir,
+                matched_consumer.actor.service.definition.template_engine,
+                matched_consumer.actor.service.definition.rendering_queue,
+                matched_consumer.actor.service.definition.logs,
+                matched_consumer.actor.service.definition.stats,
+                matched_consumer.actor.service.address,
+                matched_consumer.topic,
+                False,
+                service_id=matched_consumer.actor.service.id
+            )
+
+            matched_consumer.log.append(
                 (key, value, headers)
             )
 
@@ -175,45 +264,27 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             )
 
             log_record = kafka_handler.finish()
-            self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
-            if self.single_log_service is not None:
-                self.single_log_service.add_record(log_record)
+            matched_consumer.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
+            if matched_consumer.single_log_service is not None:
+                matched_consumer.single_log_service.add_record(log_record)
 
-            if len(self.log) > self.capture_limit:
-                self.log.pop(0)
+            if len(matched_consumer.log) > matched_consumer.capture_limit:
+                matched_consumer.log.pop(0)
 
-            if len(self.single_log_service.records) > self.capture_limit:
-                self.single_log_service.records.pop(0)
+            if len(matched_consumer.single_log_service.records) > matched_consumer.capture_limit:
+                matched_consumer.single_log_service.records.pop(0)
 
-            if self.actor.producer is not None:
+            if matched_consumer.actor.producer is not None:
                 consumed = Consumed()
                 consumed.key = key
                 consumed.value = value
                 consumed.headers = headers
 
-                t = threading.Thread(target=self.actor.producer.produce, args=(), kwargs={
+                t = threading.Thread(target=matched_consumer.actor.producer.produce, args=(), kwargs={
                     'consumed': consumed
                 })
                 t.daemon = True
                 t.start()
-
-    def info(self):
-        data = super().info()
-        data.update(
-            {
-                'captured': len(self.single_log_service.records),
-                'consumedMessages': self.counter,
-                'lastConsumed': self.last_timestamp
-            }
-        )
-        return data
-
-    def init_single_log_service(self):
-        logs = Logs()
-        logs.add_service(self.actor.service.name if self.actor.service.name is not None else '')
-        self.single_log_service = logs.services[0]
-        self.single_log_service.enabled = True
-
 
 class KafkaProducer(KafkaConsumerProducerBase):
 
@@ -418,6 +489,9 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
 
 def run_loops(definition):
     for service_id, service in enumerate(definition.data['kafka_services']):
+
+        consumer_groups = {}
+
         for actor_id, actor in enumerate(service.actors):
             if actor.consumer is None and actor.producer is not None and actor.delay is not None:
                 t = threading.Thread(target=_run_produce_loop, args=(definition, service, actor), kwargs={})
@@ -425,6 +499,14 @@ def run_loops(definition):
                 t.start()
 
             if actor.consumer is not None:
-                t = threading.Thread(target=actor.consumer.consume, args=(), kwargs={})
-                t.daemon = True
-                t.start()
+                if actor.consumer.topic not in consumer_groups.keys():
+                    consumer_group = KafkaConsumerGroup()
+                    consumer_group.add_consumer(actor.consumer)
+                    consumer_groups[actor.consumer.topic] = consumer_group
+                else:
+                    consumer_groups[actor.consumer.topic].add_consumer(actor.consumer)
+
+        for _, consumer_group in consumer_groups.items():
+            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
+            t.daemon = True
+            t.start()
