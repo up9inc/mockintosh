@@ -3517,6 +3517,7 @@ class TestAsync():
             assert consumers[0]['name'] is None
             assert consumers[0]['index'] == 0
             assert consumers[0]['queue'] == 'topic2'
+            assert consumers[0]['captured'] == 0
             assert consumers[0]['consumedMessages'] == 0
             assert consumers[0]['lastConsumed'] is None
 
@@ -3545,6 +3546,7 @@ class TestAsync():
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
+        kafka_producer.produce()
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -3553,8 +3555,17 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        job.kill()
         self.assert_consumer_log(data, key, value, headers)
+
+        resp = httpx.get(MGMT + '/async', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        consumers = data['consumers']
+        assert consumers[0]['captured'] == 1
+        assert consumers[0]['consumedMessages'] == 2
+
+        job.kill()
 
     def test_get_async_produce_consume_loop(self):
         key = 'key3'
@@ -4034,9 +4045,9 @@ class TestAsync():
         assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {'202': 1}
 
         assert data['services'][0]['endpoints'][1]['hint'] == 'GET topic2 - 1'
-        assert data['services'][0]['endpoints'][1]['request_counter'] == 1
+        assert data['services'][0]['endpoints'][1]['request_counter'] == 2
         assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 1}
+        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 2}
 
         assert data['services'][0]['endpoints'][2]['hint'] == 'PUT topic3 - 2'
         assert data['services'][0]['endpoints'][2]['request_counter'] > 2

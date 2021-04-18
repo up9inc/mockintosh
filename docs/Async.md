@@ -67,12 +67,16 @@ $ curl http://localhost:8000/async
       "name": "validate-consume-1",
       "index": 0,
       "queue": "another-queue-name",
+      "captured": 0,
       "consumedMessages": 0,
       "lastConsumed": null
     }
   ]
 }
 ```
+
+`captured` field resembles the number of consumed messages that stored in the buffer while `consumedMessages` field
+resembles the number of all consumed messages throught the message stream.
 
 ## Scheduled Producer
 

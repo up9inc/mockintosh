@@ -194,6 +194,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         data = super().info()
         data.update(
             {
+                'captured': len(self.single_log_service.records),
                 'consumedMessages': self.counter,
                 'lastConsumed': self.last_timestamp
             }
