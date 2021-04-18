@@ -427,12 +427,14 @@
                                 <span class="pull-left text-info">Actor #<span class="index">0</span>: <span
                                         class="name">The name of it</span></span>
                                 <span class="pull-right small">
-                                <button class="btn btn-sm btn-info">View Captured Messages [<span class="count">0</span>]</button>
+                                <button class="btn btn-sm btn-info">View Captured Messages [<span
+                                        class="captured">0</span>]</button>
                                 </span>
                             </div>
                             <div class="card-body">
                                 <p class="card-text">Queue Name: <span class="queue-name">somequeue1</span></p>
                                 <p class="card-text">Last Consumed: <span class="date">2021-01-01T12:00:00</span></p>
+                                <p class="card-text">Message Count: <span class="count">0</span></p>
                             </div>
                         </div>
 
@@ -979,6 +981,7 @@
                     newItem.find(".queue-name").text(consumer.queue);
                     newItem.find(".date").text(consumer.lastConsumed ? (new Date(consumer.lastConsumed * 1000).toLocaleString(language)) : 'N/A');
                     newItem.find(".count").text(consumer.consumedMessages);
+                    newItem.find(".captured").text(consumer.captured);
                     newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index).text();
                     consumers_list.append(newItem);
                 }
