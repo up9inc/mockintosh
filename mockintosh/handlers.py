@@ -168,7 +168,7 @@ class BaseHandler:
         elapsed_time_in_milliseconds: int,
         request_start_datetime: datetime,
         server_connection: Union[HTTP1ServerConnection, None]
-    ) -> None:
+    ) -> LogRecord:
         """Method that creates a log record and inserts it to log tracking system."""
         if not self.logs.services[self.service_id].is_enabled():
             logging.debug('Not logging the request because logging is disabled.')
@@ -183,6 +183,8 @@ class BaseHandler:
             server_connection
         )
         self.logs.services[self.service_id].add_record(log_record)
+
+        return log_record
 
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
@@ -1238,11 +1240,11 @@ class KafkaHandler(BaseHandler):
         if key is not None:
             self.response_headers['x-%s-message-key' % PROGRAM.lower()] = key
 
-    def finish(self):
+    def finish(self) -> Union[LogRecord, None]:
         self.replica_response = self.build_replica_response()
 
         if self.logs is None:
-            return
+            return None
 
         timestamp = datetime.fromtimestamp(time.time())
         timestamp.replace(tzinfo=timezone.utc)
@@ -1250,6 +1252,15 @@ class KafkaHandler(BaseHandler):
         self.add_log_record(
             0,
             timestamp,
+            None
+        )
+
+        return LogRecord(
+            self.logs.services[self.service_id].name,
+            timestamp,
+            0,
+            self.replica_request,
+            self.replica_response,
             None
         )
 

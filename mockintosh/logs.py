@@ -6,6 +6,7 @@
     :synopsis: module that contains logging related classes.
 """
 
+from datetime import datetime
 from typing import (
     Union
 )
@@ -35,14 +36,14 @@ class LogRecord:
     def __init__(
         self,
         service_name: str,
-        request_start_time: int,
+        request_start_datetime: datetime,
         elapsed_time_in_milliseconds: int,
         request: Request,
         response: Response,
         server_connection: Union[HTTP1ServerConnection, None]
     ):
         self.service_name = service_name
-        self.request_start_time = request_start_time
+        self.request_start_datetime = request_start_datetime
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
         self.response = response
@@ -58,7 +59,7 @@ class LogRecord:
     def json(self):
         data = {
             '_serviceName': self.service_name,
-            'startedDateTime': self.request_start_time.astimezone().isoformat(),
+            'startedDateTime': self.request_start_datetime.astimezone().isoformat(),
             'time': self.elapsed_time_in_milliseconds,
             'request': self.request._har(),
             'response': self.response._har(),

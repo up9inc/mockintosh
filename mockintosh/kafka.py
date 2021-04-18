@@ -6,8 +6,10 @@
     :synopsis: module that contains Kafka related methods.
 """
 
+import time
 import logging
 import threading
+from datetime import datetime
 from typing import (
     Union
 )
@@ -19,6 +21,7 @@ from confluent_kafka.cimpl import KafkaException
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
+from mockintosh.logs import Logs
 
 
 def _kafka_delivery_report(err, msg):
@@ -65,7 +68,7 @@ def _merge_global_headers(_globals, kafka_producer):
     return headers
 
 
-class KafkaConsumer:
+class KafkaConsumerProducerBase:
 
     def __init__(
         self,
@@ -73,8 +76,38 @@ class KafkaConsumer:
     ):
         self.topic = topic
         self.actor = None
-        self.log = []
         self.internal_endpoint_id = None
+        self.index = None
+        self.counter = 0
+        self.last_timestamp = None
+
+    def info(self):
+        return {
+            'type': 'kafka',
+            'name': self.actor.name,
+            'index': self.index,
+            'queue': self.topic
+        }
+
+    def set_last_timestamp_and_inc_counter(self, request_start_datetime: datetime):
+        self.counter += 1
+        if request_start_datetime is None:
+            self.last_timestamp = time.time()
+            return
+        self.last_timestamp = datetime.timestamp(request_start_datetime)
+
+
+class KafkaConsumer(KafkaConsumerProducerBase):
+
+    def __init__(
+        self,
+        topic: str,
+        capture_limit: int = 1
+    ):
+        super().__init__(topic)
+        self.capture_limit = capture_limit
+        self.log = []
+        self.single_log_service = None
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
@@ -134,7 +167,16 @@ class KafkaConsumer:
                 key=key, value=value, headers=headers
             )
 
-            kafka_handler.finish()
+            log_record = kafka_handler.finish()
+            self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
+            if self.single_log_service is not None:
+                self.single_log_service.add_record(log_record)
+
+            if len(self.log) > self.capture_limit:
+                self.log.pop(0)
+
+            if len(self.single_log_service.records) > self.capture_limit:
+                self.single_log_service.records.pop(0)
 
             if self.actor.producer is not None:
                 consumed = Consumed()
@@ -148,8 +190,26 @@ class KafkaConsumer:
                 t.daemon = True
                 t.start()
 
+    def info(self):
+        data = super().info()
+        data.update(
+            {
+                'captured': len(self.single_log_service.records),
+                'consumedMessages': self.counter,
+                'lastConsumed': self.last_timestamp
+            }
+        )
+        return data
 
-class KafkaProducer:
+    def init_single_log_service(self):
+        logs = Logs()
+        logs.add_service(self.actor.service.name if self.actor.service.name is not None else '')
+        self.single_log_service = logs.services[0]
+        self.single_log_service.enabled = True
+
+
+class KafkaProducer(KafkaConsumerProducerBase):
+
     def __init__(
         self,
         topic: str,
@@ -157,14 +217,12 @@ class KafkaProducer:
         key: Union[str, None] = None,
         headers: dict = {}
     ):
-        self.topic = topic
+        super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
-        self.actor = None
-        self.internal_endpoint_id = None
 
-    def produce(self, consumed: Consumed = None) -> None:
+    def produce(self, consumed: Consumed = None, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,
@@ -182,7 +240,7 @@ class KafkaProducer:
             headers=self.headers
         )
 
-        if self.actor.delay is not None:
+        if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
         _create_topic(self.actor.service.address, self.topic)
@@ -216,7 +274,8 @@ class KafkaProducer:
             headers
         ))
 
-        kafka_handler.finish()
+        log_record = kafka_handler.finish()
+        self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
 
     def json(self):
         data = {
@@ -230,6 +289,16 @@ class KafkaProducer:
         if self.headers:
             data['headers'] = self.headers
 
+        return data
+
+    def info(self):
+        data = super().info()
+        data.update(
+            {
+                'producedMessages': self.counter,
+                'lastProduced': self.last_timestamp
+            }
+        )
         return data
 
 
@@ -248,6 +317,7 @@ class KafkaActor:
     def set_consumer(self, consumer: KafkaConsumer):
         self.consumer = consumer
         self.consumer.actor = self
+        self.consumer.init_single_log_service()
         if self.service.definition.stats is None:
             return
 
