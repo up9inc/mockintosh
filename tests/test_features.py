@@ -3468,7 +3468,8 @@ class TestAsync():
             'topic9',
             'templated-producer',
             'topic10',
-            'topic11'
+            'topic11',
+            'binary-topic'
         ):
             kafka._create_topic(KAFKA_ADDR, topic)
 
@@ -3515,7 +3516,7 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 8
+            assert len(producers) == 9
             assert len(consumers) == 6
 
             assert producers[0]['type'] == 'kafka'
@@ -3618,7 +3619,8 @@ class TestAsync():
             'topic10',
             value,
             key=key,
-            headers=headers
+            headers=headers,
+            enable_topic_creation=True
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
@@ -3750,7 +3752,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('topic1')
+        kafka_consumer = kafka.KafkaConsumer('topic1', enable_topic_creation=True)
         kafka_actor.set_consumer(kafka_consumer)
         t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
             'stop': stop
@@ -3769,6 +3771,10 @@ class TestAsync():
         t.join()
         job.kill()
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
+
+    def test_post_async_binary_produce(self):
+        resp = httpx.post(MGMT + '/async/producers/Binary%20Producer', verify=False)
+        assert 202 == resp.status_code
 
     def test_post_async_produce_by_actor_name(self):
         key = None
@@ -4054,7 +4060,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 13
+        assert len(data['services'][0]['endpoints']) == 14
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

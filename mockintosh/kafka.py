@@ -284,20 +284,6 @@ class KafkaProducer(KafkaConsumerProducerBase):
         log_record = kafka_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
 
-    def json(self):
-        data = {
-            'queue': self.topic,
-            'value': self.value,
-        }
-
-        if self.key is not None:
-            data['key'] = self.key
-
-        if self.headers:
-            data['headers'] = self.headers
-
-        return data
-
     def info(self):
         data = super().info()
         data.update(
@@ -359,23 +345,6 @@ class KafkaActor:
 
     def set_limit(self, value: int):
         self.limit = value
-
-    def json(self):
-        data = {}
-
-        if self.name is not None:
-            data['name'] = self.name
-
-        if self.producer is not None:
-            data['produce'] = self.producer.json()
-
-        if self.delay is not None:
-            data['delay'] = self.delay
-
-        if self.limit is not None:
-            data['limit'] = self.limit
-
-        return data
 
 
 class KafkaService:
