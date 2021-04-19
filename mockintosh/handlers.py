@@ -1311,8 +1311,12 @@ class KafkaHandler(BaseHandler):
 
         # Body
         request.mimeType = 'text/plain'
-        request.bodyType = 'str'
-        request.body = self.value
+        if isinstance(self.value, (bytes, bytearray)):
+            request.bodyType = BASE64
+            request.body = _b64encode(self.value)
+        else:
+            request.bodyType = 'str'
+            request.body = self.value
         request.bodySize = 0 if self.value is None else len(self.value)
 
         # Files
