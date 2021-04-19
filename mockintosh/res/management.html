@@ -938,7 +938,7 @@
             newItem.find(".index").text(producer.index);
             newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
             newItem.find(".queue-name").text(producer.queue);
-            newItem.find(".date").text(producer.lastConsumed ? (new Date(producer.lastProduced * 1000).toLocaleString(language)) : 'N/A');
+            newItem.find(".date").text(producer.lastProduced ? (new Date(producer.lastProduced * 1000).toLocaleString(language)) : 'N/A');
             newItem.find(".count").text(producer.producedMessages);
         }
 
