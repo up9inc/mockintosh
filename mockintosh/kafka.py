@@ -18,6 +18,7 @@ from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
+from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
@@ -155,7 +156,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
                 self.actor.service.address,
                 self.actor.consumer.topic,
                 key,
-                value,
+                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
                 headers
             ))
 
@@ -270,7 +271,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
             self.actor.service.address,
             self.topic,
             key,
-            value,
+            '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
             headers
         ))
 
