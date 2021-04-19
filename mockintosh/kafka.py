@@ -103,12 +103,14 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     def __init__(
         self,
         topic: str,
-        capture_limit: int = 1
+        capture_limit: int = 1,
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
+        self.enable_topic_creation = enable_topic_creation
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
@@ -125,7 +127,8 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             service_id=self.actor.service.id
         )
 
-        _create_topic(self.actor.service.address, self.topic)
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
 
         if self.actor is not None:
             self.log = []
@@ -216,12 +219,14 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {}
+        headers: dict = {},
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
+        self.enable_topic_creation = enable_topic_creation
 
     def produce(self, consumed: Consumed = None, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
@@ -244,7 +249,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
-        _create_topic(self.actor.service.address, self.topic)
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
 
         definition = self.actor.service.definition
         if definition is not None:

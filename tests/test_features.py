@@ -3455,6 +3455,23 @@ class TestAsync():
 
     @classmethod
     def setup_class(cls):
+        # Create the Async topics/queues
+        for topic in (
+            'topic1',
+            'topic2',
+            'topic3',
+            'topic4',
+            'topic5',
+            'topic6',
+            'topic7',
+            'topic8',
+            'topic9',
+            'templated-producer',
+            'topic10',
+            'topic11'
+        ):
+            kafka._create_topic(KAFKA_ADDR, topic)
+
         cmd = '%s %s' % (PROGRAM, get_config_path(TestAsync.config))
         if should_cov:
             cmd = 'coverage run --parallel -m %s' % cmd
