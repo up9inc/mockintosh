@@ -1194,7 +1194,7 @@ class KafkaHandler(BaseHandler):
     def _render_value(self, value):
         if len(value) > 1 and value[0] == '@':
             template_path, context = self.resolve_relative_path(value)
-            with open(template_path, 'r') as file:
+            with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 value = file.read()
         compiled, context = self.common_template_renderer(self.definition_engine, value)
@@ -1320,6 +1320,6 @@ class KafkaHandler(BaseHandler):
             return response
 
         response.headers = self.response_headers
-        response.body = str(self.response_body)
+        response.body = self.response_body
 
         return response
