@@ -6,6 +6,9 @@
     :synopsis: module that contains the constants.
 """
 
+from os import environ
+
+
 PROGRAM = 'mockintosh'
 
 PYBARS = 'Handlebars'
@@ -19,3 +22,5 @@ SPECIAL_CONTEXT = '%s_special_context' % PROGRAM
 JINJA_VARNAME_DICT = 'jinja_varname_dict'
 
 BASE64 = 'base64'
+
+LOGGING_LENGTH_LIMIT = int(environ.get('%s_LOGGING_LENGTH_LIMIT' % PROGRAM, 100))
