@@ -365,7 +365,7 @@
                             </div>
                             <br/>
                             <div class="response">
-                                <span>Response: <span class="badge badge-success">200</span></span>
+                                <span class="status">Response: <span class="badge badge-success">200</span></span>
 
                                 <ul class="list-group small headers" style="margin-top: 1rem">
                                     <li class="list-group-item header">
@@ -606,7 +606,14 @@
         }
 
         // Response
-        container.find(".traffic-details .response > span >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
+        const url = new URL(entry.request.url);
+        if (url.protocol === 'kafka:') {
+            container.find(".traffic-details .response > span.status").hide();
+        } else {
+            container.find(".traffic-details .response > span.status").show();
+        }
+
+        container.find(".traffic-details .response > span.status >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
             .text(entry.response.status + " " + entry.response.statusText);
         const rlabel = container.find(".traffic-details .response .headers .header");
         const resp_hdr_block = container.find(".traffic-details .response .headers");
