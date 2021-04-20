@@ -70,6 +70,17 @@ def _merge_global_headers(_globals, kafka_producer):
     return headers
 
 
+def _wait_for_topic_to_exist(consumer, topic):
+    while True:
+        topics = consumer.list_topics(topic)  # promises to create topic
+        logging.debug("Topic state: %s", topics.topics)
+        if topics.topics[topic].error is None:
+            break
+        else:
+            logging.warning("Topic is not available: %s", topics.topics[topic].error)
+            time.sleep(1)
+
+
 class KafkaConsumerProducerBase:
 
     def __init__(
@@ -97,16 +108,6 @@ class KafkaConsumerProducerBase:
             self.last_timestamp = time.time()
             return
         self.last_timestamp = datetime.timestamp(request_start_datetime)
-
-    def _wait_for_topic_to_exist(self, consumer, topic):
-        while True:
-            topics = consumer.list_topics(topic)  # promises to create topic
-            logging.debug("Topic state: %s", topics.topics)
-            if topics.topics[topic].error is None:
-                break
-            else:
-                logging.warning("Topic is not available: %s", topics.topics[topic].error)
-                time.sleep(1)
 
 
 class KafkaConsumer(KafkaConsumerProducerBase):
@@ -195,10 +196,10 @@ class KafkaConsumerGroup:
         if not len(self.consumers) > 0:
             raise Exception()
 
-        if self.enable_topic_creation:
-            _create_topic(self.actor.service.address, self.topic)
-
         first_actor = self.consumers[0].actor
+
+        if any(consumer.enable_topic_creation for consumer in self.consumers):
+            _create_topic(first_actor.service.address, first_actor.consumer.topic)
 
         _create_topic(first_actor.service.address, first_actor.consumer.topic)
 
@@ -207,8 +208,8 @@ class KafkaConsumerGroup:
             'group.id': '0',
             'auto.offset.reset': 'earliest'
         })
-        self._wait_for_topic_to_exist(consumer, self.topic)
-        consumer.subscribe([self.actor.consumer.topic])
+        _wait_for_topic_to_exist(consumer, first_actor.consumer.topic)
+        consumer.subscribe([first_actor.consumer.topic])
 
         while True:
             if stop.get('val', False):  # pragma: no cover
@@ -361,7 +362,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
             'group.id': '0',
             'auto.offset.reset': 'earliest'
         })
-        self._wait_for_topic_to_exist(consumer, self.topic)
+        _wait_for_topic_to_exist(consumer, self.topic)
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})

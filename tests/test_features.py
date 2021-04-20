@@ -3753,7 +3753,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic1', enable_topic_creation=True)
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3793,7 +3795,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic6')
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3836,7 +3840,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer(consumer_topic)
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3901,7 +3907,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('templated-producer', capture_limit=2)
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
