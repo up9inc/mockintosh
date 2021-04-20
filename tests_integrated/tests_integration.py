@@ -964,14 +964,16 @@ def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True
         'group.id': group,
         'auto.offset.reset': 'earliest'  # earliest _committed_ offset
     })
+    msgs = []
     topics = consumer.list_topics(topic)  # promises to create topic
     logging.debug("Topic state: %s", topics.topics)
-    assert topics.topics[topic].error is None, "%s" % topics.topics
+    if topics.topics[topic].error is not None:
+        logging.warning("Error subscribing to topic: %s", topics.topics)
+        return msgs
     consumer.subscribe([topic])
     time.sleep(5)  # for kafka to rebalance consumer groups
 
     after_subscribe()
-    msgs = []
 
     logging.debug("Waiting for messages...")
     while True:

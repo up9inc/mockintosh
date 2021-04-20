@@ -19,6 +19,7 @@ from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
+from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
@@ -97,6 +98,16 @@ class KafkaConsumerProducerBase:
             return
         self.last_timestamp = datetime.timestamp(request_start_datetime)
 
+    def _wait_for_topic_to_exist(self, consumer, topic):
+        while True:
+            topics = consumer.list_topics(topic)  # promises to create topic
+            logging.debug("Topic state: %s", topics.topics)
+            if topics.topics[topic].error is None:
+                break
+            else:
+                logging.warning("Topic is not available: %s", topics.topics[topic].error)
+                time.sleep(1)
+
 
 class KafkaConsumer(KafkaConsumerProducerBase):
 
@@ -106,7 +117,8 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: dict = {},
-        capture_limit: int = 1
+        capture_limit: int = 1,
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.match_value = value
@@ -115,6 +127,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
+        self.enable_topic_creation = enable_topic_creation
 
     def _match_str(self, x: str, y: str):
         x = '^%s$' % x
@@ -182,6 +195,9 @@ class KafkaConsumerGroup:
         if not len(self.consumers) > 0:
             raise Exception()
 
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
+
         first_actor = self.consumers[0].actor
 
         _create_topic(first_actor.service.address, first_actor.consumer.topic)
@@ -191,7 +207,8 @@ class KafkaConsumerGroup:
             'group.id': '0',
             'auto.offset.reset': 'earliest'
         })
-        consumer.subscribe([first_actor.consumer.topic])
+        self._wait_for_topic_to_exist(consumer, self.topic)
+        consumer.subscribe([self.actor.consumer.topic])
 
         while True:
             if stop.get('val', False):  # pragma: no cover
@@ -237,7 +254,7 @@ class KafkaConsumerGroup:
                 matched_consumer.actor.service.address,
                 matched_consumer.actor.consumer.topic,
                 key,
-                value,
+                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
                 headers
             ))
 
@@ -338,6 +355,13 @@ class KafkaProducer(KafkaConsumerProducerBase):
         # Templating
         key, value, headers = kafka_handler.render_attributes()
 
+        consumer = Consumer({
+            'bootstrap.servers': self.actor.service.address,
+            'group.id': '0',
+            'auto.offset.reset': 'earliest'
+        })
+        self._wait_for_topic_to_exist(consumer, self.topic)
+
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
         producer.poll(0)
@@ -348,26 +372,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
             self.actor.service.address,
             self.topic,
             key,
-            value,
+            '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
             headers
         ))
 
         log_record = kafka_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
-
-    def json(self):
-        data = {
-            'queue': self.topic,
-            'value': self.value,
-        }
-
-        if self.key is not None:
-            data['key'] = self.key
-
-        if self.headers:
-            data['headers'] = self.headers
-
-        return data
 
     def info(self):
         data = super().info()
@@ -430,23 +440,6 @@ class KafkaActor:
 
     def set_limit(self, value: int):
         self.limit = value
-
-    def json(self):
-        data = {}
-
-        if self.name is not None:
-            data['name'] = self.name
-
-        if self.producer is not None:
-            data['produce'] = self.producer.json()
-
-        if self.delay is not None:
-            data['delay'] = self.delay
-
-        if self.limit is not None:
-            data['limit'] = self.limit
-
-        return data
 
 
 class KafkaService:

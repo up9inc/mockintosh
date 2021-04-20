@@ -122,7 +122,6 @@ TODO:
     - on demand producer
     - reactive consumer+producer
     - consumer fact validation
-
     - traffic log to display kafka comms
     - interceptors to access kafka comms
     - stats to count kafka comms
