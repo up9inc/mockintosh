@@ -18,6 +18,7 @@ from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
+from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
@@ -102,12 +103,14 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     def __init__(
         self,
         topic: str,
-        capture_limit: int = 1
+        capture_limit: int = 1,
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
+        self.enable_topic_creation = enable_topic_creation
 
     def consume(self, stop: dict = {}) -> None:
         kafka_handler = KafkaHandler(
@@ -124,7 +127,8 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             service_id=self.actor.service.id
         )
 
-        _create_topic(self.actor.service.address, self.topic)
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
 
         if self.actor is not None:
             self.log = []
@@ -155,7 +159,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
                 self.actor.service.address,
                 self.actor.consumer.topic,
                 key,
-                value,
+                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
                 headers
             ))
 
@@ -215,12 +219,14 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {}
+        headers: dict = {},
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
+        self.enable_topic_creation = enable_topic_creation
 
     def produce(self, consumed: Consumed = None, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
@@ -243,7 +249,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
-        _create_topic(self.actor.service.address, self.topic)
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
 
         definition = self.actor.service.definition
         if definition is not None:
@@ -270,26 +277,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
             self.actor.service.address,
             self.topic,
             key,
-            value,
+            '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
             headers
         ))
 
         log_record = kafka_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
-
-    def json(self):
-        data = {
-            'queue': self.topic,
-            'value': self.value,
-        }
-
-        if self.key is not None:
-            data['key'] = self.key
-
-        if self.headers:
-            data['headers'] = self.headers
-
-        return data
 
     def info(self):
         data = super().info()
@@ -352,23 +345,6 @@ class KafkaActor:
 
     def set_limit(self, value: int):
         self.limit = value
-
-    def json(self):
-        data = {}
-
-        if self.name is not None:
-            data['name'] = self.name
-
-        if self.producer is not None:
-            data['produce'] = self.producer.json()
-
-        if self.delay is not None:
-            data['delay'] = self.delay
-
-        if self.limit is not None:
-            data['limit'] = self.limit
-
-        return data
 
 
 class KafkaService:

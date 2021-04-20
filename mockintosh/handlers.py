@@ -1192,13 +1192,29 @@ class KafkaHandler(BaseHandler):
         self.replica_request = self.build_replica_request()
 
     def _render_value(self, value):
+        is_binary = False
         if len(value) > 1 and value[0] == '@':
             template_path, context = self.resolve_relative_path(value)
-            with open(template_path, 'r') as file:
+            with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 value = file.read()
-        compiled, context = self.common_template_renderer(self.definition_engine, value)
-        self.populate_counters(context)
+                try:
+                    value = value.decode()
+                    logging.debug('Template file text: %s', value)
+                except UnicodeDecodeError:
+                    is_binary = True
+                    logging.debug('Template file is binary. Templating disabled.')
+        compiled = None
+        context = None
+        if is_binary:
+            compiled = value
+        else:
+            compiled, context = self.common_template_renderer(self.definition_engine, value)
+            self.populate_counters(context)
+
+        if not is_binary:
+            logging.debug('Render output: %s', compiled)
+
         return compiled
 
     def _render_attributes(self, *args):
@@ -1295,8 +1311,12 @@ class KafkaHandler(BaseHandler):
 
         # Body
         request.mimeType = 'text/plain'
-        request.bodyType = 'str'
-        request.body = self.value
+        if isinstance(self.value, (bytes, bytearray)):
+            request.bodyType = BASE64
+            request.body = _b64encode(self.value)
+        else:
+            request.bodyType = 'str'
+            request.body = self.value
         request.bodySize = 0 if self.value is None else len(self.value)
 
         # Files
@@ -1320,6 +1340,6 @@ class KafkaHandler(BaseHandler):
             return response
 
         response.headers = self.response_headers
-        response.body = str(self.response_body)
+        response.body = self.response_body
 
         return response

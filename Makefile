@@ -9,7 +9,7 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-test: test-style test-integration copy-certs up-kafka
+test: test-style test-integration copy-assets up-kafka
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
@@ -17,7 +17,7 @@ test-integration: build
 	tests_integrated/acceptance.sh && \
 	docker stop $$(docker ps -a -q)
 
-test-with-coverage: test-style copy-certs up-kafka
+test-with-coverage: test-style copy-assets up-kafka
 	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -51,6 +51,8 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
+copy-assets: copy-certs copy-images
+
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/json/hbs/management/key.pem && \
@@ -60,6 +62,9 @@ copy-certs:
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/kafka/key.pem && \
 	cp tests_integrated/subdir/cert.pem tests/configs/yaml/hbs/core/cert.pem && \
 	cp tests_integrated/subdir/key.pem tests/configs/yaml/hbs/core/key.pem
+
+copy-images:
+	cp tests/configs/json/hbs/core/image.png tests/configs/yaml/hbs/kafka/
 
 up-kafka:
 	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
