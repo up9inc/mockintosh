@@ -36,6 +36,8 @@ class IntegrationTests(unittest.TestCase):
         logging.info("Travis tag: %s, src version: %s", ttag, ver)
         assert not ttag or ttag == ver, "Git tag/version mismatch"
 
+        mockintosh.kafka._create_topic(KAFK, 'scheduled-queue1')
+
     def test_basic_connect(self):
         resp = httpx.get(SRV1 + '/')
         self.assertEqual(200, resp.status_code)
