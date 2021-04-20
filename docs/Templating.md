@@ -232,3 +232,8 @@ The equivalent of [`replace`](https://jinja.palletsprojects.com/en/2.11.x/templa
 Jinja2 usage: `{% raw %}{{ fake.address() | replace('\n','\\n') }}{% endraw %}`
 
 Handlebars usage: `{% raw %}{{ replace ( fake.address ) old='\n' new='\\n' }}{% endraw %}`
+
+#### env(name, default)
+
+Returns the value of environment variable given by `name` parameter. If the environment variable does not exists
+in the current shell then the value in `default` parameter is returned.
