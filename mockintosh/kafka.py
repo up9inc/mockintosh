@@ -97,6 +97,16 @@ class KafkaConsumerProducerBase:
             return
         self.last_timestamp = datetime.timestamp(request_start_datetime)
 
+    def _wait_for_topic_to_exist(self, consumer, topic):
+        while True:
+            topics = consumer.list_topics(topic)  # promises to create topic
+            logging.debug("Topic state: %s", topics.topics)
+            if topics.topics[topic].error is None:
+                break
+            else:
+                logging.warning("Topic is not available: %s", topics.topics[topic].error)
+                time.sleep(1)
+
 
 class KafkaConsumer(KafkaConsumerProducerBase):
 
@@ -138,6 +148,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             'group.id': '0',
             'auto.offset.reset': 'earliest'
         })
+        self._wait_for_topic_to_exist(consumer, self.topic)
         consumer.subscribe([self.actor.consumer.topic])
 
         while True:
@@ -266,6 +277,13 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
         # Templating
         key, value, headers = kafka_handler.render_attributes()
+
+        consumer = Consumer({
+            'bootstrap.servers': self.actor.service.address,
+            'group.id': '0',
+            'auto.offset.reset': 'earliest'
+        })
+        self._wait_for_topic_to_exist(consumer, self.topic)
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
