@@ -18,6 +18,9 @@ services:
     actors: [ ]  # here we will configure the actors, see below
 ```
 
+> Note: The `address` field of asynchronous services supports templating. Such that the address can be fetched
+> from an environment variable like: `address: "{% raw %}{{env 'KAFKA' 'localhost:9092'}}{% endraw %}"`
+
 Below are the configuration patterns for Mock Actors:
 
 ## Asynchronous Index
