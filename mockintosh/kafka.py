@@ -303,6 +303,7 @@ class KafkaConsumerGroup:
                 t.daemon = True
                 t.start()
 
+
 class KafkaProducer(KafkaConsumerProducerBase):
 
     def __init__(

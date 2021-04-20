@@ -177,15 +177,18 @@ class BodyMultipartRecognizer(RecognizerBase):
     def __init__(self, multipart, params, all_contexts, engine, rendering_queue):
         super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'bodyMultipart')
 
+
 class AsyncProducerValueRecognizer(RecognizerBase):
 
     def __init__(self, value, params, all_contexts, engine, rendering_queue):
         super().__init__(value, params, all_contexts, engine, rendering_queue, 'asyncValue')
 
+
 class AsyncProducerKeyRecognizer(RecognizerBase):
 
     def __init__(self, key, params, all_contexts, engine, rendering_queue):
         super().__init__(key, params, all_contexts, engine, rendering_queue, 'asyncKey')
+
 
 class AsyncProducerHeadersRecognizer(RecognizerBase):
 
