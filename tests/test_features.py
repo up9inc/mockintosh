@@ -3619,8 +3619,7 @@ class TestAsync():
             'topic10',
             value,
             key=key,
-            headers=headers,
-            enable_topic_creation=True
+            headers=headers
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()

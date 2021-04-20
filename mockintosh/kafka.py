@@ -230,14 +230,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {},
-        enable_topic_creation: bool = False
+        headers: dict = {}
     ):
         super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
-        self.enable_topic_creation = enable_topic_creation
 
     def produce(self, consumed: Consumed = None, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
@@ -260,8 +258,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
-        if self.enable_topic_creation:
-            _create_topic(self.actor.service.address, self.topic)
+        _create_topic(self.actor.service.address, self.topic)
 
         definition = self.actor.service.definition
         if definition is not None:
