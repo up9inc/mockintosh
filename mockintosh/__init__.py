@@ -24,7 +24,7 @@ from typing import (
 import yaml
 from jsonschema import validate
 
-from mockintosh.constants import PROGRAM
+from mockintosh.constants import PROGRAM, PYBARS, JINJA
 from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _detect_engine, _nostderr, _import_from, _urlsplit
@@ -41,7 +41,7 @@ from mockintosh.recognizers import (
 )
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
-from mockintosh.templating import RenderingQueue, RenderingJob
+from mockintosh.templating import TemplateRenderer, RenderingQueue, RenderingJob
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
 from mockintosh.kafka import KafkaService, KafkaActor, KafkaConsumer, KafkaProducer
@@ -119,6 +119,11 @@ class Definition():
 
             hint = None
             if 'type' in service and service['type'] != 'http':
+                service['address'], _ = Definition.async_address_template_renderer(
+                    self.template_engine,
+                    self.rendering_queue,
+                    service['address']
+                )
                 hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
             else:
                 hint = '%s://%s:%s%s' % (
@@ -311,6 +316,27 @@ class Definition():
                     endpoint['body']['multipart'] = body_multipart_recognizer.recognize()
 
         return service
+
+    @staticmethod
+    def async_address_template_renderer(
+        template_engine: str,
+        rendering_queue,
+        text: str
+    ) -> Tuple[str, dict]:
+        if template_engine == PYBARS:
+            from mockintosh.hbs.methods import env
+        elif template_engine == JINJA:
+            from mockintosh.j2.methods import env
+
+        renderer = TemplateRenderer()
+        return renderer.render(
+            template_engine,
+            text,
+            rendering_queue,
+            inject_methods=[
+                env
+            ]
+        )
 
 
 class CustomArgumentParser(argparse.ArgumentParser):

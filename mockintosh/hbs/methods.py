@@ -79,6 +79,10 @@ def escape_html(this, text):
     return html.escape(text)
 
 
+def env(this, name, default):
+    return os.environ.get(name, default)
+
+
 def tojson(this, text):
     return json.dumps(text) \
         .replace(u'<', u'\\u003c') \

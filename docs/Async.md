@@ -18,6 +18,9 @@ services:
     actors: [ ]  # here we will configure the actors, see below
 ```
 
+> Note: The `address` field of asynchronous services supports templating. Such that the address can be fetched
+> from an environment variable like: `address: "{% raw %}{{env 'KAFKA' 'localhost:9092'}}{% endraw %}"`
+
 Below are the configuration patterns for Mock Actors:
 
 ## Asynchronous Index
@@ -85,6 +88,7 @@ to `limit` times. The `delay` option is key for this case, it distinguishes sche
 .
 
 ```yaml
+{% raw %}
 services:
   - name: Kafka Mock Actors
     type: kafka
@@ -101,6 +105,7 @@ services:
 
         delay: 5  # seconds between producing
         limit: 100  # limit of how many messages to produce, optional
+{% endraw %}
 ```
 
 You can use most of Mockintosh [templating](Templating.md) equations, with exception of those dependant on `request`.
@@ -199,6 +204,7 @@ To narrow down the expected message, you can use regular [matching](Management.m
 or `headers` values:
 
 ```yaml
+{% raw %}
 management:
   port: 8000
 services:
@@ -213,6 +219,7 @@ services:
           value: "expected prefix-{{justName}}"  # see also "reactive producer" section
           headers:
             hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section
+{% endraw %}
 ```
 
 ## "Reactive" Producer
@@ -222,6 +229,7 @@ is produced in "reaction" to another message consumed from the bus. You can also
 and producing, to simulate some "processing time".
 
 ```yaml
+{% raw %}
 services:
   - name: Kafka Mock Actors
     type: kafka
@@ -241,6 +249,7 @@ services:
           value: "reference from consumed: {{justName}} {{myCapturedVar}}"
           headers:
             propagated-hdr: '{{consumed.headers.hdr-name}}'
+{% endraw %}
 ```
 
 _Note: Validating the consumer and triggering the producing would work for "reactive producer", too._
