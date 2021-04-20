@@ -41,21 +41,31 @@ class RecognizerBase():
             self.all_contexts.update(context)
 
             return compiled
-        if self.scope.startswith('async'):
+        elif self.scope.startswith('async'):
             key = self.scope
-            var, compiled, context = self.render_part(key, self.payload)
-            if var is not None:
-                param = None
-                if self.scope == 'asyncValue':
-                    param = AsyncValueParam(key, var)
-                elif self.scope == 'asyncKey':
-                    param = AsyncKeyParam(key, var)
-                elif self.scope == 'asyncHeaders':
-                    param = AsyncHeadersParam(key, var)
-                self.params[var] = param
-            self.all_contexts.update(context)
+            if isinstance(self.payload, dict) and self.scope == 'asyncHeaders':
+                result = {}
+                for _key, value in self.payload.items():
+                    var, compiled, context = self.render_part(key, value)
+                    if var is not None:
+                        param = None
+                        param = AsyncHeadersParam(key, var)
+                        self.params[var] = param
+                    self.all_contexts.update(context)
+                    result[_key] = compiled
+                return result
+            else:
+                var, compiled, context = self.render_part(key, self.payload)
+                if var is not None:
+                    param = None
+                    if self.scope == 'asyncValue':
+                        param = AsyncValueParam(key, var)
+                    elif self.scope == 'asyncKey':
+                        param = AsyncKeyParam(key, var)
+                    self.params[var] = param
+                self.all_contexts.update(context)
 
-            return compiled
+                return compiled
         else:
             parts = None
             new_parts = None
