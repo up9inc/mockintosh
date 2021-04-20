@@ -80,6 +80,10 @@ def escape_html(text):
     return html.escape(text)
 
 
+def env(name, default):
+    return os.environ.get(name, default)
+
+
 class Random():
 
     def __init__(self):
