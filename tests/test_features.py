@@ -3497,12 +3497,24 @@ class TestAsync():
             name = 'coverage'
         os.system('killall -2 %s' % name)
 
-    def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict):
+    def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict, invert: bool = False):
         if key is not None:
-            assert any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
-        assert any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
+            criteria = any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
+            if invert:
+                assert not criteria
+            else:
+                assert criteria
+        criteria = any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
+        if invert:
+            assert not criteria
+        else:
+            assert criteria
         for n, v in headers.items():
-            assert any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+            criteria = any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+            if invert:
+                assert not criteria
+            else:
+                assert criteria
 
     def test_get_async(self):
         for _format in ('json', 'yaml'):
@@ -3549,6 +3561,10 @@ class TestAsync():
         value = 'value2'
         headers = {'hdr2': 'val2'}
 
+        not_key = 'not_key2'
+        not_value = 'not_value2'
+        not_headers = {'hdr2': 'not_val2', 'not_hdr2': 'val2'}
+
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -3566,6 +3582,15 @@ class TestAsync():
         kafka_producer.produce()
         kafka_producer.produce()
 
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            not_value,
+            key=not_key,
+            headers=not_headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
         time.sleep(KAFKA_CONSUME_WAIT)
 
         resp = httpx.get(MGMT + '/async/consumers/0', verify=False)
@@ -3574,6 +3599,7 @@ class TestAsync():
         data = resp.json()
 
         self.assert_consumer_log(data, key, value, headers)
+        self.assert_consumer_log(data, not_key, not_value, not_headers, invert=True)
 
         resp = httpx.get(MGMT + '/async', verify=False)
         assert 200 == resp.status_code

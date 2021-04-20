@@ -193,9 +193,6 @@ class KafkaConsumerGroup:
         self.consumers.append(consumer)
 
     def consume(self, stop: dict = {}) -> None:
-        if not len(self.consumers) > 0:
-            raise Exception()
-
         first_actor = self.consumers[0].actor
 
         if any(consumer.enable_topic_creation for consumer in self.consumers):
