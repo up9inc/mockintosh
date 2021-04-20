@@ -36,10 +36,10 @@ services:
     limit: 100
   - consume:
       queue: topic3
-      key: key3
-      value: value3
+      key: "{{var3_1}}"
+      value: "{{var3_2}}"
       headers:
-        hdr3: val3
+        hdr3: "{{var3_3}}"
   - consume:
       queue: topic4
       key: key4
