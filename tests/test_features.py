@@ -4006,7 +4006,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic2'
+            entry['request']['url'] == 'kafka://localhost:9092/topic2?key=key2'
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -4019,7 +4019,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic3'
+            entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
