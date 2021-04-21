@@ -10,6 +10,7 @@ import re
 import time
 import logging
 import threading
+from collections import OrderedDict
 from datetime import datetime
 from typing import (
     Union
@@ -265,7 +266,12 @@ class KafkaConsumerGroup:
                 matched_consumer.actor.service.address,
                 matched_consumer.topic,
                 False,
-                service_id=matched_consumer.actor.service.id
+                service_id=matched_consumer.actor.service.id,
+                value=value,
+                key=key,
+                headers=headers,
+                context=matched_consumer.actor.context,
+                params=matched_consumer.actor.params
             )
 
             matched_consumer.log.append(
@@ -294,7 +300,8 @@ class KafkaConsumerGroup:
                 consumed.headers = headers
 
                 t = threading.Thread(target=matched_consumer.actor.producer.produce, args=(), kwargs={
-                    'consumed': consumed
+                    'consumed': consumed,
+                    'context': kafka_handler.custom_context
                 })
                 t.daemon = True
                 t.start()
@@ -314,7 +321,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.key = key
         self.headers = headers
 
-    def produce(self, consumed: Consumed = None, ignore_delay: bool = False) -> None:
+    def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,
@@ -329,7 +336,9 @@ class KafkaProducer(KafkaConsumerProducerBase):
             service_id=self.actor.service.id,
             value=self.value,
             key=self.key,
-            headers=self.headers
+            headers=self.headers,
+            context=context,
+            params=self.actor.params
         )
 
         if not ignore_delay and self.actor.delay is not None:
@@ -343,9 +352,9 @@ class KafkaProducer(KafkaConsumerProducerBase):
             )
 
         if consumed is not None:
-            kafka_handler.custom_context = {
+            kafka_handler.custom_context.update({
                 'consumed': consumed
-            }
+            })
 
         # Templating
         key, value, headers = kafka_handler.render_attributes()
@@ -391,6 +400,8 @@ class KafkaActor:
         self.id = _id
         self.name = name
         self.counters = {}
+        self.context = OrderedDict()
+        self.params = {}
         self.consumer = None
         self.producer = None
         self.delay = None

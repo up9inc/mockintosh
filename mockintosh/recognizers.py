@@ -53,6 +53,7 @@ class RecognizerBase():
                         self.params[var] = param
                     self.all_contexts.update(context)
                     result[_key] = compiled
+
                 return result
             else:
                 var, compiled, context = self.render_part(key, self.payload)

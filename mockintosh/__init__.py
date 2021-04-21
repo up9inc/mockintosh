@@ -157,8 +157,8 @@ class Definition():
                             key = actor['consume'].get('key', None)
                             headers = actor['consume'].get('headers', {})
 
-                            params = {}
-                            context = OrderedDict()
+                            params = kafka_actor.params
+                            context = kafka_actor.context
 
                             async_producer_value_recognizer = AsyncProducerValueRecognizer(
                                 value,
