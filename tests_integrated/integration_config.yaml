@@ -293,10 +293,6 @@ services:
       - consume:
           queue: consume-trigger1
           group: optional consumer group
-          key: matching keys
-          value: json / protobuf / avro # also allow validating schema for any type of it
-          headers:
-            hdr-name: value matcher
         delay: 10 # seconds after consume
         produce:
           queue: produce-reaction1
