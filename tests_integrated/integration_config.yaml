@@ -333,7 +333,7 @@ services:
         consume:
           queue: chain1-step2
           headers:
-            captured: "{{regEx '\\d+'}}"
+            captured-val: "{{regEx '\\d+'}}"
 
       # couple of irrelevant message sources
       - name: chain1-scheduled-noise1  # should be ignored by chain
