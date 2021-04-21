@@ -321,8 +321,9 @@ services:
           value: "{{date.timestamp}}"
       - name: chain1-reactive
         consume:
-          queue: chain1-step2
+          queue: chain1-step1
           value: "{{regEx '\\d+' 'captured'}}"
+
         produce:
           queue: chain1-step2
           value: "{{consumed.value}}"
@@ -333,13 +334,14 @@ services:
           queue: chain1-step2
           headers:
             captured: "{{regEx '\\d+'}}"
+
       # couple of irrelevant message sources
       - name: chain1-scheduled-noise1  # should be ignored by chain
         produce:
           queue: chain1-step1
           value: "I'm a noise #1"
         delay: 1
-        limit: 100
+        limit: 1000
       - name: chain1-scheduled-noise2  # should be ignored by chain
         produce:
           queue: chain1-step2
@@ -347,4 +349,4 @@ services:
           headers:
             captured: "1234.567" # nasty one
         delay: 1
-        limit: 100
+        limit: 1000
