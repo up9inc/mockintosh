@@ -973,6 +973,7 @@ class IntegrationTests(unittest.TestCase):
                 time.sleep(1)
                 continue
             self.assertEqual(1, len(msgs))
+            break
         else:
             self.fail("Did not capture the message")
 
