@@ -46,7 +46,7 @@ class RecognizerBase():
             if isinstance(self.payload, dict) and self.scope == 'asyncHeaders':
                 result = {}
                 for _key, value in self.payload.items():
-                    var, compiled, context = self.render_part(key, value)
+                    var, compiled, context = self.render_part(_key, value)
                     if var is not None:
                         param = None
                         param = AsyncHeadersParam(key, var)

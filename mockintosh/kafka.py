@@ -152,8 +152,6 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             return True
         elif isinstance(x, str):
             return self._match_str(x, y)
-        else:
-            return False
 
     def match(self, key: str, value: str, headers: dict) -> bool:
         if (

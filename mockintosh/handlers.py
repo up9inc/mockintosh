@@ -42,7 +42,10 @@ from mockintosh.params import (
     QueryStringParam,
     BodyTextParam,
     BodyUrlencodedParam,
-    BodyMultipartParam
+    BodyMultipartParam,
+    AsyncValueParam,
+    AsyncKeyParam,
+    AsyncHeadersParam
 )
 from mockintosh.logs import Logs, LogRecord
 from mockintosh.stats import Stats
@@ -1200,6 +1203,7 @@ class KafkaHandler(BaseHandler):
             self.analyze_component('asyncHeaders')
             self.analyze_component('asyncValue')
             self.analyze_component('asyncKey')
+
         self.analyze_counters()
         self.replica_request = self.build_replica_request()
 
@@ -1254,7 +1258,17 @@ class KafkaHandler(BaseHandler):
         self.replica_request = self.build_replica_request()
         return self.key, self.value, self.headers
 
-    def add_params(self, context):
+    def add_params(self, context: [None, dict]) -> [None, dict]:
+        """Method that injects parameters defined in the config into template engine contexts."""
+        if not hasattr(self, 'custom_params'):
+            return context
+        for key, param in self.custom_params.items():
+            if isinstance(param, AsyncValueParam):
+                context[key] = self.value
+            if isinstance(param, AsyncKeyParam):
+                context[key] = self.key
+            if isinstance(param, AsyncHeadersParam):
+                context[key] = self.headers.get(param.key.title())
         return context
 
     def set_response(
