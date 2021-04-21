@@ -359,13 +359,6 @@ class KafkaProducer(KafkaConsumerProducerBase):
         # Templating
         key, value, headers = kafka_handler.render_attributes()
 
-        consumer = Consumer({
-            'bootstrap.servers': self.actor.service.address,
-            'group.id': '0',
-            'auto.offset.reset': 'earliest'
-        })
-        _wait_for_topic_to_exist(consumer, self.topic)
-
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
         producer.poll(0)

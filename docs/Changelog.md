@@ -114,6 +114,7 @@
 
 1. Make `MOCKINTOSH_FORCE_PORT` to work always
 2. Display timestamps in traffic log, instead of offset
+3. Introduce `env` function for templating
 
 TODO:
 
