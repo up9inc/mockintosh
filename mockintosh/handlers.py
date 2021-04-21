@@ -42,10 +42,7 @@ from mockintosh.params import (
     QueryStringParam,
     BodyTextParam,
     BodyUrlencodedParam,
-    BodyMultipartParam,
-    AsyncValueParam,
-    AsyncKeyParam,
-    AsyncHeadersParam
+    BodyMultipartParam
 )
 from mockintosh.logs import Logs, LogRecord
 from mockintosh.stats import Stats
@@ -1258,17 +1255,7 @@ class KafkaHandler(BaseHandler):
         self.replica_request = self.build_replica_request()
         return self.key, self.value, self.headers
 
-    def add_params(self, context: [None, dict]) -> [None, dict]:
-        """Method that injects parameters defined in the config into template engine contexts."""
-        if not hasattr(self, 'custom_params'):
-            return context
-        for key, param in self.custom_params.items():
-            if isinstance(param, AsyncValueParam):
-                context[key] = self.value
-            if isinstance(param, AsyncKeyParam):
-                context[key] = self.key
-            if isinstance(param, AsyncHeadersParam):
-                context[key] = self.headers.get(param.key.title())
+    def add_params(self, context):
         return context
 
     def set_response(
@@ -1380,13 +1367,11 @@ class KafkaHandler(BaseHandler):
             payload = self.headers
         elif component == 'asyncValue':
             payload = self.value
-        elif component == 'asynckey':
+        elif component == 'asyncKey':
             payload = self.key
 
         for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
             _key = key
-            if component == 'asyncHeaders':
-                _key = key.title()
             if _key in payload or component in ('asyncValue', 'asyncKey'):
                 if value['type'] == 'regex':
                     match_string = None

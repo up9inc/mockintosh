@@ -3562,7 +3562,11 @@ class TestAsync():
 
     def test_get_async_chain(self):
         value = '123456'
-        headers = {'Captured-Val': value}
+        headers = {
+            'Captured-Key': '%s-key' % value,
+            'Captured-Val': '%s-val' % value,
+            'Captured-Hdr': '%s-hdr' % value
+        }
         resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
         assert 202 == resp.status_code
 
@@ -3573,7 +3577,7 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        self.assert_consumer_log(data, None, value, headers)
+        self.assert_consumer_log(data, None, '%s-val' % value, headers)
 
     def test_get_async_consume(self):
         key = 'key2'

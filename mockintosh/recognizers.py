@@ -6,7 +6,7 @@
     :synopsis: module that contains config recognizer classes.
 """
 
-from mockintosh.constants import PYBARS, JINJA
+from mockintosh.constants import PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import (
     HeaderParam,
@@ -31,6 +31,13 @@ class RecognizerBase():
         self.rendering_queue = rendering_queue
         self.scope = scope
 
+    def update_all_contexts(self, context: dict):
+        if not self.all_contexts:
+            self.all_contexts.update(context)
+        else:
+            if SPECIAL_CONTEXT in self.all_contexts and SPECIAL_CONTEXT in context:
+                self.all_contexts[SPECIAL_CONTEXT].update(context[SPECIAL_CONTEXT])
+
     def recognize(self):
         if self.scope == 'bodyText':
             key = self.scope
@@ -51,7 +58,7 @@ class RecognizerBase():
                         param = None
                         param = AsyncHeadersParam(key, var)
                         self.params[var] = param
-                    self.all_contexts.update(context)
+                    self.update_all_contexts(context)
                     result[_key] = compiled
 
                 return result
@@ -64,7 +71,7 @@ class RecognizerBase():
                     elif self.scope == 'asyncKey':
                         param = AsyncKeyParam(key, var)
                     self.params[var] = param
-                self.all_contexts.update(context)
+                self.update_all_contexts(context)
 
                 return compiled
         else:
