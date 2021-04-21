@@ -92,9 +92,9 @@ class RecognizerBase():
 
     def render_part(self, key: str, text: str):
         if self.engine == PYBARS:
-            from mockintosh.hbs.methods import reg_ex
+            from mockintosh.hbs.methods import reg_ex, env
         elif self.engine == JINJA:
-            from mockintosh.j2.methods import reg_ex
+            from mockintosh.j2.methods import reg_ex, env
 
         inject_objects = {}
         if self.scope == 'path':
@@ -108,7 +108,10 @@ class RecognizerBase():
             text,
             self.rendering_queue,
             inject_objects=inject_objects,
-            inject_methods=[reg_ex],
+            inject_methods=[
+                reg_ex,
+                env
+            ],
             fill_undefineds_with='([^/]+)' if self.scope == 'path' else '(.*)'
         )
         if self.engine == PYBARS:

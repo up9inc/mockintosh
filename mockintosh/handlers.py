@@ -125,11 +125,11 @@ class BaseHandler:
     def common_template_renderer(self, template_engine: str, text: str) -> Tuple[str, dict]:
         """Common method to initialize `TemplateRenderer` and call `render()`."""
         if template_engine == PYBARS:
-            from mockintosh.hbs.methods import fake, counter, json_path, escape_html
+            from mockintosh.hbs.methods import fake, counter, json_path, escape_html, env
             self.custom_context['random'] = hbs_random
             self.custom_context['date'] = hbs_date
         elif template_engine == JINJA:
-            from mockintosh.j2.methods import fake, counter, json_path, escape_html
+            from mockintosh.j2.methods import fake, counter, json_path, escape_html, env
             self.custom_context['random'] = j2_random
             self.custom_context['date'] = j2_date
 
@@ -143,7 +143,8 @@ class BaseHandler:
                 fake,
                 counter,
                 json_path,
-                escape_html
+                escape_html,
+                env
             ],
             add_params_callback=self.add_params,
             counters=self.counters

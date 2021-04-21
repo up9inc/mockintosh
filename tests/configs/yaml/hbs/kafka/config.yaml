@@ -12,7 +12,7 @@ globals:
 services:
 - name: Kafka Mocks
   type: kafka
-  address: localhost:9092
+  address: "{{env 'KAFKA_ADDR' 'localhost:9092'}}"
   actors:
   - produce:
       queue: topic1
