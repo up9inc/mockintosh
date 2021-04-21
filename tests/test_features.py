@@ -3564,7 +3564,8 @@ class TestAsync():
 
         not_key = 'not_key2'
         not_value = 'not_value2'
-        not_headers = {'hdr2': 'not_val2', 'not_hdr2': 'val2'}
+        not_headers1 = {'hdr2': 'not_val2'}
+        not_headers2 = {'not_hdr2': 'val2'}
 
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
@@ -3585,9 +3586,18 @@ class TestAsync():
 
         kafka_producer = kafka.KafkaProducer(
             'topic2',
-            not_value,
-            key=not_key,
-            headers=not_headers
+            value,
+            key=key,
+            headers=not_headers1
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value,
+            key=key,
+            headers=not_headers2
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
@@ -3600,7 +3610,8 @@ class TestAsync():
         data = resp.json()
 
         self.assert_consumer_log(data, key, value, headers)
-        self.assert_consumer_log(data, not_key, not_value, not_headers, invert=True)
+        self.assert_consumer_log(data, not_key, not_value, not_headers1, invert=True)
+        self.assert_consumer_log(data, not_key, not_value, not_headers2, invert=True)
 
         resp = httpx.get(MGMT + '/async', verify=False)
         assert 200 == resp.status_code

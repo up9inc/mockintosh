@@ -1196,10 +1196,6 @@ class KafkaHandler(BaseHandler):
         self.response_body = None
         self.response_headers = None
 
-        if not is_producer:
-            self.analyze_component('asyncHeaders')
-            self.analyze_component('asyncValue')
-            self.analyze_component('asyncKey')
         self.analyze_counters()
         self.replica_request = self.build_replica_request()
 
@@ -1355,35 +1351,3 @@ class KafkaHandler(BaseHandler):
         response.body = self.response_body
 
         return response
-
-    def analyze_component(self, component: str) -> None:
-        """Method that analyzes various async components."""
-        if SPECIAL_CONTEXT not in self.initial_context or component not in self.initial_context[SPECIAL_CONTEXT]:
-            return
-
-        payload = None
-        if component == 'asyncHeaders':
-            payload = self.headers
-        elif component == 'asyncValue':
-            payload = self.value
-        elif component == 'asynckey':
-            payload = self.key
-
-        for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
-            _key = key
-            if component == 'asyncHeaders':
-                _key = key.title()
-            if _key in payload or component in ('asyncValue', 'asyncKey'):
-                if value['type'] == 'regex':
-                    match_string = None
-                    if component == 'asyncHeaders':
-                        match_string = self.headers.get(key)
-                    elif component == 'asyncValue':
-                        match_string = payload
-                    elif component == 'asyncKey':
-                        match_string = payload
-
-                    match = re.search(value['regex'], match_string)
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i)
