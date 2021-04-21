@@ -18,7 +18,7 @@ test-integration: build
 	docker stop $$(docker ps -a -q)
 
 test-with-coverage: test-style copy-assets up-kafka
-	coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
+	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json --quiet && \

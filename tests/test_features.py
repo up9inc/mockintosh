@@ -3458,7 +3458,6 @@ class TestAsync():
         # Create the Async topics/queues
         for topic in (
             'topic1',
-            'topic2',
             'topic3',
             'topic4',
             'topic5',
@@ -3485,6 +3484,8 @@ class TestAsync():
             env=this_env
         )
         time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        kafka._create_topic(KAFKA_ADDR, 'topic2')
 
         resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
         assert 204 == resp.status_code
@@ -3529,7 +3530,7 @@ class TestAsync():
             producers = data['producers']
             consumers = data['consumers']
             assert len(producers) == 9
-            assert len(consumers) == 6
+            assert len(consumers) == 7
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -4093,7 +4094,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 14
+        assert len(data['services'][0]['endpoints']) == 15
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

@@ -102,6 +102,12 @@ services:
     produce:
       queue: binary-topic
       value: "@image.png"
+  - consume:
+      queue: topic2
+      key: keyX
+      value: valueX
+      headers:
+        hdr2: valX
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
