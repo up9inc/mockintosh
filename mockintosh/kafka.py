@@ -335,8 +335,6 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
-        _create_topic(self.actor.service.address, self.topic)
-
         definition = self.actor.service.definition
         if definition is not None:
             kafka_handler.headers = _merge_global_headers(
