@@ -108,6 +108,25 @@ services:
       value: valueX
       headers:
         hdr2: valX
+  - name: chain1-on-demand
+    produce:
+      queue: chain1-step1
+      value: "123456"
+  - name: chain1-reactive
+    consume:
+      queue: chain1-step1
+      value: "{{regEx '\\d+' 'captured'}}"
+
+    produce:
+      queue: chain1-step2
+      value: "{{consumed.value}}"
+      headers:
+        captured-val: '{{captured}}'
+  - name: chain1-validating
+    consume:
+      queue: chain1-step2
+      headers:
+        captured-val: "{{regEx '\\d+'}}"
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

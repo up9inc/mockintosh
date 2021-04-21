@@ -17,6 +17,9 @@ import threading
 import subprocess
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
+from typing import (
+    Union
+)
 
 import yaml
 import pytest
@@ -3498,7 +3501,7 @@ class TestAsync():
             name = 'coverage'
         os.system('killall -2 %s' % name)
 
-    def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict, invert: bool = False):
+    def assert_consumer_log(self, data: dict, key: Union[str, None], value: str, headers: dict, invert: bool = False):
         if key is not None:
             criteria = any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
             if invert:
@@ -3529,8 +3532,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 9
-            assert len(consumers) == 7
+            assert len(producers) == 11
+            assert len(consumers) == 9
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -3556,6 +3559,21 @@ class TestAsync():
             assert consumers[3]['name'] == 'actor9'
             assert consumers[3]['index'] == 3
             assert consumers[3]['queue'] == 'topic9'
+
+    def test_get_async_chain(self):
+        value = '123456'
+        headers = {'Captured-Val': value}
+        resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
+        assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        resp = httpx.get(MGMT + '/async/consumers/chain1-validating', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        self.assert_consumer_log(data, None, value, headers)
 
     def test_get_async_consume(self):
         key = 'key2'
@@ -4105,7 +4123,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 15
+        assert len(data['services'][0]['endpoints']) == 19
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
