@@ -198,8 +198,6 @@ class KafkaConsumerGroup:
         if any(consumer.enable_topic_creation for consumer in self.consumers):
             _create_topic(first_actor.service.address, first_actor.consumer.topic)
 
-        _create_topic(first_actor.service.address, first_actor.consumer.topic)
-
         consumer = Consumer({
             'bootstrap.servers': first_actor.service.address,
             'group.id': '0',
