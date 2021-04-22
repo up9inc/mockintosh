@@ -242,8 +242,7 @@ class KafkaConsumerGroup:
                     break
 
             if matched_consumer is None:
-                logging.debug('[ACTOR: %s] NOT MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-                    '%s(Index: %d)' % ('' if matched_consumer.actor.name is None else '%s ' % matched_consumer.actor.name, matched_consumer.actor.id),
+                logging.debug('NOT MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
                     first_actor.service.address,
                     first_actor.consumer.topic,
                     key,
