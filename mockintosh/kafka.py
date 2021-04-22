@@ -220,13 +220,18 @@ class KafkaConsumerGroup:
 
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
-            logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-                first_actor.service.address,
-                first_actor.consumer.topic,
-                key,
-                value,
-                headers
-            ))
+            if logging.DEBUG >= logging.root.level:
+                logging.debug('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                    first_actor.service.address,
+                    first_actor.consumer.topic,
+                    key,
+                    value,
+                    headers
+                ))
+            else:
+                logging.info('Consumed Kafka message: topic=\'%s\'' % (
+                    first_actor.consumer.topic
+                ))
 
             matched_consumer = None
 
@@ -245,13 +250,18 @@ class KafkaConsumerGroup:
                 ))
                 continue
 
-            logging.info('MATCHED Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-                matched_consumer.actor.service.address,
-                matched_consumer.actor.consumer.topic,
-                key,
-                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
-                headers
-            ))
+            if logging.DEBUG >= logging.root.level:
+                logging.debug('MATCHED Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                    matched_consumer.actor.service.address,
+                    matched_consumer.actor.consumer.topic,
+                    key,
+                    '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
+                    headers
+                ))
+            else:
+                logging.info('MATCHED Kafka message: topic=\'%s\'' % (
+                    matched_consumer.actor.consumer.topic
+                ))
 
             kafka_handler = KafkaHandler(
                 matched_consumer.actor.id,
@@ -363,13 +373,18 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
-        logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-            self.actor.service.address,
-            self.topic,
-            key,
-            '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
-            headers
-        ))
+        if logging.DEBUG >= logging.root.level:
+            logging.debug('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                self.actor.service.address,
+                self.topic,
+                key,
+                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
+                headers
+            ))
+        else:
+            logging.info('Produced Kafka message: topic=\'%s\'' % (
+                self.topic
+            ))
 
         log_record = kafka_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
