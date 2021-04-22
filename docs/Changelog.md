@@ -123,29 +123,24 @@ TODO:
     - on demand producer
     - reactive consumer+producer
     - consumer fact validation
-    - traffic log to display kafka comms
+
     - interceptors to access kafka comms
-    - stats to count kafka comms
-
-    - consumer field matchers
-
     - config reloading to work
     - allow overriding on-demand producer fields via mgmt API
 
-  - avro + grpc + JSON
-  - what to do with binary headers?
 
-    GET /async => list of consumers and producers
-    POST /async/producers/<name> ?key=...&hdr=
-    GET /async/consumers/<name>
-
-1. Display timestamps in traffic log
 2. Do not respond with Content-Type=text/html if no content-type header is configured
 3. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 
 # Roadmap Ideas
 
-- unhandled requests to not get into traffic log?
+- https://github.com/jasonrbriggs/stomp.py - promises rabbitmq+activemq
+- rabbitmq for async servers 
+- activemq for async servers  
+- mqtt for async servers  
+- have a flag that triggers creating a topic by actor
+- avro/grpc/binary/str problem in Kafka
+- what to do with binary headers in Kafka? data-url prefix?
 - add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
 - Tornado has auto-multicpu startup mode, use it optionally
@@ -157,7 +152,6 @@ TODO:
   matching logic
 - Nicer formatted error pages for known errors
 - Nicer logging of requests, with special option to enable it.
-- admin UI to show available tags and allow switching
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 - config editor to provide hyperlinks from resource files into corresponding editing
 
