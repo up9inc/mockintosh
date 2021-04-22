@@ -1095,7 +1095,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
         # The service is external
-        logging.info('Forwarding the unhandled request to: %s %s' % (self.request.method, url))
+        logging.info('Forwarding the unhandled request to: %s %s', self.request.method, url)
 
         http_verb = getattr(client, self.request.method.lower())
         try:

@@ -87,7 +87,7 @@ class RenderingTask:
                 if debug_mode:
                     raise NotImplementedError
                 else:
-                    logging.warning('Handlebars: %s' % e)
+                    logging.warning('Handlebars: %s', e)
                 compiled = self.text
         return compiled, context
 
@@ -108,7 +108,7 @@ class RenderingTask:
                         self.one_and_only_var = var
             else:
                 for var in find_undeclared_variables_in_order(ast):
-                    logging.warning('Jinja2: Could not find variable `%s`' % var)
+                    logging.warning('Jinja2: Could not find variable `%s`', var)
                     env.globals[var] = '{{%s}}' % var
 
             template = env.from_string(self.text)
@@ -117,7 +117,7 @@ class RenderingTask:
             if debug_mode:
                 raise NotImplementedError
             else:
-                logging.warning('Jinja2: %s' % e)
+                logging.warning('Jinja2: %s', e)
             compiled = self.text
 
         if SPECIAL_CONTEXT in env.globals:

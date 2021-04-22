@@ -29,9 +29,9 @@ from mockintosh.logs import Logs
 
 def _kafka_delivery_report(err, msg):
     if err is not None:  # pragma: no cover
-        logging.debug('Message delivery failed: %s' % err)
+        logging.debug('Message delivery failed: %s', err)
     else:
-        logging.debug('Message delivered to %s [%s]' % (msg.topic(), msg.partition()))
+        logging.debug('Message delivered to %s [%s]', (msg.topic(), msg.partition()))
 
 
 def _create_topic(address: str, topic: str):
@@ -43,9 +43,9 @@ def _create_topic(address: str, topic: str):
     for topic, future in futures.items():
         try:
             future.result()
-            logging.info('Topic %s created' % topic)
+            logging.info('Topic %s created', topic)
         except KafkaException as e:
-            logging.info('Failed to create topic %s: %s' % (topic, e))
+            logging.info('Failed to create topic %s: %s', topic, e)
 
 
 def _decoder(value):
@@ -218,18 +218,18 @@ class KafkaConsumerGroup:
                 continue
 
             if msg.error():  # pragma: no cover
-                logging.warning("Consumer error: %s" % msg.error())
+                logging.warning("Consumer error: %s", msg.error())
                 continue
 
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
-            logging.debug('Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r' % (
+            logging.debug('Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r',
                 first_actor.consumer.topic,
                 first_actor.service.address,
                 key,
                 value,
                 headers
-            ))
+            )
 
             matched_consumer = None
 
@@ -239,27 +239,27 @@ class KafkaConsumerGroup:
                     break
 
             if matched_consumer is None:
-                logging.debug('NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r' % (
+                logging.debug('NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
                     first_actor.service.address,
                     first_actor.consumer.topic,
                     key,
                     value,
                     headers
-                ))
+                )
                 continue
 
-            logging.info('Consumed a Kafka message from %r by %r' % (
+            logging.info('Consumed a Kafka message from %r by %r',
                 matched_consumer.actor.consumer.topic,
                 '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
-            ))
-            logging.debug('[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r' % (
+            )
+            logging.debug('[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
                 '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
                 matched_consumer.actor.service.address,
                 matched_consumer.actor.consumer.topic,
                 key,
                 '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
                 headers
-            ))
+            )
 
             kafka_handler = KafkaHandler(
                 matched_consumer.actor.id,
@@ -371,17 +371,17 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
-        logging.info('Produced a Kafka message into %r from %r' % (
+        logging.info('Produced a Kafka message into %r from %r',
             self.topic,
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id)
-        ))
-        logging.debug('[%s] addr=%r key=%r value=%r headers=%r' % (
+        )
+        logging.debug('[%s] addr=%r key=%r value=%r headers=%r',
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id),
             self.actor.service.address,
             key,
             '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
             headers
-        ))
+        )
 
         log_record = kafka_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
@@ -469,7 +469,7 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
     if actor.limit is None:
         logging.debug('Running a Kafka loop indefinitely...')
     else:
-        logging.debug('Running a Kafka loop for %d iterations...' % actor.limit)
+        logging.debug('Running a Kafka loop for %d iterations...', actor.limit)
 
     while actor.limit is None or actor.limit > 0:
 
