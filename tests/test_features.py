@@ -1044,11 +1044,11 @@ class TestHeaders():
         static_val = 'wrongValue'
         resp = httpx.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
         assert 400 == resp.status_code
-        assert ('Request header value \'%s\' on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
+        assert ('Request header value %r on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
 
         resp = httpx.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
         assert 400 == resp.status_code
-        assert ('Request header value \'%s\' on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
+        assert ('Request header value %r on key \'Hdr1\' does not match to regex: ^myValue$') % static_val == resp.text
 
     def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
@@ -1503,11 +1503,11 @@ class TestQueryString():
         query = '?param1=%s' % static_val
         resp = httpx.get(SRV_8001 + '/static-value' + query)
         assert 400 == resp.status_code
-        assert ('Request query parameter value \'%s\' on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
+        assert ('Request query parameter value %r on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
 
         resp = httpx.get(SRV_8001 + '/static-value/template-file' + query)
         assert 400 == resp.status_code
-        assert ('Request query parameter value \'%s\' on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
+        assert ('Request query parameter value %r on key \'param1\' does not match to regex: ^my Value$' % static_val) == resp.text
 
     def test_wrong_regex_pattern_should_400(self, config):
         param = str(int(time.time()))
@@ -2647,12 +2647,12 @@ class TestManagement():
         resp = httpx.get(MGMT + '/oas', verify=False)
         assert 500 == resp.status_code
         # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        # assert resp.text == 'External OAS document \'%s\' couldn\'t be accessed or found!' % path
+        # assert resp.text == 'External OAS document %r couldn\'t be accessed or found!' % path
 
         resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
         assert 500 == resp.status_code
         # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        # assert resp.text == 'External OAS document \'%s\' couldn\'t be accessed or found!' % path
+        # assert resp.text == 'External OAS document %r couldn\'t be accessed or found!' % path
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/resources.json'
@@ -3792,7 +3792,7 @@ class TestAsync():
         resp = httpx.get(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
+        assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def test_post_async_produce(self):
         key = 'key1'
@@ -3949,7 +3949,7 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/%s' % actor13, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'No producer actor is found for: \'%s\'' % actor13
+        assert resp.text == 'No producer actor is found for: %r' % actor13
 
         resp = httpx.post(MGMT + '/async/producers/13', verify=False)
         assert 400 == resp.status_code
@@ -4016,7 +4016,7 @@ class TestAsync():
         resp = httpx.delete(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'No consumer actor is found for: \'%s\'' % actor_name
+        assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def test_traffic_log_kafka(self):
         resp = httpx.get(MGMT + '/traffic-log', verify=False)
