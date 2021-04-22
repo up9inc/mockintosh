@@ -467,9 +467,9 @@ class KafkaService:
 
 def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
     if actor.limit is None:
-        logging.info('Running a Kafka loop indefinitely...')
+        logging.debug('Running a Kafka loop indefinitely...')
     else:
-        logging.info('Running a Kafka loop for %d iterations...' % actor.limit)
+        logging.debug('Running a Kafka loop for %d iterations...' % actor.limit)
 
     while actor.limit is None or actor.limit > 0:
 
