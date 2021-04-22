@@ -187,7 +187,8 @@ class HttpServer:
                         Rule(HostMatches(service['hostname']), app)
                     )
 
-                    logging.debug('Registered hostname and port: %s://%s:%d',
+                    logging.debug(
+                        'Registered hostname and port: %s://%s:%d',
                         protocol,
                         service['hostname'],
                         service['port']
