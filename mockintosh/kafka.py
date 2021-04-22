@@ -29,9 +29,9 @@ from mockintosh.logs import Logs
 
 def _kafka_delivery_report(err, msg):
     if err is not None:  # pragma: no cover
-        logging.debug('Message delivery failed: {}'.format(err))
+        logging.debug('Message delivery failed: %s' % err)
     else:
-        logging.debug('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+        logging.debug('Message delivered to %s [%s]' % (msg.topic(), msg.partition()))
 
 
 def _create_topic(address: str, topic: str):
@@ -43,9 +43,9 @@ def _create_topic(address: str, topic: str):
     for topic, future in futures.items():
         try:
             future.result()
-            logging.info('Topic {} created'.format(topic))
+            logging.info('Topic %s created' % topic)
         except KafkaException as e:
-            logging.info('Failed to create topic {}: {}'.format(topic, e))
+            logging.info('Failed to create topic %s: %s' % (topic, e))
 
 
 def _decoder(value):
@@ -218,7 +218,7 @@ class KafkaConsumerGroup:
                 continue
 
             if msg.error():  # pragma: no cover
-                logging.warning("Consumer error: {}".format(msg.error()))
+                logging.warning("Consumer error: %s" % msg.error())
                 continue
 
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
