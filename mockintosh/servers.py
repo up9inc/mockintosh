@@ -175,7 +175,7 @@ class HttpServer:
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
                     server.listen(service['port'], address=self.address)
-                    logging.debug('Will listen port number: %d' % service['port'])
+                    logging.debug('Will listen port number: %d', service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
                         self.address if self.address else 'localhost',
@@ -187,11 +187,12 @@ class HttpServer:
                         Rule(HostMatches(service['hostname']), app)
                     )
 
-                    logging.debug('Registered hostname and port: %s://%s:%d' % (
+                    logging.debug(
+                        'Registered hostname and port: %s://%s:%d',
                         protocol,
                         service['hostname'],
                         service['port']
-                    ))
+                    )
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
                         service['hostname'],
@@ -200,13 +201,13 @@ class HttpServer:
                     ))
 
                 if 'name' in service:
-                    logging.debug('Finished registering: %s' % service['name'])
+                    logging.debug('Finished registering: %s', service['name'])
 
             if rules:
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
                 server.listen(services[0]['port'], address=self.address)
-                logging.debug('Will listen port number: %d' % service['port'])
+                logging.debug('Will listen port number: %d', service['port'])
 
         self.load_management_api()
 
@@ -382,8 +383,8 @@ class HttpServer:
     def log_merged_endpoints(merged_endpoints):
         for _path, methods in merged_endpoints:
             for method, alternatives in methods.items():
-                logging.debug('Registered endpoint: %s %s' % (method.upper(), _path))
-                logging.debug('with alternatives:\n%s' % alternatives)
+                logging.debug('Registered endpoint: %s %s', method.upper(), _path)
+                logging.debug('with alternatives:\n%s', alternatives)
 
     def resolve_cert_path(self, cert_path):
         relative_path = path.join(self.definition.source_dir, cert_path)

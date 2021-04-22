@@ -29,9 +29,9 @@ from mockintosh.logs import Logs
 
 def _kafka_delivery_report(err, msg):
     if err is not None:  # pragma: no cover
-        logging.info('Message delivery failed: {}'.format(err))
+        logging.debug('Message delivery failed: %s', err)
     else:
-        logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+        logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 
 def _create_topic(address: str, topic: str):
@@ -43,9 +43,9 @@ def _create_topic(address: str, topic: str):
     for topic, future in futures.items():
         try:
             future.result()
-            logging.info('Topic {} created'.format(topic))
+            logging.info('Topic %s created', topic)
         except KafkaException as e:
-            logging.info('Failed to create topic {}: {}'.format(topic, e))
+            logging.info('Failed to create topic %s: %s', topic, e)
 
 
 def _decoder(value):
@@ -72,13 +72,16 @@ def _merge_global_headers(_globals, kafka_producer):
 
 
 def _wait_for_topic_to_exist(consumer, topic):
+    is_logged = False
     while True:
         topics = consumer.list_topics(topic)  # promises to create topic
         logging.debug("Topic state: %s", topics.topics)
         if topics.topics[topic].error is None:
             break
         else:
-            logging.warning("Topic is not available: %s", topics.topics[topic].error)
+            if not is_logged:
+                logging.warning("Topic '%s' is not available: %s", topic, topics.topics[topic].error)
+                is_logged = True
             time.sleep(1)
 
 
@@ -215,18 +218,19 @@ class KafkaConsumerGroup:
                 continue
 
             if msg.error():  # pragma: no cover
-                logging.warning("Consumer error: {}".format(msg.error()))
+                logging.warning("Consumer error: %s", msg.error())
                 continue
 
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
-            logging.info('Consumed Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-                first_actor.service.address,
+            logging.debug(
+                'Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r',
                 first_actor.consumer.topic,
+                first_actor.service.address,
                 key,
                 value,
                 headers
-            ))
+            )
 
             matched_consumer = None
 
@@ -236,22 +240,30 @@ class KafkaConsumerGroup:
                     break
 
             if matched_consumer is None:
-                logging.debug('NOT MATCHED Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                logging.debug(
+                    'NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
                     first_actor.service.address,
                     first_actor.consumer.topic,
                     key,
                     value,
                     headers
-                ))
+                )
                 continue
 
-            logging.info('MATCHED Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            logging.info(
+                'Consumed a Kafka message from %r by %r',
+                matched_consumer.actor.consumer.topic,
+                '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
+            )
+            logging.debug(
+                '[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
+                '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
                 matched_consumer.actor.service.address,
                 matched_consumer.actor.consumer.topic,
                 key,
                 '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
                 headers
-            ))
+            )
 
             kafka_handler = KafkaHandler(
                 matched_consumer.actor.id,
@@ -363,13 +375,19 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
-        logging.info('Produced Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
-            self.actor.service.address,
+        logging.info(
+            'Produced a Kafka message into %r from %r',
             self.topic,
+            '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id)
+        )
+        logging.debug(
+            '[%s] addr=%r key=%r value=%r headers=%r',
+            '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id),
+            self.actor.service.address,
             key,
             '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
             headers
-        ))
+        )
 
         log_record = kafka_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
@@ -455,9 +473,9 @@ class KafkaService:
 
 def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
     if actor.limit is None:
-        logging.info('Running a Kafka loop indefinitely...')
+        logging.debug('Running a Kafka loop indefinitely...')
     else:
-        logging.info('Running a Kafka loop for %d iterations...' % actor.limit)
+        logging.debug('Running a Kafka loop for %d iterations...', actor.limit)
 
     while actor.limit is None or actor.limit > 0:
 
@@ -474,7 +492,7 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
         if actor.limit is not None and actor.limit > 0:
             actor.limit -= 1
 
-    logging.info('Kafka loop is finished.')
+    logging.debug('Kafka loop is finished.')
 
 
 def run_loops(definition):
