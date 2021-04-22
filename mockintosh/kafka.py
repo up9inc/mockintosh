@@ -31,7 +31,7 @@ def _kafka_delivery_report(err, msg):
     if err is not None:  # pragma: no cover
         logging.debug('Message delivery failed: %s', err)
     else:
-        logging.debug('Message delivered to %s [%s]', (msg.topic(), msg.partition()))
+        logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 
 def _create_topic(address: str, topic: str):
