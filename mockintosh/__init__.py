@@ -34,7 +34,10 @@ from mockintosh.recognizers import (
     QueryStringRecognizer,
     BodyTextRecognizer,
     BodyUrlencodedRecognizer,
-    BodyMultipartRecognizer
+    BodyMultipartRecognizer,
+    AsyncProducerValueRecognizer,
+    AsyncProducerKeyRecognizer,
+    AsyncProducerHeadersRecognizer
 )
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.performance import PerformanceProfile
@@ -149,7 +152,48 @@ class Definition():
 
                         if 'consume' in actor:
                             capture_limit = 1 if 'capture' not in actor['consume'] else actor['consume']['capture']
-                            kafka_consumer = KafkaConsumer(actor['consume']['queue'], capture_limit=capture_limit)
+
+                            value = actor['consume'].get('value', None)
+                            key = actor['consume'].get('key', None)
+                            headers = actor['consume'].get('headers', {})
+
+                            params = kafka_actor.params
+                            context = kafka_actor.context
+
+                            async_producer_value_recognizer = AsyncProducerValueRecognizer(
+                                value,
+                                params,
+                                context,
+                                self.template_engine,
+                                self.rendering_queue
+                            )
+                            value = async_producer_value_recognizer.recognize()
+
+                            async_producer_key_recognizer = AsyncProducerKeyRecognizer(
+                                key,
+                                params,
+                                context,
+                                self.template_engine,
+                                self.rendering_queue
+                            )
+                            key = async_producer_key_recognizer.recognize()
+
+                            async_producer_headers_recognizer = AsyncProducerHeadersRecognizer(
+                                headers,
+                                params,
+                                context,
+                                self.template_engine,
+                                self.rendering_queue
+                            )
+                            headers = async_producer_headers_recognizer.recognize()
+
+                            kafka_consumer = KafkaConsumer(
+                                actor['consume']['queue'],
+                                value=value,
+                                key=key,
+                                headers=headers,
+                                capture_limit=capture_limit
+                            )
                             kafka_actor.set_consumer(kafka_consumer)
 
                             kafka_consumer.index = len(data['async_consumers'])

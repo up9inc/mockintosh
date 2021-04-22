@@ -36,10 +36,10 @@ services:
     limit: 100
   - consume:
       queue: topic3
-      key: key3
-      value: value3
+      key: "{{var3_1}}"
+      value: "{{var3_2}}"
       headers:
-        hdr3: val3
+        hdr3: "{{var3_3}}"
   - consume:
       queue: topic4
       key: key4
@@ -94,16 +94,48 @@ services:
         fromFile: "@templates/example.txt"
   - consume:
       queue: topic10
-      value: value10
   - name: capture-limit
     consume:
       capture: 2
       queue: topic11
-      value: value11
   - name: Binary Producer
     produce:
       queue: binary-topic
       value: "@image.png"
+  - consume:
+      queue: topic2
+      key: keyX
+      value: valueX
+      headers:
+        hdr2: valX
+  - name: chain1-on-demand
+    produce:
+      queue: chain1-step1
+      key: "123456-key"
+      value: "123456-val"
+      headers:
+        hdr: "123456-hdr"
+  - name: chain1-reactive
+    consume:
+      queue: chain1-step1
+      key: "{{regEx '.*' 'captured_key'}}"
+      value: "{{regEx '.*' 'captured_val'}}"
+      headers:
+        hdr: "{{regEx '.*' 'captured_hdr'}}"
+    produce:
+      queue: chain1-step2
+      value: "{{consumed.value}}"
+      headers:
+        captured-key: '{{captured_key}}'
+        captured-val: '{{captured_val}}'
+        captured-hdr: '{{captured_hdr}}'
+  - name: chain1-validating
+    consume:
+      queue: chain1-step2
+      headers:
+        captured-key: "{{regEx '.*'}}"
+        captured-val: "{{regEx '.*'}}"
+        captured-hdr: "{{regEx '.*'}}"
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

@@ -113,7 +113,8 @@
 # Next Version
 
 1. Make `MOCKINTOSH_FORCE_PORT` to work always
-1. Display timestamps in traffic log, instead of offset
+2. Display timestamps in traffic log, instead of offset
+3. Introduce `env` function for templating
 
 TODO:
 
@@ -122,7 +123,6 @@ TODO:
     - on demand producer
     - reactive consumer+producer
     - consumer fact validation
-     
     - traffic log to display kafka comms
     - interceptors to access kafka comms
     - stats to count kafka comms
@@ -132,12 +132,16 @@ TODO:
     - config reloading to work
     - allow overriding on-demand producer fields via mgmt API
 
-    - avro + grpc + JSON
-    - what to do with binary headers?
+  - avro + grpc + JSON
+  - what to do with binary headers?
 
+    GET /async => list of consumers and producers
+    POST /async/producers/<name> ?key=...&hdr=
+    GET /async/consumers/<name>
 
-1. Do not respond with Content-Type=text/html if no content-type header is configured
-1. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
+1. Display timestamps in traffic log
+2. Do not respond with Content-Type=text/html if no content-type header is configured
+3. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 
 # Roadmap Ideas
 

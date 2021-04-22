@@ -17,6 +17,9 @@ import threading
 import subprocess
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
+from typing import (
+    Union
+)
 
 import yaml
 import pytest
@@ -3458,7 +3461,6 @@ class TestAsync():
         # Create the Async topics/queues
         for topic in (
             'topic1',
-            'topic2',
             'topic3',
             'topic4',
             'topic5',
@@ -3486,6 +3488,8 @@ class TestAsync():
         )
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
+        kafka._create_topic(KAFKA_ADDR, 'topic2')
+
         resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
         assert 204 == resp.status_code
 
@@ -3497,12 +3501,24 @@ class TestAsync():
             name = 'coverage'
         os.system('killall -2 %s' % name)
 
-    def assert_consumer_log(self, data: dict, key: str, value: str, headers: dict):
+    def assert_consumer_log(self, data: dict, key: Union[str, None], value: str, headers: dict, invert: bool = False):
         if key is not None:
-            assert any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
-        assert any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
+            criteria = any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
+            if invert:
+                assert not criteria
+            else:
+                assert criteria
+        criteria = any(entry['response']['content']['text'] == value for entry in data['log']['entries'])
+        if invert:
+            assert not criteria
+        else:
+            assert criteria
         for n, v in headers.items():
-            assert any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+            criteria = any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+            if invert:
+                assert not criteria
+            else:
+                assert criteria
 
     def test_get_async(self):
         for _format in ('json', 'yaml'):
@@ -3516,8 +3532,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 9
-            assert len(consumers) == 6
+            assert len(producers) == 11
+            assert len(consumers) == 9
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -3544,10 +3560,34 @@ class TestAsync():
             assert consumers[3]['index'] == 3
             assert consumers[3]['queue'] == 'topic9'
 
+    def test_get_async_chain(self):
+        value = '123456'
+        headers = {
+            'Captured-Key': '%s-key' % value,
+            'Captured-Val': '%s-val' % value,
+            'Captured-Hdr': '%s-hdr' % value
+        }
+        resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
+        assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        resp = httpx.get(MGMT + '/async/consumers/chain1-validating', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        self.assert_consumer_log(data, None, '%s-val' % value, headers)
+
     def test_get_async_consume(self):
         key = 'key2'
         value = 'value2'
         headers = {'hdr2': 'val2'}
+
+        not_key = 'not_key2'
+        not_value = 'not_value2'
+        not_headers1 = {'hdr2': 'not_val2'}
+        not_headers2 = {'not_hdr2': 'val2'}
 
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
@@ -3566,6 +3606,24 @@ class TestAsync():
         kafka_producer.produce()
         kafka_producer.produce()
 
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value,
+            key=key,
+            headers=not_headers1
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value,
+            key=key,
+            headers=not_headers2
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
         time.sleep(KAFKA_CONSUME_WAIT)
 
         resp = httpx.get(MGMT + '/async/consumers/0', verify=False)
@@ -3574,6 +3632,8 @@ class TestAsync():
         data = resp.json()
 
         self.assert_consumer_log(data, key, value, headers)
+        self.assert_consumer_log(data, not_key, not_value, not_headers1, invert=True)
+        self.assert_consumer_log(data, not_key, not_value, not_headers2, invert=True)
 
         resp = httpx.get(MGMT + '/async', verify=False)
         assert 200 == resp.status_code
@@ -3753,7 +3813,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic1', enable_topic_creation=True)
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3793,7 +3855,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('topic6')
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3836,7 +3900,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer(consumer_topic)
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3901,7 +3967,9 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
         kafka_consumer = kafka.KafkaConsumer('templated-producer', capture_limit=2)
         kafka_actor.set_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer.consume, args=(), kwargs={
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
             'stop': stop
         })
         t.daemon = True
@@ -3971,7 +4039,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic2'
+            entry['request']['url'] == 'kafka://localhost:9092/topic2?key=key2'
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -3984,7 +4052,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic3'
+            entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -4059,7 +4127,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 14
+        assert len(data['services'][0]['endpoints']) == 19
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

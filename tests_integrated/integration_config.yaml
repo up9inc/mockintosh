@@ -293,10 +293,6 @@ services:
       - consume:
           queue: consume-trigger1
           group: optional consumer group
-          key: matching keys
-          value: json / protobuf / avro # also allow validating schema for any type of it
-          headers:
-            hdr-name: value matcher
         delay: 10 # seconds after consume
         produce:
           queue: produce-reaction1
@@ -314,3 +310,43 @@ services:
           value: json / protobuf / avro # also allow validating schema for any type of it
           headers:
             hdr-name: value matcher
+
+  - name: Kafka Mocks Pt. 2 # making sure we can handle multiple
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: chain1-on-demand
+        produce:
+          queue: chain1-step1
+          value: "{{date.timestamp}}"
+      - name: chain1-reactive
+        consume:
+          queue: chain1-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          queue: chain1-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain1-validating
+        consume:
+          queue: chain1-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"
+
+      # couple of irrelevant message sources
+      - name: chain1-scheduled-noise1  # should be ignored by chain
+        produce:
+          queue: chain1-step1
+          value: "I'm a noise #1"
+        delay: 1
+        limit: 1000
+      - name: chain1-scheduled-noise2  # should be ignored by chain
+        produce:
+          queue: chain1-step2
+          value: "I'm a noise #2"
+          headers:
+            captured: "1234.567" # nasty one
+        delay: 1
+        limit: 1000

@@ -42,3 +42,21 @@ class BodyMultipartParam(ParamBase):
 
     def __init__(self, key, value):
         super().__init__(key, value)
+
+
+class AsyncValueParam(ParamBase):
+
+    def __init__(self, key, value):
+        super().__init__(key, value)
+
+
+class AsyncKeyParam(ParamBase):
+
+    def __init__(self, key, value):
+        super().__init__(key, value)
+
+
+class AsyncHeadersParam(ParamBase):
+
+    def __init__(self, key, value):
+        super().__init__(key, value)

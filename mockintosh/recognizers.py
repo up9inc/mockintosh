@@ -6,14 +6,17 @@
     :synopsis: module that contains config recognizer classes.
 """
 
-from mockintosh.constants import PYBARS, JINJA
+from mockintosh.constants import PYBARS, JINJA, SPECIAL_CONTEXT
 from mockintosh.templating import TemplateRenderer
 from mockintosh.params import (
     HeaderParam,
     QueryStringParam,
     BodyTextParam,
     BodyUrlencodedParam,
-    BodyMultipartParam
+    BodyMultipartParam,
+    AsyncValueParam,
+    AsyncKeyParam,
+    AsyncHeadersParam
 )
 from mockintosh.helpers import _safe_path_split
 
@@ -28,6 +31,13 @@ class RecognizerBase():
         self.rendering_queue = rendering_queue
         self.scope = scope
 
+    def update_all_contexts(self, context: dict):
+        if not self.all_contexts:
+            self.all_contexts.update(context)
+        else:
+            if SPECIAL_CONTEXT in self.all_contexts and SPECIAL_CONTEXT in context:
+                self.all_contexts[SPECIAL_CONTEXT].update(context[SPECIAL_CONTEXT])
+
     def recognize(self):
         if self.scope == 'bodyText':
             key = self.scope
@@ -38,6 +48,32 @@ class RecognizerBase():
             self.all_contexts.update(context)
 
             return compiled
+        elif self.scope.startswith('async'):
+            key = self.scope
+            if isinstance(self.payload, dict) and self.scope == 'asyncHeaders':
+                result = {}
+                for _key, value in self.payload.items():
+                    var, compiled, context = self.render_part(_key, value)
+                    if var is not None:
+                        param = None
+                        param = AsyncHeadersParam(key, var)
+                        self.params[var] = param
+                    self.update_all_contexts(context)
+                    result[_key] = compiled
+
+                return result
+            else:
+                var, compiled, context = self.render_part(key, self.payload)
+                if var is not None:
+                    param = None
+                    if self.scope == 'asyncValue':
+                        param = AsyncValueParam(key, var)
+                    elif self.scope == 'asyncKey':
+                        param = AsyncKeyParam(key, var)
+                    self.params[var] = param
+                self.update_all_contexts(context)
+
+                return compiled
         else:
             parts = None
             new_parts = None
@@ -158,3 +194,21 @@ class BodyMultipartRecognizer(RecognizerBase):
 
     def __init__(self, multipart, params, all_contexts, engine, rendering_queue):
         super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'bodyMultipart')
+
+
+class AsyncProducerValueRecognizer(RecognizerBase):
+
+    def __init__(self, value, params, all_contexts, engine, rendering_queue):
+        super().__init__(value, params, all_contexts, engine, rendering_queue, 'asyncValue')
+
+
+class AsyncProducerKeyRecognizer(RecognizerBase):
+
+    def __init__(self, key, params, all_contexts, engine, rendering_queue):
+        super().__init__(key, params, all_contexts, engine, rendering_queue, 'asyncKey')
+
+
+class AsyncProducerHeadersRecognizer(RecognizerBase):
+
+    def __init__(self, headers, params, all_contexts, engine, rendering_queue):
+        super().__init__(headers, params, all_contexts, engine, rendering_queue, 'asyncHeaders')
