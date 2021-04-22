@@ -115,22 +115,28 @@
 1. Make `MOCKINTOSH_FORCE_PORT` to work always
 2. Display timestamps in traffic log, instead of offset
 3. Introduce `env` function for templating
-
-TODO:
-
-- mocks for Kafka & RabbitMQ
+4. Mock Actors implementation for Kafka
     - on schedule producer
     - on demand producer
     - reactive consumer+producer
     - consumer fact validation
 
-    - interceptors to access kafka comms
+
+TODO:
     - config reloading to work
-    - allow overriding on-demand producer fields via mgmt API
 
 
 2. Do not respond with Content-Type=text/html if no content-type header is configured
 3. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
+
+# Kafka Polish Version
+
+- how to connect to SSL-protected kafka?
+- have a flag that triggers creating a topic by actor
+- avro/grpc/binary/str problem in Kafka
+- what to do with binary headers in Kafka? data-url prefix?
+- interceptors to access kafka comms
+- allow overriding on-demand producer fields via mgmt API
 
 # Roadmap Ideas
 
@@ -138,26 +144,24 @@ TODO:
 - rabbitmq for async servers 
 - activemq for async servers  
 - mqtt for async servers  
-- have a flag that triggers creating a topic by actor
-- avro/grpc/binary/str problem in Kafka
-- what to do with binary headers in Kafka? data-url prefix?
-- add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
+- config editor to provide hyperlinks from resource files into corresponding editing
+  
 - Tornado has auto-multicpu startup mode, use it optionally
+- test the performance of ourself and optimize it
+
+- allow enabling multiple tags + allow response to trigger tag up/down => state machine for complex scenarios
+- add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+- cli argument to set the tag
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
-- cli argument to set the tag
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
 - Nicer formatted error pages for known errors
 - Nicer logging of requests, with special option to enable it.
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
-- config editor to provide hyperlinks from resource files into corresponding editing
-
-1. base64-encoded body strings, for binary responses
-1. Content-Length that self-maintains, unless chunked transfer (default), some other magical HTTP protocol things (
-   Accept etc)
 
 - SQS as one more async tech
 
