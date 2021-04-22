@@ -220,10 +220,11 @@ class KafkaConsumerGroup:
 
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
-            logging.info('Consumed a Kafka message: topic=\'%s\'' % (
+            logging.info('[TOPIC: %s] Consumed a Kafka message' % (
                 first_actor.consumer.topic
             ))
-            logging.debug('addr=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            logging.debug('[TOPIC: %s] addr=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                first_actor.consumer.topic,
                 first_actor.service.address,
                 key,
                 value,
@@ -238,7 +239,8 @@ class KafkaConsumerGroup:
                     break
 
             if matched_consumer is None:
-                logging.debug('NOT MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                logging.debug('[ACTOR: %s] NOT MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                    '%s(Index: %d)' % ('' if matched_consumer.actor.name is None else '%s ' % matched_consumer.actor.name, matched_consumer.actor.id),
                     first_actor.service.address,
                     first_actor.consumer.topic,
                     key,
@@ -247,7 +249,8 @@ class KafkaConsumerGroup:
                 ))
                 continue
 
-            logging.debug('MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            logging.debug('[ACTOR: %s] MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                '%s(Index: %d)' % ('' if matched_consumer.actor.name is None else '%s ' % matched_consumer.actor.name, matched_consumer.actor.id),
                 matched_consumer.actor.service.address,
                 matched_consumer.actor.consumer.topic,
                 key,
@@ -365,10 +368,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
-        logging.info('Produced a Kafka message: topic=\'%s\'' % (
+        logging.info('[ACTOR: %s] Produced a Kafka message: topic=\'%s\'' % (
+            '%s(Index: %d)' % ('' if self.actor.name is None else '%s ' % self.actor.name, self.actor.id),
             self.topic
         ))
-        logging.debug('addr=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+        logging.debug('[ACTOR: %s] addr=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            '%s(Index: %d)' % ('' if self.actor.name is None else '%s ' % self.actor.name, self.actor.id),
             self.actor.service.address,
             key,
             '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
