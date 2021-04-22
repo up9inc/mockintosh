@@ -486,7 +486,7 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
         if actor.limit is not None and actor.limit > 0:
             actor.limit -= 1
 
-    logging.info('Kafka loop is finished.')
+    logging.debug('Kafka loop is finished.')
 
 
 def run_loops(definition):
