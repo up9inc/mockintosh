@@ -31,4 +31,4 @@ class RestrictedFieldError(Exception):
     """
 
     def __init__(self, field):
-        super().__init__('\'%s\' field is restricted!' % field)
+        super().__init__('%r field is restricted!' % field)

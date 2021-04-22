@@ -223,7 +223,7 @@ class KafkaConsumerGroup:
 
             key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
 
-            logging.debug('Analyzing a Kafka message from \'%s\' addr=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            logging.debug('Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r' % (
                 first_actor.consumer.topic,
                 first_actor.service.address,
                 key,
@@ -239,7 +239,7 @@ class KafkaConsumerGroup:
                     break
 
             if matched_consumer is None:
-                logging.debug('NOT MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+                logging.debug('NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r' % (
                     first_actor.service.address,
                     first_actor.consumer.topic,
                     key,
@@ -248,11 +248,11 @@ class KafkaConsumerGroup:
                 ))
                 continue
 
-            logging.info('Consumed a Kafka message from \'%s\' by \'%s\'' % (
+            logging.info('Consumed a Kafka message from %r by %r' % (
                 matched_consumer.actor.consumer.topic,
                 '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
             ))
-            logging.debug('[%s] MATCHED the Kafka message: addr=\'%s\' topic=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+            logging.debug('[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r' % (
                 '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
                 matched_consumer.actor.service.address,
                 matched_consumer.actor.consumer.topic,
@@ -371,11 +371,11 @@ class KafkaProducer(KafkaConsumerProducerBase):
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
 
-        logging.info('Produced a Kafka message into \'%s\' from \'%s\'' % (
+        logging.info('Produced a Kafka message into %r from %r' % (
             self.topic,
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id)
         ))
-        logging.debug('[%s] addr=\'%s\' key=\'%s\' value=\'%s\' headers=\'%s\'' % (
+        logging.debug('[%s] addr=%r key=%r value=%r headers=%r' % (
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id),
             self.actor.service.address,
             key,
