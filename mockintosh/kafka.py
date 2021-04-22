@@ -29,9 +29,9 @@ from mockintosh.logs import Logs
 
 def _kafka_delivery_report(err, msg):
     if err is not None:  # pragma: no cover
-        logging.info('Message delivery failed: {}'.format(err))
+        logging.debug('Message delivery failed: {}'.format(err))
     else:
-        logging.info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+        logging.debug('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
 
 
 def _create_topic(address: str, topic: str):
@@ -72,13 +72,16 @@ def _merge_global_headers(_globals, kafka_producer):
 
 
 def _wait_for_topic_to_exist(consumer, topic):
+    is_logged = False
     while True:
         topics = consumer.list_topics(topic)  # promises to create topic
         logging.debug("Topic state: %s", topics.topics)
         if topics.topics[topic].error is None:
             break
         else:
-            logging.warning("Topic is not available: %s", topics.topics[topic].error)
+            if not is_logged:
+                logging.warning("Topic '%s' is not available: %s", topic, topics.topics[topic].error)
+                is_logged = True
             time.sleep(1)
 
 

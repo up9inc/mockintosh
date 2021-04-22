@@ -118,5 +118,5 @@ def _urlsplit(url, scheme='', allow_fragments=True):
 
 
 def _delay(seconds):
-    logging.info('Sleeping for %d seconds.' % seconds)
+    logging.debug('Sleeping for %d seconds.' % seconds)
     time.sleep(seconds)
