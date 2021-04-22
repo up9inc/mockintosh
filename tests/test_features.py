@@ -954,6 +954,7 @@ class TestHeaders():
         param = str(int(time.time()))
         resp = httpx.get(SRV_8001 + '/parameter', headers={"hdr1": param})
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with parameter: %s' % param
 
         resp = httpx.get(SRV_8001 + '/parameter/template-file', headers={"hdr1": param})
@@ -966,6 +967,7 @@ class TestHeaders():
         static_val = 'myValue'
         resp = httpx.get(SRV_8001 + '/static-value', headers={"hdr1": static_val})
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with static value: %s' % static_val
 
         resp = httpx.get(SRV_8001 + '/static-value/template-file', headers={"hdr1": static_val})
@@ -978,6 +980,7 @@ class TestHeaders():
         param = str(int(time.time()))
         resp = httpx.get(SRV_8001 + '/regex-capture-group', headers={"hdr1": 'prefix-%s-suffix' % param})
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'matched with regex capture group: %s' % param
 
         resp = httpx.get(SRV_8001 + '/regex-capture-group/template-file', headers={"hdr1": 'prefix-%s-suffix' % param})
@@ -1026,6 +1029,7 @@ class TestHeaders():
             "hdr3": 'prefix-%s-suffix' % param3
         })
         assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'headers match: %s %s %s' % (static_val, param2, param3)
 
         resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
@@ -1046,6 +1050,7 @@ class TestHeaders():
             "hdr4": static_val
         })
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'hdr4 request header: %s' % static_val
 
         resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
@@ -1080,6 +1085,7 @@ class TestHeaders():
             "hdr3": 'prefix-%s-suffix' % param3
         })
         assert 201 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.cookies['name1'] == param2
         assert resp.cookies['name2'] == 'prefix-%s-suffix' % param3
 
@@ -1099,6 +1105,7 @@ class TestHeaders():
             "hdr4": static_val
         })
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['Hdr4'] == 'hdr4 request header: %s' % static_val
 
         resp = httpx.get(SRV_8001 + '/alternative/template-file', headers={
@@ -1111,11 +1118,13 @@ class TestHeaders():
     def test_global_headers(self, config):
         resp = httpx.get(SRV_8001 + '/global-headers')
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'globalval1'
         assert resp.headers['global-hdr2'] == 'globalval2'
 
         resp = httpx.get(SRV_8001 + '/global-headers-modified')
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'overridden'
         assert resp.headers['global-hdr2'] == 'globalval2'
 
@@ -3083,6 +3092,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/global-headers')
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'globalval1'
         assert resp.headers['global-hdr2'] == 'globalval2'
 
@@ -3095,6 +3105,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/global-headers')
         assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.headers['global-hdr1'] == 'globalvalX'
         assert resp.headers['global-hdr2'] == 'globalvalY'
 
