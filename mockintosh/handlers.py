@@ -30,6 +30,7 @@ import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
 from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
+from tornado import httputil
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -78,6 +79,7 @@ IMAGE_EXTENSIONS = [
 ]
 
 FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
+CONTENT_TYPE = 'Content-Type'
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -220,6 +222,18 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     )
         super().on_finish()
 
+    def clear(self) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
+        self._headers = httputil.HTTPHeaders(
+            {
+                "Date": httputil.format_timestamp(time.time()),
+            }
+        )
+        self.set_default_headers()
+        self._write_buffer = []
+        self._status_code = 200
+        self._reason = httputil.responses[200]
+
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         super().write(chunk)
         if self.replica_response is not None:
@@ -259,6 +273,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.unhandled_data = unhandled_data
             self.fallback_to = fallback_to
             self.tag = tag
+            self.remove_content_type_header = True
 
             for path, methods in self.endpoints:
                 if re.fullmatch(path, self.request.path):
@@ -546,6 +561,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         response = Response()
 
         response.status = self._status_code
+        if self.remove_content_type_header:
+            self._headers.pop('Content-Type', None)
         response.headers = self._headers
         if not hasattr(self, 'rendered_body'):
             self.rendered_body = None
@@ -649,12 +666,18 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         if 'headers' in self.globals:
             for key, value in self.globals['headers'].items():
+                if key.title() == CONTENT_TYPE:
+                    self.remove_content_type_header = False
+
                 self.set_header(key, value)
 
         if 'headers' not in self.custom_response:
             return
 
         for key, value in self.custom_response['headers'].items():
+            if key.title() == CONTENT_TYPE:
+                self.remove_content_type_header = False
+
             value_list = None
             if isinstance(value, list):
                 value_list = value
@@ -1034,7 +1057,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         if status_code == 404 and self.is_request_image_like():
             with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
                 image = file.read()
-                self.set_header('content-type', 'image/png')
+                self.remove_content_type_header = False
+                self.set_header(CONTENT_TYPE, 'image/png')
                 self.write(image)
                 self.rendered_body = image
 
@@ -1045,6 +1069,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             if not self.is_request_image_like():
                 self.insert_unhandled_data((self.request, None))
             return
+
+        self.remove_content_type_header = False
 
         # Headers
         headers = {}
