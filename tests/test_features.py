@@ -233,6 +233,7 @@ class TestCommandLineArguments():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
@@ -248,10 +249,12 @@ class TestCommandLineArguments():
 
         resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
         result, _ = tcping('localhost', '8001')
@@ -340,6 +343,7 @@ class TestCore():
             assert 404 == resp.status_code
         else:
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == var
 
     @pytest.mark.parametrize(('config'), [
@@ -402,6 +406,7 @@ class TestCore():
         resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
 
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
 
     def test_multiple_services_on_same_port(self):
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
@@ -409,10 +414,12 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8001 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
     def test_two_services_one_with_hostname_one_without(self):
@@ -421,11 +428,13 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         # Service 1 (the one without the hostname) should accept any `Host` header
         resp = httpx.get(SRV_8001 + '/', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         # Service 2 (the one with the hostname) should require a correct `Host` header
@@ -434,6 +443,7 @@ class TestCore():
 
         resp = httpx.get(SRV_8002 + '/', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
     def test_endpoint_id_header(self):
@@ -442,10 +452,12 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-1'
 
         resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
 
     def test_http_verbs(self):
@@ -454,34 +466,42 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'GET request'
 
         resp = httpx.get(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'GET request'
 
         resp = httpx.post(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'POST request'
 
         resp = httpx.head(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == ''
 
         resp = httpx.delete(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'DELETE request'
 
         resp = httpx.patch(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'PATCH request'
 
         resp = httpx.put(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'PUT request'
 
         resp = httpx.options(SRV_8001 + '/hello')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'OPTIONS request'
 
     def test_http_verb_not_allowed(self):
@@ -554,10 +574,12 @@ class TestCore():
             image_file = file.read()
             resp = httpx.post(SRV_8001 + '/endpoint1', files={'example': image_file})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == _b64encode(image_file)
 
             resp = httpx.post(SRV_8001 + '/endpoint1', data={'example': image_file})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == _b64encode(image_file)
 
     def test_ssl_true(self):
@@ -566,14 +588,17 @@ class TestCore():
 
         resp = httpx.get(SRV_8001_SSL + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
         resp = httpx.get(SRV_8003_SSL + '/service3', headers={'Host': SRV_8003_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service3'
 
     @pytest.mark.parametrize(('config'), [
@@ -665,6 +690,7 @@ class TestCore():
         for i in range(1, 6):
             resp = httpx.get(SRV_8001 + '/counter', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == 'Hello %d world' % i
 
     @pytest.mark.parametrize(('config'), [
@@ -676,26 +702,32 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/int')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert str(int(resp.text)) == resp.text
 
         resp = httpx.get(SRV_8001 + '/float')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert re.match(r'^-?\d+(?:\.\d+)?$', resp.text)
 
         resp = httpx.get(SRV_8001 + '/alphanum')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert len(resp.text) == 7
 
         resp = httpx.get(SRV_8001 + '/hex')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert int(resp.text, 16)
 
         resp = httpx.get(SRV_8001 + '/uuid4')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert is_valid_uuid(resp.text)
 
         resp = httpx.get(SRV_8001 + '/ascii')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert len(resp.text) == 11
         assert is_ascii(resp.text)
 
@@ -708,6 +740,7 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/subexpression')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert re.match(r'^-?\d+(?:\.\d+)?$', resp.text)
 
     @pytest.mark.parametrize(('config'), [
@@ -724,18 +757,21 @@ class TestCore():
         now = time.time()
 
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         resp_int = int(resp.text)
         diff = now - resp_int
         assert diff < 1
 
         resp = httpx.get(SRV_8001 + '/timestamp-shift')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         segments = resp.text.split('<br>')
         assert int(segments[0]) < int(segments[1])
         assert int(segments[0]) > int(segments[2])
 
         resp = httpx.get(SRV_8001 + '/ftimestamp')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         segments = resp.text.split('<br>')
         diff = now - float(segments[0])
         assert diff < 1
@@ -744,12 +780,14 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/ftimestamp-shift')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         segments = resp.text.split('<br>')
         assert float(segments[0]) < float(segments[1])
         assert float(segments[0]) > float(segments[2])
 
         resp = httpx.get(SRV_8001 + '/date')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         segments = resp.text.split('<br>')
         pattern = '%Y-%m-%dT%H:%M:%S.%f'
         delta = utcnow - datetime.strptime(segments[0], pattern)
@@ -855,6 +893,7 @@ class TestCore():
 
         resp = httpx.get(SRV_8001 + '/endp1')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == '&amp; &lt; &quot; &gt;'
 
     @pytest.mark.parametrize(('config'), [
@@ -918,10 +957,12 @@ class TestStatus():
     def test_status_code(self, config):
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 202 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
         assert 403 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
     def test_status_code_templated(self, config):
@@ -1148,6 +1189,7 @@ class TestPath():
         param = str(int(time.time()))
         resp = httpx.get(SRV_8001 + '/parameterized1/text/%s/subval' % param)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'intoVar capture: %s' % param
 
         resp = httpx.get(SRV_8001 + '/parameterized1/template-file/%s/subval' % param)
@@ -1159,12 +1201,14 @@ class TestPath():
     def test_static_value_priority(self, config):
         resp = httpx.get(SRV_8001 + '/parameterized1/text/staticVal/subval')
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'static path components have priority'
 
     def test_regex_match(self, config):
         path = '/parameterized2/text/prefix-%s/subval' % str(int(time.time()))
         resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'regex match: %s' % path
 
         path = '/parameterized2/template-file/prefix-%s/subval' % str(int(time.time()))
@@ -1183,6 +1227,7 @@ class TestPath():
         path = '/parameterized1/text/prefix2-%s/subval2' % param
         resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'regex capture group: %s' % param
 
         path = '/parameterized1/template-file/prefix2-%s/subval2' % param
@@ -1198,6 +1243,7 @@ class TestPath():
         param3 = str(int(time.time()))
         resp = httpx.get(SRV_8001 + '/parameterized3/text/%s/%s/%s' % (param1, param2, param3))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'var1: %s, var2: %s, var3: %s' % (param1, param2, param3)
 
         resp = httpx.get(SRV_8001 + '/parameterized3/template-file/%s/%s/%s' % (param1, param2, param3))
@@ -1217,6 +1263,7 @@ class TestPath():
         path = '/parameterized4/text/prefix-%s-%s-%s-suffix/%s_%s' % (param1, param2, param3, param4, param5)
         resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'var1: %s, var2: %s, var3: %s, var4: %s, var5: %s' % (
             param1,
             param2,
@@ -1245,6 +1292,7 @@ class TestPath():
         path = '/parameterized5/text/%s/prefix-%s-%s-suffix/%s/prefix2-%s' % (param1, param2, param3, param4, param5)
         resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'var1: %s, var2: %s, var3: %s, var4: %s, var5: %s' % (
             param1,
             param2,
@@ -1305,18 +1353,22 @@ class TestPath():
 
         resp = httpx.get(SRV_8001 + '/%s-%s/another' % (hello, world))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s' % world
 
         resp = httpx.get(SRV_8001 + '/%s-middle-%s/another' % (x, y))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s %s' % (x, y)
 
         resp = httpx.get(SRV_8001 + '/%s-middle2-7/another' % x)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s' % x
 
         resp = httpx.get(SRV_8001 + '/%s2-prefix-%s/another' % (hello, world))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s' % world
 
     def test_auto_query_string(self, config):
@@ -1326,26 +1378,32 @@ class TestPath():
 
         resp = httpx.get(SRV_8001 + '/search?q=%s' % hello)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s' % hello
 
         resp = httpx.get(SRV_8001 + '/search2?q=%s&s=%s' % (hello, world))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s %s' % (hello, world)
 
         resp = httpx.get(SRV_8001 + '/abc1-xx%sxx' % hello)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s' % hello
 
         resp = httpx.get(SRV_8001 + '/abc2-xx%sxx?q=%s&s=%s' % (hello, world, goodbye))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
 
         resp = httpx.get(SRV_8001 + '/abc3-xx%sxx?q=abc4-xx%sxx&s=%s' % (hello, world, goodbye))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
 
         resp = httpx.get(SRV_8001 + '/abc5-xx%sxx?q=%s&s=%s#some-string' % (hello, world, goodbye))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'result: %s %s %s' % (hello, world, goodbye)
 
     def test_array_parameter_and_key_templating(self, config):
@@ -1355,6 +1413,7 @@ class TestPath():
 
         resp = httpx.get(SRV_8001 + '/qstr-multiparam1?param[]=%s&param[]=%s' % (v1, v2))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == '%s %s' % (v1, v2)
 
         resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param[]=%s' % v1)
@@ -1362,10 +1421,12 @@ class TestPath():
 
         resp = httpx.get(SRV_8001 + '/qstr-multiparam2?param1=%s&param2=%s' % (v1, v2))
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == '%s %s' % (v1, v2)
 
         resp = httpx.get(SRV_8001 + '/qstr-multiparam3?prefix-%s-suffix' % somedata)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == '%s' % somedata
 
 
@@ -1389,6 +1450,7 @@ class TestQueryString():
         query = '?param1=%s' % param
         resp = httpx.get(SRV_8001 + '/parameter' + query)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'matched with parameter: %s' % param
 
         resp = httpx.get(SRV_8001 + '/parameter/template-file' + query)
@@ -1402,6 +1464,7 @@ class TestQueryString():
         query = '?param1=%s' % static_val
         resp = httpx.get(SRV_8001 + '/static-value' + query)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'matched with static value: %s' % static_val
 
         resp = httpx.get(SRV_8001 + '/static-value/template-file' + query)
@@ -1415,6 +1478,7 @@ class TestQueryString():
         query = '?param1=prefix-%s-suffix' % param
         resp = httpx.get(SRV_8001 + '/regex-capture-group' + query)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'matched with regex capture group: %s' % param
 
         resp = httpx.get(SRV_8001 + '/regex-capture-group/template-file' + query)
@@ -1463,6 +1527,7 @@ class TestQueryString():
         query = '?param1=%s&param2=%s&param3=prefix-%s-suffix' % (static_val, param2, param3)
         resp = httpx.get(SRV_8001 + '/alternative' + query)
         assert 201 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'query string match: %s %s %s' % (static_val, param2, param3)
 
         resp = httpx.get(SRV_8001 + '/alternative/template-file' + query)
@@ -1478,6 +1543,7 @@ class TestQueryString():
         query = '?param4=%s' % static_val
         resp = httpx.get(SRV_8001 + '/alternative' + query)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'param4 request query string: %s' % static_val
 
         resp = httpx.get(SRV_8001 + '/alternative/template-file' + query)
@@ -1534,6 +1600,7 @@ class TestBody():
         for path in paths:
             resp = httpx.post(SRV_8001 + path, json={"somekey": "valid"})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == 'body json schema matched'
 
             resp = httpx.post(SRV_8001 + path, json={"somekey2": "invalid"})
@@ -1546,6 +1613,7 @@ class TestBody():
 
         resp = httpx.post(SRV_8001 + '/body-json-schema-file-error', json={"somekey": "valid"})
         assert 500 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'JSON decode error of the JSON schema file: @body_schema_error.json'
 
     def test_body_regex(self, config):
@@ -1611,9 +1679,11 @@ class TestManagement():
 
         resp = httpx.get(MGMT + suffix, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
 
         resp = httpx.get(SRV_8001 + '/__admin' + suffix, headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -1667,14 +1737,17 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8001 + '/service1-new-config', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1-new-config'
 
         resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
         resp = httpx.get(MGMT + '/config', verify=False)
@@ -1709,14 +1782,17 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1-new-service'
 
         resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
         with open(get_config_path('configs/json/hbs/management/new_service2.%s' % _format), 'r') as file:
@@ -1725,24 +1801,29 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1-new-service'
 
         param = str(int(time.time()))
         resp = httpx.get(SRV_8002 + '/changed-endpoint/%s' % param, headers={'Host': SRV_8002_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'var: %s' % param
 
         # Bad httpx
         resp = httpx.post(MGMT + '/config', data='hello: world:', verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text.startswith('JSON/YAML decode error')
 
         resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data='hello: world:', verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text.startswith('JSON/YAML decode error')
 
         with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
@@ -1750,6 +1831,7 @@ class TestManagement():
             data['incorrectKey'] = ''
             resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
             assert 400 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text.startswith('JSON schema validation error:')
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
@@ -1757,6 +1839,7 @@ class TestManagement():
             data['incorrectKey'] = ''
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
             assert 400 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text.startswith('JSON schema validation error:')
 
         # Restricted field
@@ -1765,6 +1848,7 @@ class TestManagement():
             data['services'][0]['port'] = 42
             resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
             assert 500 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == "'port' field is restricted!"
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
@@ -1772,6 +1856,7 @@ class TestManagement():
             data['port'] = 42
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
             assert 500 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == "'port' field is restricted!"
 
     @pytest.mark.parametrize(('config', '_format'), [
@@ -1789,10 +1874,12 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8001 + '/service1-new-service', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1-new-service'
 
     @pytest.mark.parametrize(('config'), [
@@ -2026,34 +2113,42 @@ class TestManagement():
             for i in range(2):
                 resp = httpx.get(SRV_8001 + '/service1-multi-response-looped', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'resp%d' % (i + 1)
 
                 resp = httpx.get(SRV_8001 + '/service1-multi-response-looped-empty-list', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert not resp.text
 
                 resp = httpx.get(SRV_8001 + '/service1-no-response', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert not resp.text
 
                 resp = httpx.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'resp%d' % (i + 1)
 
                 resp = httpx.get(SRV_8001 + '/service1-dataset-inline', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'dset: val%d' % (i + 1)
 
                 resp = httpx.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'dset: val%d' % (i + 1)
 
                 resp = httpx.get(SRV_8001 + '/service1-dataset-fromfile', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'dset: val%d' % (i + 1)
 
             resp = httpx.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == 'resp%d' % 3
 
             resp = httpx.get(SRV_8001 + '/service1-multi-response-nonlooped', headers={'Host': SRV_8001_HOST})
@@ -2061,6 +2156,7 @@ class TestManagement():
 
             resp = httpx.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == 'dset: val%d' % 3
 
             resp = httpx.get(SRV_8001 + '/service1-dataset-inline-nonlooped', headers={'Host': SRV_8001_HOST})
@@ -2073,14 +2169,17 @@ class TestManagement():
             for i in range(2):
                 resp = httpx.get(SRV_8002 + '/service2-multi-response-looped', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'resp%d' % (i + 1)
 
                 resp = httpx.get(SRV_8002 + '/service2-multi-response-nonlooped', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'resp%d' % (i + 1)
 
                 resp = httpx.get(SRV_8002 + '/service2-dataset-inline', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == 'dset: val%d' % (i + 1)
 
             if level == 'service':
@@ -2547,10 +2646,12 @@ class TestManagement():
 
         resp = httpx.get(MGMT + '/oas', verify=False)
         assert 500 == resp.status_code
+        # assert 'Content-Type' not in resp.headers
         # assert resp.text == 'External OAS document %r couldn\'t be accessed or found!' % path
 
         resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
         assert 500 == resp.status_code
+        # assert 'Content-Type' not in resp.headers
         # assert resp.text == 'External OAS document %r couldn\'t be accessed or found!' % path
 
     @pytest.mark.parametrize(('config'), [
@@ -2574,10 +2675,12 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == text_state_1
 
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == text_state_1
 
         resp = httpx.get(MGMT + '/resources?path=%s&format=stream' % body_txt_rel_path, verify=False)
@@ -2601,6 +2704,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == text_state_2
 
         resp = httpx.post(
@@ -2612,18 +2716,22 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == text_state_3
 
         resp = httpx.delete(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 204 == resp.status_code
         resp = httpx.get(SRV_8001 + '/service1-file', headers={'Host': SRV_8001_HOST})
         assert 500 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'External template file \'res/body.txt\' couldn\'t be accessed or found!'
         resp = httpx.get(SRV_8001 + '/service1-file2', headers={'Host': SRV_8001_HOST})
         assert 500 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'External template file \'res/body.txt\' couldn\'t be accessed or found!'
         resp = httpx.get(SRV_8001 + '/service1-file-forbidden-path', headers={'Host': SRV_8001_HOST})
         assert 500 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'External template file \'../body/config.json\' couldn\'t be accessed or found!'
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 400 == resp.status_code
@@ -2647,6 +2755,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == text_state_4
 
         resp = httpx.post(MGMT + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5}, verify=False)
@@ -2655,6 +2764,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == text_state_5
 
         resp = httpx.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path2, verify=False)
@@ -2779,6 +2889,7 @@ class TestManagement():
 
             resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == service1_response
 
             resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
@@ -2803,11 +2914,13 @@ class TestManagement():
             for _ in range(3):
                 resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == service1_response
 
             for _ in range(2):
                 resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == service2_response
 
             resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
@@ -2895,11 +3008,13 @@ class TestManagement():
             for _ in range(1):
                 resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == service1_response
 
             for _ in range(1):
                 resp = httpx.get(SRV_8002 + '/service2', headers={'Host': SRV_8002_HOST})
                 assert 200 == resp.status_code
+                assert 'Content-Type' not in resp.headers
                 assert resp.text == service2_response
 
             resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
@@ -2949,6 +3064,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1?%s=%s' % (somekey, somevalue), headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
@@ -2964,6 +3080,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1?%s=%s&%s=%s' % (somekey, somevalue, somekey, somevalue2), headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
@@ -2997,6 +3114,7 @@ class TestManagement():
         # POST form data
         resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data={somekey: somevalue})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == service1_response
 
         # POST multipart binary
@@ -3005,16 +3123,19 @@ class TestManagement():
             image_file = file.read()
             resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, files={somekey: image_file})
             assert 200 == resp.status_code
+            assert 'Content-Type' not in resp.headers
             assert resp.text == service1_response
 
         # POST plain text
         resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data=somevalue)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == service1_response
 
         # POST binary
         resp = httpx.post(SRV_8001 + '/service1-post', headers={'Host': SRV_8001_HOST}, data=image_file)
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == service1_response
 
         resp = httpx.get(admin_url + '/traffic-log', headers=admin_headers, verify=False)
@@ -3146,6 +3267,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
         resp = httpx.get(SRV_8000 + '/unhandled')
@@ -3190,6 +3312,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'service1'
 
     @pytest.mark.parametrize(('config'), [
@@ -3261,6 +3384,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8002 + '/serviceX', headers={'Host': SRV_8002_HOST}, timeout=30)
         assert 504 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'Forwarded request to: GET http://service1.example.com:8001/serviceX is timed out!'
 
     @pytest.mark.parametrize(('config'), [
@@ -3271,6 +3395,7 @@ class TestManagement():
 
         resp = httpx.get(SRV_8004 + '/serviceX', headers={'Host': SRV_8004_HOST}, timeout=30)
         assert 502 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'Name or service not known: http://service4.example.com:8004'
 
 
@@ -3659,11 +3784,13 @@ class TestAsync():
     def test_get_async_bad_requests(self):
         resp = httpx.get(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'Invalid consumer index!'
 
         actor_name = 'not-existing-actor'
         resp = httpx.get(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def test_post_async_produce(self):
@@ -3820,10 +3947,12 @@ class TestAsync():
         actor13 = 'actor13'
         resp = httpx.post(MGMT + '/async/producers/%s' % actor13, verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'No producer actor is found for: %r' % actor13
 
         resp = httpx.post(MGMT + '/async/producers/13', verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'Invalid producer index!'
 
     def test_post_async_producer_templated(self):
@@ -3879,11 +4008,13 @@ class TestAsync():
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'Invalid consumer index!'
 
         actor_name = 'not-existing-actor'
         resp = httpx.delete(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
+        assert 'Content-Type' not in resp.headers
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def test_traffic_log_kafka(self):

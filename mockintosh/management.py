@@ -10,6 +10,7 @@ import os
 import re
 import json
 import copy
+import time
 import shutil
 import logging
 import threading
@@ -25,6 +26,7 @@ import jsonschema
 import tornado.web
 from tornado.util import unicode_type
 from tornado.escape import utf8
+from tornado import httputil
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
@@ -99,6 +101,18 @@ class ManagementBaseHandler(tornado.web.RequestHandler):
     def _log(self) -> None:
         if logging.DEBUG >= logging.root.level:
             self.application.log_request(self)
+
+    def clear(self) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
+        self._headers = httputil.HTTPHeaders(
+            {
+                "Date": httputil.format_timestamp(time.time()),
+            }
+        )
+        self.set_default_headers()
+        self._write_buffer = []
+        self._status_code = 200
+        self._reason = httputil.responses[200]
 
 
 class ManagementRootHandler(ManagementBaseHandler):
