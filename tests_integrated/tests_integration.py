@@ -682,7 +682,8 @@ class IntegrationTests(unittest.TestCase):
 
         resp = httpx.get(SRV1 + '/__admin/tag')
         resp.raise_for_status()
-        self.assertEqual("first", resp.text)
+        data = resp.json()
+        self.assertIn("first", data['tags'])
 
         resp = httpx.get(SRV1 + '/tagged')
         self.assertEqual("3.1", resp.text)
