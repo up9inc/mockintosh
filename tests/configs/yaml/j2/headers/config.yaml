@@ -4,6 +4,7 @@ globals:
   headers:
     global-hdr1: globalval1
     global-hdr2: globalval2
+    content-type: "text/html; charset=UTF-8"
 services:
 - name: Mock for Service1
   port: 8001
