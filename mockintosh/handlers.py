@@ -30,6 +30,7 @@ import tornado.web
 from accept_types import parse_header
 from tornado.concurrent import Future
 from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
+from tornado import httputil
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -78,6 +79,7 @@ IMAGE_EXTENSIONS = [
 ]
 
 FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
+CONTENT_TYPE = 'Content-Type'
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -219,6 +221,18 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                         str(self.get_status())
                     )
         super().on_finish()
+
+    def clear(self) -> None:
+        """Overriden method of tornado.web.RequestHandler"""
+        self._headers = httputil.HTTPHeaders(
+            {
+                "Date": httputil.format_timestamp(time.time()),
+            }
+        )
+        self.set_default_headers()
+        self._write_buffer = []
+        self._status_code = 200
+        self._reason = httputil.responses[200]
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         super().write(chunk)
@@ -703,7 +717,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     if key.title() not in self.request.headers._dict:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
-                        reason = '\'%s\' not in the request headers!' % key.title()
+                        reason = '%r not in the request headers!' % key.title()
                         break
                     if value == request_header_val:
                         continue
@@ -712,7 +726,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     if match is None:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
-                        reason = 'Request header value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                        reason = 'Request header value %r on key %r does not match to regex: %s' % (
                             request_header_val,
                             key.title(),
                             value
@@ -738,7 +752,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                         if not is_matched:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
-                            reason = 'Key \'%s\' couldn\'t found in the query string!' % key
+                            reason = 'Key %r couldn\'t found in the query string!' % key
                             break
                     if value == request_query_val:
                         continue
@@ -749,7 +763,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     if match is None:
                         self.internal_endpoint_id = alternative['internalEndpointId']
                         fail = True
-                        reason = 'Request query parameter value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                        reason = 'Request query parameter value %r on key %r does not match to regex: %s' % (
                             request_query_val,
                             key,
                             value
@@ -821,7 +835,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                         if body_argument is default:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
-                            reason = 'Key \'%s\' couldn\'t found in the form data!' % key
+                            reason = 'Key %r couldn\'t found in the form data!' % key
                             break
                         if value == body_argument:
                             continue
@@ -830,7 +844,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                         if match is None:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
-                            reason = 'Form field value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                            reason = 'Form field value %r on key %r does not match to regex: %s' % (
                                 body_argument,
                                 key,
                                 value
@@ -845,7 +859,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                         if key not in self.request.files:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
-                            reason = 'Key \'%s\' couldn\'t found in the multipart data!' % key
+                            reason = 'Key %r couldn\'t found in the multipart data!' % key
                             break
                         multipart_argument = self.request.files[key][0].body.decode()
                         if value == multipart_argument:
@@ -855,7 +869,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                         if match is None:
                             self.internal_endpoint_id = alternative['internalEndpointId']
                             fail = True
-                            reason = 'Multipart field value \'%s\' on key \'%s\' does not match to regex: %s' % (
+                            reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
                                 multipart_argument,
                                 key,
                                 value
@@ -925,7 +939,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def resolve_relative_path(self, source_text: str) -> [None, str]:
         relative_path, orig_relative_path = super().resolve_relative_path(source_text)
-        error_msg = 'External template file \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        error_msg = 'External template file %r couldn\'t be accessed or found!' % orig_relative_path
         if not os.path.isfile(relative_path):
             self.send_error(500, message=error_msg)
             return None
@@ -1034,7 +1048,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         if status_code == 404 and self.is_request_image_like():
             with open(os.path.join(__location__, 'res/mock.png'), 'rb') as file:
                 image = file.read()
-                self.set_header('content-type', 'image/png')
+                self.set_header(CONTENT_TYPE, 'image/png')
                 self.write(image)
                 self.rendered_body = image
 
@@ -1095,7 +1109,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
         # The service is external
-        logging.info('Forwarding the unhandled request to: %s %s' % (self.request.method, url))
+        logging.info('Forwarding the unhandled request to: %s %s', self.request.method, url)
 
         http_verb = getattr(client, self.request.method.lower())
         try:

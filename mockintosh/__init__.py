@@ -78,9 +78,9 @@ class Definition():
     def load(self):
         if self.source_text is None:
             with open(self.source, 'r') as file:
-                logging.info('Reading configuration file from path: %s' % self.source)
+                logging.info('Reading configuration file from path: %s', self.source)
                 self.source_text = file.read()
-                logging.debug('Configuration text: %s' % self.source_text)
+                logging.debug('Configuration text: %s', self.source_text)
 
         try:
             self.data = yaml.safe_load(self.source_text)
@@ -351,7 +351,7 @@ def get_schema():
     schema_path = path.join(__location__, 'schema.json')
     with open(schema_path, 'r') as file:
         schema_text = file.read()
-        logging.debug('JSON schema: %s' % schema_text)
+        logging.debug('JSON schema: %s', schema_text)
         schema = json.loads(schema_text)
     return schema
 
@@ -381,7 +381,7 @@ def run(source, is_file=True, debug=False, interceptors=(), address='', services
     queue, _ = start_render_queue()
 
     if address:
-        logging.info('Bind address: %s' % address)
+        logging.info('Bind address: %s', address)
     schema = get_schema()
 
     try:
@@ -470,7 +470,7 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
-    logging.info("%s v%s is starting..." % (PROGRAM.capitalize(), __version__))
+    logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:

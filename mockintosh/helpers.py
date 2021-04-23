@@ -33,7 +33,7 @@ def _detect_engine(data, context='config', default=PYBARS):
         data['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
     ):
         template_engine = JINJA
-    logging.debug('Templating engine (%s) is: %s' % (context, template_engine))
+    logging.debug('Templating engine (%s) is: %s', context, template_engine)
     return template_engine
 
 
@@ -118,5 +118,5 @@ def _urlsplit(url, scheme='', allow_fragments=True):
 
 
 def _delay(seconds):
-    logging.info('Sleeping for %d seconds.' % seconds)
+    logging.debug('Sleeping for %d seconds.', seconds)
     time.sleep(seconds)

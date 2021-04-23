@@ -627,7 +627,7 @@ class ManagementOasHandler(ManagementBaseHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
-        error_msg = 'External OAS document \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        error_msg = 'External OAS document %r couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
         relative_path = os.path.join(config_dir, orig_relative_path)
@@ -1135,7 +1135,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
 
             if producer is None:
                 self.set_status(400)
-                self.write('No producer actor is found for: \'%s\'' % actor_name)
+                self.write('No producer actor is found for: %r' % actor_name)
                 return
             else:
                 self.set_status(202)
@@ -1170,7 +1170,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
 
             if consumer is None:
                 self.set_status(400)
-                self.write('No consumer actor is found for: \'%s\'' % actor_name)
+                self.write('No consumer actor is found for: %r' % actor_name)
                 return
             else:
                 self.write(consumer.single_log_service.json())
@@ -1199,7 +1199,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
 
             if consumer is None:
                 self.set_status(400)
-                self.write('No consumer actor is found for: \'%s\'' % actor_name)
+                self.write('No consumer actor is found for: %r' % actor_name)
                 return
             else:
                 consumer.single_log_service.reset()
