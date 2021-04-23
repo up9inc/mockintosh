@@ -1679,11 +1679,11 @@ class TestManagement():
 
         resp = httpx.get(MGMT + suffix, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
         resp = httpx.get(SRV_8001 + '/__admin' + suffix, headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
@@ -1818,12 +1818,12 @@ class TestManagement():
         # Bad httpx
         resp = httpx.post(MGMT + '/config', data='hello: world:', verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text.startswith('JSON/YAML decode error')
 
         resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data='hello: world:', verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text.startswith('JSON/YAML decode error')
 
         with open(get_config_path('configs/json/hbs/management/new_config.%s' % _format), 'r') as file:
@@ -1831,7 +1831,7 @@ class TestManagement():
             data['incorrectKey'] = ''
             resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
             assert 400 == resp.status_code
-            assert 'Content-Type' not in resp.headers
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text.startswith('JSON schema validation error:')
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
@@ -1839,7 +1839,7 @@ class TestManagement():
             data['incorrectKey'] = ''
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
             assert 400 == resp.status_code
-            assert 'Content-Type' not in resp.headers
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text.startswith('JSON schema validation error:')
 
         # Restricted field
@@ -1848,7 +1848,7 @@ class TestManagement():
             data['services'][0]['port'] = 42
             resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
             assert 500 == resp.status_code
-            assert 'Content-Type' not in resp.headers
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
 
         with open(get_config_path('configs/json/hbs/management/new_service1.%s' % _format), 'r') as file:
@@ -1856,7 +1856,7 @@ class TestManagement():
             data['port'] = 42
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
             assert 500 == resp.status_code
-            assert 'Content-Type' not in resp.headers
+            assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
 
     @pytest.mark.parametrize(('config', '_format'), [
@@ -2646,7 +2646,7 @@ class TestManagement():
 
         resp = httpx.get(MGMT + '/oas', verify=False)
         assert 500 == resp.status_code
-        # assert 'Content-Type' not in resp.headers
+        # assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         # assert resp.text == 'External OAS document %r couldn\'t be accessed or found!' % path
 
         resp = httpx.get(SRV_8001 + '/__admin/oas', headers={'Host': SRV_8001_HOST})
@@ -2680,7 +2680,7 @@ class TestManagement():
 
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_1
 
         resp = httpx.get(MGMT + '/resources?path=%s&format=stream' % body_txt_rel_path, verify=False)
@@ -2704,7 +2704,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_2
 
         resp = httpx.post(
@@ -2716,7 +2716,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_3
 
         resp = httpx.delete(MGMT + '/resources?path=%s' % body_txt_rel_path, verify=False)
@@ -2755,7 +2755,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_4
 
         resp = httpx.post(MGMT + '/resources', data={'path': new_body_txt_rel_path, 'file': text_state_5}, verify=False)
@@ -2764,7 +2764,7 @@ class TestManagement():
         assert 204 == resp.status_code
         resp = httpx.get(MGMT + '/resources?path=%s' % new_body_txt_rel_path, verify=False)
         assert 200 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == text_state_5
 
         resp = httpx.delete(MGMT + '/resources?path=%s' % new_body_txt_rel_path2, verify=False)
@@ -3784,13 +3784,13 @@ class TestAsync():
     def test_get_async_bad_requests(self):
         resp = httpx.get(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid consumer index!'
 
         actor_name = 'not-existing-actor'
         resp = httpx.get(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def test_post_async_produce(self):
@@ -3947,12 +3947,12 @@ class TestAsync():
         actor13 = 'actor13'
         resp = httpx.post(MGMT + '/async/producers/%s' % actor13, verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No producer actor is found for: %r' % actor13
 
         resp = httpx.post(MGMT + '/async/producers/13', verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid producer index!'
 
     def test_post_async_producer_templated(self):
@@ -4008,13 +4008,13 @@ class TestAsync():
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid consumer index!'
 
         actor_name = 'not-existing-actor'
         resp = httpx.delete(MGMT + '/async/consumers/%s' % actor_name, verify=False)
         assert 400 == resp.status_code
-        assert 'Content-Type' not in resp.headers
+        assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def test_traffic_log_kafka(self):
