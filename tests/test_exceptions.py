@@ -11,7 +11,7 @@ import pytest
 from jsonschema.exceptions import ValidationError
 
 from mockintosh import Definition, get_schema
-from mockintosh.exceptions import UnrecognizedConfigFileFormat, CertificateLoadingError
+from mockintosh.exceptions import UnrecognizedConfigFileFormat, CertificateLoadingError, CommaInTagIsForbidden
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.helpers import _nostderr
 from mockintosh.templating import RenderingQueue
@@ -75,3 +75,12 @@ class TestExceptions():
     def test_nostderr(self):
         with _nostderr():
             sys.stderr.write('don\'t print this')
+
+    def test_comma_in_tag_is_forbidden(self):
+        config = 'configs/json/hbs/management/multiresponse_comma_tag.json'
+        queue = RenderingQueue()
+        with pytest.raises(
+            CommaInTagIsForbidden,
+            match=r"Using comma is forbidden in tags: firs,t"
+        ):
+            Definition(get_config_path(config), schema, queue)
