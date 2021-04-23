@@ -112,22 +112,22 @@
 
 # Next Version
 
-1. Make `MOCKINTOSH_FORCE_PORT` to work always
+1. Mock Actors implementation for Kafka
+   - on schedule producer
+   - on demand producer
+   - reactive consumer+producer
+   - consumer fact validation
 2. Display timestamps in traffic log, instead of offset
 3. Introduce `env` function for templating
-4. Mock Actors implementation for Kafka
-    - on schedule producer
-    - on demand producer
-    - reactive consumer+producer
-    - consumer fact validation
-
+4. Do not respond with Content-Type=text/html if no content-type header is configured
+5. Make `MOCKINTOSH_FORCE_PORT` to work always
+6. CLI argument to set the tag enabled, forbid comma in tag name
 
 TODO:
     - config reloading to work
 
-
-2. Do not respond with Content-Type=text/html if no content-type header is configured
 3. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
+
 
 # Kafka Polish Version
 
@@ -144,6 +144,7 @@ TODO:
 - rabbitmq for async servers 
 - activemq for async servers  
 - mqtt for async servers  
+- SQS as one more async tech
 
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
 - config editor to provide hyperlinks from resource files into corresponding editing
@@ -152,8 +153,8 @@ TODO:
 - test the performance of ourself and optimize it
 
 - allow enabling multiple tags + allow response to trigger tag up/down => state machine for complex scenarios
-- add toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
-- cli argument to set the tag
+- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - add support of array/list parameters on query strings like
@@ -163,6 +164,5 @@ TODO:
 - Nicer logging of requests, with special option to enable it.
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 
-- SQS as one more async tech
 
 - mocks for gRPC servers
