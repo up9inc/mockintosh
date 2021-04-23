@@ -2253,7 +2253,8 @@ class TestManagement():
 
         resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 200 == resp.status_code
-        assert "first" == resp.text
+        data = resp.json()
+        assert "first" in data['tags']
 
         resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
@@ -2360,7 +2361,8 @@ class TestManagement():
 
         resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 200 == resp.status_code
-        assert "first" == resp.text
+        data = resp.json()
+        assert "first" in data['tags']
 
         resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code
