@@ -25,7 +25,7 @@ import yaml
 from jsonschema import validate
 
 from mockintosh.constants import PROGRAM, PYBARS, JINJA
-from mockintosh.exceptions import UnrecognizedConfigFileFormat
+from mockintosh.exceptions import UnrecognizedConfigFileFormat, CommaInTagIsForbidden
 from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _detect_engine, _nostderr, _import_from, _urlsplit
 from mockintosh.recognizers import (
@@ -114,6 +114,8 @@ class Definition():
         data['async_producers'] = []
         data['async_consumers'] = []
         for i, service in enumerate(data['services']):
+            self.forbid_comma_in_tag(service)
+
             data['services'][i]['internalServiceId'] = i
             self.logs.add_service(service.get('name', ''))
 
@@ -230,6 +232,17 @@ class Definition():
                 global_performance_profile=global_performance_profile
             )
         return data
+
+    def forbid_comma_in_tag(self, service):
+        if 'endpoints' not in service:
+            return
+
+        for endpoint in service['endpoints']:
+            for key in ('response', 'dataset'):
+                if key in endpoint and isinstance(endpoint[key], list):
+                    for thing in endpoint[key]:
+                        if 'tag' in thing and ',' in thing['tag']:
+                            raise CommaInTagIsForbidden(thing['tag'])
 
     @staticmethod
     def analyze_service(
