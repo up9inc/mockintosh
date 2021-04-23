@@ -92,7 +92,16 @@ class _Apps:
 
 class HttpServer:
 
-    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address='', services_list=()):
+    def __init__(
+        self,
+        definition,
+        impl: Impl,
+        debug=False,
+        interceptors=(),
+        address='',
+        services_list=(),
+        tags=[]
+    ):
         self.definition = definition
         self.impl = impl
         self.address = address
@@ -103,6 +112,7 @@ class HttpServer:
         self.services_log = []
         self._apps = _Apps()
         self.unhandled_data = UnhandledData()
+        self.tags = tags
         self.load()
 
     def load(self):
@@ -289,7 +299,7 @@ class HttpServer:
                     interceptors=self.interceptors,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
-                    tag=None
+                    tags=self.tags
                 )
             )
         )

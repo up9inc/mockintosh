@@ -377,7 +377,15 @@ def start_render_queue() -> Tuple[RenderingQueue, RenderingJob]:
     return queue, t
 
 
-def run(source, is_file=True, debug=False, interceptors=(), address='', services_list=[]):
+def run(
+    source,
+    is_file=True,
+    debug=False,
+    interceptors=(),
+    address='',
+    services_list=[],
+    tags=[]
+):
     queue, _ = start_render_queue()
 
     if address:
@@ -392,7 +400,8 @@ def run(source, is_file=True, debug=False, interceptors=(), address='', services
             debug=debug,
             interceptors=interceptors,
             address=address,
-            services_list=services_list
+            services_list=services_list,
+            tags=tags
         )
     except Exception:  # pragma: no cover
         logging.exception('Mock server loading error:')
@@ -451,6 +460,7 @@ def initiate():
     )
     ap.add_argument('-l', '--logfile', help='Also write log into a file', action='store')
     ap.add_argument('-b', '--bind', help='Address to specify the network interface', action='store')
+    ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     args = vars(ap.parse_args())
 
     interceptors = import_interceptors(args['interceptor'])
@@ -470,6 +480,10 @@ def initiate():
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
+    tags = []
+    if args['enable_tags']:
+        tags = args['enable_tags'].split(',')
+
     logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
@@ -480,4 +494,11 @@ def initiate():
     services_list = args['source'][1:]
 
     if not cov_no_run:  # pragma: no cover
-        run(source, debug=debug_mode, interceptors=interceptors, address=address, services_list=services_list)
+        run(
+            source,
+            debug=debug_mode,
+            interceptors=interceptors,
+            address=address,
+            services_list=services_list,
+            tags=tags
+        )
