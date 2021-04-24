@@ -670,6 +670,9 @@ class ManagementTagHandler(ManagementBaseHandler):
             data = self.request.body.decode()
         data = data.split(',')
         for app in self.http_server._apps.apps:
+            if app is None:  # pragma: no cover
+                continue
+
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['tags'] = data
