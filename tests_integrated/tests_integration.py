@@ -701,7 +701,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("3.3", resp.text)
 
         # first tag set - "second" + untagged responses
-        resp = httpx.post(SRV1 + '/__admin/tag', data="second")
+        resp = httpx.post(MGMT + '/tag', data="second", verify=False)
         resp.raise_for_status()
 
         resp = httpx.get(SRV1 + '/tagged')
