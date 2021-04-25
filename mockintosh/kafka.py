@@ -34,7 +34,7 @@ def _kafka_delivery_report(err, msg):
         logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 
-def _create_topic(address: str, topic: str, obj=None):
+def _create_topic(address: str, topic: str):
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1)]
@@ -44,8 +44,6 @@ def _create_topic(address: str, topic: str, obj=None):
         try:
             future.result()
             logging.info('Topic %s created', topic)
-            if obj is not None:
-                obj.topic_created = True
         except KafkaException as e:
             logging.info('Failed to create topic %s: %s', topic, e)
 
@@ -135,7 +133,6 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.log = []
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
-        self.topic_created = False
 
     def _match_str(self, x: str, y: str):
         x = '^%s$' % x
@@ -335,12 +332,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.key = key
         self.headers = headers
         self.enable_topic_creation = enable_topic_creation
-        self.topic_created = False
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
-        if self.enable_topic_creation and not self.topic_created:
-            _create_topic(self.actor.service.address, self.topic, obj=self)
-
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,
@@ -380,7 +373,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
-        _wait_for_topic_to_exist(producer, self.topic)
+
+        if self.enable_topic_creation:
+            topics = producer.list_topics(self.topic)
+            if topics.topics[self.topic].error is not None:
+                _create_topic(self.actor.service.address, self.topic)
+
         producer.poll(0)
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()

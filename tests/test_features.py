@@ -3500,7 +3500,6 @@ class TestAsync():
     def setup_class(cls):
         # Create the Async topics/queues
         for topic in (
-            'topic3',
             'topic4',
             'topic5',
             'topic6',
