@@ -324,14 +324,19 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {}
+        headers: dict = {},
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
+        self.enable_topic_creation = enable_topic_creation
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
+
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,

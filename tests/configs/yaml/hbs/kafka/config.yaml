@@ -15,6 +15,7 @@ services:
   address: "{{env 'KAFKA_ADDR' 'localhost:9092'}}"
   actors:
   - produce:
+      create: true
       queue: topic1
       key: key1
       value: value1
