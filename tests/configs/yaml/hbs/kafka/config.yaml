@@ -27,6 +27,7 @@ services:
       headers:
         hdr2: val2
   - produce:
+      create: true
       queue: topic3
       key: key3
       value: value3

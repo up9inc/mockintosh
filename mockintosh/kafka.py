@@ -62,7 +62,7 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _merge_global_headers(_globals, kafka_producer):
+def _merge_global_headers(_globals: dict, kafka_producer):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
@@ -71,10 +71,10 @@ def _merge_global_headers(_globals, kafka_producer):
     return headers
 
 
-def _wait_for_topic_to_exist(consumer, topic):
+def _wait_for_topic_to_exist(obj, topic: str):
     is_logged = False
     while True:
-        topics = consumer.list_topics(topic)  # promises to create topic
+        topics = obj.list_topics(topic)  # promises to create topic
         logging.debug("Topic state: %s", topics.topics)
         if topics.topics[topic].error is None:
             break
@@ -324,12 +324,14 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {}
+        headers: dict = {},
+        enable_topic_creation: bool = False
     ):
         super().__init__(topic)
         self.value = value
         self.key = key
         self.headers = headers
+        self.enable_topic_creation = enable_topic_creation
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
         kafka_handler = KafkaHandler(
@@ -371,6 +373,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
+
+        if self.enable_topic_creation:
+            topics = producer.list_topics(self.topic)
+            if topics.topics[self.topic].error is not None:
+                _create_topic(self.actor.service.address, self.topic)
+
         producer.poll(0)
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()

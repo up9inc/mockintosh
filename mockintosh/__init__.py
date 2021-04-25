@@ -209,7 +209,8 @@ class Definition():
                                 actor['produce']['queue'],
                                 actor['produce']['value'],
                                 key=actor['produce'].get('key', None),
-                                headers=actor['produce'].get('headers', {})
+                                headers=actor['produce'].get('headers', {}),
+                                enable_topic_creation=actor['produce'].get('create', False)
                             )
                             kafka_actor.set_producer(kafka_producer)
 
