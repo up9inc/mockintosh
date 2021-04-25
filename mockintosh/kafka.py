@@ -6,8 +6,6 @@
     :synopsis: module that contains Kafka related methods.
 """
 
-from __future__ import annotations
-
 import re
 import time
 import logging
@@ -36,7 +34,7 @@ def _kafka_delivery_report(err, msg):
         logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 
-def _create_topic(address: str, topic: str, obj: Union[KafkaConsumer, KafkaProducer] = None):
+def _create_topic(address: str, topic: str, obj=None):
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1)]
@@ -75,7 +73,7 @@ def _merge_global_headers(_globals: dict, kafka_producer: KafkaProducer):
     return headers
 
 
-def _wait_for_topic_to_exist(obj: Union[KafkaConsumer, KafkaProducer], topic: str):
+def _wait_for_topic_to_exist(obj, topic: str):
     is_logged = False
     while True:
         topics = obj.list_topics(topic)  # promises to create topic
