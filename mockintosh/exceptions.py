@@ -32,3 +32,11 @@ class RestrictedFieldError(Exception):
 
     def __init__(self, field):
         super().__init__('%r field is restricted!' % field)
+
+
+class CommaInTagIsForbidden(Exception):
+    """Raised in case of a comma is detected in a tag.
+    """
+
+    def __init__(self, tag):
+        super().__init__('Using comma is forbidden in tags: %s' % tag)

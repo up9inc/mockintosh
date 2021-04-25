@@ -1,0 +1,48 @@
+{
+  "management": {
+    "port": 8000,
+    "ssl": true,
+    "sslCertFile": "cert.pem",
+    "sslKeyFile": "key.pem"
+  },
+  "templatingEngine": "Handlebars",
+  "services": [
+    {
+      "name": "Mock for Service3",
+      "port": 8003,
+      "managementRoot": "__admin",
+      "endpoints": [
+        {
+          "path": "/tagged-responses",
+          "response": [
+            {
+              "body": "3.1"
+            },
+            {
+              "tag": "firs,t",
+              "body": "1.1"
+            },
+            {
+              "tag": "second",
+              "body": "2.1"
+            },
+            {
+              "tag": "first",
+              "body": "1.2"
+            },
+            {
+              "body": "3.2"
+            },
+            {
+              "tag": "second",
+              "body": "2.2"
+            },
+            {
+              "body": "3.3"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

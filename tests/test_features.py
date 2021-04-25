@@ -196,6 +196,45 @@ class TestCommandLineArguments():
         self.mock_server_process = run_mock_server(get_config_path(config), '--bind', '127.0.0.1')
         TestCommon.test_users(TestCommon, config)
 
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/management/multiresponse.json'
+    ])
+    def test_enable_tags(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config), '--enable-tags', 'first,second')
+
+        resp = httpx.get(MGMT + '/tag', verify=False)
+        assert 200 == resp.status_code
+        data = resp.json()
+        data['tags'] = ['first', 'second']
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.1" == resp.text
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "1.1" == resp.text
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "2.1" == resp.text
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "1.2" == resp.text
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.2" == resp.text
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "2.2" == resp.text
+
+        resp = httpx.get(SRV_8003 + '/tagged-responses')
+        assert 200 == resp.status_code
+        assert "3.3" == resp.text
+
     @pytest.mark.parametrize(('config'), configs)
     def test_interceptor_single(self, config):
         self.mock_server_process = run_mock_server(
@@ -2191,7 +2230,7 @@ class TestManagement():
                 assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/multiresponse.json',
+        'configs/json/hbs/management/multiresponse.json'
     ])
     def test_tagged_responses(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2253,7 +2292,8 @@ class TestManagement():
 
         resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 200 == resp.status_code
-        assert "first" == resp.text
+        data = resp.json()
+        assert "first" in data['tags']
 
         resp = httpx.get(SRV_8003 + '/tagged-responses')
         assert 200 == resp.status_code
@@ -2304,7 +2344,7 @@ class TestManagement():
         assert 410 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/multiresponse.json',
+        'configs/json/hbs/management/multiresponse.json'
     ])
     def test_tagged_datasets(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2360,7 +2400,8 @@ class TestManagement():
 
         resp = httpx.get(SRV_8003 + '/__admin/tag')
         assert 200 == resp.status_code
-        assert "first" == resp.text
+        data = resp.json()
+        assert "first" in data['tags']
 
         resp = httpx.get(SRV_8003 + '/tagged-datasets')
         assert 200 == resp.status_code

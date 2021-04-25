@@ -658,7 +658,9 @@ class ManagementTagHandler(ManagementBaseHandler):
 
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
-                    data['tags'].append(rule.target_kwargs['tag'])
+                    data['tags'] += rule.target_kwargs['tags']
+
+        data['tags'] = list(set(data['tags']))
 
         self.write(data)
 
@@ -666,10 +668,14 @@ class ManagementTagHandler(ManagementBaseHandler):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
+        data = data.split(',')
         for app in self.http_server._apps.apps:
+            if app is None:  # pragma: no cover
+                continue
+
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
-                    rule.target_kwargs['tag'] = data
+                    rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 
@@ -1046,19 +1052,23 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
     async def get(self):
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
-                tag = rule.target_kwargs['tag']
-                if tag is None:
+                tags = rule.target_kwargs['tags']
+                if not tags:
                     self.set_status(204)
                 else:
-                    self.write(tag)
+                    data = {
+                        'tags': tags
+                    }
+                    self.write(data)
 
     async def post(self):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
+        data = data.split(',')
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
-                rule.target_kwargs['tag'] = data
+                rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 

@@ -257,7 +257,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         interceptors: list,
         unhandled_data,
         fallback_to: Union[str, None],
-        tag: Union[str, None]
+        tags: list
     ) -> None:
         """Overriden method of tornado.web.RequestHandler"""
         try:
@@ -272,7 +272,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.internal_endpoint_id = None
             self.unhandled_data = unhandled_data
             self.fallback_to = fallback_to
-            self.tag = tag
+            self.tags = tags
 
             for path, methods in self.endpoints:
                 if re.fullmatch(path, self.request.path):
@@ -1026,7 +1026,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 return False
 
         if 'tag' in alternative[key][alternative[index_key]]:
-            if self.tag is None or not self.tag or self.tag != alternative[key][alternative[index_key]]['tag']:
+            if alternative[key][alternative[index_key]]['tag'] not in self.tags:
                 if resetted:
                     self.internal_endpoint_id = alternative['internalEndpointId']
                     self.set_status(410)

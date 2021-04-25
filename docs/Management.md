@@ -143,3 +143,6 @@ For the [tagged responses](Configuring.md#tagged-responses), you can get current
 report currently active tag, doing `POST /tag` will set one. For `POST`, just place desired name of the
 tag into raw request body. Empty tag set means "no active tag". Alternatively you can use the `current` query parameter
 instead of the raw request body like: `POST /tag?current=tagname` to set the active tag.
+
+The payload for `POST /tag` management endpoint can be a list of tags that's
+comma-separated like: `POST /tag?current=tagname1,tagname2`
