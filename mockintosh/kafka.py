@@ -75,10 +75,10 @@ def _merge_global_headers(_globals: dict, kafka_producer: KafkaProducer):
     return headers
 
 
-def _wait_for_topic_to_exist(consumer, topic):
+def _wait_for_topic_to_exist(obj: Union[KafkaConsumer, KafkaProducer], topic: str):
     is_logged = False
     while True:
-        topics = consumer.list_topics(topic)  # promises to create topic
+        topics = obj.list_topics(topic)  # promises to create topic
         logging.debug("Topic state: %s", topics.topics)
         if topics.topics[topic].error is None:
             break
@@ -382,6 +382,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
+        _wait_for_topic_to_exist(producer, self.topic)
         producer.poll(0)
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
