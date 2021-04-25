@@ -6,6 +6,8 @@
     :synopsis: module that contains Kafka related methods.
 """
 
+from __future__ import annotations
+
 import re
 import time
 import logging
@@ -34,7 +36,7 @@ def _kafka_delivery_report(err, msg):
         logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 
-def _create_topic(address: str, topic: str):
+def _create_topic(address: str, topic: str, obj: Union[KafkaConsumer, KafkaProducer] = None):
     # Topic creation
     admin_client = AdminClient({'bootstrap.servers': address})
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1)]
@@ -44,6 +46,8 @@ def _create_topic(address: str, topic: str):
         try:
             future.result()
             logging.info('Topic %s created', topic)
+            if obj is not None:
+                obj.topic_created = True
         except KafkaException as e:
             logging.info('Failed to create topic %s: %s', topic, e)
 
@@ -62,7 +66,7 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _merge_global_headers(_globals, kafka_producer):
+def _merge_global_headers(_globals: dict, kafka_producer: KafkaProducer):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
@@ -133,6 +137,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.log = []
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
+        self.topic_created = False
 
     def _match_str(self, x: str, y: str):
         x = '^%s$' % x
@@ -332,10 +337,11 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.key = key
         self.headers = headers
         self.enable_topic_creation = enable_topic_creation
+        self.topic_created = False
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
-        if self.enable_topic_creation:
-            _create_topic(self.actor.service.address, self.topic)
+        if self.enable_topic_creation and not self.topic_created:
+            _create_topic(self.actor.service.address, self.topic, obj=self)
 
         kafka_handler = KafkaHandler(
             self.actor.id,
