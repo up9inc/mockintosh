@@ -334,6 +334,9 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.enable_topic_creation = enable_topic_creation
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
+        if self.enable_topic_creation:
+            _create_topic(self.actor.service.address, self.topic)
+
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,
@@ -373,12 +376,6 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
-
-        if self.enable_topic_creation:
-            topics = producer.list_topics(self.topic)
-            if topics.topics[self.topic].error is not None:
-                _create_topic(self.actor.service.address, self.topic)
-
         producer.poll(0)
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
         producer.flush()
