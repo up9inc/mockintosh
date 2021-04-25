@@ -64,7 +64,7 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _merge_global_headers(_globals: dict, kafka_producer: KafkaProducer):
+def _merge_global_headers(_globals: dict, kafka_producer):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
