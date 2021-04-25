@@ -129,6 +129,7 @@ services:
     actors:
       - name: on-demand-1
         produce:
+          create: true
           queue: on-demand1
           key: somekey or null
           value: "@value/from/file.json"  # it's possible to reference file
@@ -151,6 +152,8 @@ and the response of this request would be;
     "lastProduced": 1618695168.6416173
 }
 ```
+
+> Note: `create: true` flag enables the topic creation if the given topic is not created yet.
 
 It's also possible to select the producer using its `index` number as an alternative to the actor's `name` like:
 
