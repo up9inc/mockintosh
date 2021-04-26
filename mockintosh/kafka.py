@@ -8,6 +8,7 @@
 
 import re
 import time
+import json
 import logging
 import threading
 from collections import OrderedDict
@@ -159,7 +160,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         elif isinstance(x, str):
             return self._match_str(x, y)
 
-    def match_schema(self, kafka_handler: KafkaHandler) -> bool:
+    def match_schema(self, value: str, kafka_handler: KafkaHandler) -> bool:
         json_schema = self.schema
         if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
             json_schema_path = self.resolve_relative_path(json_schema)
@@ -173,9 +174,9 @@ class KafkaConsumer(KafkaConsumerProducerBase):
                 logging.debug('JSON schema: %s', json_schema)
 
         try:
-            json_data = json.loads(self.match_value)
+            json_data = json.loads(value)
         except json.decoder.JSONDecodeError:
-            logging.warning('JSON decode error of the async value:\n\n%s', self.match_value)
+            logging.warning('JSON decode error of the async value:\n\n%s', value)
             return False
 
         try:
@@ -200,7 +201,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             return False
         else:
             if self.schema is not None:
-                return self.match_schema(kafka_handler)
+                return self.match_schema(value, kafka_handler)
             else:
                 return True
 

@@ -3620,7 +3620,7 @@ class TestAsync():
     def test_get_async_consume(self):
         key = 'key2'
         value = """
-        {'somekey': 'value'}
+        {"somekey": "value"}
 """
         headers = {'hdr2': 'val2'}
 

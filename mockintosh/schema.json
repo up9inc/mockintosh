@@ -100,31 +100,18 @@
             "null"
           ]
         },
-        "value": {
+        "schema": {
           "oneOf": [
             {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "schema"
-              ],
-              "properties": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "http://json-schema.org/draft-07/schema#"
-                    },
-                    {
-                      "type": "string"
-                    }
-                  ]
-                }
-              }
+              "$ref": "http://json-schema.org/draft-07/schema#"
             },
             {
               "type": "string"
             }
           ]
+        },
+        "value": {
+          "type": "string"
         },
         "headers": {
           "$ref": "#/definitions/headers_ref"

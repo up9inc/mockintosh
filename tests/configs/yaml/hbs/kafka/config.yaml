@@ -23,13 +23,12 @@ services:
   - consume:
       queue: topic2
       key: key2
-      value:
-        schema:
-          type: object
-          properties:
-            somekey: {}
-          required:
-          - somekey
+      schema:
+        type: object
+        properties:
+          somekey: {}
+        required:
+        - somekey
       headers:
         hdr2: val2
   - produce:
