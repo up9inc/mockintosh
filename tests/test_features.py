@@ -3625,9 +3625,13 @@ class TestAsync():
         headers = {'hdr2': 'val2'}
 
         not_key = 'not_key2'
-        not_value = 'not_value2'
+        not_value = """
+        {"some_other_key": "value"}
+"""
         not_headers1 = {'hdr2': 'not_val2'}
         not_headers2 = {'not_hdr2': 'val2'}
+
+        value_json_decode_error = 'JSON Decode Error'
 
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
@@ -3644,6 +3648,33 @@ class TestAsync():
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value,
+            key=not_key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            not_value,
+            key=key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+
+        kafka_producer = kafka.KafkaProducer(
+            'topic2',
+            value_json_decode_error,
+            key=key,
+            headers=headers
+        )
+        kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
         kafka_producer = kafka.KafkaProducer(
@@ -4169,7 +4200,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 19
+        assert len(data['services'][0]['endpoints']) == 20
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
