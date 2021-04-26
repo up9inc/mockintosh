@@ -49,7 +49,7 @@ services:
   - consume:
       queue: topic4
       key: key4
-      value: value4
+      schema: "@value_schema.json"
       headers:
         hdr4: val4
     delay: 3

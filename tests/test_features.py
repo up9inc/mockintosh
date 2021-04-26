@@ -3918,7 +3918,9 @@ class TestAsync():
     def test_post_async_reactive_consumer(self):
         producer_topic = 'topic4'
         producer_key = 'key4'
-        producer_value = 'value4'
+        producer_value = """
+        {"somekey": "value"}
+"""
         producer_headers = {'hdr4': 'val4'}
 
         consumer_topic = 'topic5'

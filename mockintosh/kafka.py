@@ -163,7 +163,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     def match_schema(self, value: str, kafka_handler: KafkaHandler) -> bool:
         json_schema = self.schema
         if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-            json_schema_path = self.resolve_relative_path(json_schema)
+            json_schema_path, _ = kafka_handler.resolve_relative_path(json_schema)
             with open(json_schema_path, 'r') as file:
                 logging.info('Reading JSON schema file from path: %s', json_schema_path)
                 try:
