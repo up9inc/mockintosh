@@ -1,0 +1,25 @@
+Name                         Stmts   Miss  Cover   Missing
+----------------------------------------------------------
+mockintosh/__init__.py         250      0   100%
+mockintosh/__main__.py           2      0   100%
+mockintosh/constants.py         11      0   100%
+mockintosh/exceptions.py        15      0   100%
+mockintosh/handlers.py         932      0   100%
+mockintosh/hbs/__init__.py       0      0   100%
+mockintosh/hbs/methods.py       92      0   100%
+mockintosh/helpers.py           73      0   100%
+mockintosh/j2/__init__.py        0      0   100%
+mockintosh/j2/meta.py           12      0   100%
+mockintosh/j2/methods.py        76      0   100%
+mockintosh/kafka.py            297      9    97%   171-173, 178-180, 185-191
+mockintosh/logs.py              61      0   100%
+mockintosh/management.py       783      0   100%
+mockintosh/params.py            29      0   100%
+mockintosh/performance.py       17      0   100%
+mockintosh/recognizers.py      138      0   100%
+mockintosh/replicas.py          89      0   100%
+mockintosh/servers.py          206      0   100%
+mockintosh/stats.py             69      0   100%
+mockintosh/templating.py       139      0   100%
+----------------------------------------------------------
+TOTAL                         3291      9    99%

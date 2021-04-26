@@ -3571,7 +3571,7 @@ class TestAsync():
             producers = data['producers']
             consumers = data['consumers']
             assert len(producers) == 11
-            assert len(consumers) == 9
+            assert len(consumers) == 10
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
