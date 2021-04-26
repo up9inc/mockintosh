@@ -16,6 +16,7 @@ from typing import (
     Union
 )
 
+import jsonschema
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
@@ -119,6 +120,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
     def __init__(
         self,
         topic: str,
+        schema: Union[str, dict] = None,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: dict = {},
@@ -126,6 +128,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         enable_topic_creation: bool = False
     ):
         super().__init__(topic)
+        self.schema = schema
         self.match_value = value
         self.match_key = key
         self.match_headers = headers
@@ -142,7 +145,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         else:
             return True
 
-    def match_attr(self, x: Union[str, dict, None], y: Union[str, dict]):
+    def match_attr(self, x: Union[str, dict, None], y: Union[str, dict]) -> bool:
         if x is None:
             return True
 
@@ -156,7 +159,37 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         elif isinstance(x, str):
             return self._match_str(x, y)
 
-    def match(self, key: str, value: str, headers: dict) -> bool:
+    def match_schema(self, kafka_handler: KafkaHandler) -> bool:
+        json_schema = self.schema
+        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
+            json_schema_path = self.resolve_relative_path(json_schema)
+            with open(json_schema_path, 'r') as file:
+                logging.info('Reading JSON schema file from path: %s', json_schema_path)
+                try:
+                    json_schema = json.load(file)
+                except json.decoder.JSONDecodeError:
+                    logging.warning('JSON decode error of the JSON schema file: %s', json_schema)
+                    return False
+                logging.debug('JSON schema: %s', json_schema)
+
+        try:
+            json_data = json.loads(self.match_value)
+        except json.decoder.JSONDecodeError:
+            logging.warning('JSON decode error of the async value:\n\n%s', self.match_value)
+            return False
+
+        try:
+            jsonschema.validate(instance=json_data, schema=json_schema)
+            return True
+        except jsonschema.exceptions.ValidationError:
+            logging.debug(
+                'Async value:\n\n%s\nDoes not match to JSON schema:\n\n%s',
+                json_data,
+                json_schema
+            )
+            return False
+
+    def match(self, key: str, value: str, headers: dict, kafka_handler: KafkaHandler) -> bool:
         if (
             (not self.match_attr(self.match_value, value))
             or  # noqa: W504, W503
@@ -166,7 +199,10 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         ):
             return False
         else:
-            return True
+            if self.schema is not None:
+                return self.match_schema(kafka_handler)
+            else:
+                return True
 
     def info(self) -> dict:
         data = super().info()
@@ -234,8 +270,27 @@ class KafkaConsumerGroup:
 
             matched_consumer = None
 
+            kafka_handler = None
             for _consumer in self.consumers:
-                if _consumer.match(key, value, headers):
+                kafka_handler = KafkaHandler(
+                    _consumer.actor.id,
+                    _consumer.internal_endpoint_id,
+                    _consumer.actor.service.definition.source_dir,
+                    _consumer.actor.service.definition.template_engine,
+                    _consumer.actor.service.definition.rendering_queue,
+                    _consumer.actor.service.definition.logs,
+                    _consumer.actor.service.definition.stats,
+                    _consumer.actor.service.address,
+                    _consumer.topic,
+                    False,
+                    service_id=_consumer.actor.service.id,
+                    value=value,
+                    key=key,
+                    headers=headers,
+                    context=_consumer.actor.context,
+                    params=_consumer.actor.params
+                )
+                if _consumer.match(key, value, headers, kafka_handler):
                     matched_consumer = _consumer
                     break
 
@@ -263,25 +318,6 @@ class KafkaConsumerGroup:
                 key,
                 '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
                 headers
-            )
-
-            kafka_handler = KafkaHandler(
-                matched_consumer.actor.id,
-                matched_consumer.internal_endpoint_id,
-                matched_consumer.actor.service.definition.source_dir,
-                matched_consumer.actor.service.definition.template_engine,
-                matched_consumer.actor.service.definition.rendering_queue,
-                matched_consumer.actor.service.definition.logs,
-                matched_consumer.actor.service.definition.stats,
-                matched_consumer.actor.service.address,
-                matched_consumer.topic,
-                False,
-                service_id=matched_consumer.actor.service.id,
-                value=value,
-                key=key,
-                headers=headers,
-                context=matched_consumer.actor.context,
-                params=matched_consumer.actor.params
             )
 
             matched_consumer.log.append(

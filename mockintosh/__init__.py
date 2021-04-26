@@ -191,6 +191,7 @@ class Definition():
 
                             kafka_consumer = KafkaConsumer(
                                 actor['consume']['queue'],
+                                schema=actor['consume'].get('schema', None),
                                 value=value,
                                 key=key,
                                 headers=headers,
