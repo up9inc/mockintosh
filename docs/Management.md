@@ -95,6 +95,12 @@ configuration file's parent directory otherwise it return a `4xx`. Also the file
 required to be defined with `@` prefix in the configuration file before hand. The directories are automatically
 created or deleted for the given paths.
 
+### Overriding The Relative Directory Path
+
+It's possible to override the default directory path (which is the parent directory of the configuration file)
+using the `MOCKINTOSH_DATA_DIR` environment variable. Such that you can place your resource files and reference them
+from the configuration file according to the directory path that you've specfied with this environment variable.
+
 ### Reading
 
 `GET /resources` returns the list of paths to the externals files used in the configuration file.
