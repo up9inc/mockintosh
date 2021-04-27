@@ -249,6 +249,19 @@ The `value` field supports [JSON Schema](https://json-schema.org/) matching much
 If the `schema` field used together with the `value` then both are taken into account as the criteria
 for matching.
 
+Referencing JSONSchema from an external file is also supported:
+
+```yaml
+{% raw %}
+- consume:
+    queue: validate-consume-3
+    key: "{{regEx 'prefix-(.*)'}}"
+    schema: "@path/to/schema.json"
+    headers:
+      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+{% endraw %}
+```
+
 ## "Reactive" Producer
 
 By mixing together actors of "validating consumer" and "on-demand producer" types, we can get the behavior when message
