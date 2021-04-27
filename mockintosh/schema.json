@@ -39,7 +39,17 @@
           "type": "string"
         },
         "produce": {
-          "$ref": "#/definitions/produce_ref"
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/produce_ref"
+              }
+            },
+            {
+              "$ref": "#/definitions/produce_ref"
+            }
+          ]
         },
         "consume": {
           "$ref": "#/definitions/consume_ref"

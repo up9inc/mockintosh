@@ -44,7 +44,14 @@ from mockintosh.performance import PerformanceProfile
 from mockintosh.templating import TemplateRenderer, RenderingQueue, RenderingJob
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
-from mockintosh.kafka import KafkaService, KafkaActor, KafkaConsumer, KafkaProducer
+from mockintosh.kafka import (
+    KafkaService,
+    KafkaActor,
+    KafkaConsumer,
+    KafkaProducer,
+    KafkaProducerPayloadList,
+    KafkaProducerPayload
+)
 
 __version__ = "0.8.2"
 __location__ = path.abspath(path.dirname(__file__))
@@ -206,13 +213,27 @@ class Definition():
                             kafka_actor.set_delay(actor['delay'])
 
                         if 'produce' in actor:
-                            kafka_producer = KafkaProducer(
-                                actor['produce']['queue'],
-                                actor['produce']['value'],
-                                key=actor['produce'].get('key', None),
-                                headers=actor['produce'].get('headers', {}),
-                                enable_topic_creation=actor['produce'].get('create', False)
-                            )
+                            queue = None
+                            payload_list = KafkaProducerPayloadList()
+
+                            produce_list = []
+                            if isinstance(actor['produce'], list):
+                                queue = actor['produce'][0]['queue']
+                                produce_list += actor['produce']
+                            else:
+                                queue = actor['produce']['queue']
+                                produce_list += [actor['produce']]
+
+                            for produce in produce_list:
+                                payload = KafkaProducerPayload(
+                                    produce['value'],
+                                    key=produce.get('key', None),
+                                    headers=produce.get('headers', {}),
+                                    enable_topic_creation=produce.get('headers', {})
+                                )
+                                payload_list.add_payload(payload)
+
+                            kafka_producer = KafkaProducer(queue, payload_list)
                             kafka_actor.set_producer(kafka_producer)
 
                             kafka_producer.index = len(data['async_producers'])

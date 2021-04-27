@@ -148,6 +148,18 @@ services:
         captured-key: "{{regEx '.*'}}"
         captured-val: "{{regEx '.*'}}"
         captured-hdr: "{{regEx '.*'}}"
+  - name: multiproducer
+    produce:
+      - queue: topic12
+        key: key12-1
+        value: value12-1
+        headers:
+          hdr12-1: val12-1
+      - queue: topic12
+        key: key12-2
+        value: value12-2
+        headers:
+          hdr12-2: val12-2
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
