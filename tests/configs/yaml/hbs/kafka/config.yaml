@@ -23,7 +23,12 @@ services:
   - consume:
       queue: topic2
       key: key2
-      value: value2
+      schema:
+        type: object
+        properties:
+          somekey: {}
+        required:
+        - somekey
       headers:
         hdr2: val2
   - produce:
@@ -44,7 +49,7 @@ services:
   - consume:
       queue: topic4
       key: key4
-      value: value4
+      schema: "@value_schema.json"
       headers:
         hdr4: val4
     delay: 3
@@ -109,6 +114,12 @@ services:
       value: valueX
       headers:
         hdr2: valX
+  - consume:
+      queue: topic2
+      key: key2
+      schema: "@value_schema_error.json"
+      headers:
+        hdr2: val2
   - name: chain1-on-demand
     produce:
       queue: chain1-step1

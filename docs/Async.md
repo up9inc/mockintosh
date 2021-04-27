@@ -225,6 +225,43 @@ services:
 {% endraw %}
 ```
 
+### JSONSchema
+
+The `value` field supports [JSON Schema](https://json-schema.org/) matching much like how
+[it's in HTTP](Matching.md#jsonschema). Except it's the `schema` field used instead of or with the `value` field:
+
+```yaml
+{% raw %}
+- consume:
+    queue: validate-consume-3
+    key: "{{regEx 'prefix-(.*)'}}"
+    schema:
+      type: object
+      properties:
+        somekey: { }
+      required:
+      - somekey
+    headers:
+      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+{% endraw %}
+```
+
+If the `schema` field used together with the `value` then both are taken into account as the criteria
+for matching.
+
+Referencing JSONSchema from an external file is also supported:
+
+```yaml
+{% raw %}
+- consume:
+    queue: validate-consume-3
+    key: "{{regEx 'prefix-(.*)'}}"
+    schema: "@path/to/schema.json"
+    headers:
+      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
+{% endraw %}
+```
+
 ## "Reactive" Producer
 
 By mixing together actors of "validating consumer" and "on-demand producer" types, we can get the behavior when message

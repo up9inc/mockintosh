@@ -319,7 +319,7 @@ curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
 
 Response: `400`
 
-If you want to reference JSONSchema from external file, use it like this:
+If you want to reference JSONSchema from an external file, use it like this:
 
 ```yaml
 services:
