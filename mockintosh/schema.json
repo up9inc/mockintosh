@@ -44,7 +44,8 @@
               "type": "array",
               "items": {
                 "$ref": "#/definitions/produce_ref"
-              }
+              },
+              "minItems": 1
             },
             {
               "$ref": "#/definitions/produce_ref"

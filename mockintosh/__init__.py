@@ -25,7 +25,11 @@ import yaml
 from jsonschema import validate
 
 from mockintosh.constants import PROGRAM, PYBARS, JINJA
-from mockintosh.exceptions import UnrecognizedConfigFileFormat, CommaInTagIsForbidden
+from mockintosh.exceptions import (
+    UnrecognizedConfigFileFormat,
+    CommaInTagIsForbidden,
+    AsyncProducerListQueueMismatch
+)
 from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _detect_engine, _nostderr, _import_from, _urlsplit
 from mockintosh.recognizers import (
@@ -219,6 +223,10 @@ class Definition():
                             produce_list = []
                             if isinstance(actor['produce'], list):
                                 queue = actor['produce'][0]['queue']
+                                for _produce in actor['produce']:
+                                    if queue != _produce['queue']:
+                                        hint = kafka_actor.name if kafka_actor.name is not None else '#%d' % kafka_actor.id
+                                        raise AsyncProducerListQueueMismatch(hint)
                                 produce_list += actor['produce']
                             else:
                                 queue = actor['produce']['queue']

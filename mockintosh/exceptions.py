@@ -40,3 +40,11 @@ class CommaInTagIsForbidden(Exception):
 
     def __init__(self, tag):
         super().__init__('Using comma is forbidden in tags: %s' % tag)
+
+
+class AsyncProducerListQueueMismatch(Exception):
+    """Raised in case of values in 'queue' field differs in an async producer list.
+    """
+
+    def __init__(self, actor_name):
+        super().__init__('Producer actor \'%s\' has different queue values!' % actor_name)
