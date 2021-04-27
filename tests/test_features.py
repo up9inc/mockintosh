@@ -3570,8 +3570,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 11
-            assert len(consumers) == 10
+            assert len(producers) == 12
+            assert len(consumers) == 11
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -4050,11 +4050,9 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
-        assert 202 == resp.status_code
-
-        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
-        assert 202 == resp.status_code
+        for _ in range(2):
+            resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
+            assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -4078,6 +4076,26 @@ class TestAsync():
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
                 for row in kafka_consumer.log
             )
+
+    def test_post_async_multiproducer(self):
+        for _ in range(3):
+            resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key12-1', 'value12-1', {'hdr12-1': 'val12-1'}),
+            ('key12-2', 'value12-2', {'hdr12-2': 'val12-2'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 3
 
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
@@ -4200,7 +4218,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 20
+        assert len(data['services'][0]['endpoints']) == 22
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

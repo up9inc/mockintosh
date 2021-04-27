@@ -160,6 +160,10 @@ services:
         value: value12-2
         headers:
           hdr12-2: val12-2
+  - name: consumer-for-multiproducer
+    consume:
+      capture: 3
+      queue: topic12
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
