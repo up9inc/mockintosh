@@ -1,5 +1,7 @@
 # Changelog
 
+## v0.9
+
 ## v0.8.2 - 2021-04-07
 
 1. Cleaner config templates from "unhandled" in mgmt API
@@ -122,6 +124,7 @@
 4. Do not respond with Content-Type=text/html if no content-type header is configured
 5. Make `MOCKINTOSH_FORCE_PORT` to work always
 6. CLI argument to set the tag enabled, forbid comma in tag name
+7. Alternative base directory for resource files via `MOCKINTOSH_DATA_DIR`
 
 TODO:
     - config reloading to work
@@ -137,6 +140,8 @@ TODO:
 - what to do with binary headers in Kafka? data-url prefix?
 - interceptors to access kafka comms
 - allow overriding on-demand producer fields via mgmt API
+- multi-response and dataset for Kafka producerse
+- message schema validator for consumer
 
 # Roadmap Ideas
 
@@ -163,6 +168,7 @@ TODO:
 - Nicer formatted error pages for known errors
 - Nicer logging of requests, with special option to enable it.
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+
 
 
 - mocks for gRPC servers
