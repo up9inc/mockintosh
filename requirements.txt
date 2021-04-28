@@ -8,3 +8,4 @@ accept-types==0.4.1
 jsonpath-ng==1.5.2
 httpx>=0.17.1
 confluent-kafka>=1.6.1
+requests>=2.22.0
