@@ -518,8 +518,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 request.queryString[key] = request.queryString[key][0]
 
         # Body
-        print('')
-        print(self.request.__dict__)
         if self.request.body_arguments:
             print('>>>> REQUEST BODY ARG')
             request.mimeType = 'application/x-www-form-urlencoded'
