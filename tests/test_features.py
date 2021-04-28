@@ -606,8 +606,6 @@ class TestCore():
             assert resp.content == file.read()
 
     def test_binary_request_body(self):
-        print('')
-        print(os.environ)
         config = 'configs/yaml/hbs/core/binary_request_body.yaml'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
@@ -616,17 +614,11 @@ class TestCore():
             resp = httpx.post(SRV_8001 + '/endpoint1', files={'example': image_file})
             assert 200 == resp.status_code
             assert 'Content-Type' not in resp.headers
-            print('')
-            print(resp.text)
-            print(_b64encode(image_file))
             assert resp.text == _b64encode(image_file)
 
             resp = httpx.post(SRV_8001 + '/endpoint1', data={'example': image_file})
             assert 200 == resp.status_code
             assert 'Content-Type' not in resp.headers
-            print('')
-            print(resp.text)
-            print(_b64encode(image_file))
             assert resp.text == _b64encode(image_file)
 
     def test_ssl_true(self):
@@ -995,8 +987,6 @@ class TestCore():
         TestBody.test_body_json_schema(TestBody, config)
 
         del os.environ['%s_DATA_DIR' % PROGRAM.upper()]
-        print('')
-        print(os.environ)
 
 
 @pytest.mark.parametrize(('config'), [
