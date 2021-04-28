@@ -582,3 +582,20 @@ def run_loops(definition):
             t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
             t.daemon = True
             t.start()
+
+
+def build_single_payload_producer(
+    topic: str,
+    value: str,
+    key: Union[str, None] = None,
+    headers: dict = {},
+    enable_topic_creation: bool = False
+):
+    payload_list = KafkaProducerPayloadList()
+    payload = KafkaProducerPayload(
+        value,
+        key=key,
+        headers=headers
+    )
+    payload_list.add_payload(payload)
+    return KafkaProducer(topic, payload_list)

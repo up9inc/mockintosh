@@ -3651,7 +3651,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=key,
@@ -3661,7 +3661,7 @@ class TestAsync():
         kafka_producer.produce()
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=not_key,
@@ -3670,7 +3670,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             not_value,
             key=key,
@@ -3679,7 +3679,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value_json_decode_error,
             key=key,
@@ -3688,7 +3688,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=key,
@@ -3697,7 +3697,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=key,
@@ -3757,7 +3757,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic10',
             value,
             key=key,
@@ -3794,14 +3794,14 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
 
         # topic10 START
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic10,
             value10_1
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic10,
             value10_2
         )
@@ -3820,14 +3820,14 @@ class TestAsync():
         # topic10 END
 
         # topic11 START
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic11,
             value11_1
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic11,
             value11_2
         )
@@ -4000,7 +4000,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             producer_topic,
             producer_value,
             key=producer_key,
