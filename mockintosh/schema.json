@@ -78,6 +78,9 @@
         "queue": {
           "type": "string"
         },
+        "tag": {
+          "type": "string"
+        },
         "key": {
           "type": [
             "string",

@@ -160,9 +160,15 @@ services:
         value: value12-2
         headers:
           hdr12-2: val12-2
+      - queue: topic12
+        tag: async-tag12-3
+        key: key12-3
+        value: value12-3
+        headers:
+          hdr12-3: val12-3
   - name: consumer-for-multiproducer
     consume:
-      capture: 3
+      capture: 4
       queue: topic12
 - name: Mock for Service1
   hostname: service1.example.com

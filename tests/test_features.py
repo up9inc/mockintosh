@@ -4108,6 +4108,26 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 3
 
+        resp = httpx.post(MGMT + '/tag', data="async-tag12-3", verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+        assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key12-3', 'value12-3', {'hdr12-3': 'val12-3'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 4
+
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
