@@ -24,7 +24,6 @@ from typing import (
 import yaml
 import pytest
 import httpx
-import requests
 from openapi_spec_validator import validate_spec
 from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
@@ -614,7 +613,7 @@ class TestCore():
 
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             image_file = file.read()
-            resp = requests.post(SRV_8001 + '/endpoint1', files={'example': image_file})
+            resp = httpx.post(SRV_8001 + '/endpoint1', files={'example': image_file})
             assert 200 == resp.status_code
             assert 'Content-Type' not in resp.headers
             print('')
@@ -622,7 +621,7 @@ class TestCore():
             print(_b64encode(image_file))
             assert resp.text == _b64encode(image_file)
 
-            resp = requests.post(SRV_8001 + '/endpoint1', data={'example': image_file})
+            resp = httpx.post(SRV_8001 + '/endpoint1', data={'example': image_file})
             assert 200 == resp.status_code
             assert 'Content-Type' not in resp.headers
             print('')
