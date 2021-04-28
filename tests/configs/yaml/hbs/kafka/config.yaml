@@ -166,6 +166,12 @@ services:
         value: value12-3
         headers:
           hdr12-3: val12-3
+      - queue: topic12
+        tag: async-tag12-4
+        key: key12-4
+        value: value12-4
+        headers:
+          hdr12-4: val12-4
   - name: consumer-for-multiproducer
     consume:
       capture: 4

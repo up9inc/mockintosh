@@ -4128,6 +4128,17 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 4
 
+        resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+        assert 202 == resp.status_code
+
+        resp = httpx.get(MGMT + '/tag', verify=False)
+        assert 200 == resp.status_code
+        data = resp.json()
+        assert data == {'tags': ['async-tag12-3']}
+
+        resp = httpx.post(MGMT + '/reset-iterators', verify=False)
+        assert 204 == resp.status_code
+
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
