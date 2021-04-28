@@ -402,6 +402,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
                 context=context,
                 ignore_delay=ignore_delay
             )
+            return
 
         kafka_handler = KafkaHandler(
             self.actor.id,

@@ -4111,8 +4111,9 @@ class TestAsync():
         resp = httpx.post(MGMT + '/tag', data="async-tag12-3", verify=False)
         assert 204 == resp.status_code
 
-        resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
-        assert 202 == resp.status_code
+        for _ in range(2):
+            resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+            assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -4126,10 +4127,24 @@ class TestAsync():
         ]:
             self.assert_consumer_log(data, key, value, headers)
 
-        assert len(data['log']['entries']) == 4
+        assert len(data['log']['entries']) == 5
 
         resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
         assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key12-4', 'value12-4', {'hdr12-4': 'val12-4'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers, invert=True)
+
+        assert len(data['log']['entries']) == 6
 
         resp = httpx.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code

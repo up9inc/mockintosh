@@ -241,6 +241,7 @@ class Definition():
                                     produce['value'],
                                     key=produce.get('key', None),
                                     headers=produce.get('headers', {}),
+                                    tag=produce.get('tag', None),
                                     enable_topic_creation=produce.get('headers', {})
                                 )
                                 payload_list.add_payload(payload)
