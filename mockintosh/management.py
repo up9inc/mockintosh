@@ -1056,36 +1056,25 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
         self.service_id = service_id
 
     async def get(self):
-        tags = None
-        app = self.http_server._apps.apps[self.service_id]
-        if isinstance(app, KafkaService):
-            tags = app.tags
-        else:
-            for rule in app.default_router.rules[0].target.rules:
-                if rule.target == GenericHandler:
-                    _tags = rule.target_kwargs['tags']
-                    if not _tags:
-                        self.set_status(204)
-                        return
-                    else:
-                        tags = _tags
-        data = {
-            'tags': tags
-        }
-        self.write(data)
+        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                tags = rule.target_kwargs['tags']
+                if not tags:
+                    self.set_status(204)
+                else:
+                    data = {
+                        'tags': tags
+                    }
+                    self.write(data)
 
     async def post(self):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
         data = data.split(',')
-        app = self.http_server._apps.apps[self.service_id]
-        if isinstance(app, KafkaService):
-            app.tags = data
-        else:
-            for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-                if rule.target == GenericHandler:
-                    rule.target_kwargs['tags'] = data
+        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 

@@ -29,7 +29,7 @@ test-with-coverage: test-style copy-assets up-kafka
 		--logfile dummy.log && \
 	COVERAGE_NO_RUN=true DEBUG=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
-	mockintosh tests/configs/yaml/hbs/kafka/config_error.yaml || \
+	coverage run --parallel -m mockintosh tests/configs/yaml/hbs/kafka/config_error.yaml || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
