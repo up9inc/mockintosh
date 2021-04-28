@@ -293,3 +293,53 @@ services:
 ```
 
 _Note: Validating the consumer and triggering the producing would work for "reactive producer", too._
+
+### Multiple Payloads
+
+Similar to the [multiple responses](Configuring.md#multiple-responses) in HTTP, asynchronous producers support
+tagged payloads. Which means they can be a list of `queue`, `key`, `value`, `headers` combinations (JSON array)
+instead of being a single combination (JSON object):
+
+```yaml
+produce:
+  - queue: topicA
+    key: keyA-1
+    value: valueA-1
+    headers:
+      hdrA-1: valA-1
+  - queue: topicA
+    key: keyA-2
+    value: valueA-2
+    headers:
+      hdrA-2: valA-2
+```
+
+_Note: Supplying different topics for multiple payloads throws a compile-time error._
+
+### Tagged Payloads
+
+Similar to the [tagged responses](Configuring.md#tagged-responses) in HTTP, it's possible to select certain payload
+or payloads using the `tag` field:
+
+```yaml
+produce:
+  - queue: topicA
+    key: keyA-1
+    value: valueA-1
+    headers:
+      hdrA-1: valA-1
+  - queue: topicA
+    tag: async-tagA-3
+    key: keyA-3
+    value: valueA-3
+    headers:
+      hdrA-3: valA-3
+  - queue: topicA
+    key: keyA-2
+    value: valueA-2
+    headers:
+      hdrA-2: valA-2
+```
+
+"**Tags**" is a generic feature so [Setting Current Tag](Management.md#setting-current-tag)
+and [Resetting Iterators](Management.md#resetting-iterators) are valid for asynchronous tags too.
