@@ -254,6 +254,8 @@ class Definition():
                         if 'limit' in actor:
                             kafka_actor.set_limit(actor['limit'])
 
+                    service['internalRef'] = kafka_service
+
                 if service['type'] != 'http':
                     continue
 

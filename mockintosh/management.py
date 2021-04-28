@@ -30,6 +30,7 @@ import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import RestrictedFieldError
+from mockintosh.kafka import KafkaService
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -653,7 +654,8 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
-            if app is None:  # pragma: no cover
+            if isinstance(app, KafkaService):
+                data['tags'] += app.tags
                 continue
 
             for rule in app.default_router.rules[0].target.rules:
@@ -670,7 +672,8 @@ class ManagementTagHandler(ManagementBaseHandler):
             data = self.request.body.decode()
         data = data.split(',')
         for app in self.http_server._apps.apps:
-            if app is None:  # pragma: no cover
+            if isinstance(app, KafkaService):
+                app.tags = data
                 continue
 
             for rule in app.default_router.rules[0].target.rules:
@@ -1050,25 +1053,36 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
         self.service_id = service_id
 
     async def get(self):
-        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                tags = rule.target_kwargs['tags']
-                if not tags:
-                    self.set_status(204)
-                else:
-                    data = {
-                        'tags': tags
-                    }
-                    self.write(data)
+        tags = None
+        app = self.http_server._apps.apps[self.service_id]
+        if isinstance(app, KafkaService):
+            tags = app.tags
+        else:
+            for rule in app.default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    _tags = rule.target_kwargs['tags']
+                    if not _tags:
+                        self.set_status(204)
+                        return
+                    else:
+                        tags = _tags
+        data = {
+            'tags': tags
+        }
+        self.write(data)
 
     async def post(self):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
         data = data.split(',')
-        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                rule.target_kwargs['tags'] = data
+        app = self.http_server._apps.apps[self.service_id]
+        if isinstance(app, KafkaService):
+            app.tags = data
+        else:
+            for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 

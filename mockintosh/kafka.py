@@ -361,11 +361,13 @@ class KafkaProducerPayload:
         value: str,
         key: Union[str, None] = None,
         headers: dict = {},
+        tag: Union[str, None] = None,
         enable_topic_creation: bool = False
     ):
         self.value = value
         self.key = key
         self.headers = headers
+        self.tag = tag
         self.enable_topic_creation = enable_topic_creation
 
 
@@ -394,6 +396,12 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.iteration += 1
         if self.iteration > len(self.payload_list.list) - 1:
             self.iteration = 0
+        if payload.tag is not None and payload.tag not in self.actor.service.tags:
+            self.produce(
+                consumed=consumed,
+                context=context,
+                ignore_delay=ignore_delay
+            )
 
         kafka_handler = KafkaHandler(
             self.actor.id,
@@ -534,6 +542,7 @@ class KafkaService:
         self.definition = definition
         self.actors = []
         self.id = _id
+        self.tags = []
 
     def add_actor(self, actor: KafkaActor):
         actor.service = self
