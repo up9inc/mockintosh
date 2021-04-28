@@ -282,7 +282,7 @@ class TestCommandLineArguments():
         assert 404 == resp.status_code
 
     def test_port_override(self):
-        os.environ['MOCKINTOSH_FORCE_PORT'] = '8002'
+        os.environ['%s_FORCE_PORT' % PROGRAM.upper()] = '8002'
         config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
@@ -299,7 +299,7 @@ class TestCommandLineArguments():
         result, _ = tcping('localhost', '8001')
         assert not result
 
-        del os.environ['MOCKINTOSH_FORCE_PORT']
+        del os.environ['%s_FORCE_PORT' % PROGRAM.upper()]
 
 
 class TestInterceptors():
@@ -976,6 +976,17 @@ class TestCore():
         assert 404 == resp.status_code
         assert b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A' == resp.content[:8]
         assert resp.headers['Content-Type'] == 'image/png'
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/body/config.yaml'
+    ])
+    def test_data_dir_override(self, config):
+        os.environ['%s_DATA_DIR' % PROGRAM.upper()] = 'tests/configs/yaml/hbs/data_dir_override'
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+        TestBody.test_body_json_schema(TestBody, config)
+
+        del os.environ['%s_DATA_DIR' % PROGRAM.upper()]
 
 
 @pytest.mark.parametrize(('config'), [
