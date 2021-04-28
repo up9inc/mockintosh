@@ -519,42 +519,33 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         # Body
         if self.request.body_arguments:
-            print('>>>> REQUEST BODY ARG')
             request.mimeType = 'application/x-www-form-urlencoded'
             for key, value in self.request.body_arguments.items():
                 try:
                     request.bodyType[key] = 'str'
                     request.body[key] = [x.decode() for x in value]
-                    print('>>>> STR REQUEST BODY ARG')
                 except (AttributeError, UnicodeDecodeError):
-                    print('>>>> BINARY REQUEST BODY ARG')
                     request.bodyType[key] = BASE64
                     request.body[key] = [_b64encode(x) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         elif self.request.files:
-            print('>>>> REQUEST FILES ARG')
             request.mimeType = 'multipart/form-data'
             for key, value in self.request.files.items():
                 try:
                     request.bodyType[key] = 'str'
                     request.body[key] = [x.body.decode() for x in value]
-                    print('>>>> STR REQUEST FILES ARG')
                 except (AttributeError, UnicodeDecodeError):
-                    print('>>>> BINARY REQUEST FILES ARG')
                     request.bodyType[key] = BASE64
                     request.body[key] = [_b64encode(x.body) for x in value]
                 if len(request.body[key]) == 1:
                     request.body[key] = request.body[key][0]
         else:
-            print('>>>> REQUEST BODY')
             request.mimeType = 'text/plain'
             try:
                 request.bodyType = 'str'
                 request.body = self.request.body.decode()
-                print('>>>> STR REQUEST BODY')
             except (AttributeError, UnicodeDecodeError):
-                print('>>>> BINARY REQUEST BODY')
                 request.bodyType = BASE64
                 request.body = _b64encode(self.request.body)
         request.bodySize = len(self.request.body)
