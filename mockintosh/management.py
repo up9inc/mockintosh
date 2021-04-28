@@ -67,6 +67,12 @@ yaml.add_representer(OrderedDict, Representer.represent_dict)
 
 
 def _reset_iterators(app):
+    if isinstance(app, KafkaService):
+        for actor in app.actors:
+            if actor.producer is not None:
+                actor.producer.iteration = 0
+        return
+
     for rule in app.default_router.rules[0].target.rules:
         if rule.target == GenericHandler:
             endpoints = rule.target_kwargs['endpoints']
@@ -281,9 +287,6 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         for app in self.http_server._apps.apps:
-            if app is None:  # pragma: no cover
-                continue
-
             _reset_iterators(app)
         self.set_status(204)
 
