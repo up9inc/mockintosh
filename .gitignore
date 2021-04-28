@@ -129,3 +129,7 @@ tests/configs/yaml/hbs/core/key.pem
 
 # Copied Images
 tests/configs/yaml/hbs/kafka/image.png
+
+# Copied JSON schemas
+tests/configs/yaml/hbs/data_dir_override/body_schema.json
+tests/configs/yaml/hbs/data_dir_override/body_schema_error.json

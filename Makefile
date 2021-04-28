@@ -53,7 +53,7 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images
+copy-assets: copy-certs copy-images copy-data-dir-override
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -67,6 +67,10 @@ copy-certs:
 
 copy-images:
 	cp tests/configs/json/hbs/core/image.png tests/configs/yaml/hbs/kafka/
+
+copy-data-dir-override:
+	cp tests/configs/yaml/hbs/body/body_schema.json tests/configs/yaml/hbs/data_dir_override/
+	cp tests/configs/yaml/hbs/body/body_schema_error.json tests/configs/yaml/hbs/data_dir_override/
 
 up-kafka:
 	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
