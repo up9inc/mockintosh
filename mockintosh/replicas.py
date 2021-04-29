@@ -39,7 +39,7 @@ class _RequestPath:
     def __eq__(self, other):
         return self.path == other
 
-    def __ne__(self, other):
+    def __ne__(self, other):  # pragma: no cover
         return self.path != other
 
 
