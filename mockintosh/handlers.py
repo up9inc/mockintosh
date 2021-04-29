@@ -504,7 +504,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         request.method = self.request.method
 
         # Path
-        request.path = self.request.path
+        request.set_path(self.request.path)
 
         # Headers
         for key, value in self.request.headers._dict.items():
