@@ -8,16 +8,33 @@
 
 import json
 import logging
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 from http.client import responses
+from pathlib import PurePosixPath
 
 from mockintosh.methods import _b64encode
 from mockintosh.constants import BASE64
 
 
-class _NotParsedJSON():
+class _NotParsedJSON:
     """Class to determine wheter the request body is parsed into JSON or not."""
     pass
+
+
+class _RequestPath:
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.segments = PurePosixPath(unquote(self.path)).parts
+
+    def __repr__(self):
+        return self.path
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __getitem__(self, key):
+        return self.segments[int(key)]
 
 
 class Request():
@@ -40,6 +57,9 @@ class Request():
         self.bodySize = 0
         self._json = _NotParsedJSON()
         self.mimeType = None
+
+    def set_path(self, path: str):
+        self.path = _RequestPath(path)
 
     @property
     def json(self) -> [None, dict]:

@@ -1168,11 +1168,12 @@ class TestPath():
         assert resp.text == 'static path components have priority'
 
     def test_regex_match(self, config):
-        path = '/parameterized2/text/prefix-%s/subval' % str(int(time.time()))
+        value = str(int(time.time()))
+        path = '/parameterized2/text/prefix-%s/subval' % value
         resp = httpx.get(SRV_8001 + path)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'regex match: %s' % path
+        assert resp.text == 'regex match: %s prefix-%s' % (path, value)
 
         path = '/parameterized2/template-file/prefix-%s/subval' % str(int(time.time()))
         resp = httpx.get(SRV_8001 + path)
