@@ -36,6 +36,12 @@ class _RequestPath:
     def __getitem__(self, key):
         return self.segments[int(key)]
 
+    def __eq__(self, other):
+        return self.path == other
+
+    def __ne__(self, other):
+        return self.path != other
+
 
 class Request():
     """Class that defines the `Request` object which is being injected into the response template."""
