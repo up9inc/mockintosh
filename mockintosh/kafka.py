@@ -396,22 +396,26 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if all(_payload.tag is not None and _payload.tag not in self.actor.service.tags for _payload in self.payload_list.list):
             raise AsyncProducerListHasNoPayloadsMatchingTags(self.actor.get_hint(), self.actor.service.tags)
 
-    def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
-        payload = self.payload_list.list[self.iteration]
+    def increment_iteration(self) -> None:
         self.iteration += 1
         if self.iteration > len(self.payload_list.list) - 1:
             self.iteration = 0
+
+    def get_current_payload(self) -> KafkaProducerPayload:
+        return self.payload_list.list[self.iteration]
+
+    def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
+        payload = self.get_current_payload()
+        self.increment_iteration()
         if payload.tag is not None and payload.tag not in self.actor.service.tags:
             try:
                 self.check_tags()
-                self.produce(
-                    consumed=consumed,
-                    context=context,
-                    ignore_delay=ignore_delay
-                )
+                while payload.tag is not None and payload.tag not in self.actor.service.tags:
+                    payload = self.get_current_payload()
+                    self.increment_iteration()
             except AsyncProducerListHasNoPayloadsMatchingTags as e:
                 logging.error(str(e))
-            return
+                return
 
         kafka_handler = KafkaHandler(
             self.actor.id,
