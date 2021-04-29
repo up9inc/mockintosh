@@ -24,7 +24,7 @@ from utilities import get_config_path
 schema = get_schema()
 
 
-class TestExceptions():
+class TestExceptions:
 
     def test_file_not_found_error(self):
         config = 'configs/not_existing_file'

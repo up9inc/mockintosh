@@ -615,13 +615,15 @@ def build_single_payload_producer(
     value: str,
     key: Union[str, None] = None,
     headers: dict = {},
+    tag: Union[str, None] = None,
     enable_topic_creation: bool = False
 ):
     payload_list = KafkaProducerPayloadList()
     payload = KafkaProducerPayload(
         value,
         key=key,
-        headers=headers
+        headers=headers,
+        tag=tag
     )
     payload_list.add_payload(payload)
     return KafkaProducer(topic, payload_list)

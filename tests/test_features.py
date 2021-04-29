@@ -34,6 +34,7 @@ from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
 from utilities import (
+    DefinitionMockForKafka,
     tcping,
     run_mock_server,
     get_config_path,
@@ -76,16 +77,6 @@ KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 10)
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
-
-
-class DefinitionMockForKafka():
-    def __init__(self, source_dir, template_engine, rendering_queue):
-        self.source_dir = source_dir
-        self.template_engine = template_engine
-        self.rendering_queue = rendering_queue
-        self.data = {}
-        self.logs = None
-        self.stats = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -4088,6 +4079,25 @@ class TestAsync():
                 for row in kafka_consumer.log
             )
 
+    def test_async_producer_list_has_no_payloads_matching_tags(self):
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            'localhost:9092',
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor(0)
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.build_single_payload_producer(
+            'topic12',
+            'value12-3',
+            key='key12-3',
+            headers={'hdr12-3': 'val12-3'},
+            tag='async-tag12-3'
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+        job.kill()
+
     def test_post_async_multiproducer(self):
         for _ in range(3):
             resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
@@ -4159,6 +4169,9 @@ class TestAsync():
         assert 204 == resp.status_code
 
         resp = httpx.post(MGMT + '/async/producers/multiproducer-error', verify=False)
+        assert 410 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/11', verify=False)
         assert 410 == resp.status_code
 
     def test_delete_async_consumer_bad_requests(self):
