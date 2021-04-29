@@ -3581,7 +3581,7 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 12
+            assert len(producers) == 13
             assert len(consumers) == 11
 
             assert producers[0]['type'] == 'kafka'
@@ -4154,6 +4154,13 @@ class TestAsync():
         resp = httpx.post(MGMT + '/reset-iterators', verify=False)
         assert 204 == resp.status_code
 
+    def test_post_async_multiproducer_no_payloads_matching_tags(self):
+        resp = httpx.post(MGMT + '/tag', data="", verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/multiproducer-error', verify=False)
+        assert 410 == resp.status_code
+
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
@@ -4275,7 +4282,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 22
+        assert len(data['services'][0]['endpoints']) == 23
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

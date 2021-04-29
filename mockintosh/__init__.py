@@ -229,8 +229,7 @@ class Definition():
                                 queue = actor['produce'][0]['queue']
                                 for _produce in actor['produce']:
                                     if queue != _produce['queue']:
-                                        hint = kafka_actor.name if kafka_actor.name is not None else '#%d' % kafka_actor.id
-                                        raise AsyncProducerListQueueMismatch(hint)
+                                        raise AsyncProducerListQueueMismatch(kafka_actor.get_hint())
                                 produce_list += actor['produce']
                             else:
                                 queue = actor['produce']['queue']

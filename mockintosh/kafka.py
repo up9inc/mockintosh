@@ -27,6 +27,7 @@ from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
 from mockintosh.logs import Logs
+from mockintosh.exceptions import AsyncProducerListHasNoPayloadsMatchingTags
 
 
 def _kafka_delivery_report(err, msg):
@@ -391,17 +392,25 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.payload_list = payload_list
         self.iteration = 0
 
+    def check_tags(self):
+        if all(_payload.tag is not None and _payload.tag not in self.actor.service.tags for _payload in self.payload_list.list):
+            raise AsyncProducerListHasNoPayloadsMatchingTags(self.actor.get_hint(), self.actor.service.tags)
+
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
         payload = self.payload_list.list[self.iteration]
         self.iteration += 1
         if self.iteration > len(self.payload_list.list) - 1:
             self.iteration = 0
         if payload.tag is not None and payload.tag not in self.actor.service.tags:
-            self.produce(
-                consumed=consumed,
-                context=context,
-                ignore_delay=ignore_delay
-            )
+            try:
+                self.check_tags()
+                self.produce(
+                    consumed=consumed,
+                    context=context,
+                    ignore_delay=ignore_delay
+                )
+            except AsyncProducerListHasNoPayloadsMatchingTags as e:
+                logging.error(str(e))
             return
 
         kafka_handler = KafkaHandler(
@@ -494,6 +503,9 @@ class KafkaActor:
         self.delay = None
         self.limit = None
         self.service = None
+
+    def get_hint(self) -> str:
+        return self.name if self.name is not None else '#%d' % self.id
 
     def set_consumer(self, consumer: KafkaConsumer):
         self.consumer = consumer
