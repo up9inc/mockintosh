@@ -14,7 +14,7 @@ services:
   - path: "/parameterized1/text/staticVal/subval"
     response: static path components have priority
   - path: "/parameterized2/text/{{regEx('prefix-.*')}}/subval"
-    response: 'regex match: {{request.path}}'
+    response: 'regex match: {{request.path}} {{request.path[3]}}'
   - path: "/parameterized2/template-file/{{regEx('prefix-.*')}}/subval"
     response:
       headers:
