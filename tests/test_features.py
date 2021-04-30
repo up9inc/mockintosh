@@ -3573,7 +3573,7 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 16
+            assert len(producers) == 18
             assert len(consumers) == 14
 
             assert producers[0]['type'] == 'kafka'
@@ -4175,6 +4175,14 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/11', verify=False)
         assert 410 == resp.status_code
 
+    def test_post_async_multiproducer_nonlooped(self):
+        for _ in range(2):
+            resp = httpx.post(MGMT + '/async/producers/multiproducer-nonlooped', verify=False)
+            assert 202 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/multiproducer-nonlooped', verify=False)
+        assert 410 == resp.status_code
+
     def test_post_async_dataset(self):
         for _ in range(3):
             resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
@@ -4279,6 +4287,14 @@ class TestAsync():
             ('key14', 'dset: {{var}}', {'hdr14': 'val14'}),
         ]:
             self.assert_consumer_log(data, key, value, headers)
+
+    def test_post_async_dataset_nonlooped(self):
+        for _ in range(2):
+            resp = httpx.post(MGMT + '/async/producers/dataset-nonlooped', verify=False)
+            assert 202 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/dataset-nonlooped', verify=False)
+        assert 410 == resp.status_code
 
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/99', verify=False)
@@ -4401,7 +4417,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 29
+        assert len(data['services'][0]['endpoints']) == 31
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

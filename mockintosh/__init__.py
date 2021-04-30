@@ -257,6 +257,9 @@ class Definition():
                         if 'dataset' in actor:
                             kafka_actor.set_dataset(actor['dataset'])
 
+                        kafka_actor.multi_payloads_looped = actor.get('multiPayloadsLooped', True)
+                        kafka_actor.dataset_looped = actor.get('datasetLooped', True)
+
                     service['internalRef'] = kafka_service
 
                 if service['type'] != 'http':

@@ -238,6 +238,30 @@ services:
     consume:
       capture: 3
       queue: topic15
+  - name: multiproducer-nonlooped
+    multiPayloadsLooped: false
+    produce:
+      - queue: topic16
+        key: key16-1
+        value: value16-1
+        headers:
+          hdr16-1: val16-1
+      - queue: topic16
+        key: key16-2
+        value: value16-2
+        headers:
+          hdr16-2: val16-2
+  - name: dataset-nonlooped
+    datasetLooped: false
+    dataset:
+      - var: '3.1'
+      - var: '3.2'
+    produce:
+      - queue: topic17
+        key: key17
+        value: "dset: {{var}}"
+        headers:
+          hdr17: val17
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

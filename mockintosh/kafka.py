@@ -28,7 +28,11 @@ from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
 from mockintosh.logs import Logs
-from mockintosh.exceptions import AsyncProducerListHasNoPayloadsMatchingTags
+from mockintosh.exceptions import (
+    AsyncProducerListHasNoPayloadsMatchingTags,
+    AsyncProducerPayloadLoopEnd,
+    AsyncProducerDatasetLoopEnd
+)
 
 
 def _kafka_delivery_report(err, msg):
@@ -393,18 +397,33 @@ class KafkaProducer(KafkaConsumerProducerBase):
         self.payload_list = payload_list
         self.payload_iteration = 0
         self.dataset_iteration = 0
+        self.lock_payload = False
+        self.lock_dataset = False
 
     def check_tags(self) -> None:
         if all(_payload.tag is not None and _payload.tag not in self.actor.service.tags for _payload in self.payload_list.list):
             raise AsyncProducerListHasNoPayloadsMatchingTags(self.actor.get_hint(), self.actor.service.tags)
 
+    def check_payload_lock(self) -> None:
+        if self.is_payload_locked():
+            raise AsyncProducerPayloadLoopEnd(self.actor.get_hint())
+
     def increment_payload_iteration(self) -> None:
         self.payload_iteration += 1
         if self.payload_iteration > len(self.payload_list.list) - 1:
+            if not self.actor.multi_payloads_looped:
+                self.lock_payload = True
             self.payload_iteration = 0
 
     def get_current_payload(self) -> KafkaProducerPayload:
         return self.payload_list.list[self.payload_iteration]
+
+    def is_payload_locked(self) -> bool:
+        return self.lock_payload
+
+    def check_dataset_lock(self) -> None:
+        if self.is_dataset_locked():
+            raise AsyncProducerDatasetLoopEnd(self.actor.get_hint())
 
     def check_dataset(self) -> bool:
         if all('tag' in row and row['tag'] not in self.actor.service.tags for row in self.actor._dataset):
@@ -414,10 +433,17 @@ class KafkaProducer(KafkaConsumerProducerBase):
     def increment_dataset_iteration(self) -> None:
         self.dataset_iteration += 1
         if self.dataset_iteration > len(self.actor._dataset) - 1:
+            if not self.actor.dataset_looped:
+                self.lock_dataset = True
             self.dataset_iteration = 0
 
     def get_current_dataset_row(self) -> dict:
         return self.actor._dataset[self.dataset_iteration]
+
+    def is_dataset_locked(self) -> bool:
+        if self.actor.dataset is None:
+            return False
+        return self.lock_dataset
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
         payload = self.get_current_payload()
@@ -545,6 +571,8 @@ class KafkaActor:
         self.service = None
         self.dataset = None
         self._dataset = None
+        self.multi_payloads_looped = True
+        self.dataset_looped = True
 
     def get_hint(self) -> str:
         return self.name if self.name is not None else '#%d' % self.id

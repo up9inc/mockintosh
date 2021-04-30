@@ -29,7 +29,12 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
-from mockintosh.exceptions import RestrictedFieldError, AsyncProducerListHasNoPayloadsMatchingTags
+from mockintosh.exceptions import (
+    RestrictedFieldError,
+    AsyncProducerListHasNoPayloadsMatchingTags,
+    AsyncProducerPayloadLoopEnd,
+    AsyncProducerDatasetLoopEnd
+)
 from mockintosh.kafka import KafkaService
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -1124,6 +1129,8 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                 producer = self.http_server.definition.data['async_producers'][index]
                 try:
                     producer.check_tags()
+                    producer.check_payload_lock()
+                    producer.check_dataset_lock()
                     t = threading.Thread(target=producer.produce, args=(), kwargs={
                         'ignore_delay': True
                     })
@@ -1131,7 +1138,11 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                     t.start()
                     self.set_status(202)
                     self.write(producer.info())
-                except AsyncProducerListHasNoPayloadsMatchingTags as e:
+                except (
+                    AsyncProducerListHasNoPayloadsMatchingTags,
+                    AsyncProducerPayloadLoopEnd,
+                    AsyncProducerDatasetLoopEnd
+                ) as e:
                     self.set_status(410)
                     self.write(str(e))
                     return
@@ -1151,12 +1162,18 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                         producer = actor.producer
                         try:
                             producer.check_tags()
+                            producer.check_payload_lock()
+                            producer.check_dataset_lock()
                             t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
                                 'ignore_delay': True
                             })
                             t.daemon = True
                             t.start()
-                        except AsyncProducerListHasNoPayloadsMatchingTags as e:
+                        except (
+                            AsyncProducerListHasNoPayloadsMatchingTags,
+                            AsyncProducerPayloadLoopEnd,
+                            AsyncProducerDatasetLoopEnd
+                        ) as e:
                             self.set_status(410)
                             self.write(str(e))
                             return
