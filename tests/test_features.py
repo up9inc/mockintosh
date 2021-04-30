@@ -4175,6 +4175,28 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/11', verify=False)
         assert 410 == resp.status_code
 
+    def test_post_async_dataset(self):
+        for _ in range(3):
+            resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        print(data)
+
+        for key, value, headers in [
+            ('key13', 'dset: 3.1', {'hdr13': 'val13'}),
+            ('key13', 'dset: 3.2', {'hdr13': 'val13'}),
+            ('key13', 'dset: 3.3', {'hdr13': 'val13'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 3
+
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code

@@ -38,6 +38,9 @@
         "name": {
           "type": "string"
         },
+        "dataset": {
+          "$ref": "#/definitions/dataset_ref"
+        },
         "produce": {
           "oneOf": [
             {
@@ -243,17 +246,7 @@
           "additionalProperties": false
         },
         "dataset": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "object"
-              }
-            },
-            {
-              "type": "string"
-            }
-          ]
+          "$ref": "#/definitions/dataset_ref"
         },
         "response": {
           "oneOf": [
@@ -314,6 +307,19 @@
             }
           },
           "additionalProperties": false
+        }
+      ]
+    },
+    "dataset_ref": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "type": "string"
         }
       ]
     },

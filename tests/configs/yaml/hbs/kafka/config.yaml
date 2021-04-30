@@ -184,6 +184,29 @@ services:
     consume:
       capture: 6
       queue: topic12
+  - name: dataset
+    dataset:
+      - var: '3.1'
+      - tag: first
+        var: '1.1'
+      - tag: second
+        var: '2.1'
+      - tag: first
+        var: '1.2'
+      - var: '3.2'
+      - tag: second
+        var: '2.2'
+      - var: '3.3'
+    produce:
+      - queue: topic13
+        key: key13
+        value: "dset: {{var}}"
+        headers:
+          hdr13: val13
+  - name: consumer-for-dataset
+    consume:
+      capture: 6
+      queue: topic13
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
