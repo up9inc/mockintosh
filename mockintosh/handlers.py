@@ -473,7 +473,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             return source_text
 
         if len(source_text) > 1 and source_text[0] == '@':
-            template_path = self.resolve_relative_path(source_text)
+            template_path, _ = self.resolve_relative_path(source_text)
             if template_path is None:
                 return None
             with open(template_path, 'rb') as file:
@@ -792,7 +792,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 if 'schema' in alternative['body']:
                     json_schema = alternative['body']['schema']
                     if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                        json_schema_path = self.resolve_relative_path(json_schema)
+                        json_schema_path, _ = self.resolve_relative_path(json_schema)
                         with open(json_schema_path, 'r') as file:
                             logging.info('Reading JSON schema file from path: %s', json_schema_path)
                             try:
@@ -960,7 +960,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.send_error(500, message=error_msg)
             return None
 
-        return relative_path
+        return relative_path, orig_relative_path
 
     def write_error(self, status_code: int, **kwargs) -> None:
         """Overriden method of tornado.web.RequestHandler"""
