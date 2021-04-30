@@ -314,6 +314,13 @@ produce:
       hdrA-2: valA-2
 ```
 
+1. trigger: `valueA-1` is produced as `value`.
+2. trigger: `valueA-2` is produced as `value`.
+3. trigger: `valueA-1` is produced as `value`.
+
+By default a producer loops through its payloads indefinitely for each trigger. To disable this behavior, set
+`multiPayloadsLooped` to `false` similar to `multiResponsesLooped` in HTTP.
+
 _Note: Supplying different topics for multiple payloads throws a compile-time error._
 
 ### Tagged Payloads
@@ -343,3 +350,30 @@ produce:
 
 "**Tags**" is a generic feature so [Setting Current Tag](Management.md#setting-current-tag)
 and [Resetting Iterators](Management.md#resetting-iterators) are valid for asynchronous tags too.
+
+### Datasets
+
+Similar to the [datasets](Configuring.md#datasets) in HTTP, one can put a `dataset` field under `actor`
+to specify a list of key-value combinations to inject into response templating.
+
+This field can be a string that starts with `@` to indicate a path to an external JSON file like `@subdir/dataset.json`
+or an array:
+
+```yaml
+{% raw %}
+dataset:
+  - var1: val1
+  - var1: val2
+produce:
+  - queue: topic1
+    key: key1
+    value: "dset: {{var1}}"
+{% endraw %}
+```
+
+1. trigger: `dset: val1` is produced as `value`.
+2. trigger: `dset: val2` is produced as `value`.
+3. trigger: `dset: val1` is produced as `value`.
+
+By default a producer loops through the given dataset indefinitely for each trigger. To disable this behavior, set
+`datasetLooped` to `false` similar to `datasetLooped` in HTTP.
