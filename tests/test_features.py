@@ -3573,8 +3573,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 13
-            assert len(consumers) == 11
+            assert len(producers) == 14
+            assert len(consumers) == 12
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -4021,13 +4021,13 @@ class TestAsync():
         )
 
     def test_post_async_bad_requests(self):
-        actor13 = 'actor13'
-        resp = httpx.post(MGMT + '/async/producers/%s' % actor13, verify=False)
+        actor99 = 'actor99'
+        resp = httpx.post(MGMT + '/async/producers/%s' % actor99, verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
-        assert resp.text == 'No producer actor is found for: %r' % actor13
+        assert resp.text == 'No producer actor is found for: %r' % actor99
 
-        resp = httpx.post(MGMT + '/async/producers/13', verify=False)
+        resp = httpx.post(MGMT + '/async/producers/99', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid producer index!'
@@ -4186,7 +4186,6 @@ class TestAsync():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
-        print(data)
 
         for key, value, headers in [
             ('key13', 'dset: 3.1', {'hdr13': 'val13'}),
@@ -4196,6 +4195,50 @@ class TestAsync():
             self.assert_consumer_log(data, key, value, headers)
 
         assert len(data['log']['entries']) == 3
+
+        resp = httpx.post(MGMT + '/tag', data="first", verify=False)
+        assert 204 == resp.status_code
+
+        for _ in range(6):
+            resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key13', 'dset: 1.1', {'hdr13': 'val13'}),
+            ('key13', 'dset: 1.2', {'hdr13': 'val13'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 9
+
+        resp = httpx.post(MGMT + '/tag', data="second", verify=False)
+        assert 204 == resp.status_code
+
+        for _ in range(4):
+            resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key13', 'dset: 2.1', {'hdr13': 'val13'}),
+            ('key13', 'dset: 2.2', {'hdr13': 'val13'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 13
 
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
@@ -4318,7 +4361,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 23
+        assert len(data['services'][0]['endpoints']) == 25
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

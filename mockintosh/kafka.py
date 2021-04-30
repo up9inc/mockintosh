@@ -471,7 +471,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
             row = self.get_current_dataset_row()
             self.increment_dataset_iteration()
             if 'tag' in row and row['tag'] not in self.actor.service.tags:
-                if self.check_tags():
+                if self.check_dataset():
                     while 'tag' in row and row['tag'] not in self.actor.service.tags:
                         row = self.get_current_dataset_row()
                         self.increment_dataset_iteration()

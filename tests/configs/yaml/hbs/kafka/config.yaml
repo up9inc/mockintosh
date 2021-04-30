@@ -205,7 +205,7 @@ services:
           hdr13: val13
   - name: consumer-for-dataset
     consume:
-      capture: 6
+      capture: 13
       queue: topic13
 - name: Mock for Service1
   hostname: service1.example.com
