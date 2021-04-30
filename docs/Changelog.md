@@ -112,7 +112,7 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-# Next Version
+# Next Version v0.9
 
 1. Mock Actors implementation for Kafka
    - on schedule producer
@@ -125,6 +125,7 @@
 5. Make `MOCKINTOSH_FORCE_PORT` to work always
 6. CLI argument to set the tag enabled, forbid comma in tag name
 7. Alternative base directory for resource files via `MOCKINTOSH_DATA_DIR`
+8. Fix missing `request.path.<n>` support in templating
 
 TODO:
     - config reloading to work
@@ -141,7 +142,8 @@ TODO:
 - interceptors to access kafka comms
 - allow overriding on-demand producer fields via mgmt API
 - multi-response and dataset for Kafka producerse
-- message schema validator for consumer
+- trigger async produce via HTTP endpoint
+
 
 # Roadmap Ideas
 
