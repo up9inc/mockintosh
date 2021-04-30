@@ -207,6 +207,25 @@ services:
     consume:
       capture: 13
       queue: topic13
+  - name: dataset-no-matching-tags
+    dataset:
+      - tag: first
+        var: '1.1'
+      - tag: second
+        var: '2.1'
+      - tag: first
+        var: '1.2'
+      - tag: second
+        var: '2.2'
+    produce:
+      - queue: topic14
+        key: key14
+        value: "dset: {{var}}"
+        headers:
+          hdr14: val14
+  - name: consumer-for-dataset-no-matching-tags
+    consume:
+      queue: topic14
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

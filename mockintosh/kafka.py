@@ -9,6 +9,7 @@
 import re
 import time
 import json
+import copy
 import logging
 import threading
 from collections import OrderedDict
@@ -430,6 +431,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
             except AsyncProducerListHasNoPayloadsMatchingTags as e:
                 logging.error(str(e))
                 return
+
+        context = copy.deepcopy(context)
 
         kafka_handler = KafkaHandler(
             self.actor.id,

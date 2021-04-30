@@ -3573,8 +3573,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 14
-            assert len(consumers) == 12
+            assert len(producers) == 15
+            assert len(consumers) == 13
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -4240,6 +4240,25 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 13
 
+    def test_post_async_dataset_no_matching_tags(self):
+        resp = httpx.post(MGMT + '/tag', data="", verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/dataset-no-matching-tags', verify=False)
+        assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset-no-matching-tags', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key14', 'dset: {{var}}', {'hdr14': 'val14'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
         assert 400 == resp.status_code
@@ -4361,7 +4380,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 25
+        assert len(data['services'][0]['endpoints']) == 27
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
