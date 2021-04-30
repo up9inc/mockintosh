@@ -747,20 +747,32 @@
         //debugger;
         for (let s = 0; s < config['services'].length; s++) {
             const service = config['services'][s];
-            if (!service.endpoints) continue;
+            if (service.endpoints) {
+                for (let e = 0; e < service.endpoints.length; e++) {
+                    const endpoint = service.endpoints[e];
+                    if (!endpoint.response) continue;
 
-            for (let e = 0; e < service.endpoints.length; e++) {
-                const endpoint = service.endpoints[e];
-                if (!endpoint.response) continue;
-
-                const resps = Array.isArray(endpoint.response) ? endpoint.response : [endpoint.response];
-                for (let n = 0; n < resps.length; n++) {
-                    if (resps[n].tag) {
-                        result.push(resps[n].tag);
+                    const resps = Array.isArray(endpoint.response) ? endpoint.response : [endpoint.response];
+                    for (let n = 0; n < resps.length; n++) {
+                        if (resps[n].tag) {
+                            result.push(resps[n].tag);
+                        }
                     }
                 }
             }
+            else if (service.actors) {
+                for (let e = 0; e < service.actors.length; e++) {
+                    const actor = service.actors[e];
+                    if (!actor.produce) continue;
 
+                    const resps = Array.isArray(actor.produce) ? actor.produce : [actor.produce];
+                    for (let n = 0; n < resps.length; n++) {
+                        if (resps[n].tag) {
+                            result.push(resps[n].tag);
+                        }
+                    }
+                }
+            }
         }
         return [...new Set(result)].sort();
     }
