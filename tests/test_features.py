@@ -3573,8 +3573,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 20
-            assert len(consumers) == 14
+            assert len(producers) == 21
+            assert len(consumers) == 15
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -4417,7 +4417,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 33
+        assert len(data['services'][0]['endpoints']) == 35
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

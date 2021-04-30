@@ -290,6 +290,17 @@ services:
           hdr19: val19
     delay: 2
     limit: 5
+  - consume:
+      queue: topic19
+    delay: 1
+    dataset:
+      - var: '4.1'
+    produce:
+    - queue: topic20
+      key: key20
+      value: "dset: {{var}}"
+      headers:
+        hdr20: val20
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

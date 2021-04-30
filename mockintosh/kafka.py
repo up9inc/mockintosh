@@ -352,12 +352,20 @@ class KafkaConsumerGroup:
                 consumed.value = value
                 consumed.headers = headers
 
-                t = threading.Thread(target=matched_consumer.actor.producer.produce, args=(), kwargs={
-                    'consumed': consumed,
-                    'context': kafka_handler.custom_context
-                })
-                t.daemon = True
-                t.start()
+                try:
+                    matched_consumer.actor.producer.check_payload_lock()
+                    matched_consumer.actor.producer.check_dataset_lock()
+                    t = threading.Thread(target=matched_consumer.actor.producer.produce, args=(), kwargs={
+                        'consumed': consumed,
+                        'context': kafka_handler.custom_context
+                    })
+                    t.daemon = True
+                    t.start()
+                except (
+                    AsyncProducerPayloadLoopEnd,
+                    AsyncProducerDatasetLoopEnd
+                ) as e:
+                    logging.error(str(e))
 
 
 class KafkaProducerPayload:
