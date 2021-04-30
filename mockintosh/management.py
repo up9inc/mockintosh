@@ -29,7 +29,8 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
-from mockintosh.exceptions import RestrictedFieldError
+from mockintosh.exceptions import RestrictedFieldError, AsyncProducerListHasNoPayloadsMatchingTags
+from mockintosh.kafka import KafkaService
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -66,6 +67,12 @@ yaml.add_representer(OrderedDict, Representer.represent_dict)
 
 
 def _reset_iterators(app):
+    if isinstance(app, KafkaService):
+        for actor in app.actors:
+            if actor.producer is not None:
+                actor.producer.iteration = 0
+        return
+
     for rule in app.default_router.rules[0].target.rules:
         if rule.target == GenericHandler:
             endpoints = rule.target_kwargs['endpoints']
@@ -280,9 +287,6 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         for app in self.http_server._apps.apps:
-            if app is None:  # pragma: no cover
-                continue
-
             _reset_iterators(app)
         self.set_status(204)
 
@@ -653,7 +657,8 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
-            if app is None:  # pragma: no cover
+            if isinstance(app, KafkaService):
+                data['tags'] += app.tags
                 continue
 
             for rule in app.default_router.rules[0].target.rules:
@@ -670,7 +675,8 @@ class ManagementTagHandler(ManagementBaseHandler):
             data = self.request.body.decode()
         data = data.split(',')
         for app in self.http_server._apps.apps:
-            if app is None:  # pragma: no cover
+            if isinstance(app, KafkaService):
+                app.tags = data
                 continue
 
             for rule in app.default_router.rules[0].target.rules:
@@ -1116,13 +1122,19 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
             try:
                 index = int(value)
                 producer = self.http_server.definition.data['async_producers'][index]
-                t = threading.Thread(target=producer.produce, args=(), kwargs={
-                    'ignore_delay': True
-                })
-                t.daemon = True
-                t.start()
-                self.set_status(202)
-                self.write(producer.info())
+                try:
+                    producer.check_tags()
+                    t = threading.Thread(target=producer.produce, args=(), kwargs={
+                        'ignore_delay': True
+                    })
+                    t.daemon = True
+                    t.start()
+                    self.set_status(202)
+                    self.write(producer.info())
+                except AsyncProducerListHasNoPayloadsMatchingTags as e:
+                    self.set_status(410)
+                    self.write(str(e))
+                    return
             except IndexError:
                 self.set_status(400)
                 self.write('Invalid producer index!')
@@ -1137,11 +1149,17 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
                         if actor.producer is None:  # pragma: no cover
                             continue
                         producer = actor.producer
-                        t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
-                            'ignore_delay': True
-                        })
-                        t.daemon = True
-                        t.start()
+                        try:
+                            producer.check_tags()
+                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
+                                'ignore_delay': True
+                            })
+                            t.daemon = True
+                            t.start()
+                        except AsyncProducerListHasNoPayloadsMatchingTags as e:
+                            self.set_status(410)
+                            self.write(str(e))
+                            return
 
             if producer is None:
                 self.set_status(400)

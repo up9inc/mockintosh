@@ -27,6 +27,7 @@ from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
 from mockintosh.logs import Logs
+from mockintosh.exceptions import AsyncProducerListHasNoPayloadsMatchingTags
 
 
 def _kafka_delivery_report(err, msg):
@@ -64,11 +65,11 @@ def _headers_decode(headers: list):
     return new_headers
 
 
-def _merge_global_headers(_globals: dict, kafka_producer):
+def _merge_global_headers(_globals: dict, kafka_payload):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
-    produce_data_headers = kafka_producer.headers
+    produce_data_headers = kafka_payload.headers
     headers.update(produce_data_headers)
     return headers
 
@@ -354,23 +355,68 @@ class KafkaConsumerGroup:
                 t.start()
 
 
+class KafkaProducerPayload:
+
+    def __init__(
+        self,
+        value: str,
+        key: Union[str, None] = None,
+        headers: dict = {},
+        tag: Union[str, None] = None,
+        enable_topic_creation: bool = False
+    ):
+        self.value = value
+        self.key = key
+        self.headers = headers
+        self.tag = tag
+        self.enable_topic_creation = enable_topic_creation
+
+
+class KafkaProducerPayloadList:
+
+    def __init__(self):
+        self.list = []
+
+    def add_payload(self, payload: KafkaProducerPayload):
+        self.list.append(payload)
+
+
 class KafkaProducer(KafkaConsumerProducerBase):
 
     def __init__(
         self,
         topic: str,
-        value: str,
-        key: Union[str, None] = None,
-        headers: dict = {},
-        enable_topic_creation: bool = False
+        payload_list: KafkaProducerPayloadList
     ):
         super().__init__(topic)
-        self.value = value
-        self.key = key
-        self.headers = headers
-        self.enable_topic_creation = enable_topic_creation
+        self.payload_list = payload_list
+        self.iteration = 0
+
+    def check_tags(self):
+        if all(_payload.tag is not None and _payload.tag not in self.actor.service.tags for _payload in self.payload_list.list):
+            raise AsyncProducerListHasNoPayloadsMatchingTags(self.actor.get_hint(), self.actor.service.tags)
+
+    def increment_iteration(self) -> None:
+        self.iteration += 1
+        if self.iteration > len(self.payload_list.list) - 1:
+            self.iteration = 0
+
+    def get_current_payload(self) -> KafkaProducerPayload:
+        return self.payload_list.list[self.iteration]
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
+        payload = self.get_current_payload()
+        self.increment_iteration()
+        if payload.tag is not None and payload.tag not in self.actor.service.tags:
+            try:
+                self.check_tags()
+                while payload.tag is not None and payload.tag not in self.actor.service.tags:
+                    payload = self.get_current_payload()
+                    self.increment_iteration()
+            except AsyncProducerListHasNoPayloadsMatchingTags as e:
+                logging.error(str(e))
+                return
+
         kafka_handler = KafkaHandler(
             self.actor.id,
             self.internal_endpoint_id,
@@ -383,9 +429,9 @@ class KafkaProducer(KafkaConsumerProducerBase):
             self.topic,
             True,
             service_id=self.actor.service.id,
-            value=self.value,
-            key=self.key,
-            headers=self.headers,
+            value=payload.value,
+            key=payload.key,
+            headers=payload.headers,
             context=context,
             params=self.actor.params
         )
@@ -397,7 +443,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if definition is not None:
             kafka_handler.headers = _merge_global_headers(
                 definition.data['globals'] if 'globals' in definition.data else {},
-                self
+                payload
             )
 
         if consumed is not None:
@@ -411,7 +457,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         # Producing
         producer = Producer({'bootstrap.servers': self.actor.service.address})
 
-        if self.enable_topic_creation:
+        if payload.enable_topic_creation:
             topics = producer.list_topics(self.topic)
             if topics.topics[self.topic].error is not None:
                 _create_topic(self.actor.service.address, self.topic)
@@ -462,6 +508,9 @@ class KafkaActor:
         self.limit = None
         self.service = None
 
+    def get_hint(self) -> str:
+        return self.name if self.name is not None else '#%d' % self.id
+
     def set_consumer(self, consumer: KafkaConsumer):
         self.consumer = consumer
         self.consumer.actor = self
@@ -510,6 +559,7 @@ class KafkaService:
         self.definition = definition
         self.actors = []
         self.id = _id
+        self.tags = []
 
     def add_actor(self, actor: KafkaActor):
         actor.service = self
@@ -523,11 +573,6 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
         logging.debug('Running a Kafka loop for %d iterations...', actor.limit)
 
     while actor.limit is None or actor.limit > 0:
-
-        actor.producer.headers = _merge_global_headers(
-            definition.data['globals'] if 'globals' in definition.data else {},
-            actor.producer
-        )
 
         actor.producer.produce()
 
@@ -563,3 +608,22 @@ def run_loops(definition):
             t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
             t.daemon = True
             t.start()
+
+
+def build_single_payload_producer(
+    topic: str,
+    value: str,
+    key: Union[str, None] = None,
+    headers: dict = {},
+    tag: Union[str, None] = None,
+    enable_topic_creation: bool = False
+):
+    payload_list = KafkaProducerPayloadList()
+    payload = KafkaProducerPayload(
+        value,
+        key=key,
+        headers=headers,
+        tag=tag
+    )
+    payload_list.add_payload(payload)
+    return KafkaProducer(topic, payload_list)

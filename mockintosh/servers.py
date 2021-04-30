@@ -127,6 +127,7 @@ class HttpServer:
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
             if 'type' in service and service['type'] != 'http':
+                self._apps.apps[service['internalServiceId']] = service['internalRef']
                 continue
 
             if port_override is not None:

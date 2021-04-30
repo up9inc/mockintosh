@@ -11,7 +11,11 @@ import pytest
 from jsonschema.exceptions import ValidationError
 
 from mockintosh import Definition, get_schema
-from mockintosh.exceptions import UnrecognizedConfigFileFormat, CertificateLoadingError, CommaInTagIsForbidden
+from mockintosh.exceptions import (
+    UnrecognizedConfigFileFormat,
+    CertificateLoadingError,
+    CommaInTagIsForbidden
+)
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.helpers import _nostderr
 from mockintosh.templating import RenderingQueue
@@ -20,7 +24,7 @@ from utilities import get_config_path
 schema = get_schema()
 
 
-class TestExceptions():
+class TestExceptions:
 
     def test_file_not_found_error(self):
         config = 'configs/not_existing_file'
