@@ -474,8 +474,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         if len(source_text) > 1 and source_text[0] == '@':
             template_path, _ = self.resolve_relative_path(source_text)
-            if template_path is None:
-                return None
             with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 source_text = file.read()

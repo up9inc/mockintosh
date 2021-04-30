@@ -295,6 +295,7 @@ services:
     delay: 1
     dataset:
       - var: '4.1'
+    datasetLooped: false
     produce:
     - queue: topic20
       key: key20
