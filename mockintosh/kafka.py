@@ -637,13 +637,21 @@ class KafkaService:
 
 def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
     if actor.limit is None:
-        logging.debug('Running a Kafka loop indefinitely...')
+        logging.debug('Running a Kafka loop (%s) indefinitely...', actor.get_hint())
     else:
-        logging.debug('Running a Kafka loop for %d iterations...', actor.limit)
+        logging.debug('Running a Kafka loop (%s) for %d iterations...', actor.get_hint(), actor.limit)
 
     while actor.limit is None or actor.limit > 0:
 
-        actor.producer.produce()
+        try:
+            actor.producer.check_payload_lock()
+            actor.producer.check_dataset_lock()
+            actor.producer.produce()
+        except (
+            AsyncProducerPayloadLoopEnd,
+            AsyncProducerDatasetLoopEnd
+        ):
+            break
 
         if actor.delay is not None:
             _delay(actor.delay)
@@ -651,7 +659,7 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
         if actor.limit is not None and actor.limit > 0:
             actor.limit -= 1
 
-    logging.debug('Kafka loop is finished.')
+    logging.debug('Kafka loop (%s) is finished.', actor.get_hint())
 
 
 def run_loops(definition):

@@ -262,6 +262,34 @@ services:
         value: "dset: {{var}}"
         headers:
           hdr17: val17
+  - name: multiproducer-nonlooped-scheduled
+    multiPayloadsLooped: false
+    produce:
+      - queue: topic18
+        key: key18-1
+        value: value18-1
+        headers:
+          hdr18-1: val18-1
+      - queue: topic18
+        key: key18-2
+        value: value18-2
+        headers:
+          hdr18-2: val18-2
+    delay: 2
+    limit: 5
+  - name: dataset-nonlooped-scheduled
+    datasetLooped: false
+    dataset:
+      - var: '3.1'
+      - var: '3.2'
+    produce:
+      - queue: topic19
+        key: key19
+        value: "dset: {{var}}"
+        headers:
+          hdr19: val19
+    delay: 2
+    limit: 5
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
