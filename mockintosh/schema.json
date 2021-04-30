@@ -39,7 +39,18 @@
           "type": "string"
         },
         "produce": {
-          "$ref": "#/definitions/produce_ref"
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/produce_ref"
+              },
+              "minItems": 1
+            },
+            {
+              "$ref": "#/definitions/produce_ref"
+            }
+          ]
         },
         "consume": {
           "$ref": "#/definitions/consume_ref"
@@ -65,6 +76,9 @@
           "type": "boolean"
         },
         "queue": {
+          "type": "string"
+        },
+        "tag": {
           "type": "string"
         },
         "key": {

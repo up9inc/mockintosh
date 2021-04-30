@@ -18,6 +18,16 @@ from mockintosh import initiate
 __location__ = path.abspath(path.dirname(__file__))
 
 
+class DefinitionMockForKafka:
+    def __init__(self, source_dir, template_engine, rendering_queue):
+        self.source_dir = source_dir
+        self.template_engine = template_engine
+        self.rendering_queue = rendering_queue
+        self.data = {}
+        self.logs = None
+        self.stats = None
+
+
 def signal_handler(sig, frame):
     pass
 

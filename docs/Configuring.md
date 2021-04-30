@@ -178,7 +178,9 @@ response after all items in response list are exhausted.
 
 ### Tagged Responses
 
-As part of advanced usage of Mockintosh, you can specify "tag" on each of multi-response items. If tag is specified, the response is only considered if corresponding tag is set as "current" via [current tag](Management.md#setting-current-tag). Responses without `tag` attribute are always selected.
+As part of advanced usage of Mockintosh, you can specify `tag` field on each of multi-response items.
+If tag is specified, the response is only considered if corresponding tag is set as
+"current" via [current tag](Management.md#setting-current-tag). Responses without `tag` attribute are always selected.
 
 Here's the example:
 ```yaml

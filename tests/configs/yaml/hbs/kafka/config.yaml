@@ -148,6 +148,42 @@ services:
         captured-key: "{{regEx '.*'}}"
         captured-val: "{{regEx '.*'}}"
         captured-hdr: "{{regEx '.*'}}"
+  - name: multiproducer
+    produce:
+      - queue: topic12
+        key: key12-1
+        value: value12-1
+        headers:
+          hdr12-1: val12-1
+      - queue: topic12
+        tag: async-tag12-3
+        key: key12-3
+        value: value12-3
+        headers:
+          hdr12-3: val12-3
+      - queue: topic12
+        key: key12-2
+        value: value12-2
+        headers:
+          hdr12-2: val12-2
+      - queue: topic12
+        tag: async-tag12-4
+        key: key12-4
+        value: value12-4
+        headers:
+          hdr12-4: val12-4
+  - name: multiproducer-error
+    produce:
+      - queue: topic12
+        tag: async-tag12-3
+        key: key12-3
+        value: value12-3
+        headers:
+          hdr12-3: val12-3
+  - name: consumer-for-multiproducer
+    consume:
+      capture: 6
+      queue: topic12
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

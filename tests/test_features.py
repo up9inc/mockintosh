@@ -34,6 +34,7 @@ from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
 from utilities import (
+    DefinitionMockForKafka,
     tcping,
     run_mock_server,
     get_config_path,
@@ -76,16 +77,6 @@ KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 10)
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
-
-
-class DefinitionMockForKafka():
-    def __init__(self, source_dir, template_engine, rendering_queue):
-        self.source_dir = source_dir
-        self.template_engine = template_engine
-        self.rendering_queue = rendering_queue
-        self.data = {}
-        self.logs = None
-        self.stats = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -3582,8 +3573,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 11
-            assert len(consumers) == 10
+            assert len(producers) == 13
+            assert len(consumers) == 11
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -3652,7 +3643,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=key,
@@ -3662,7 +3653,7 @@ class TestAsync():
         kafka_producer.produce()
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=not_key,
@@ -3671,7 +3662,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             not_value,
             key=key,
@@ -3680,7 +3671,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value_json_decode_error,
             key=key,
@@ -3689,7 +3680,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=key,
@@ -3698,7 +3689,7 @@ class TestAsync():
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic2',
             value,
             key=key,
@@ -3758,7 +3749,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             'topic10',
             value,
             key=key,
@@ -3795,14 +3786,14 @@ class TestAsync():
         kafka_service.add_actor(kafka_actor)
 
         # topic10 START
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic10,
             value10_1
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic10,
             value10_2
         )
@@ -3821,14 +3812,14 @@ class TestAsync():
         # topic10 END
 
         # topic11 START
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic11,
             value11_1
         )
         kafka_actor.set_producer(kafka_producer)
         kafka_producer.produce()
 
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             topic11,
             value11_2
         )
@@ -4001,7 +3992,7 @@ class TestAsync():
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.KafkaProducer(
+        kafka_producer = kafka.build_single_payload_producer(
             producer_topic,
             producer_value,
             key=producer_key,
@@ -4062,11 +4053,9 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
-        assert 202 == resp.status_code
-
-        resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
-        assert 202 == resp.status_code
+        for _ in range(2):
+            resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
+            assert 202 == resp.status_code
 
         time.sleep(KAFKA_CONSUME_WAIT)
 
@@ -4090,6 +4079,101 @@ class TestAsync():
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
                 for row in kafka_consumer.log
             )
+
+    def test_async_producer_list_has_no_payloads_matching_tags(self):
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            'localhost:9092',
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor(0)
+        kafka_service.add_actor(kafka_actor)
+        kafka_producer = kafka.build_single_payload_producer(
+            'topic12',
+            'value12-3',
+            key='key12-3',
+            headers={'hdr12-3': 'val12-3'},
+            tag='async-tag12-3'
+        )
+        kafka_actor.set_producer(kafka_producer)
+        kafka_producer.produce()
+        job.kill()
+
+    def test_post_async_multiproducer(self):
+        for _ in range(3):
+            resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key12-1', 'value12-1', {'hdr12-1': 'val12-1'}),
+            ('key12-2', 'value12-2', {'hdr12-2': 'val12-2'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 3
+
+        resp = httpx.post(MGMT + '/tag', data="async-tag12-3", verify=False)
+        assert 204 == resp.status_code
+
+        for _ in range(2):
+            resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key12-3', 'value12-3', {'hdr12-3': 'val12-3'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 5
+
+        resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
+        assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key12-4', 'value12-4', {'hdr12-4': 'val12-4'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers, invert=True)
+
+        assert len(data['log']['entries']) == 6
+
+        resp = httpx.get(MGMT + '/tag', verify=False)
+        assert 200 == resp.status_code
+        data = resp.json()
+        assert data == {'tags': ['async-tag12-3']}
+
+        resp = httpx.post(MGMT + '/reset-iterators', verify=False)
+        assert 204 == resp.status_code
+
+    def test_post_async_multiproducer_no_payloads_matching_tags(self):
+        resp = httpx.post(MGMT + '/tag', data="", verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/multiproducer-error', verify=False)
+        assert 410 == resp.status_code
+
+        resp = httpx.post(MGMT + '/async/producers/11', verify=False)
+        assert 410 == resp.status_code
 
     def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
@@ -4212,7 +4296,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 20
+        assert len(data['services'][0]['endpoints']) == 23
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
