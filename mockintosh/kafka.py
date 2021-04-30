@@ -407,17 +407,17 @@ class KafkaProducer(KafkaConsumerProducerBase):
         return self.payload_list.list[self.payload_iteration]
 
     def check_dataset(self) -> bool:
-        if all('tag' in row and row['tag'] not in self.actor.service.tags for row in self.actor.dataset):
+        if all('tag' in row and row['tag'] not in self.actor.service.tags for row in self.actor._dataset):
             return False
         return True
 
     def increment_dataset_iteration(self) -> None:
         self.dataset_iteration += 1
-        if self.dataset_iteration > len(self.actor.dataset) - 1:
+        if self.dataset_iteration > len(self.actor._dataset) - 1:
             self.dataset_iteration = 0
 
     def get_current_dataset_row(self) -> dict:
-        return self.actor.dataset[self.dataset_iteration]
+        return self.actor._dataset[self.dataset_iteration]
 
     def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
         payload = self.get_current_payload()
@@ -470,7 +470,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
         row = None
         set_row = False
-        if self.actor.dataset:
+        if self.actor.dataset is not None:
+            self.actor._dataset = kafka_handler.load_dataset(self.actor.dataset)
             row = self.get_current_dataset_row()
             self.increment_dataset_iteration()
             if 'tag' in row and row['tag'] not in self.actor.service.tags:
@@ -542,7 +543,8 @@ class KafkaActor:
         self.delay = None
         self.limit = None
         self.service = None
-        self.dataset = []
+        self.dataset = None
+        self._dataset = None
 
     def get_hint(self) -> str:
         return self.name if self.name is not None else '#%d' % self.id
@@ -586,7 +588,7 @@ class KafkaActor:
     def set_limit(self, value: int):
         self.limit = value
 
-    def set_dataset(self, dataset: list):
+    def set_dataset(self, dataset: Union[list, str]):
         self.dataset = dataset
 
 

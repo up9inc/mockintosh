@@ -3573,8 +3573,8 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 15
-            assert len(consumers) == 13
+            assert len(producers) == 16
+            assert len(consumers) == 14
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -3857,7 +3857,7 @@ class TestAsync():
         job.kill()
 
     def test_get_async_bad_requests(self):
-        resp = httpx.get(MGMT + '/async/consumers/13', verify=False)
+        resp = httpx.get(MGMT + '/async/consumers/99', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid consumer index!'
@@ -4240,6 +4240,27 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 13
 
+    def test_post_async_dataset_fromfile(self):
+        for _ in range(3):
+            resp = httpx.post(MGMT + '/async/producers/dataset-fromfile', verify=False)
+            assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset-fromfile', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        for key, value, headers in [
+            ('key15', 'dset: val1', {'hdr15': 'val15'}),
+            ('key15', 'dset: val2', {'hdr15': 'val15'}),
+            ('key15', 'dset: val3', {'hdr15': 'val15'}),
+        ]:
+            self.assert_consumer_log(data, key, value, headers)
+
+        assert len(data['log']['entries']) == 3
+
     def test_post_async_dataset_no_matching_tags(self):
         resp = httpx.post(MGMT + '/tag', data="", verify=False)
         assert 204 == resp.status_code
@@ -4260,7 +4281,7 @@ class TestAsync():
             self.assert_consumer_log(data, key, value, headers)
 
     def test_delete_async_consumer_bad_requests(self):
-        resp = httpx.delete(MGMT + '/async/consumers/13', verify=False)
+        resp = httpx.delete(MGMT + '/async/consumers/99', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid consumer index!'
@@ -4380,7 +4401,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 27
+        assert len(data['services'][0]['endpoints']) == 29
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

@@ -189,6 +189,18 @@ class BaseHandler:
 
         return log_record
 
+    def load_dataset(self, dataset: [list, str]) -> dict:
+        """Method that loads a dataset."""
+        if isinstance(dataset, list):
+            return dataset
+        else:
+            dataset_path, _ = self.resolve_relative_path(dataset)
+            with open(dataset_path, 'r') as file:
+                logging.info('Reading dataset file from path: %s', dataset_path)
+                data = json.load(file)
+                logging.debug('Dataset: %s', data)
+                return data
+
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     """Class to handle all mocked requests."""
@@ -992,18 +1004,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         if self.is_options and self.methods is None:
             await self.raise_http_error(404)
         return self.is_options and self.methods is not None and self.request.method.lower() not in self.methods.keys()
-
-    def load_dataset(self, dataset: [list, str]) -> dict:
-        """Method that loads a dataset."""
-        if isinstance(dataset, list):
-            return dataset
-        else:
-            dataset_path = self.resolve_relative_path(dataset)
-            with open(dataset_path, 'r') as file:
-                logging.info('Reading dataset file from path: %s', dataset_path)
-                data = json.load(file)
-                logging.debug('Dataset: %s', data)
-                return data
 
     def loop_alternative(self, alternative: dict, key: str, subkey: str) -> dict:
         """Method that contains the logic to loop through the alternatives."""
