@@ -715,8 +715,6 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         cwd = self.http_server.definition.source_dir
         for service in self.http_server.definition.orig_data['services']:
             if 'type' in service and service['type'] == 'kafka':
-                if 'actors' not in service:
-                    continue
                 for actor in service['actors']:
                     if 'consume' in actor and 'schema' in actor['consume'] and (
                         isinstance(actor['consume']['schema'], str) and actor['consume']['schema'].startswith('@')

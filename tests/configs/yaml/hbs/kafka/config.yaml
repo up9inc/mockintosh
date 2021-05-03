@@ -301,6 +301,21 @@ services:
       value: "dset: {{var}}"
       headers:
         hdr20: val20
+  # couple of irrelevant message sources
+  - name: chain1-scheduled-noise1  # should be ignored by chain
+    produce:
+      queue: chain1-step1
+      value: "I'm a noise #1"
+    delay: 1
+    limit: 1000
+  - name: chain1-scheduled-noise2  # should be ignored by chain
+    produce:
+      queue: chain1-step2
+      value: "I'm a noise #2"
+      headers:
+        captured: "1234.567" # nasty one
+    delay: 1
+    limit: 1000
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
@@ -314,3 +329,6 @@ services:
       value: value1
       headers:
         hdr1: val1
+- type: kafka
+  address: localhost:9094
+  actors: []
