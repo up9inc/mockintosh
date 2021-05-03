@@ -89,6 +89,7 @@ class Definition():
         self.stats = stats
         self.logs = logs
         self.data = self.analyze(self.data)
+        self.stoppers = []
 
     def load(self):
         if self.source_text is None:
@@ -286,6 +287,14 @@ class Definition():
                     for thing in endpoint[key]:
                         if 'tag' in thing and ',' in thing['tag']:
                             raise CommaInTagIsForbidden(thing['tag'])
+
+    def add_stopper(self, stop: dict):
+        self.stoppers.append(stop)
+
+    def trigger_stoppers(self):
+        while len(self.stoppers) > 0:
+            stop = self.stoppers.pop()
+            stop['val'] = True
 
     @staticmethod
     def analyze_service(

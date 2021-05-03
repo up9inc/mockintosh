@@ -646,13 +646,15 @@ class KafkaService:
         self.actors.append(actor)
 
 
-def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
+def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor, stop: dict):
     if actor.limit is None:
         logging.debug('Running a Kafka loop (%s) indefinitely...', actor.get_hint())
     else:
         logging.debug('Running a Kafka loop (%s) for %d iterations...', actor.get_hint(), actor.limit)
 
     while actor.limit is None or actor.limit > 0:
+        if stop.get('val', False):  # pragma: no cover
+            break
 
         try:
             actor.producer.check_payload_lock()
@@ -673,14 +675,14 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor):
     logging.debug('Kafka loop (%s) is finished.', actor.get_hint())
 
 
-def run_loops(definition):
+def run_loops(definition, stop: dict):
     for service_id, service in enumerate(definition.data['kafka_services']):
 
         consumer_groups = {}
 
         for actor_id, actor in enumerate(service.actors):
             if actor.consumer is None and actor.producer is not None and actor.delay is not None:
-                t = threading.Thread(target=_run_produce_loop, args=(definition, service, actor), kwargs={})
+                t = threading.Thread(target=_run_produce_loop, args=(definition, service, actor, stop), kwargs={})
                 t.daemon = True
                 t.start()
 
@@ -693,7 +695,7 @@ def run_loops(definition):
                     consumer_groups[actor.consumer.topic].add_consumer(actor.consumer)
 
         for _, consumer_group in consumer_groups.items():
-            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
+            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={'stop': stop})
             t.daemon = True
             t.start()
 

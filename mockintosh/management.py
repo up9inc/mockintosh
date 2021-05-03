@@ -35,7 +35,7 @@ from mockintosh.exceptions import (
     AsyncProducerPayloadLoopEnd,
     AsyncProducerDatasetLoopEnd
 )
-from mockintosh.kafka import KafkaService
+from mockintosh.kafka import KafkaService, run_loops as kafka_run_loops
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -174,6 +174,11 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.http_server.definition.data = data
 
         self.update_globals()
+
+        self.http_server.definition.trigger_stoppers()
+        stop = {'val': False}
+        self.http_server.definition.add_stopper(stop)
+        kafka_run_loops(self.http_server.definition, stop)
 
         self.set_status(204)
 
