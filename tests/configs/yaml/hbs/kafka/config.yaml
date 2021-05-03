@@ -284,7 +284,6 @@ services:
       - var: '3.2'
     produce:
       - queue: topic19
-        key: key19
         value: "dset: {{var}}"
         headers:
           hdr19: val19
