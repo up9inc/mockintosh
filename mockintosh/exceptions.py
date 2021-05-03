@@ -56,3 +56,19 @@ class AsyncProducerListHasNoPayloadsMatchingTags(Exception):
 
     def __init__(self, actor_name, tags):
         super().__init__('Producer actor \'%s\' has no payloads matching one of the tags: [%s]' % (actor_name, ', '.join(tags)))
+
+
+class AsyncProducerPayloadLoopEnd(Exception):
+    """Raised in case of `multiPayloadsLooped` is `False` and the payload loop ends.
+    """
+
+    def __init__(self, actor_name):
+        super().__init__('Payload loop for producer actor \'%s\' is ended!' % actor_name)
+
+
+class AsyncProducerDatasetLoopEnd(Exception):
+    """Raised in case of `datasetLooped` is `False` and the dataset loop ends.
+    """
+
+    def __init__(self, actor_name):
+        super().__init__('Dataset loop for producer actor \'%s\' is ended!' % actor_name)

@@ -184,6 +184,124 @@ services:
     consume:
       capture: 6
       queue: topic12
+  - name: dataset
+    dataset:
+      - var: '3.1'
+      - tag: first
+        var: '1.1'
+      - tag: second
+        var: '2.1'
+      - tag: first
+        var: '1.2'
+      - var: '3.2'
+      - tag: second
+        var: '2.2'
+      - var: '3.3'
+    produce:
+      - queue: topic13
+        key: key13
+        value: "dset: {{var}}"
+        headers:
+          hdr13: val13
+  - name: consumer-for-dataset
+    consume:
+      capture: 13
+      queue: topic13
+  - name: dataset-no-matching-tags
+    dataset:
+      - tag: first
+        var: '1.1'
+      - tag: second
+        var: '2.1'
+      - tag: first
+        var: '1.2'
+      - tag: second
+        var: '2.2'
+    produce:
+      - queue: topic14
+        key: key14
+        value: "dset: {{var}}"
+        headers:
+          hdr14: val14
+  - name: consumer-for-dataset-no-matching-tags
+    consume:
+      queue: topic14
+  - name: dataset-fromfile
+    dataset: "@dataset.json"
+    produce:
+      - queue: topic15
+        key: key15
+        value: "dset: {{var1}}"
+        headers:
+          hdr15: val15
+  - name: consumer-for-dataset-fromfile
+    consume:
+      capture: 3
+      queue: topic15
+  - name: multiproducer-nonlooped
+    multiPayloadsLooped: false
+    produce:
+      - queue: topic16
+        key: key16-1
+        value: value16-1
+        headers:
+          hdr16-1: val16-1
+      - queue: topic16
+        key: key16-2
+        value: value16-2
+        headers:
+          hdr16-2: val16-2
+  - name: dataset-nonlooped
+    datasetLooped: false
+    dataset:
+      - var: '3.1'
+      - var: '3.2'
+    produce:
+      - queue: topic17
+        key: key17
+        value: "dset: {{var}}"
+        headers:
+          hdr17: val17
+  - name: multiproducer-nonlooped-scheduled
+    multiPayloadsLooped: false
+    produce:
+      - queue: topic18
+        key: key18-1
+        value: value18-1
+        headers:
+          hdr18-1: val18-1
+      - queue: topic18
+        key: key18-2
+        value: value18-2
+        headers:
+          hdr18-2: val18-2
+    delay: 2
+    limit: 5
+  - name: dataset-nonlooped-scheduled
+    datasetLooped: false
+    dataset:
+      - var: '3.1'
+      - var: '3.2'
+    produce:
+      - queue: topic19
+        key: key19
+        value: "dset: {{var}}"
+        headers:
+          hdr19: val19
+    delay: 2
+    limit: 5
+  - consume:
+      queue: topic19
+    delay: 1
+    dataset:
+      - var: '4.1'
+    datasetLooped: false
+    produce:
+    - queue: topic20
+      key: key20
+      value: "dset: {{var}}"
+      headers:
+        hdr20: val20
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

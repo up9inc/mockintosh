@@ -168,10 +168,10 @@ response:
   - just some text
 ```
 
-- For request #1: `index.html` file is returned with `Content-Type: text/html` header.
-- For request #2: `subdir/image.png` image is returned with `Content-Type: image/png` header.
-- For request #3: `just some text` is returned with `Content-Type: text/html` header.
-- For request #4: `index.html` again and so on...
+1. request: `index.html` file is returned with `Content-Type: text/html` header.
+2. request: `subdir/image.png` image is returned with `Content-Type: image/png` header.
+3. request: `just some text` is returned with `Content-Type: text/html` header.
+4. request: `index.html` again and so on...
 
 The looping can be disabled with setting `multiResponsesLooped` to `false`, in this case you will start getting HTTP 410
 response after all items in response list are exhausted.
@@ -199,7 +199,7 @@ services:
 
 ### Datasets
 
-One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response
+One can put a `dataset` field under `endpoint` to specify a list of key-value combinations to inject into response
 templating.
 
 This field can be a string that starts with `@` to indicate a path to an external JSON file like `@subdir/dataset.json`

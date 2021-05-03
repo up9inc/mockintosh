@@ -189,6 +189,18 @@ class BaseHandler:
 
         return log_record
 
+    def load_dataset(self, dataset: [list, str]) -> dict:
+        """Method that loads a dataset."""
+        if isinstance(dataset, list):
+            return dataset
+        else:
+            dataset_path, _ = self.resolve_relative_path(dataset)
+            with open(dataset_path, 'r') as file:
+                logging.info('Reading dataset file from path: %s', dataset_path)
+                data = json.load(file)
+                logging.debug('Dataset: %s', data)
+                return data
+
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     """Class to handle all mocked requests."""
@@ -461,9 +473,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             return source_text
 
         if len(source_text) > 1 and source_text[0] == '@':
-            template_path = self.resolve_relative_path(source_text)
-            if template_path is None:
-                return None
+            template_path, _ = self.resolve_relative_path(source_text)
             with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 source_text = file.read()
@@ -780,7 +790,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 if 'schema' in alternative['body']:
                     json_schema = alternative['body']['schema']
                     if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                        json_schema_path = self.resolve_relative_path(json_schema)
+                        json_schema_path, _ = self.resolve_relative_path(json_schema)
                         with open(json_schema_path, 'r') as file:
                             logging.info('Reading JSON schema file from path: %s', json_schema_path)
                             try:
@@ -948,7 +958,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.send_error(500, message=error_msg)
             return None
 
-        return relative_path
+        return relative_path, orig_relative_path
 
     def write_error(self, status_code: int, **kwargs) -> None:
         """Overriden method of tornado.web.RequestHandler"""
@@ -992,18 +1002,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         if self.is_options and self.methods is None:
             await self.raise_http_error(404)
         return self.is_options and self.methods is not None and self.request.method.lower() not in self.methods.keys()
-
-    def load_dataset(self, dataset: [list, str]) -> dict:
-        """Method that loads a dataset."""
-        if isinstance(dataset, list):
-            return dataset
-        else:
-            dataset_path = self.resolve_relative_path(dataset)
-            with open(dataset_path, 'r') as file:
-                logging.info('Reading dataset file from path: %s', dataset_path)
-                data = json.load(file)
-                logging.debug('Dataset: %s', data)
-                return data
 
     def loop_alternative(self, alternative: dict, key: str, subkey: str) -> dict:
         """Method that contains the logic to loop through the alternatives."""
