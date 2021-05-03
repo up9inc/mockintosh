@@ -1384,7 +1384,7 @@ class KafkaHandler(BaseHandler):
 
         for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
             _key = key
-            if _key in payload or component in ('asyncValue', 'asyncKey'):
+            if (payload is not None and _key in payload) or component in ('asyncValue', 'asyncKey'):
                 if value['type'] == 'regex':
                     match_string = None
                     if component == 'asyncHeaders':
@@ -1393,6 +1393,9 @@ class KafkaHandler(BaseHandler):
                         match_string = payload
                     elif component == 'asyncKey':
                         match_string = payload
+
+                    if match_string is None:
+                        continue
 
                     match = re.search(value['regex'], match_string)
                     if match is not None:

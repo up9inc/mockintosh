@@ -144,7 +144,10 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
 
-    def _match_str(self, x: str, y: str):
+    def _match_str(self, x: str, y: Union[str, None]):
+        if y is None:
+            y = ''
+
         x = '^%s$' % x
         match = re.search(x, y)
         if match is None:
@@ -152,7 +155,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         else:
             return True
 
-    def match_attr(self, x: Union[str, dict, None], y: Union[str, dict]) -> bool:
+    def match_attr(self, x: Union[str, dict, None], y: Union[str, dict, None]) -> bool:
         if x is None:
             return True
 
