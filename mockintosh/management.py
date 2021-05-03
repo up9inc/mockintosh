@@ -140,19 +140,26 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if not self.validate(data):
             return
 
-        data = self.http_server.definition.analyze(data)
         self.http_server.definition.stats.services = []
+        data = self.http_server.definition.analyze(data)
         for service in data['services']:
-            if 'type' in service and service['type'] != 'http':  # pragma: no cover
-                continue
-
-            hint = '%s:%s%s' % (
-                service['hostname'] if 'hostname' in service else (
-                    self.http_server.address if self.http_server.address else 'localhost'
-                ),
-                service['port'],
-                ' - %s' % service['name'] if 'name' in service else ''
-            )
+            hint = None
+            if 'type' in service and service['type'] != 'http':
+                service['address'], _ = mockintosh.Definition.async_address_template_renderer(
+                    self.http_server.definition.template_engine,
+                    self.http_server.definition.rendering_queue,
+                    service['address']
+                )
+                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
+            else:
+                hint = '%s://%s:%s%s' % (
+                    'https' if service.get('ssl', False) else 'http',
+                    service['hostname'] if 'hostname' in service else (
+                        self.http_server.address if self.http_server.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
+                )
             self.http_server.definition.stats.add_service(hint)
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
