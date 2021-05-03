@@ -161,6 +161,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
                     ' - %s' % service['name'] if 'name' in service else ''
                 )
             self.http_server.definition.stats.add_service(hint)
+
+        for kafka_service in data['kafka_services']:
+            self.http_server._apps.apps[kafka_service.id] = kafka_service
+
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
