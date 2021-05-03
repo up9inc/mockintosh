@@ -136,6 +136,11 @@ class Definition():
             self.logs.add_service(service.get('name', ''))
 
             hint = None
+            if 'type' not in service:
+                service['type'] = 'http'
+            else:
+                service['type'] = service['type'].lower()
+
             if 'type' in service and service['type'] != 'http':
                 service['address'], _ = Definition.async_address_template_renderer(
                     self.template_engine,
