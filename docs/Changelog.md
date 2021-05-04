@@ -1,6 +1,19 @@
 # Changelog
 
-## v0.9
+## v0.9 - 2021-05-04
+
+1. Mock Actors implementation for Kafka
+    - on schedule producer
+    - on demand producer
+    - reactive consumer+producer
+    - consumer fact validation
+2. Display timestamps in traffic log, instead of offset
+3. Introduce `env` function for templating
+4. Do not respond with Content-Type=text/html if no content-type header is configured
+5. Make `MOCKINTOSH_FORCE_PORT` to work always
+6. CLI argument to set the tag enabled, forbid comma in tag name
+7. Alternative base directory for resource files via `MOCKINTOSH_DATA_DIR`
+8. Fix missing `request.path.<n>` support in templating
 
 ## v0.8.2 - 2021-04-07
 
@@ -113,23 +126,6 @@
 9. Logging with `-q` and `-v` respected
 
 # Next Version
-
-1. Mock Actors implementation for Kafka
-    - on schedule producer
-    - on demand producer
-    - reactive consumer+producer
-    - consumer fact validation
-2. Display timestamps in traffic log, instead of offset
-3. Introduce `env` function for templating
-4. Do not respond with Content-Type=text/html if no content-type header is configured
-5. Make `MOCKINTOSH_FORCE_PORT` to work always
-6. CLI argument to set the tag enabled, forbid comma in tag name
-7. Alternative base directory for resource files via `MOCKINTOSH_DATA_DIR`
-8. Fix missing `request.path.<n>` support in templating
-
-TODO:
-- config reloading to work
-
 
 # Roadmap Ideas
 

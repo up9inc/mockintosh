@@ -18,7 +18,7 @@ management:
   # sslKeyFile: "subdir/key.pem",
 ```
 
-Uncommenting SSL settings will enable SSL on that port, just like with [service's SSL settings](#ssl-support).
+Uncommenting SSL settings will enable SSL on that port, just like with [service's SSL settings](Configuring.md#ssl-support).
 
 You can access global API of above settings via url like `http://localhost:8000`.
 
@@ -62,7 +62,7 @@ You can reset these stats by issuing `DELETE` call on same path.
 
 ## Resetting Iterators
 
-- You can reset positions of [dataset](#datasets) and [multi-response](#multiple-responses) endpoints, by
+- You can reset positions of [dataset](Configuring.md#datasets) and [multi-response](Configuring.md#multiple-responses) endpoints, by
   issuing `POST /reset-iterators` request.
 
 ## Unhandled Requests
