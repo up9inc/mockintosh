@@ -112,13 +112,13 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-# Next Version v0.9
+# Next Version
 
 1. Mock Actors implementation for Kafka
-   - on schedule producer
-   - on demand producer
-   - reactive consumer+producer
-   - consumer fact validation
+    - on schedule producer
+    - on demand producer
+    - reactive consumer+producer
+    - consumer fact validation
 2. Display timestamps in traffic log, instead of offset
 3. Introduce `env` function for templating
 4. Do not respond with Content-Type=text/html if no content-type header is configured
@@ -128,39 +128,37 @@
 8. Fix missing `request.path.<n>` support in templating
 
 TODO:
-    - config reloading to work
-
-3. In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
-
-
-# Kafka Polish Version
-
-- how to connect to SSL-protected kafka?
-- have a flag that triggers creating a topic by actor
-- avro/grpc/binary/str problem in Kafka
-- what to do with binary headers in Kafka? data-url prefix?
-- interceptors to access kafka comms
-- allow overriding on-demand producer fields via mgmt API
-- multi-response and dataset for Kafka producerse
-- trigger async produce via HTTP endpoint
+- config reloading to work
 
 
 # Roadmap Ideas
 
+## Async Mock Actors
+
+- avro/grpc/binary/str problem in Kafka
+- what to do with binary headers in Kafka? data-url prefix?
+- interceptors to access kafka comms
+- allow overriding on-demand producer fields via mgmt API
+- trigger async produce via HTTP endpoint
+
 - https://github.com/jasonrbriggs/stomp.py - promises rabbitmq+activemq
-- rabbitmq for async servers 
-- activemq for async servers  
-- mqtt for async servers  
+- rabbitmq for async servers
+- activemq for async servers
+- mqtt for async servers
 - SQS as one more async tech
 
+## Management API/UI
+
+- In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
 - config editor to provide hyperlinks from resource files into corresponding editing
-  
-- Tornado has auto-multicpu startup mode, use it optionally
-- test the performance of ourself and optimize it
-
 - allow enabling multiple tags + allow response to trigger tag up/down => state machine for complex scenarios
 - add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+
+## Other
+
+- Tornado has auto-multicpu startup mode, use it optionally
+- test the performance of ourself and optimize it
 
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
@@ -172,5 +170,4 @@ TODO:
 - Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 
 
-
-- mocks for gRPC servers
+- mocks for gRPC servers?
