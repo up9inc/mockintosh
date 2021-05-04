@@ -41,7 +41,8 @@ from utilities import (
     nostdout,
     nostderr,
     is_valid_uuid,
-    is_ascii
+    is_ascii,
+    start_simple_http_server_on_path
 )
 
 MonkeyPatch.patch_fromisoformat()
@@ -1704,6 +1705,17 @@ class TestBody():
 
 class TestManagement():
 
+    simple_http_server_process = None
+
+    @classmethod
+    def setup_class(cls):
+        TestManagement.simple_http_server_process = start_simple_http_server_on_path('configs/json/hbs/core', 8999)
+        time.sleep(1)
+
+    @classmethod
+    def teardown_class(cls):
+        TestManagement.simple_http_server_process.terminate()
+
     def setup_method(self):
         self.mock_server_process = None
 
@@ -3321,18 +3333,12 @@ class TestManagement():
         expected_data = {'services': []}
         assert expected_data == resp.json()
 
-        resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
+        resp = httpx.get(SRV_8001 + '/faker.json', headers={'Host': SRV_8001_HOST})
         assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-        assert resp.headers['Server'] == 'nginx'
-        assert resp.headers['X-Content-Type-Options'] == 'nosniff'
+        assert resp.headers['Content-Type'] == 'application/json'
+        assert 'SimpleHTTP' in resp.headers['Server'] and 'Python' in resp.headers['Server']
         data = resp.json()
-
-        assert data['code'] == 200
-        assert type(data['meta']['pagination']['total']) is int
-        assert data['meta']['pagination']['limit'] == 20
-        assert len(data['data']) <= 20
-        assert data['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
+        assert data['services'][0]['endpoints'][0]['path'] == '/faker'
 
         resp = httpx.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
@@ -3341,19 +3347,15 @@ class TestManagement():
 
         assert data['services'][0]['name'] == 'Mock for Service1'
         assert data['services'][0]['port'] == 8001
-        assert data['services'][0]['endpoints'][0]['path'] == '/users'
+        assert data['services'][0]['endpoints'][0]['path'] == '/faker.json'
         assert data['services'][0]['endpoints'][0]['method'] == 'GET'
         assert data['services'][0]['endpoints'][0]['response']['status'] == 200
-        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/json; charset=utf-8'
-        assert data['services'][0]['endpoints'][0]['response']['headers']['Server'] == 'nginx'
-        assert data['services'][0]['endpoints'][0]['response']['headers']['X-Content-Type-Options'] == 'nosniff'
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/json'
+        server_header = data['services'][0]['endpoints'][0]['response']['headers']['Server']
+        assert 'SimpleHTTP' in server_header and 'Python' in server_header
         body = json.loads(data['services'][0]['endpoints'][0]['response']['body'])
 
-        assert body['code'] == 200
-        assert type(body['meta']['pagination']['total']) is int
-        assert body['meta']['pagination']['limit'] == 20
-        assert len(body['data']) <= 20
-        assert body['data'][0].keys() >= {'id', 'name', 'email', 'gender', 'status', 'created_at', 'updated_at'}
+        assert body['services'][0]['endpoints'][0]['path'] == '/faker'
 
         resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8002_HOST})
         assert 200 == resp.status_code
@@ -3411,7 +3413,7 @@ class TestManagement():
     def test_fallback_to_binary_response(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        resp = httpx.get(SRV_8003 + '/250/250', headers={'Host': SRV_8003_HOST})
+        resp = httpx.get(SRV_8003 + '/imagex', headers={'Host': SRV_8003_HOST})
         assert 200 == resp.status_code
 
         resp = httpx.get(SRV_8000 + '/unhandled')
@@ -3419,7 +3421,7 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'image/jpeg'
+        assert data['services'][0]['endpoints'][0]['response']['headers']['Content-Type'] == 'application/octet-stream'
 
     @pytest.mark.parametrize(('config'), [
         'configs/internal_circular_fallback_to.json'

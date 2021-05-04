@@ -68,6 +68,7 @@ copy-certs:
 
 copy-images:
 	cp tests/configs/json/hbs/core/image.png tests/configs/yaml/hbs/kafka/
+	cp tests/configs/json/hbs/core/image.png tests/configs/json/hbs/core/imagex
 
 copy-data-dir-override:
 	cp tests/configs/yaml/hbs/body/body_schema.json tests/configs/yaml/hbs/data_dir_override/

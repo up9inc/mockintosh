@@ -7,7 +7,7 @@ services:
   hostname: service1.example.com
   port: 8001
   managementRoot: __admin
-  fallbackTo: https://gorest.co.in/public-api/
+  fallbackTo: http://localhost:8999/
   endpoints:
   - path: "/service1"
     method: GET

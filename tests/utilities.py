@@ -7,7 +7,9 @@ import time
 import signal
 import io
 import uuid
-from os import path
+import http.server
+import socketserver
+from os import path, chdir
 from unittest.mock import patch
 from multiprocessing import Process
 import contextlib
@@ -102,3 +104,19 @@ def is_valid_uuid(val, version=4):
 
 def is_ascii(s):
     return all(ord(c) < 128 for c in s)
+
+
+def _start_simple_http_server_on_path(_path: str, port: int):
+    web_dir = path.join(path.dirname(__file__), _path)
+    chdir(web_dir)
+
+    Handler = http.server.SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("", port), Handler)
+    httpd.serve_forever()
+
+
+def start_simple_http_server_on_path(_path: str, port: int):
+    simple_http_server_process = Process(target=_start_simple_http_server_on_path, args=(_path, port))
+    simple_http_server_process.start()
+
+    return simple_http_server_process
