@@ -165,7 +165,8 @@ class Definition():
                         service['address'],
                         name=service.get('name', None),
                         definition=self,
-                        _id=i
+                        _id=i,
+                        ssl=service.get('ssl', False)
                     )
                     data['kafka_services'].append(kafka_service)
 
