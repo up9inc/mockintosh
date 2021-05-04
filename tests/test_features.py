@@ -3573,7 +3573,7 @@ class TestAsync():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 21
+            assert len(producers) == 23
             assert len(consumers) == 15
 
             assert producers[0]['type'] == 'kafka'
@@ -4417,7 +4417,7 @@ class TestAsync():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 35
+        assert len(data['services'][0]['endpoints']) == 37
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
@@ -4493,3 +4493,83 @@ class TestAsync():
         assert data['services'][2]['avg_resp_time'] == 0
         assert data['services'][2]['status_code_distribution'] == {}
         assert len(data['services'][2]['endpoints']) == 1
+
+    @pytest.mark.run(after='test_stats')
+    def test_management_post_config(self):
+        resp = httpx.get(MGMT + '/config', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        del data['globals']['headers']['global-hdr1']
+        data['services'][0]['actors'][0]['produce']['value'] = 'value101'
+        data['globals']['headers']['global-hdrX'] = 'globalvalY'
+        data['services'][0]['actors'][2]['delay'] = 2
+        data['services'][0]['actors'][2]['produce']['key'] = 'key301'
+        data['services'][0]['actors'][2]['produce']['headers']['hdr3'] = 'val301'
+
+        resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
+        assert 204 == resp.status_code
+
+        key = 'key1'
+        value = 'value101'
+        headers = {
+            'hdr1': 'val1',
+            'global-hdrX': 'globalvalY',
+            'global-hdr2': 'globalval2'
+        }
+
+        stop = {'val': False}
+        queue, job = start_render_queue()
+        kafka_service = kafka.KafkaService(
+            KAFKA_ADDR,
+            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        )
+        kafka_actor = kafka.KafkaActor(0)
+        kafka_service.add_actor(kafka_actor)
+        kafka_consumer = kafka.KafkaConsumer('topic1', enable_topic_creation=True)
+        kafka_actor.set_consumer(kafka_consumer)
+        kafka_consumer_group = kafka.KafkaConsumerGroup()
+        kafka_consumer_group.add_consumer(kafka_consumer)
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
+            'stop': stop
+        })
+        t.daemon = True
+        t.start()
+
+        time.sleep(KAFKA_CONSUME_WAIT / 2)
+
+        resp = httpx.post(MGMT + '/async/producers/0', verify=False)
+        assert 202 == resp.status_code
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        stop['val'] = True
+        t.join()
+        job.kill()
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
+
+        key = 'key301'
+        value = 'value3'
+        headers = {
+            'hdr3': 'val301',
+            'global-hdrX': 'globalvalY',
+            'global-hdr2': 'globalval2'
+        }
+
+        time.sleep(KAFKA_CONSUME_WAIT)
+
+        resp = httpx.get(MGMT + '/async/consumers/1', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+
+        self.assert_consumer_log(data, key, value, headers)
+
+    @pytest.mark.run(after='test_management_post_config')
+    def test_management_get_resources(self):
+        resp = httpx.get(MGMT + '/resources', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}

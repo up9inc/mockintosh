@@ -35,7 +35,7 @@ from mockintosh.exceptions import (
     AsyncProducerPayloadLoopEnd,
     AsyncProducerDatasetLoopEnd
 )
-from mockintosh.kafka import KafkaService
+from mockintosh.kafka import KafkaService, run_loops as kafka_run_loops
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -140,20 +140,31 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if not self.validate(data):
             return
 
-        data = self.http_server.definition.analyze(data)
         self.http_server.definition.stats.services = []
+        data = self.http_server.definition.analyze(data)
         for service in data['services']:
-            if 'type' in service and service['type'] != 'http':  # pragma: no cover
-                continue
-
-            hint = '%s:%s%s' % (
-                service['hostname'] if 'hostname' in service else (
-                    self.http_server.address if self.http_server.address else 'localhost'
-                ),
-                service['port'],
-                ' - %s' % service['name'] if 'name' in service else ''
-            )
+            hint = None
+            if 'type' in service and service['type'] != 'http':
+                service['address'], _ = mockintosh.Definition.async_address_template_renderer(
+                    self.http_server.definition.template_engine,
+                    self.http_server.definition.rendering_queue,
+                    service['address']
+                )
+                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
+            else:
+                hint = '%s://%s:%s%s' % (
+                    'https' if service.get('ssl', False) else 'http',
+                    service['hostname'] if 'hostname' in service else (
+                        self.http_server.address if self.http_server.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
+                )
             self.http_server.definition.stats.add_service(hint)
+
+        for kafka_service in data['kafka_services']:
+            self.http_server._apps.apps[kafka_service.id] = kafka_service
+
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
@@ -167,6 +178,11 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.http_server.definition.data = data
 
         self.update_globals()
+
+        self.http_server.definition.trigger_stoppers()
+        stop = {'val': False}
+        self.http_server.definition.add_stopper(stop)
+        kafka_run_loops(self.http_server.definition, stop)
 
         self.set_status(204)
 
@@ -698,40 +714,57 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         files = []
         cwd = self.http_server.definition.source_dir
         for service in self.http_server.definition.orig_data['services']:
-            if 'type' in service and service['type'] != 'http':
-                continue
-
-            if 'oas' in service:
-                if service['oas'].startswith('@'):
-                    files.append(service['oas'][1:])
-            if 'endpoints' not in service:
-                continue
-            for endpoint in service['endpoints']:
-                if 'body' in endpoint and 'schema' in endpoint['body'] and (
-                    isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
-                ):
-                    files.append(endpoint['body']['schema'][1:])
-                if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
-                    endpoint['dataset'].startswith('@')
-                ):
-                    files.append(endpoint['dataset'][1:])
-                if 'response' not in endpoint:
+            if 'type' in service and service['type'] == 'kafka':
+                for actor in service['actors']:
+                    if 'consume' in actor and 'schema' in actor['consume'] and (
+                        isinstance(actor['consume']['schema'], str) and actor['consume']['schema'].startswith('@')
+                    ):
+                        files.append(actor['consume']['schema'][1:])
+                    if 'produce' in actor:
+                        if 'headers' in actor['produce']:
+                            for key, value in actor['produce']['headers'].items():
+                                if value.startswith('@'):
+                                    files.append(value[1:])
+                        if 'value' in actor['produce'] and (
+                            isinstance(actor['produce']['value'], str) and actor['produce']['value'].startswith('@')
+                        ):
+                            files.append(actor['produce']['value'][1:])
+                    if 'dataset' in actor and (
+                        isinstance(actor['dataset'], str) and actor['dataset'].startswith('@')
+                    ):
+                        files.append(actor['dataset'][1:])
+            else:
+                if 'oas' in service:
+                    if service['oas'].startswith('@'):
+                        files.append(service['oas'][1:])
+                if 'endpoints' not in service:
                     continue
-                response = endpoint['response']
-                if isinstance(response, str):
-                    if response.startswith('@'):
-                        files.append(response[1:])
-                elif isinstance(response, dict) and 'body' in response:
-                    if response['body'].startswith('@'):
-                        files.append(response['body'][1:])
-                elif isinstance(response, list):
-                    for el in response:
-                        if isinstance(el, str):
-                            if el.startswith('@'):
-                                files.append(el[1:])
-                        elif isinstance(el, dict) and 'body' in el:
-                            if el['body'].startswith('@'):
-                                files.append(el['body'][1:])
+                for endpoint in service['endpoints']:
+                    if 'body' in endpoint and 'schema' in endpoint['body'] and (
+                        isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
+                    ):
+                        files.append(endpoint['body']['schema'][1:])
+                    if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
+                        endpoint['dataset'].startswith('@')
+                    ):
+                        files.append(endpoint['dataset'][1:])
+                    if 'response' not in endpoint:
+                        continue
+                    response = endpoint['response']
+                    if isinstance(response, str):
+                        if response.startswith('@'):
+                            files.append(response[1:])
+                    elif isinstance(response, dict) and 'body' in response:
+                        if response['body'].startswith('@'):
+                            files.append(response['body'][1:])
+                    elif isinstance(response, list):
+                        for el in response:
+                            if isinstance(el, str):
+                                if el.startswith('@'):
+                                    files.append(el[1:])
+                            elif isinstance(el, dict) and 'body' in el:
+                                if el['body'].startswith('@'):
+                                    files.append(el['body'][1:])
         files = list(set(files))
         files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
         new_files = []

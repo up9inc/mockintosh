@@ -271,7 +271,9 @@ class HttpServer:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
-        kafka.run_loops(self.definition)
+        stop = {'val': False}
+        self.definition.add_stopper(stop)
+        kafka.run_loops(self.definition, stop)
         self.impl.serve()
 
     def make_app(self, service, endpoints, _globals, debug=False, management_root=None):
