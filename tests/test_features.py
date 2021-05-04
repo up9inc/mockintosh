@@ -3384,28 +3384,23 @@ class TestManagement():
     def test_fallback_to_body_param(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
-        expected_data = {"code": 401, "meta": None, "data": {"message": "Authentication failed"}}
-        resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': 'example'})
+        resp = httpx.post(SRV_8001 + '/faker.json', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': 'example'})
         assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-        assert resp.json() == expected_data
+        assert resp.headers['Content-Type'] == 'application/json'
 
-        resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': 'example'})
+        resp = httpx.post(SRV_8001 + '/faker.json', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': 'example'})
         assert 200 == resp.status_code
-        assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-        assert resp.json() == expected_data
+        assert resp.headers['Content-Type'] == 'application/json'
 
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             image_file = file.read()
-            resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': image_file})
+            resp = httpx.post(SRV_8001 + '/faker.json', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, files={'example': image_file})
             assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-            assert resp.json() == expected_data
+            assert resp.headers['Content-Type'] == 'application/json'
 
-            resp = httpx.post(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': image_file})
+            resp = httpx.post(SRV_8001 + '/faker.json', headers={'Host': SRV_8001_HOST, 'User-Agent': 'mockintosh-test'}, data={'example': image_file})
             assert 200 == resp.status_code
-            assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-            assert resp.json() == expected_data
+            assert resp.headers['Content-Type'] == 'application/json'
 
     @pytest.mark.parametrize(('config'), [
         'configs/fallback_to.json'

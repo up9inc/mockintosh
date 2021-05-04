@@ -30,6 +30,15 @@ class DefinitionMockForKafka:
         self.stats = None
 
 
+class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+
+    def do_GET(self):
+        http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+    def do_POST(self):
+        http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+
 def signal_handler(sig, frame):
     pass
 
@@ -110,8 +119,8 @@ def _start_simple_http_server_on_path(_path: str, port: int):
     web_dir = path.join(path.dirname(__file__), _path)
     chdir(web_dir)
 
-    Handler = http.server.SimpleHTTPRequestHandler
-    httpd = socketserver.TCPServer(("", port), Handler)
+    Handler = SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("", port), SimpleHTTPRequestHandler)
     httpd.serve_forever()
 
 
