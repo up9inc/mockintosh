@@ -136,7 +136,7 @@ is disabled by default. To enable it; send the request `POST /traffic-log -F 'en
 or global-level management endpoint.
 
 To access the logs one can send a `GET` request to `/traffic-log` management endpoint. This endpoint returns the logs
-in **HTTP Archive 1.2 (HAR)** format. The logs can be retrieved separately based on service-level or as a whole on
+in [HAR](http://www.softwareishard.com/blog/har-12-spec/) format. The logs can be retrieved separately based on service-level or as a whole on
 global-level based on the management endpoint that you're requesting to.
 
 To clean up the logs; simply send a `DELETE` request to `/traffic-log` management endpoint. Similar to `GET` request,
