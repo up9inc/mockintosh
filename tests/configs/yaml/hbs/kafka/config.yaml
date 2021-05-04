@@ -322,6 +322,7 @@ services:
   endpoints: []
 - type: kafka
   address: localhost:9093
+  ssl: true
   actors:
   - produce:
       queue: topic1
@@ -329,6 +330,10 @@ services:
       value: value1
       headers:
         hdr1: val1
+    delay: 5
+    limit: 20
+  - consume:
+      queue: topic42
 - type: kafka
   address: localhost:9094
   actors: []

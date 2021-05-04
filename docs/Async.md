@@ -15,8 +15,12 @@ services:
   - name: Kafka Mock Actors
     type: kafka
     address: localhost:9092  # broker string of pre-existing Kafka instance
+    ssl: true
     actors: [ ]  # here we will configure the actors, see below
 ```
+
+If you're connecting to a Kafka cluster through SSL you need to set `ssl` field to `true`. By default
+SSL is disabled.
 
 > Note: The `address` field of asynchronous services supports templating. Such that the address can be fetched
 > from an environment variable like: `address: "{% raw %}{{env 'KAFKA' 'localhost:9092'}}{% endraw %}"`

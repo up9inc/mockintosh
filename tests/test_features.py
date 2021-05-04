@@ -3574,7 +3574,7 @@ class TestAsync():
             producers = data['producers']
             consumers = data['consumers']
             assert len(producers) == 23
-            assert len(consumers) == 15
+            assert len(consumers) == 16
 
             assert producers[0]['type'] == 'kafka'
             assert producers[0]['name'] is None
@@ -4492,7 +4492,7 @@ class TestAsync():
         assert data['services'][2]['request_counter'] == 0
         assert data['services'][2]['avg_resp_time'] == 0
         assert data['services'][2]['status_code_distribution'] == {}
-        assert len(data['services'][2]['endpoints']) == 1
+        assert len(data['services'][2]['endpoints']) == 2
 
     @pytest.mark.run(after='test_stats')
     def test_management_post_config(self):

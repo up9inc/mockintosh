@@ -42,9 +42,11 @@ def _kafka_delivery_report(err, msg):
         logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 
-def _create_topic(address: str, topic: str):
-    # Topic creation
-    admin_client = AdminClient({'bootstrap.servers': address})
+def _create_topic(address: str, topic: str, ssl: bool = False):
+    config = {'bootstrap.servers': address}
+    if ssl:  # pragma: no cover
+        config['security.protocol'] = 'SSL'
+    admin_client = AdminClient(config)
     new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1)]
     futures = admin_client.create_topics(new_topics)
 
@@ -244,13 +246,20 @@ class KafkaConsumerGroup:
         first_actor = self.consumers[0].actor
 
         if any(consumer.enable_topic_creation for consumer in self.consumers):
-            _create_topic(first_actor.service.address, first_actor.consumer.topic)
+            _create_topic(
+                first_actor.service.address,
+                first_actor.consumer.topic,
+                ssl=first_actor.service.ssl
+            )
 
-        consumer = Consumer({
+        config = {
             'bootstrap.servers': first_actor.service.address,
             'group.id': '0',
             'auto.offset.reset': 'earliest'
-        })
+        }
+        if first_actor.service.ssl:
+            config['security.protocol'] = 'SSL'
+        consumer = Consumer(config)
         _wait_for_topic_to_exist(consumer, first_actor.consumer.topic)
         consumer.subscribe([first_actor.consumer.topic])
 
@@ -528,12 +537,19 @@ class KafkaProducer(KafkaConsumerProducerBase):
         key, value, headers = kafka_handler.render_attributes()
 
         # Producing
-        producer = Producer({'bootstrap.servers': self.actor.service.address})
+        config = {'bootstrap.servers': self.actor.service.address}
+        if self.actor.service.ssl:
+            config['security.protocol'] = 'SSL'
+        producer = Producer(config)
 
         if payload.enable_topic_creation:
             topics = producer.list_topics(self.topic)
             if topics.topics[self.topic].error is not None:
-                _create_topic(self.actor.service.address, self.topic)
+                _create_topic(
+                    self.actor.service.address,
+                    self.topic,
+                    ssl=self.actor.service.ssl
+                )
 
         producer.poll(0)
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
@@ -633,12 +649,13 @@ class KafkaActor:
 
 class KafkaService:
 
-    def __init__(self, address: str, name: str = None, definition=None, _id: int = None):
+    def __init__(self, address: str, name: str = None, definition=None, _id: int = None, ssl: bool = False):
         self.address = address
         self.name = name
         self.definition = definition
         self.actors = []
         self.id = _id
+        self.ssl = ssl
         self.tags = []
 
     def add_actor(self, actor: KafkaActor):
