@@ -3433,6 +3433,7 @@ class TestManagement():
         'configs/fallback_to.json'
     ])
     def test_fallback_to_unknown_name(self, config):
+        time.sleep(2)
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8004 + '/serviceX', headers={'Host': SRV_8004_HOST}, timeout=30)
