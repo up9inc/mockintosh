@@ -50,10 +50,7 @@ MonkeyPatch.patch_fromisoformat()
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
 configs = [
-    'configs/json/hbs/common/config.json',
-    'configs/json/j2/common/config.json',
-    'configs/yaml/hbs/common/config.yaml',
-    'configs/yaml/j2/common/config.yaml'
+    'configs/json/hbs/common/config.json'
 ]
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
@@ -247,8 +244,10 @@ class TestCommandLineArguments():
         resp = httpx.get(SRV_8001 + '/users', headers={'Host': SRV_8001_HOST})
         assert 417 == resp.status_code
 
-    def test_logfile(self):
-        config = 'configs/not_existing_file'
+    @pytest.mark.parametrize(('config'), [
+        'configs/not_existing_file'
+    ])
+    def test_logfile(self, config):
         logfile_name = 'error.log'
         if os.path.isfile(logfile_name):
             os.remove(logfile_name)
@@ -259,8 +258,10 @@ class TestCommandLineArguments():
             error_log = file.read()
             assert 'Mock server loading error' in error_log and 'No such file or directory' in error_log
 
-    def test_services_list(self):
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/multiple_services_on_same_port.json'
+    ])
+    def test_services_list(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), 'Mock for Service1')
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -274,9 +275,11 @@ class TestCommandLineArguments():
         resp = httpx.get(SRV_8001 + '/service3', headers={'Host': SRV_8003_HOST})
         assert 404 == resp.status_code
 
-    def test_port_override(self):
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/multiple_services_on_same_port.json'
+    ])
+    def test_port_override(self, config):
         os.environ['%s_FORCE_PORT' % PROGRAM.upper()] = '8002'
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8002 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -362,9 +365,7 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/no_templating_engine.json',
-        'configs/json/j2/core/no_templating_engine.json',
-        'configs/yaml/hbs/core/no_templating_engine.yaml',
-        'configs/yaml/j2/core/no_templating_engine.yaml'
+        'configs/json/j2/core/no_templating_engine.json'
     ])
     def test_no_templating_engine_should_default_to_handlebars(self, config):
         var = 'print_this'
@@ -380,9 +381,7 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/templating_engine_in_response.json',
-        'configs/json/j2/core/templating_engine_in_response.json',
-        'configs/yaml/hbs/core/templating_engine_in_response.yaml',
-        'configs/yaml/j2/core/templating_engine_in_response.yaml'
+        'configs/json/j2/core/templating_engine_in_response.json'
     ])
     def test_correct_templating_engine_in_response_should_render_correctly(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -395,9 +394,7 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/no_templating_engine_in_response.json',
-        'configs/json/j2/core/no_templating_engine_in_response.json',
-        'configs/yaml/hbs/core/no_templating_engine_in_response.yaml',
-        'configs/yaml/j2/core/no_templating_engine_in_response.yaml'
+        'configs/json/j2/core/no_templating_engine_in_response.json'
     ])
     def test_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -412,9 +409,7 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/no_use_templating_no_templating_engine_in_response.json',
-        'configs/json/j2/core/no_use_templating_no_templating_engine_in_response.json',
-        'configs/yaml/hbs/core/no_use_templating_no_templating_engine_in_response.yaml',
-        'configs/yaml/j2/core/no_use_templating_no_templating_engine_in_response.yaml'
+        'configs/json/j2/core/no_use_templating_no_templating_engine_in_response.json'
     ])
     def test_no_use_templating_no_templating_engine_in_response_should_default_to_handlebars(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -429,9 +424,7 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/use_templating_false_in_response.json',
-        'configs/json/j2/core/use_templating_false_in_response.json',
-        'configs/yaml/hbs/core/use_templating_false_in_response.yaml',
-        'configs/yaml/j2/core/use_templating_false_in_response.yaml'
+        'configs/json/j2/core/use_templating_false_in_response.json'
     ])
     def test_use_templating_false_should_not_render(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -440,8 +433,10 @@ class TestCore():
         assert 200 == resp.status_code
         assert 'Content-Type' not in resp.headers
 
-    def test_multiple_services_on_same_port(self):
-        config = 'configs/json/hbs/core/multiple_services_on_same_port.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/multiple_services_on_same_port.json'
+    ])
+    def test_multiple_services_on_same_port(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -454,8 +449,10 @@ class TestCore():
         assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
-    def test_two_services_one_with_hostname_one_without(self):
-        config = 'configs/json/hbs/core/two_services_one_with_hostname_one_without.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/two_services_one_with_hostname_one_without.json'
+    ])
+    def test_two_services_one_with_hostname_one_without(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/')
@@ -478,8 +475,10 @@ class TestCore():
         assert 'Content-Type' not in resp.headers
         assert resp.text == 'service2'
 
-    def test_endpoint_id_header(self):
-        config = 'configs/json/hbs/core/endpoint_id_header.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/endpoint_id_header.json'
+    ])
+    def test_endpoint_id_header(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -492,8 +491,10 @@ class TestCore():
         assert 'Content-Type' not in resp.headers
         assert resp.headers['X-%s-Endpoint-Id' % PROGRAM] == 'endpoint-id-2'
 
-    def test_http_verbs(self):
-        config = 'configs/json/hbs/core/http_verbs.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/http_verbs.json'
+    ])
+    def test_http_verbs(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/hello')
@@ -536,8 +537,10 @@ class TestCore():
         assert 'Content-Type' not in resp.headers
         assert resp.text == 'OPTIONS request'
 
-    def test_http_verb_not_allowed(self):
-        config = 'configs/json/hbs/core/http_verbs.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/http_verbs.json'
+    ])
+    def test_http_verb_not_allowed(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/method-not-allowed-unless-post')
@@ -566,23 +569,29 @@ class TestCore():
         resp = httpx.options(SRV_8001 + '/method-not-allowed-unless-get')
         assert 404 == resp.status_code
 
-    def test_no_response_body_204(self):
-        config = 'configs/json/hbs/core/no_response_body_204.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/no_response_body_204.json'
+    ])
+    def test_no_response_body_204(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/endpoint1')
         assert 204 == resp.status_code
 
-    def test_empty_response_body(self):
-        config = 'configs/json/hbs/core/empty_response_body.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/empty_response_body.json'
+    ])
+    def test_empty_response_body(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/endpoint1')
         assert 200 == resp.status_code
         assert resp.text == ''
 
-    def test_binary_response(self):
-        config = 'configs/json/hbs/core/binary_response.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/binary_response.json'
+    ])
+    def test_binary_response(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = httpx.get(SRV_8001 + '/hello')
@@ -598,8 +607,10 @@ class TestCore():
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
             assert resp.content == file.read()
 
-    def test_binary_request_body(self):
-        config = 'configs/yaml/hbs/core/binary_request_body.yaml'
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/core/binary_request_body.yaml'
+    ])
+    def test_binary_request_body(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
         with open(get_config_path('configs/json/hbs/core/image.png'), 'rb') as file:
@@ -614,8 +625,10 @@ class TestCore():
             assert 'Content-Type' not in resp.headers
             assert resp.text == _b64encode(image_file)
 
-    def test_ssl_true(self):
-        config = 'configs/json/hbs/core/ssl_true.json'
+    @pytest.mark.parametrize(('config'), [
+        'configs/json/hbs/core/ssl_true.json'
+    ])
+    def test_ssl_true(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config), wait=20)
 
         resp = httpx.get(SRV_8001_SSL + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
@@ -764,8 +777,7 @@ class TestCore():
         assert is_ascii(resp.text)
 
     @pytest.mark.parametrize(('config'), [
-        'configs/yaml/hbs/core/subexpression.yaml',
-        'configs/yaml/j2/core/subexpression.yaml'
+        'configs/yaml/hbs/core/subexpression.yaml'
     ])
     def test_subexpression(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -777,9 +789,7 @@ class TestCore():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/core/date.json',
-        'configs/json/j2/core/date.json',
-        'configs/yaml/hbs/core/date.yaml',
-        'configs/yaml/j2/core/date.yaml'
+        'configs/json/j2/core/date.json'
     ])
     def test_date(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -983,10 +993,7 @@ class TestCore():
 
 
 @pytest.mark.parametrize(('config'), [
-    'configs/json/hbs/status/status_code.json',
-    'configs/json/j2/status/status_code.json',
-    'configs/yaml/hbs/status/status_code.yaml',
-    'configs/yaml/j2/status/status_code.yaml',
+    'configs/json/hbs/status/status_code.json'
 ])
 class TestStatus():
 
@@ -1020,10 +1027,7 @@ class TestStatus():
 
 
 @pytest.mark.parametrize(('config'), [
-    'configs/json/hbs/headers/config.json',
-    'configs/json/j2/headers/config.json',
-    'configs/yaml/hbs/headers/config.yaml',
-    'configs/yaml/j2/headers/config.yaml'
+    'configs/json/hbs/headers/config.json'
 ])
 class TestHeaders():
 
@@ -1215,9 +1219,7 @@ class TestHeaders():
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/path/config.json',
-    'configs/json/j2/path/config.json',
-    'configs/yaml/hbs/path/config.yaml',
-    'configs/yaml/j2/path/config.yaml'
+    'configs/json/j2/path/config.json'
 ])
 class TestPath():
 
@@ -1475,10 +1477,7 @@ class TestPath():
 
 
 @pytest.mark.parametrize(('config'), [
-    'configs/json/hbs/query_string/config.json',
-    'configs/json/j2/query_string/config.json',
-    'configs/yaml/hbs/query_string/config.yaml',
-    'configs/yaml/j2/query_string/config.yaml'
+    'configs/json/hbs/query_string/config.json'
 ])
 class TestQueryString():
 
@@ -1610,9 +1609,7 @@ class TestQueryString():
 
 @pytest.mark.parametrize(('config'), [
     'configs/json/hbs/body/config.json',
-    'configs/json/j2/body/config.json',
-    'configs/yaml/hbs/body/config.yaml',
-    'configs/yaml/j2/body/config.yaml'
+    'configs/json/j2/body/config.json'
 ])
 class TestBody():
 
@@ -4560,7 +4557,7 @@ class TestAsync():
         assert data['services'][0]['endpoints'][6]['status_code_distribution'] == {'202': 1}
 
         assert data['services'][0]['endpoints'][7]['hint'] == 'PUT topic7 - 6 (actor: limitless)'
-        assert data['services'][0]['endpoints'][7]['request_counter'] > 1
+        assert data['services'][0]['endpoints'][7]['request_counter'] > 0
         assert data['services'][0]['endpoints'][7]['avg_resp_time'] == 0
         assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] > 1
         assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] == data['services'][0]['endpoints'][7]['request_counter']
