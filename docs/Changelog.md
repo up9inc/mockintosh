@@ -137,7 +137,7 @@
 - allow overriding on-demand producer fields via mgmt API
 - trigger async produce via HTTP endpoint
 
-- https://github.com/jasonrbriggs/stomp.py - promises rabbitmq+activemq
+- [https://github.com/jasonrbriggs/stomp.py](https://github.com/jasonrbriggs/stomp.py) - promises rabbitmq+activemq
 - rabbitmq for async servers
 - activemq for async servers
 - mqtt for async servers
