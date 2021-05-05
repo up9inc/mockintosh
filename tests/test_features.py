@@ -4534,7 +4534,7 @@ class TestAsync():
         assert data['services'][0]['endpoints'][7]['hint'] == 'PUT topic7 - 6 (actor: limitless)'
         assert data['services'][0]['endpoints'][7]['request_counter'] > 0
         assert data['services'][0]['endpoints'][7]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] > 1
+        assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] > 0
         assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] == data['services'][0]['endpoints'][7]['request_counter']
 
         assert data['services'][0]['endpoints'][8]['hint'] == 'PUT topic8 - 7 (actor: short-loop)'
