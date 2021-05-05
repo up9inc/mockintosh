@@ -10,7 +10,7 @@ install-dev:
 	pip3 install -e .[dev]
 
 test: test-style test-integration copy-assets up-kafka
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
+	TESTING_ENV=somevalue MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests -s -vv --log-level=DEBUG && \
 	docker stop $$(docker ps -a -q)
 
 test-integration: build
