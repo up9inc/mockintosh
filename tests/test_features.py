@@ -1722,9 +1722,7 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config', 'suffix'), [
         ('configs/json/hbs/management/config.json', '/'),
-        ('configs/yaml/hbs/management/config.yaml', '/'),
-        ('configs/json/hbs/management/config.json', ''),
-        ('configs/yaml/hbs/management/config.yaml', '')
+        ('configs/json/hbs/management/config.json', '')
     ])
     def test_get_root(self, config, suffix):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -1738,8 +1736,7 @@ class TestManagement():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        'configs/json/hbs/management/config.json'
     ])
     def test_get_config(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -1775,10 +1772,7 @@ class TestManagement():
         assert resp.text == open(get_config_path('configs/stats_config_service2.yaml'), 'r').read()
 
     @pytest.mark.parametrize(('config', '_format'), [
-        ('configs/json/hbs/management/config.json', 'json'),
-        ('configs/yaml/hbs/management/config.yaml', 'json'),
-        ('configs/json/hbs/management/config.json', 'yaml'),
-        ('configs/yaml/hbs/management/config.yaml', 'yaml')
+        ('configs/json/hbs/management/config.json', 'json')
     ])
     def test_post_config(self, config, _format):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -1912,10 +1906,7 @@ class TestManagement():
             assert resp.text == "'port' field is restricted!"
 
     @pytest.mark.parametrize(('config', '_format'), [
-        ('configs/json/hbs/management/config.json', 'json'),
-        ('configs/yaml/hbs/management/config.yaml', 'json'),
-        ('configs/json/hbs/management/config.json', 'yaml'),
-        ('configs/yaml/hbs/management/config.yaml', 'yaml')
+        ('configs/json/hbs/management/config.json', 'json')
     ])
     def test_post_config_only_service_level(self, config, _format):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -1935,8 +1926,7 @@ class TestManagement():
         assert resp.text == 'service1-new-service'
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        'configs/json/hbs/management/config.json'
     ])
     def test_get_stats(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2040,8 +2030,7 @@ class TestManagement():
             assert 204 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        'configs/json/hbs/management/config.json'
     ])
     def test_get_stats_service(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2465,8 +2454,7 @@ class TestManagement():
         assert 410 == resp.status_code
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        'configs/json/hbs/management/config.json'
     ])
     def test_get_unhandled(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2552,8 +2540,7 @@ class TestManagement():
         assert len(data['services']) == 1
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml'
+        'configs/json/hbs/management/config.json'
     ])
     def test_get_unhandled_changing_headers(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2603,9 +2590,7 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
         ('configs/json/hbs/management/config.json', MGMT, {}),
-        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
-        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
-        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
     ])
     def test_delete_unhandled(self, config, admin_url, admin_headers):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -2641,7 +2626,6 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config'), [
         'configs/json/hbs/management/config.json',
-        'configs/yaml/hbs/management/config.yaml',
         'configs/yaml/hbs/core/big_config.yaml'
     ])
     def test_get_oas(self, config):
@@ -2919,9 +2903,7 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
         ('configs/json/hbs/management/config.json', MGMT, {}),
-        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
-        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
-        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
     ])
     def test_traffic_log(self, config, admin_url, admin_headers):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -3103,9 +3085,7 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
         ('configs/json/hbs/management/config.json', MGMT, {}),
-        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
-        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
-        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
     ])
     def test_traffic_log_query_string(self, config, admin_url, admin_headers):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -3152,9 +3132,7 @@ class TestManagement():
 
     @pytest.mark.parametrize(('config', 'admin_url', 'admin_headers'), [
         ('configs/json/hbs/management/config.json', MGMT, {}),
-        ('configs/yaml/hbs/management/config.yaml', MGMT, {}),
-        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST}),
-        ('configs/yaml/hbs/management/config.yaml', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
+        ('configs/json/hbs/management/config.json', SRV_8001 + '/__admin', {'Host': SRV_8001_HOST})
     ])
     def test_traffic_log_post_data(self, config, admin_url, admin_headers):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -3259,8 +3237,7 @@ class TestManagement():
         assert data['log']['entries'][0]['response']['content']['encoding'] == BASE64
 
     @pytest.mark.parametrize(('config'), [
-        'configs/json/hbs/headers/config.json',
-        'configs/yaml/hbs/headers/config.yaml'
+        'configs/json/hbs/headers/config.json'
     ])
     def test_update_global_headers(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -3307,8 +3284,7 @@ class TestManagement():
         assert data['globals']['performanceProfile'] == 'profile2'
 
     @pytest.mark.parametrize(('config'), [
-        'configs/fallback_to.json',
-        'configs/fallback_to.yaml'
+        'configs/fallback_to.json'
     ])
     def test_fallback_to(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -3360,8 +3336,7 @@ class TestManagement():
         assert resp.text == 'service1'
 
     @pytest.mark.parametrize(('config'), [
-        'configs/fallback_to.json',
-        'configs/fallback_to.yaml'
+        'configs/fallback_to.json'
     ])
     def test_fallback_to_query_string(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
