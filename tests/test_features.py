@@ -4595,7 +4595,6 @@ class TestAsync():
 
         self.assert_consumer_log(data, key, value, headers)
 
-    @pytest.mark.run(after='test_stats')
     def test_management_post_config(self):
         resp = httpx.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
@@ -4644,7 +4643,6 @@ class TestAsync():
         t.join()
         job.kill()
 
-    @pytest.mark.run(after='test_management_post_config')
     def test_management_get_resources(self):
         resp = httpx.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
