@@ -85,7 +85,8 @@ setup(
             'codecov',
             'openapi-spec-validator',
             'backports-datetime-fromisoformat',
-            'pytest-travis-fold'
+            'pytest-travis-fold',
+            'radon'
         ]
     },
 
