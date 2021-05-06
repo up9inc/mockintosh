@@ -71,13 +71,13 @@ def start_render_queue() -> Tuple[RenderingQueue, RenderingJob]:
 
 
 def run(
-    source,
-    is_file=True,
-    debug=False,
-    interceptors=(),
-    address='',
-    services_list=[],
-    tags=[]
+    source: str,
+    is_file: bool = True,
+    debug: bool = False,
+    interceptors: tuple = (),
+    address: str = '',
+    services_list: list = [],
+    tags: list = []
 ):
     queue, _ = start_render_queue()
 
@@ -103,29 +103,63 @@ def run(
     http_server.run()
 
 
-def gracefully_exit(num, frame):
+def _gracefully_exit(num, frame):
     atexit._run_exitfuncs()
     if should_cov:  # pragma: no cover
         sys.exit()
 
 
-def cov_exit(cov):
+def _cov_exit(cov):
     if should_cov:
         logging.debug('Stopping coverage')
         cov.stop()
         cov.save()  # pragma: no cover
 
 
+def _handle_cli_args_logging(args: list, fmt: str) -> None:
+    if args['quiet']:
+        logging.basicConfig(level=logging.WARNING, format=fmt)
+    elif args['verbose']:
+        logging.basicConfig(level=logging.DEBUG, format=fmt)
+    else:
+        logging.basicConfig(level=logging.INFO, format=fmt)
+
+
+def _handle_cli_args_logfile(args: list, fmt: str) -> None:
+    if args['logfile']:
+        handler = logging.FileHandler(args['logfile'])
+        handler.setFormatter(logging.Formatter(fmt))
+        logging.getLogger('').addHandler(handler)
+
+
+def _handle_cli_args_tags(args: list) -> list:
+    tags = []
+    if args['enable_tags']:
+        tags = args['enable_tags'].split(',')
+    return tags
+
+
+def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
+    interceptors = import_interceptors(args['interceptor'])
+    address = args['bind'] if args['bind'] is not None else ''
+    tags = _handle_cli_args_tags(args)
+    fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
+    _handle_cli_args_logging(args, fmt)
+    _handle_cli_args_logfile(args, fmt)
+
+    return interceptors, address, tags
+
+
 def initiate():
     if should_cov:  # pragma: no cover
-        signal.signal(signal.SIGTERM, gracefully_exit)
+        signal.signal(signal.SIGTERM, _gracefully_exit)
         logging.debug('Starting coverage')
         from coverage import Coverage
         cov = Coverage(data_suffix=True, config_file='.coveragerc')
         cov._warn_no_data = True
         cov._warn_unimported_source = True
         cov.start()
-        atexit.register(cov_exit, cov)
+        atexit.register(_cov_exit, cov)
 
     """The top-level method to serve as the entry point of Mockintosh.
 
@@ -156,26 +190,7 @@ def initiate():
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     args = vars(ap.parse_args())
 
-    interceptors = import_interceptors(args['interceptor'])
-
-    address = args['bind'] if args['bind'] is not None else ''
-
-    fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
-    if args['quiet']:
-        logging.basicConfig(level=logging.WARNING, format=fmt)
-    elif args['verbose']:
-        logging.basicConfig(level=logging.DEBUG, format=fmt)
-    else:
-        logging.basicConfig(level=logging.INFO, format=fmt)
-
-    if args['logfile']:
-        handler = logging.FileHandler(args['logfile'])
-        handler.setFormatter(logging.Formatter(fmt))
-        logging.getLogger('').addHandler(handler)
-
-    tags = []
-    if args['enable_tags']:
-        tags = args['enable_tags'].split(',')
+    interceptors, address, tags = _handle_cli_args(args)
 
     logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
