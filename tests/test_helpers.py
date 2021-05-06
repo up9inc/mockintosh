@@ -8,7 +8,8 @@
 
 import pytest
 
-from mockintosh import Definition, start_render_queue
+from mockintosh import start_render_queue
+from mockintosh.definition import Definition
 from mockintosh.helpers import _urlsplit
 from mockintosh.j2.methods import env
 from mockintosh.constants import JINJA

@@ -10,7 +10,8 @@ import sys
 import pytest
 from jsonschema.exceptions import ValidationError
 
-from mockintosh import Definition, get_schema
+from mockintosh import get_schema
+from mockintosh.definition import Definition
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     CertificateLoadingError,

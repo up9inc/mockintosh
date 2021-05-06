@@ -145,7 +145,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         for service in data['services']:
             hint = None
             if 'type' in service and service['type'] != 'http':
-                service['address'], _ = mockintosh.Definition.async_address_template_renderer(
+                service['address'], _ = mockintosh.definition.Definition.async_address_template_renderer(
                     self.http_server.definition.template_engine,
                     self.http_server.definition.rendering_queue,
                     service['address']
@@ -984,7 +984,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         global_performance_profile = None
         if 'globals' in self.http_server.definition.orig_data:
             global_performance_profile = self.http_server.definition.orig_data['globals'].get('performanceProfile', None)
-        data = mockintosh.Definition.analyze_service(
+        data = mockintosh.definition.Definition.analyze_service(
             data,
             self.http_server.definition.template_engine,
             self.http_server.definition.rendering_queue,
