@@ -55,6 +55,22 @@ coverage-after:
 	coverage combine && \
 	coverage report -m
 
+radon: radon-mi radon-cc
+
+radon-full: radon radon-raw radon-hal
+
+radon-cc:
+	radon cc . --show-complexity --average
+
+radon-mi:
+	radon mi . --multi --show
+
+radon-raw:
+	radon raw . --summary
+
+radon-hal:
+	radon hal . --functions
+
 cert:
 	openssl req \
 		-new \
