@@ -79,7 +79,7 @@ services:
       headers:
         hdr8: val8
     delay: 2
-    limit: 2
+    limit: 10
   - name: actor9
     consume:
       queue: topic9
