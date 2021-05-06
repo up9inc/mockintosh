@@ -61,7 +61,7 @@ def tcping(host, port=65533, timeout=2):
     return result, round(ms, 2)
 
 
-def run_mock_server(*args, wait=5):
+def run_mock_server(*args, wait=10):
     """
     :rtype: Process
     """
