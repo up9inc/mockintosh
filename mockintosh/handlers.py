@@ -1115,11 +1115,11 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT, data=data, files=files)
             else:
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException:  # pragma: no cover
             self.set_status(504)
             self.write('Forwarded request to: %s %s is timed out!' % (self.request.method, url))
             raise NewHTTPError()
-        except httpx.ConnectError:
+        except httpx.ConnectError:  # pragma: no cover
             self.set_status(502)
             self.write('Name or service not known: %s' % self.fallback_to.rstrip('/'))
             raise NewHTTPError()
