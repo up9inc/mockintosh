@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains classes that mapped to the configuration file.
+    :synopsis: module that contains a class that encompasses the properties of the configuration file and maps it.
 """
 
 import copy
