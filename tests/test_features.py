@@ -3412,7 +3412,6 @@ class TestManagement():
         resp = httpx.get(SRV_8004 + '/serviceX', headers={'Host': SRV_8004_HOST}, timeout=30)
         assert resp.status_code in (502, 504)
         assert 'Content-Type' not in resp.headers
-        assert resp.text == 'Name or service not known: http://service4.example.com:8004'
 
 
 class TestPerformanceProfile():
