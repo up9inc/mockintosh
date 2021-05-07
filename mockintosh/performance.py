@@ -8,16 +8,24 @@
 
 import random
 import time
+from typing import (
+    Union
+)
 
 
 class PerformanceProfile():
 
-    def __init__(self, ratio, delay=0.0, faults={}):
+    def __init__(
+        self,
+        ratio: Union[float, int],
+        delay: Union[float, int] = 0.0,
+        faults: dict = {}
+    ):
         self.ratio = ratio
         self.delay = delay
         self.faults = faults
 
-    def trigger(self, status_code):
+    def trigger(self, status_code: int) -> Union[int, str]:
         if random.uniform(0, 1) <= self.ratio:
             time.sleep(self.delay)
             if self.faults:
