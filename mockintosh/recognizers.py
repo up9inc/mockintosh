@@ -6,8 +6,13 @@
     :synopsis: module that contains config recognizer classes.
 """
 
+from typing import (
+    Union,
+    Tuple
+)
+
 from mockintosh.constants import PYBARS, JINJA, SPECIAL_CONTEXT
-from mockintosh.templating import TemplateRenderer
+from mockintosh.templating import TemplateRenderer, RenderingQueue
 from mockintosh.params import (
     HeaderParam,
     QueryStringParam,
@@ -23,7 +28,15 @@ from mockintosh.helpers import _safe_path_split
 
 class RecognizerBase():
 
-    def __init__(self, payload, params, all_contexts, engine, rendering_queue, scope):
+    def __init__(
+        self,
+        payload: Union[dict, str],
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue,
+        scope: str
+    ):
         self.payload = payload
         self.params = params
         self.all_contexts = all_contexts
@@ -38,95 +51,131 @@ class RecognizerBase():
             if SPECIAL_CONTEXT in self.all_contexts and SPECIAL_CONTEXT in context:
                 self.all_contexts[SPECIAL_CONTEXT].update(context[SPECIAL_CONTEXT])
 
+    def recognize_body_text(self) -> str:
+        key = self.scope
+        var, compiled, context = self.render_part(key, self.payload)
+        if var is not None:
+            param = BodyTextParam(key, var)
+            self.params[var] = param
+        self.all_contexts.update(context)
+
+        return compiled
+
+    def recognize_async(self) -> Union[dict, str]:
+        if isinstance(self.payload, dict) and self.scope == 'asyncHeaders':
+            return self.recognize_async_headers()
+        else:
+            return self.recognize_async_value_or_key()
+
+    def recognize_async_headers(self) -> dict:
+        result = {}
+        for _key, value in self.payload.items():
+            var, compiled, context = self.render_part(_key, value)
+            if var is not None:
+                param = None
+                param = AsyncHeadersParam(self.scope, var)
+                self.params[var] = param
+            self.update_all_contexts(context)
+            result[_key] = compiled
+
+        return result
+
+    def recognize_async_value_or_key(self) -> str:
+        var, compiled, context = self.render_part(self.scope, self.payload)
+        if var is not None:
+            param = None
+            if self.scope == 'asyncValue':
+                param = AsyncValueParam(self.scope, var)
+            elif self.scope == 'asyncKey':
+                param = AsyncKeyParam(self.scope, var)
+            self.params[var] = param
+        self.update_all_contexts(context)
+
+        return compiled
+
+    def handle_param(
+        self,
+        key: str,
+        var: Union[dict, str],
+        _var: Union[dict, str, None],
+        priority: int
+    ) -> int:
+        if var is not None:
+            param = None
+            if self.scope == 'headers':
+                param = HeaderParam(key, var)
+            elif self.scope == 'queryString':
+                param = QueryStringParam(key, var)
+            elif self.scope == 'bodyUrlencoded':
+                param = BodyUrlencodedParam(key, var)
+            elif self.scope == 'bodyMultipart':
+                param = BodyMultipartParam(key, var)
+            self.params[var] = param
+            if self.scope == 'path':
+                priority = 2
+        else:
+            if self.scope == 'queryString':
+                param = QueryStringParam(_var, key)
+                self.params[key] = param
+        return priority
+
+    def handle_new_parts(
+        self,
+        key: str,
+        el: str,
+        new_part: Union[dict, str],
+        new_parts: Union[list, dict],
+        priority: int
+    ) -> int:
+        if self.scope == 'path':
+            if priority == 0 and new_part != el:
+                priority = 1
+            new_parts.append(new_part)
+        else:
+            new_parts[key] = new_part
+        return priority
+
+    def recognize_generic(self) -> Union[Tuple[str, int], dict]:
+        parts = None
+        new_parts = None
+        priority = 0
+
+        if self.scope == 'path':
+            parts = _safe_path_split(self.payload)
+            parts = dict(enumerate(parts))
+            new_parts = []
+        else:
+            parts = self.payload
+            new_parts = {}
+
+        for key, value in parts.items():
+            if not isinstance(value, list):
+                value = [value]
+            for el in value:
+                context = {}
+                _var = None
+                if self.scope != 'path':
+                    _var, key, context = self.render_part(key, key)
+                var, new_part, _context = self.render_part(key, el)
+                context.update(_context)
+                priority = self.handle_param(key, var, _var, priority)
+                priority = self.handle_new_parts(key, el, new_part, new_parts, priority)
+                self.all_contexts.update(context)
+
+        if self.scope == 'path':
+            return '/'.join(new_parts), priority
+        else:
+            return new_parts
+
     def recognize(self):
         if self.scope == 'bodyText':
-            key = self.scope
-            var, compiled, context = self.render_part(key, self.payload)
-            if var is not None:
-                param = BodyTextParam(key, var)
-                self.params[var] = param
-            self.all_contexts.update(context)
-
-            return compiled
+            return self.recognize_body_text()
         elif self.scope.startswith('async'):
-            key = self.scope
-            if isinstance(self.payload, dict) and self.scope == 'asyncHeaders':
-                result = {}
-                for _key, value in self.payload.items():
-                    var, compiled, context = self.render_part(_key, value)
-                    if var is not None:
-                        param = None
-                        param = AsyncHeadersParam(key, var)
-                        self.params[var] = param
-                    self.update_all_contexts(context)
-                    result[_key] = compiled
-
-                return result
-            else:
-                var, compiled, context = self.render_part(key, self.payload)
-                if var is not None:
-                    param = None
-                    if self.scope == 'asyncValue':
-                        param = AsyncValueParam(key, var)
-                    elif self.scope == 'asyncKey':
-                        param = AsyncKeyParam(key, var)
-                    self.params[var] = param
-                self.update_all_contexts(context)
-
-                return compiled
+            return self.recognize_async()
         else:
-            parts = None
-            new_parts = None
+            return self.recognize_generic()
 
-            if self.scope == 'path':
-                priority = 0
-                parts = _safe_path_split(self.payload)
-                parts = dict(enumerate(parts))
-                new_parts = []
-            else:
-                parts = self.payload
-                new_parts = {}
-
-            for key, value in parts.items():
-                if not isinstance(value, list):
-                    value = [value]
-                for el in value:
-                    context = {}
-                    if self.scope != 'path':
-                        _var, key, context = self.render_part(key, key)
-                    var, new_part, _context = self.render_part(key, el)
-                    context.update(_context)
-                    if var is not None:
-                        param = None
-                        if self.scope == 'headers':
-                            param = HeaderParam(key, var)
-                        elif self.scope == 'queryString':
-                            param = QueryStringParam(key, var)
-                        elif self.scope == 'bodyUrlencoded':
-                            param = BodyUrlencodedParam(key, var)
-                        elif self.scope == 'bodyMultipart':
-                            param = BodyMultipartParam(key, var)
-                        self.params[var] = param
-                        if self.scope == 'path':
-                            priority = 2
-                    else:
-                        if self.scope == 'queryString':
-                            param = QueryStringParam(_var, key)
-                            self.params[key] = param
-                    if self.scope == 'path':
-                        if priority == 0 and new_part != el:
-                            priority = 1
-                        new_parts.append(new_part)
-                    else:
-                        new_parts[key] = new_part
-                    self.all_contexts.update(context)
-
-            if self.scope == 'path':
-                return '/'.join(new_parts), priority
-            else:
-                return new_parts
-
-    def render_part(self, key: str, text: str):
+    def render_part(self, key: str, text: str) -> Tuple[Union[None, dict, str], str, dict]:
         if self.engine == PYBARS:
             from mockintosh.hbs.methods import reg_ex, env
         elif self.engine == JINJA:
@@ -162,53 +211,116 @@ class RecognizerBase():
 
 class PathRecognizer(RecognizerBase):
 
-    def __init__(self, path, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        path: str,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(path, params, all_contexts, engine, rendering_queue, 'path')
 
 
 class HeadersRecognizer(RecognizerBase):
 
-    def __init__(self, headers, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        headers: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(headers, params, all_contexts, engine, rendering_queue, 'headers')
 
 
 class QueryStringRecognizer(RecognizerBase):
 
-    def __init__(self, query_string, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        query_string: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(query_string, params, all_contexts, engine, rendering_queue, 'queryString')
 
 
 class BodyTextRecognizer(RecognizerBase):
 
-    def __init__(self, body_text, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        body_text: str,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(body_text, params, all_contexts, engine, rendering_queue, 'bodyText')
 
 
 class BodyUrlencodedRecognizer(RecognizerBase):
 
-    def __init__(self, urlencoded, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        urlencoded: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(urlencoded, params, all_contexts, engine, rendering_queue, 'bodyUrlencoded')
 
 
 class BodyMultipartRecognizer(RecognizerBase):
 
-    def __init__(self, multipart, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        multipart: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'bodyMultipart')
 
 
 class AsyncProducerValueRecognizer(RecognizerBase):
 
-    def __init__(self, value, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        value: str,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(value, params, all_contexts, engine, rendering_queue, 'asyncValue')
 
 
 class AsyncProducerKeyRecognizer(RecognizerBase):
 
-    def __init__(self, key, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        key: str,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(key, params, all_contexts, engine, rendering_queue, 'asyncKey')
 
 
 class AsyncProducerHeadersRecognizer(RecognizerBase):
 
-    def __init__(self, headers, params, all_contexts, engine, rendering_queue):
+    def __init__(
+        self,
+        headers: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
         super().__init__(headers, params, all_contexts, engine, rendering_queue, 'asyncHeaders')
