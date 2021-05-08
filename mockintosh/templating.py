@@ -92,7 +92,7 @@ class RenderingTask:
         return compiled, context
 
     def render_jinja(self):
-        env = Environment(undefined=StrictUndefined)
+        env = Environment(undefined=StrictUndefined, autoescape=False)
 
         self.add_globals(env)
         if JINJA_VARNAME_DICT not in env.globals:
