@@ -12,6 +12,8 @@ from typing import (
     Dict
 )
 
+from mockintosh.constants import PYBARS
+
 
 class ConfigExternalFilePath:
 
@@ -23,6 +25,12 @@ class ConfigDataset:
 
     def __init__(self, payload: Union[List[dict], str, ConfigExternalFilePath]):
         self.payload = payload
+
+
+class ConfigSchema:
+
+    def __init__(self, schema: Union[dict, ConfigExternalFilePath]):
+        self.schema = schema
 
 
 class ConfigHeaders:
@@ -38,7 +46,7 @@ class ConfigConsume:
         queue: str,
         group: Union[str, None] = None,
         key: Union[str, None] = None,
-        schema: Union[dict, ConfigExternalFilePath, None] = None,
+        schema: Union[ConfigSchema, None] = None,
         value: Union[str, None] = None,
         headers: Union[ConfigHeaders, None] = None,
         capture: Union[int, None] = None
@@ -94,7 +102,7 @@ class ConfigActor:
         self.dataset_looped = dataset_looped
 
 
-class ConfigAsync:
+class ConfigAsyncService:
 
     def __init__(
         self,
@@ -118,8 +126,8 @@ class ConfigResponse:
         headers: Union[ConfigHeaders, None] = None,
         status: Union[str, int, None] = None,
         body: Union[str, ConfigExternalFilePath, None] = None,
-        use_templating: Union[bool, None] = None,
-        templating_engine: Union[str, None] = None,
+        use_templating: bool = True,
+        templating_engine: str = PYBARS,
         tag: Union[str, None] = None,
     ):
         self.headers = headers
@@ -130,11 +138,17 @@ class ConfigResponse:
         self.tag = tag
 
 
+class ConfigMultiResponse:
+
+    def __init__(self, responses: List[Union[ConfigResponse, ConfigExternalFilePath, str]]):
+        self.responses = responses
+
+
 class ConfigBody:
 
     def __init__(
         self,
-        schema: Union[dict, ConfigExternalFilePath, None] = None,
+        schema: ConfigSchema = None,
         text: Union[str, None] = None,
         urlencoded: Dict[str, str] = None,
         multipart: Dict[str, str] = None,
@@ -157,7 +171,7 @@ class ConfigEndpoint:
         headers: Dict[str, str] = None,
         body: Union[ConfigBody, None] = None,
         dataset: Union[ConfigDataset, None] = None,
-        response: Union[ConfigResponse, ConfigExternalFilePath, str, List[Union[ConfigResponse, ConfigExternalFilePath, str]], None] = None,
+        response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None] = None,
         multi_responses_looped: bool = True,
         dataset_looped: bool = True,
         performance_profile: Union[str, None] = None
@@ -176,7 +190,7 @@ class ConfigEndpoint:
         self.performance_profile = performance_profile
 
 
-class ConfigService:
+class ConfigHttpService:
 
     def __init__(
         self,
@@ -248,9 +262,9 @@ class ConfigRoot:
 
     def __init__(
         self,
-        services: List[Union[ConfigService, ConfigAsync]],
+        services: List[Union[ConfigHttpService, ConfigAsyncService]],
         management: Union[ConfigManagement, None] = None,
-        templating_engine: Union[str, None] = None,
+        templating_engine: str = PYBARS,
         _globals: Union[ConfigGlobals, None] = None,
         performance_profiles: Union[Dict[str, ConfigPerformanceProfile], None] = None
     ):

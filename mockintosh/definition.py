@@ -13,6 +13,7 @@ from os import path, environ
 from urllib.parse import parse_qs
 from typing import (
     Union,
+    List,
     Tuple
 )
 
@@ -22,20 +23,22 @@ from jsonschema import validate
 from mockintosh.constants import PROGRAM, PYBARS, JINJA
 from mockintosh.config import (
     # ConfigActor,
-    # ConfigAsync,
-    # ConfigBody,
+    # ConfigAsyncService,
+    ConfigBody,
     # ConfigConsume,
-    # ConfigDataset,
-    # ConfigEndpoint,
+    ConfigDataset,
+    ConfigEndpoint,
     ConfigExternalFilePath,
     ConfigGlobals,
     ConfigHeaders,
+    ConfigHttpService,
     ConfigManagement,
+    ConfigMultiResponse,
     ConfigPerformanceProfile,
     # ConfigProduce,
-    # ConfigResponse,
+    ConfigResponse,
     ConfigRoot,
-    # ConfigService
+    ConfigSchema
 )
 from mockintosh.helpers import _detect_engine, _urlsplit
 from mockintosh.recognizers import (
@@ -116,11 +119,35 @@ class Definition():
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    def build_config_external_file_path(self, data: Union[str, list, dict]) -> Union[ConfigExternalFilePath, str, list, dict]:
+    def build_config_external_file_path(self, data: Union[str, list, dict, None]) -> Union[ConfigExternalFilePath, str, list, dict, None]:
         if isinstance(data, str) and len(data) > 1 and data[0] == '@':
             return ConfigExternalFilePath(data)
         else:
             return data
+
+    def build_config_dataset(self, data: Union[dict, str, None]) -> Union[ConfigDataset, None]:
+        if data is None:
+            return None
+
+        payload = None
+        if isinstance(data, dict):
+            payload = data
+        elif isinstance(data, str):
+            payload = self.build_config_external_file_path(data)
+
+        return ConfigDataset(payload)
+
+    def build_config_schema(self, data: Union[dict, str, None]) -> Union[ConfigSchema, None]:
+        if data is None:
+            return data
+
+        schema = None
+        if isinstance(data, dict):
+            schema = data
+        elif isinstance(data, str):
+            schema = self.build_config_external_file_path(data)
+
+        return ConfigSchema(schema)
 
     def build_config_headers(self, data: dict) -> Union[ConfigHeaders, None]:
         config_headers = None
@@ -131,6 +158,78 @@ class Definition():
                 payload[key] = self.build_config_external_file_path(value)
             config_headers = ConfigHeaders(payload)
         return config_headers
+
+    def build_config_response(self, data: dict) -> ConfigResponse:
+        return ConfigResponse(
+            headers=self.build_config_headers(data),
+            status=data.get('status', None),
+            body=self.build_config_external_file_path(data.get('body', None)),
+            use_templating=data.get('useTemplating', True),
+            templating_engine=data.get('templatingEngine', PYBARS),
+            tag=data.get('tag', None)
+        )
+
+    def build_config_multi_response(self, data: List[Union[dict, str]]) -> ConfigMultiResponse:
+        responses = []
+        for response in data:
+            if isinstance(response, dict):
+                responses.append(self.build_config_response(response))
+            elif isinstance(response, str):
+                responses.append(self.build_config_external_file_path(response))
+
+        return ConfigMultiResponse(responses)
+
+    def build_config_body(self, data: Union[dict, None]) -> Union[ConfigBody, None]:
+        if data is None:
+            return data
+
+        return ConfigBody(
+            schema=self.build_config_schema(data.get('schema', None)),
+            text=data.get('text', None),
+            urlencoded=data.get('urlencoded', None),
+            multipart=data.get('multipart', None),
+        )
+
+    def build_config_endpoint(self, endpoint: dict) -> ConfigEndpoint:
+        response = None
+        if 'response' in endpoint:
+            response = endpoint['response']
+            if isinstance(response, dict):
+                response = self.build_config_response(response)
+            elif isinstance(response, str):
+                response = self.build_config_external_file_path(response)
+            elif isinstance(response, list):
+                response = self.build_config_multi_response(response)
+
+        return ConfigEndpoint(
+            endpoint['path'],
+            _id=endpoint.get('id', None),
+            comment=endpoint.get('comment', None),
+            method=endpoint.get('method', None),
+            query_string=endpoint.get('query_string', None),
+            headers=endpoint.get('headers', None),
+            body=self.build_config_body(endpoint.get('body', None)),
+            dataset=self.build_config_dataset(endpoint.get('dataset', None)),
+            response=response,
+            multi_responses_looped=endpoint.get('multiResponsesLooped', True),
+            dataset_looped=endpoint.get('datasetLooped', True),
+            performance_profile=endpoint.get('performanceProfile', None)
+        )
+
+    def build_config_http_service(self, service: dict) -> ConfigHttpService:
+        return ConfigHttpService(
+            service['port'],
+            name=service.get('name', None),
+            hostname=service.get('hostname', None),
+            ssl=service.get('ssl', False),
+            ssl_cert_file=service.get('sslCertFile', None),
+            ssl_key_file=service.get('sslKeyFile', None),
+            management_root=service.get('managementRoot', None),
+            oas=self.build_config_external_file_path(service.get('oas', None)),
+            endpoints=[self.build_config_endpoint(endpoint) for endpoint in service.get('endpoints', [])],
+            performance_profile=service.get('performanceProfile', None),
+            fallback_to=service.get('fallbackTo', None)
+        )
 
     def build_config_management(self, data: dict) -> Union[ConfigManagement, None]:
         config_management = None
@@ -162,9 +261,9 @@ class Definition():
         )
 
     def build_config_root(self, data: dict) -> ConfigRoot:
-        config_services = []
+        config_services = [self.build_config_http_service(service) if service.get('type', 'http') == 'http' else None for service in data['services']]
         config_management = self.build_config_management(data)
-        config_templating_engine = data.get('templatingEngine', None)
+        config_templating_engine = data.get('templatingEngine', PYBARS)
         config_globals = self.build_config_globals(data)
 
         config_performance_profiles = None
