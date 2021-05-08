@@ -74,50 +74,7 @@ stats = Stats()
 logs = Logs()
 
 
-class Definition():
-
-    def __init__(self, source, schema, rendering_queue, is_file=True):
-        self.source = source
-        self.source_text = None if is_file else source
-        data_dir_override = environ.get('%s_DATA_DIR' % PROGRAM.upper(), None)
-        if data_dir_override is not None:
-            self.source_dir = path.abspath(data_dir_override)
-        else:
-            self.source_dir = path.dirname(path.abspath(source)) if source is not None and is_file else None
-        self.data = None
-        self.schema = schema
-        self.rendering_queue = rendering_queue
-        self.load()
-        self.orig_data = copy.deepcopy(self.data)
-        self.validate()
-        for service in self.data['services']:
-            service['orig_data'] = copy.deepcopy(service)
-        self.template_engine = _detect_engine(self.data, 'config')
-        self.stats = stats
-        self.logs = logs
-        self.data = self.analyze(self.data)
-        self.stoppers = []
-
-    def load(self):
-        if self.source_text is None:
-            with open(self.source, 'r') as file:
-                logging.info('Reading configuration file from path: %s', self.source)
-                self.source_text = file.read()
-                logging.debug('Configuration text: %s', self.source_text)
-
-        try:
-            self.data = yaml.safe_load(self.source_text)
-            logging.info('Configuration file is a valid YAML file.')
-        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
-            raise UnrecognizedConfigFileFormat(
-                'Configuration file is neither a JSON file nor a YAML file!',
-                self.source,
-                str(e)
-            )
-
-    def validate(self):
-        validate(instance=self.data, schema=self.schema)
-        logging.info('Configuration file is valid according to the JSON schema.')
+class ConfigRootBuilder:
 
     def build_config_external_file_path(self, data: Union[str, list, dict, None]) -> Union[ConfigExternalFilePath, str, list, dict, None]:
         if isinstance(data, str) and len(data) > 1 and data[0] == '@':
@@ -280,8 +237,58 @@ class Definition():
             performance_profiles=config_performance_profiles
         )
 
+    def build(self, data: dict) -> ConfigRoot:
+        return self.build_config_root(data)
+
+
+class Definition:
+
+    def __init__(self, source, schema, rendering_queue, is_file=True):
+        self.source = source
+        self.source_text = None if is_file else source
+        data_dir_override = environ.get('%s_DATA_DIR' % PROGRAM.upper(), None)
+        if data_dir_override is not None:
+            self.source_dir = path.abspath(data_dir_override)
+        else:
+            self.source_dir = path.dirname(path.abspath(source)) if source is not None and is_file else None
+        self.data = None
+        self.schema = schema
+        self.rendering_queue = rendering_queue
+        self.load()
+        self.orig_data = copy.deepcopy(self.data)
+        self.validate()
+        for service in self.data['services']:
+            service['orig_data'] = copy.deepcopy(service)
+        self.template_engine = _detect_engine(self.data, 'config')
+        self.stats = stats
+        self.logs = logs
+        self.data = self.analyze(self.data)
+        self.stoppers = []
+
+    def load(self):
+        if self.source_text is None:
+            with open(self.source, 'r') as file:
+                logging.info('Reading configuration file from path: %s', self.source)
+                self.source_text = file.read()
+                logging.debug('Configuration text: %s', self.source_text)
+
+        try:
+            self.data = yaml.safe_load(self.source_text)
+            logging.info('Configuration file is a valid YAML file.')
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
+            raise UnrecognizedConfigFileFormat(
+                'Configuration file is neither a JSON file nor a YAML file!',
+                self.source,
+                str(e)
+            )
+
+    def validate(self):
+        validate(instance=self.data, schema=self.schema)
+        logging.info('Configuration file is valid according to the JSON schema.')
+
     def analyze(self, data):
-        self.build_config_root(data)  # TODO: not fully implemented yet
+        config_root_builder = ConfigRootBuilder()
+        config_root_builder.build(data)  # TODO: not fully implemented yet
 
         if 'performanceProfiles' in data:
             for key, performance_profile in data['performanceProfiles'].items():
