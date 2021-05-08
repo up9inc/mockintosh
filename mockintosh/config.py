@@ -255,9 +255,9 @@ class ConfigPerformanceProfile:
 
     def __init__(
         self,
-        ratio: Union[int, float, None] = None,
-        delay: Union[int, float, None] = None,
-        faults: Union[dict, None] = None
+        ratio: Union[int, float],
+        delay: Union[int, float] = 0.0,
+        faults: dict = {}
     ):
         self.ratio = ratio
         self.delay = delay

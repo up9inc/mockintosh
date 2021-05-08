@@ -83,12 +83,12 @@ class ConfigRootBuilder:
         else:
             return data
 
-    def build_config_dataset(self, data: Union[dict, str, None]) -> Union[ConfigDataset, None]:
+    def build_config_dataset(self, data: Union[List[dict], str, None]) -> Union[ConfigDataset, None]:
         if data is None:
             return None
 
         payload = None
-        if isinstance(data, dict):
+        if isinstance(data, list):
             payload = data
         elif isinstance(data, str):
             payload = self.build_config_external_file_path(data)
@@ -277,9 +277,9 @@ class ConfigRootBuilder:
 
     def build_config_performance_profile(self, data: dict) -> ConfigPerformanceProfile:
         return ConfigPerformanceProfile(
-            data.get('ratio', None),
-            data.get('delay', None),
-            data.get('faults', None)
+            data['ratio'],
+            data.get('delay', 0.0),
+            data.get('faults', {})
         )
 
     def build_config_root(self, data: dict) -> ConfigRoot:
