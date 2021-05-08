@@ -157,7 +157,7 @@ class ConfigEndpoint:
         headers: Dict[str, str] = None,
         body: Union[ConfigBody, None] = None,
         dataset: Union[ConfigDataset, None] = None,
-        response: Union[Union[ConfigResponse, ConfigExternalFilePath, str], List[Union[ConfigResponse, ConfigExternalFilePath, str]], None] = None,
+        response: Union[ConfigResponse, ConfigExternalFilePath, str, List[Union[ConfigResponse, ConfigExternalFilePath, str]], None] = None,
         multi_responses_looped: bool = True,
         dataset_looped: bool = True,
         performance_profile: Union[str, None] = None
@@ -209,7 +209,7 @@ class ConfigGlobals:
 
     def __init__(
         self,
-        headers: ConfigHeaders,
+        headers: Union[ConfigHeaders, None],
         performance_profile: Union[str, None] = None
     ):
         self.headers = headers

@@ -12,6 +12,7 @@ from collections import OrderedDict
 from os import path, environ
 from urllib.parse import parse_qs
 from typing import (
+    Union,
     Tuple
 )
 
@@ -19,6 +20,23 @@ import yaml
 from jsonschema import validate
 
 from mockintosh.constants import PROGRAM, PYBARS, JINJA
+from mockintosh.config import (
+    # ConfigActor,
+    # ConfigAsync,
+    # ConfigBody,
+    # ConfigConsume,
+    # ConfigDataset,
+    # ConfigEndpoint,
+    ConfigExternalFilePath,
+    ConfigGlobals,
+    ConfigHeaders,
+    ConfigManagement,
+    ConfigPerformanceProfile,
+    # ConfigProduce,
+    # ConfigResponse,
+    ConfigRoot,
+    # ConfigService
+)
 from mockintosh.helpers import _detect_engine, _urlsplit
 from mockintosh.recognizers import (
     PathRecognizer,
@@ -98,7 +116,74 @@ class Definition():
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
+    def build_config_external_file_path(self, data: Union[str, list, dict]) -> Union[ConfigExternalFilePath, str, list, dict]:
+        if isinstance(data, str) and len(data) > 1 and data[0] == '@':
+            return ConfigExternalFilePath(data)
+        else:
+            return data
+
+    def build_config_headers(self, data: dict) -> Union[ConfigHeaders, None]:
+        config_headers = None
+        if 'headers' in data:
+            payload = {}
+            data_headers = data['headers']
+            for key, value in data_headers.items():
+                payload[key] = self.build_config_external_file_path(value)
+            config_headers = ConfigHeaders(payload)
+        return config_headers
+
+    def build_config_management(self, data: dict) -> Union[ConfigManagement, None]:
+        config_management = None
+        if 'management' in data:
+            data_management = data['management']
+            config_management = ConfigManagement(
+                data_management['port'],
+                ssl=data_management.get('ssl', False),
+                ssl_cert_file=data_management.get('sslCertFile', None),
+                ssl_key_file=data_management.get('sslKeyFile', None)
+            )
+        return config_management
+
+    def build_config_globals(self, data: dict) -> Union[ConfigGlobals, None]:
+        config_globals = None
+        if 'globals' in data:
+            data_globals = data['globals']
+            config_globals = ConfigGlobals(
+                headers=self.build_config_headers(data_globals),
+                performance_profile=data_globals.get('performance_profile', None)
+            )
+        return config_globals
+
+    def build_config_performance_profile(self, data: dict) -> ConfigPerformanceProfile:
+        return ConfigPerformanceProfile(
+            data.get('ratio', None),
+            data.get('delay', None),
+            data.get('faults', None)
+        )
+
+    def build_config_root(self, data: dict) -> ConfigRoot:
+        config_services = []
+        config_management = self.build_config_management(data)
+        config_templating_engine = data.get('templatingEngine', None)
+        config_globals = self.build_config_globals(data)
+
+        config_performance_profiles = None
+        if 'performanceProfiles' in data:
+            config_performance_profiles = {}
+            for key, value in data['performanceProfiles'].items():
+                config_performance_profiles['key'] = self.build_config_performance_profile(value)
+
+        return ConfigRoot(
+            config_services,
+            management=config_management,
+            templating_engine=config_templating_engine,
+            _globals=config_globals,
+            performance_profiles=config_performance_profiles
+        )
+
     def analyze(self, data):
+        self.build_config_root(data)  # TODO: not fully implemented yet
+
         if 'performanceProfiles' in data:
             for key, performance_profile in data['performanceProfiles'].items():
                 ratio = performance_profile.get('ratio')
