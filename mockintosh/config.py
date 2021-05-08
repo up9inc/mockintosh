@@ -49,7 +49,7 @@ class ConfigConsume:
         schema: Union[ConfigSchema, None] = None,
         value: Union[str, None] = None,
         headers: Union[ConfigHeaders, None] = None,
-        capture: Union[int, None] = None
+        capture: int = 1
     ):
         self.queue = queue
         self.group = group
@@ -79,13 +79,19 @@ class ConfigProduce:
         self.headers = headers
 
 
+class ConfigMultiProduce:
+
+    def __init__(self, produce_list: List[ConfigProduce]):
+        self.produce_list = produce_list
+
+
 class ConfigActor:
 
     def __init__(
         self,
         name: Union[str, None] = None,
         dataset: Union[ConfigDataset, None] = None,
-        produce: Union[List[ConfigProduce], ConfigProduce, None] = None,
+        produce: Union[ConfigMultiProduce, ConfigProduce, None] = None,
         consume: Union[ConfigConsume, None] = None,
         delay: Union[int, float, None] = None,
         limit: Union[int, None] = None,
@@ -108,7 +114,7 @@ class ConfigAsyncService:
         self,
         _type: str,
         address: str,
-        actors: List[ConfigActor],
+        actors: List[ConfigActor] = [],
         name: Union[str, None] = None,
         ssl: bool = False
     ):

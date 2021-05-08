@@ -22,10 +22,10 @@ from jsonschema import validate
 
 from mockintosh.constants import PROGRAM, PYBARS, JINJA
 from mockintosh.config import (
-    # ConfigActor,
-    # ConfigAsyncService,
+    ConfigActor,
+    ConfigAsyncService,
     ConfigBody,
-    # ConfigConsume,
+    ConfigConsume,
     ConfigDataset,
     ConfigEndpoint,
     ConfigExternalFilePath,
@@ -33,9 +33,10 @@ from mockintosh.config import (
     ConfigHeaders,
     ConfigHttpService,
     ConfigManagement,
+    ConfigMultiProduce,
     ConfigMultiResponse,
     ConfigPerformanceProfile,
-    # ConfigProduce,
+    ConfigProduce,
     ConfigResponse,
     ConfigRoot,
     ConfigSchema
@@ -115,6 +116,70 @@ class ConfigRootBuilder:
                 payload[key] = self.build_config_external_file_path(value)
             config_headers = ConfigHeaders(payload)
         return config_headers
+
+    def build_config_consume(self, consume: Union[dict, None]) -> Union[ConfigConsume, None]:
+        if consume is None:
+            return None
+
+        return ConfigConsume(
+            consume['queue'],
+            group=consume.get('group', None),
+            key=consume.get('key', None),
+            schema=self.build_config_schema(consume.get('schema', None)),
+            value=consume.get('value', None),
+            headers=self.build_config_headers(consume),
+            capture=consume.get('capture', 1)
+        )
+
+    def build_config_produce(self, produce: dict) -> ConfigProduce:
+        return ConfigProduce(
+            produce['queue'],
+            self.build_config_external_file_path(produce['value']),
+            produce.get('create', False),
+            tag=produce.get('tag', None),
+            key=produce.get('key', None),
+            headers=self.build_config_headers(produce)
+        )
+
+    def build_config_multi_produce(self, data: List[dict]) -> ConfigMultiResponse:
+        produce_list = []
+        for produce in data:
+            produce_list.append(self.build_config_produce(produce))
+
+        return ConfigMultiProduce(produce_list)
+
+    def build_config_actor(self, actor: dict) -> ConfigActor:
+        produce = None
+        if 'produce' in actor:
+            produce = actor['produce']
+            if isinstance(produce, list):
+                produce = self.build_config_multi_produce(produce)
+            elif isinstance(produce, dict):
+                produce = self.build_config_produce(produce)
+
+        return ConfigActor(
+            name=actor.get('name', None),
+            dataset=self.build_config_dataset(actor.get('dataset', None)),
+            produce=produce,
+            consume=self.build_config_consume(actor.get('consume', None)),
+            delay=actor.get('delay', None),
+            limit=actor.get('limit', None),
+            multi_payloads_looped=actor.get('multiPayloadsLooped', True),
+            dataset_looped=actor.get('datasetLooped', True)
+        )
+
+    def build_config_async_service(self, data: dict) -> ConfigAsyncService:
+        actors = []
+        if 'actors' in data:
+            actors = [self.build_config_actor(actor) for actor in data['actors']]
+
+        return ConfigAsyncService(
+            data['type'],
+            data['address'],
+            actors=actors,
+            name=data.get('name', None),
+            ssl=data.get('ssl', False)
+        )
 
     def build_config_response(self, data: dict) -> ConfigResponse:
         return ConfigResponse(
@@ -218,7 +283,13 @@ class ConfigRootBuilder:
         )
 
     def build_config_root(self, data: dict) -> ConfigRoot:
-        config_services = [self.build_config_http_service(service) if service.get('type', 'http') == 'http' else None for service in data['services']]
+        config_services = []
+        for service in data['services']:
+            _type = service.get('type', 'http')
+            if _type == 'http':
+                config_services.append(self.build_config_http_service(service))
+            else:
+                config_services.append(self.build_config_async_service(service))
         config_management = self.build_config_management(data)
         config_templating_engine = data.get('templatingEngine', PYBARS)
         config_globals = self.build_config_globals(data)
