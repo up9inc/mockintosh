@@ -376,7 +376,7 @@ class KafkaConsumerGroup:
                 except (
                     AsyncProducerPayloadLoopEnd,
                     AsyncProducerDatasetLoopEnd
-                ) as e:
+                ) as e:  # pragma: no cover
                     logging.error(str(e))
 
 

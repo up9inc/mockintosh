@@ -459,7 +459,7 @@ def run(
 ):
     queue, _ = start_render_queue()
 
-    if address:
+    if address:  # pragma: no cover
         logging.info('Bind address: %s', address)
     schema = get_schema()
 
