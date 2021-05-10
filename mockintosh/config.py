@@ -224,7 +224,7 @@ class ConfigBody:
         schema: ConfigSchema = None,
         text: Union[str, None] = None,
         urlencoded: Dict[str, str] = None,
-        multipart: Dict[str, str] = None,
+        multipart: Dict[str, str] = None
     ):
         self.schema = schema
         self.text = text

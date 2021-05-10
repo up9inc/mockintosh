@@ -249,6 +249,7 @@ class Definition:
                 multipart = body_multipart_recognizer.recognize()
 
                 http_body = HttpBody(
+                    endpoint.schema,
                     text,
                     urlencoded,
                     multipart
@@ -256,6 +257,7 @@ class Definition:
 
             http_service.add_endpoint(
                 HttpEndpoint(
+                    endpoint.id,
                     orig_path,
                     params,
                     context,
@@ -266,7 +268,9 @@ class Definition:
                     endpoint.method,
                     query_string,
                     headers,
-                    http_body
+                    http_body,
+                    endpoint.dataset,
+                    endpoint.response
                 )
             )
 

@@ -16,7 +16,8 @@ from base64 import b64encode
 from urllib.parse import _coerce_args, SplitResult, _splitnetloc, scheme_chars
 from typing import (
     Tuple,
-    Callable
+    Callable,
+    Union
 )
 
 from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
@@ -31,12 +32,16 @@ def _to_camel_case(snake_case: str) -> str:
     return components[0] + ''.join(x.title() for x in components[1:])
 
 
-def _detect_engine(data: dict, context: str = 'config', default: str = PYBARS) -> str:
+def _detect_engine(obj: Union[object, dict], context: str = 'config', default: str = PYBARS) -> str:
     template_engine = default
-    if 'templatingEngine' in data and (
-        data['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
-    ):
-        template_engine = JINJA
+    if isinstance(obj, dict):
+        if 'templatingEngine' in obj and (
+            obj['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
+        ):
+            template_engine = JINJA
+    else:
+        if obj.templating_engine.lower() in (JINJA.lower(), SHORT_JINJA):
+            template_engine = JINJA
     logging.debug('Templating engine (%s) is: %s', context, template_engine)
     return template_engine
 

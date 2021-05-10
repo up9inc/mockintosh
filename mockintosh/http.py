@@ -7,11 +7,18 @@
 """
 
 from os import environ
-
 from collections import OrderedDict
 from typing import (
     Dict,
     Union
+)
+
+from mockintosh.config import (
+    ConfigSchema,
+    ConfigExternalFilePath,
+    ConfigResponse,
+    ConfigMultiResponse,
+    ConfigDataset
 )
 
 
@@ -19,10 +26,12 @@ class HttpBody:
 
     def __init__(
         self,
-        text,
-        urlencoded,
-        multipart
+        schema: ConfigSchema,
+        text: Union[str, None],
+        urlencoded: Dict[str, str],
+        multipart: Dict[str, str]
     ):
+        self.schema = schema
         self.text = text
         self.urlencoded = urlencoded
         self.multipart = multipart
@@ -32,6 +41,7 @@ class HttpEndpoint:
 
     def __init__(
         self,
+        _id: Union[str, None],
         orig_path: str,
         params: dict,
         context: OrderedDict,
@@ -42,8 +52,11 @@ class HttpEndpoint:
         method: Union[str, None],
         query_string: Dict[str, str],
         headers: Dict[str, str],
-        body: Union[HttpBody, None]
+        body: Union[HttpBody, None],
+        dataset: Union[ConfigDataset, None],
+        response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None],
     ):
+        self.id = _id
         self.orig_path = orig_path
         self.params = params
         self.context = context
@@ -55,6 +68,8 @@ class HttpEndpoint:
         self.query_string = query_string
         self.headers = headers
         self.body = body
+        self.dataset = dataset
+        self.response = response
 
 
 class HttpService:
@@ -97,7 +112,7 @@ class HttpService:
         return self.name if self.name is not None else ''
 
 
-class HttpAlternative:
+class HttpPath:
 
     def __init__(self):
         self.path = None
@@ -106,3 +121,36 @@ class HttpAlternative:
 
     def __repr__(self):
         return 'priority: %s, methods: %s' % (self.priority, self.methods)
+
+
+class HttpAlternative:
+
+    def __init__(
+        self,
+        _id: Union[str, None],
+        orig_path: str,
+        params: dict,
+        context: OrderedDict,
+        performance_profile: str,
+        comment: Union[str, None],
+        query_string: Dict[str, str],
+        headers: Dict[str, str],
+        body: Union[HttpBody, None],
+        dataset: Union[ConfigDataset, None],
+        response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None],
+        internal_endpoint_id: int
+    ):
+        self.id = _id
+        self.orig_path = orig_path
+        self.params = params
+        self.context = context
+        self.performance_profile = performance_profile
+        self.comment = comment
+        self.query_string = query_string
+        self.headers = headers
+        self.body = body
+        self.dataset = dataset
+        self.response = response
+        self.internal_endpoint_id = internal_endpoint_id
+        self.id = None
+        self.counters = {}

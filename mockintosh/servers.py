@@ -27,6 +27,7 @@ from mockintosh.definition import Definition
 from mockintosh.handlers import GenericHandler
 from mockintosh.http import (
     HttpService,
+    HttpPath,
     HttpAlternative
 )
 from mockintosh.management import (
@@ -175,22 +176,22 @@ class HttpServer:
                 return False  # https://github.com/nedbat/coveragepy/issues/198
         return True
 
-    def prepare_app(self, service: HttpService) -> Tuple[List[HttpAlternative], str]:
-        alternatives = []
+    def prepare_app(self, service: HttpService) -> Tuple[List[HttpPath], str]:
+        http_path_list = []
         if service.endpoints:
-            alternatives = HttpServer.merge_alternatives(service, self.definition.stats)
+            http_path_list = HttpServer.merge_alternatives(service, self.definition.stats)
 
         management_root = service.management_root
 
-        return alternatives, management_root
+        return http_path_list, management_root
 
     def load_service(self, service: HttpService, rules: list, ssl: bool, ssl_options: dict) -> bool:
         if not self.load_guard(service):
             return False
 
         protocol = 'https' if ssl else 'http'
-        alternatives, management_root = self.prepare_app(service)
-        app = self.make_app(service, alternatives, self.globals, debug=self.debug, management_root=management_root)
+        http_path_list, management_root = self.prepare_app(service)
+        app = self.make_app(service, http_path_list, self.globals, debug=self.debug, management_root=management_root)
         self._apps.apps[service.internal_service_id] = app
         self._apps.listeners[service.internal_service_id] = _Listener(
             service.hostname,
@@ -257,10 +258,10 @@ class HttpServer:
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(service: HttpService, stats: Stats) -> List[HttpAlternative]:
+    def merge_alternatives(service: HttpService, stats: Stats) -> List[HttpPath]:
         new_endpoints = {}
         i = 0
-        for endpoint in service.endpoints:
+        for i, endpoint in enumerate(service.endpoints):
             hint = '%s %s%s' % (
                 endpoint.method,
                 endpoint.orig_path,
@@ -268,27 +269,29 @@ class HttpServer:
             )
             stats.services[service.internal_service_id].add_endpoint(hint)
             identifier = endpoint.path
-            extracted_parts = {}
-            for key in endpoint.__dict__.keys():
-                if key in ('method', 'path', 'priority'):
-                    continue
-                extracted_parts[key] = getattr(endpoint, key)
-
-            extracted_parts['internalEndpointId'] = i
-            i += 1
-            if 'id' not in extracted_parts:
-                extracted_parts['id'] = None
-            if 'counters' not in extracted_parts:
-                extracted_parts['counters'] = {}
+            alternative = HttpAlternative(
+                endpoint.id,
+                endpoint.orig_path,
+                endpoint.params,
+                endpoint.context,
+                endpoint.performance_profile,
+                endpoint.comment,
+                endpoint.query_string,
+                endpoint.headers,
+                endpoint.body,
+                endpoint.dataset,
+                endpoint.response,
+                i
+            )
 
             if identifier not in new_endpoints:
-                new_endpoints[identifier] = HttpAlternative()
+                new_endpoints[identifier] = HttpPath()
                 new_endpoints[identifier].path = endpoint.path
                 new_endpoints[identifier].priority = endpoint.priority
             if endpoint.method not in new_endpoints[identifier].methods:
-                new_endpoints[identifier].methods[endpoint.method] = [extracted_parts]
+                new_endpoints[identifier].methods[endpoint.method] = [alternative]
             else:
-                new_endpoints[identifier].methods[endpoint.method].append(extracted_parts)
+                new_endpoints[identifier].methods[endpoint.method].append(alternative)
 
         return list(new_endpoints.values())
 
@@ -311,18 +314,18 @@ class HttpServer:
     def make_app(
         self,
         service: dict,
-        alternatives: list,
+        http_path_list: List[HttpPath],
         _globals: dict,
         debug: bool = False,
         management_root: str = None
     ) -> tornado.web.Application:
         endpoint_handlers = []
-        alternatives = sorted(alternatives, key=lambda x: x.priority, reverse=False)
+        http_path_list = sorted(http_path_list, key=lambda x: x.priority, reverse=False)
 
-        merged_alternatives = []
+        path_methods = []
 
-        for alternative in alternatives:
-            merged_alternatives.append((alternative.path, alternative.methods))
+        for http_path in http_path_list:
+            path_methods.append((http_path.path, http_path.methods))
 
         unhandled_enabled = True if (management_root is not None or self.definition.config_root.management is not None) else False
 
@@ -334,7 +337,7 @@ class HttpServer:
                     http_server=self,
                     config_dir=self.definition.source_dir,
                     service_id=service.internal_service_id,
-                    alternatives=merged_alternatives,
+                    path_methods=path_methods,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
                     rendering_queue=self.definition.rendering_queue,
@@ -346,7 +349,7 @@ class HttpServer:
             )
         )
 
-        HttpServer.log_merged_alternatives(merged_alternatives)
+        HttpServer.log_path_methods(path_methods)
 
         if management_root is not None:
             if management_root and management_root[0] == '/':
@@ -432,8 +435,8 @@ class HttpServer:
         return tornado.web.Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
     @staticmethod
-    def log_merged_alternatives(merged_alternatives: list) -> None:
-        for _path, methods in merged_alternatives:
+    def log_path_methods(path_methods: list) -> None:
+        for _path, methods in path_methods:
             for method, alternatives in methods.items():
                 logging.debug('Registered endpoint: %s %s', method.upper(), _path)
                 logging.debug('with alternatives:\n%s', alternatives)
