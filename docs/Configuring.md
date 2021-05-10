@@ -148,7 +148,6 @@ services:
           body: '@subdir/response.json'
           headers:
             Content-Type: application/json
-
 ```
 
 _Note: Apart from numeric HTTP status codes, `RST` and `FIN` special values can be set in the `status` field to simulate
@@ -206,12 +205,10 @@ This field can be a string that starts with `@` to indicate a path to an externa
 or an array:
 
 ```yaml
-{% raw %}
-dataset:
+{% raw %}dataset:
   - var1: val1
   - var1: val2
-response: 'dataset: {{var1}}'
-{% endraw %}
+response: 'dataset: {{var1}}'{% endraw %}
 ```
 
 This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
@@ -251,8 +248,7 @@ You can specifiy the templating engine on top of the file like `templatingEngine
 A response example that leverages Jinja2 templating and Faker is shown below:
 
 ```j2
-{% raw %}
-{
+{% raw %}{
   "users": [{% for n in range(request.queryString.total) %}
     {
       "id": {{ random.int(10000, 100000) }},
@@ -266,8 +262,7 @@ A response example that leverages Jinja2 templating and Faker is shown below:
     }{% if not loop.last %},{% endif %}
   {% endfor %}],
   "total": {{ request.queryString.total }}
-}
-{% endraw %}
+}{% endraw %}
 ```
 
 

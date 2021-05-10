@@ -34,8 +34,7 @@ to `limit` times. The `delay` option is key for this case, it distinguishes sche
 from ["on-demand producer"](#on-demand-producer).
 
 ```yaml
-{ % raw % }
-services:
+{% raw %}services:
   - name: Kafka Mock Actors
     type: kafka
     address: localhost:9092
@@ -50,8 +49,7 @@ services:
             timestamp: '{{date.timestamp}}'  # regular Mockintosh templating can be used
 
         delay: 5  # seconds between producing
-        limit: 100  # limit of how many messages to produce, optional
-  { % endraw % }
+        limit: 100  # limit of how many messages to produce, optional{% endraw %}
 ```
 
 You can use most of Mockintosh [templating](Templating.md) equations, with exception of those dependant on `request`.
@@ -155,8 +153,7 @@ To narrow down the expected message, you can use regular [matching](Management.m
 or `headers` values:
 
 ```yaml
-{ % raw % }
-management:
+{% raw %}management:
   port: 8000
 services:
   - name: Kafka Mock Actors
@@ -169,8 +166,7 @@ services:
           key: "{{regEx 'prefix-(.*)'}}"
           value: "expected prefix-{{justName}}"  # see also "reactive producer" section
           headers:
-            hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section
-  { % endraw % }
+            hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}" # see also "reactive producer" section{% endraw %}
 ```
 
 ### JSONSchema
@@ -179,8 +175,7 @@ The `value` field supports [JSON Schema](https://json-schema.org/) matching much
 [it's in HTTP](Matching.md#jsonschema). Except it's the `schema` field used instead of or with the `value` field:
 
 ```yaml
-{ % raw % }
-- consume:
+{% raw %}- consume:
     queue: validate-consume-3
     key: "{{regEx 'prefix-(.*)'}}"
     schema:
@@ -190,8 +185,7 @@ The `value` field supports [JSON Schema](https://json-schema.org/) matching much
       required:
         - somekey
     headers:
-      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
-  { % endraw % }
+      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"{% endraw %}
 ```
 
 If the `schema` field used together with the `value` then both are taken into account as the criteria for matching.
@@ -199,14 +193,12 @@ If the `schema` field used together with the `value` then both are taken into ac
 Referencing JSONSchema from an external file is also supported:
 
 ```yaml
-{ % raw % }
-- consume:
+{% raw %}- consume:
     queue: validate-consume-3
     key: "{{regEx 'prefix-(.*)'}}"
     schema: "@path/to/schema.json"
     headers:
-      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
-  { % endraw % }
+      hdr-name: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"{% endraw %}
 ```
 
 ## "Reactive" Producer
@@ -216,8 +208,7 @@ is produced in "reaction" to another message consumed from the bus. You can also
 and producing, to simulate some "processing time".
 
 ```yaml
-{ % raw % }
-services:
+{% raw %}services:
   - name: Kafka Mock Actors
     type: kafka
     address: localhost:9092
@@ -235,8 +226,7 @@ services:
           key: "can reference as {{consumed.key}} and {{consumed.value}}"
           value: "reference from consumed: {{justName}} {{myCapturedVar}}"
           headers:
-            propagated-hdr: '{{consumed.headers.hdr-name}}'
-  { % endraw % }
+            propagated-hdr: '{{consumed.headers.hdr-name}}'{% endraw %}
 ```
 
 _Note: Validating the consumer and triggering the producing would work for "reactive producer", too._
@@ -367,15 +357,13 @@ This field can be a string that starts with `@` to indicate a path to an externa
 or an array:
 
 ```yaml
-{ % raw % }
-dataset:
+{% raw %}dataset:
   - var1: val1
   - var1: val2
 produce:
   - queue: topic1
     key: key1
-    value: "dset: {{var1}}"
-  { % endraw % }
+    value: "dset: {{var1}}"{% endraw %}
 ```
 
 1. trigger: `dset: val1` is produced as `value`.
