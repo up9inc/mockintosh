@@ -11,6 +11,10 @@ import logging
 from collections import OrderedDict
 from os import path, environ
 from urllib.parse import parse_qs
+from typing import (
+    List,
+    Union
+)
 
 import yaml
 from jsonschema import validate
@@ -34,6 +38,11 @@ from mockintosh.recognizers import (
     AsyncProducerKeyRecognizer,
     AsyncProducerHeadersRecognizer
 )
+from mockintosh.http import (
+    HttpService,
+    HttpEndpoint,
+    HttpBody
+)
 from mockintosh.kafka import (
     KafkaService,
     KafkaActor,
@@ -46,6 +55,7 @@ from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     AsyncProducerListQueueMismatch
 )
+from mockintosh.templating import RenderingQueue
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
 
@@ -55,7 +65,13 @@ logs = Logs()
 
 class Definition:
 
-    def __init__(self, source, schema, rendering_queue, is_file=True):
+    def __init__(
+        self,
+        source: str,
+        schema: dict,
+        rendering_queue: RenderingQueue,
+        is_file: bool = True
+    ):
         self.source = source
         self.source_text = None if is_file else source
         data_dir_override = environ.get('%s_DATA_DIR' % PROGRAM.upper(), None)
@@ -69,12 +85,10 @@ class Definition:
         self.load()
         self.orig_data = copy.deepcopy(self.data)
         self.validate()
-        for service in self.data['services']:
-            service['orig_data'] = copy.deepcopy(service)
         self.template_engine = _detect_engine(self.data, 'config')
         self.stats = stats
         self.logs = logs
-        self.data = self.analyze(self.data)
+        self.services = self.analyze(self.data)
         self.stoppers = []
 
     def load(self):
@@ -98,9 +112,9 @@ class Definition:
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    def analyze(self, data):
+    def analyze(self, data: dict) -> List[Union[HttpService, KafkaService]]:
         config_root_builder = ConfigRootBuilder()
-        config_root = config_root_builder.build(data)  # TODO: not fully implemented yet
+        config_root = config_root_builder.build(data)
 
         for service in ConfigAsyncService.services:
             service.address_template_renderer(
@@ -108,24 +122,27 @@ class Definition:
                 self.rendering_queue
             )
 
+        new_services = []
         for service in config_root.services:
             self.logs.add_service(service.get_name())
             self.stats.add_service(service.get_hint())
 
             if isinstance(service, ConfigAsyncService):
-                self.analyze_async_service(service)
+                new_services.append(self.analyze_async_service(service))
             elif isinstance(service, ConfigHttpService):
                 if service.endpoints:
                     continue
-                service = Definition.analyze_http_service(
-                    service,
-                    self.template_engine,
-                    self.rendering_queue,
-                    performance_profiles=data['performanceProfiles'],
-                    global_performance_profile=config_root.globals.performance_profile
+                new_services.append(
+                    Definition.analyze_http_service(
+                        service,
+                        self.template_engine,
+                        self.rendering_queue,
+                        performance_profiles=config_root.performance_profiles,
+                        global_performance_profile=config_root.globals.performance_profile
+                    )
                 )
 
-        return data
+        return new_services
 
     def add_stopper(self, stop: dict):
         self.stoppers.append(stop)
@@ -139,87 +156,104 @@ class Definition:
     def analyze_http_service(
         service: ConfigHttpService,
         template_engine: str,
-        rendering_queue,
+        rendering_queue: RenderingQueue,
         performance_profiles: dict = {},
         global_performance_profile=None
     ):
-        service_perfomance_profile = service.get('performanceProfile', global_performance_profile)
-        for endpoint in service['endpoints']:
-            endpoint['internalOrigPath'] = endpoint['path']
-            endpoint['params'] = {}
-            endpoint['context'] = OrderedDict()
-            endpoint['performanceProfile'] = performance_profiles.get(
-                endpoint.get('performanceProfile', service_perfomance_profile),
+        http_service = HttpService()
+
+        service_perfomance_profile = service.performance_profile if service.performance_profile is not None else global_performance_profile
+        for endpoint in service.endpoints:
+            orig_path = endpoint.path
+            params = {}
+            context = OrderedDict()
+            performance_profile = performance_profiles.get(
+                endpoint.performance_profile if endpoint.performance_profile is not None else service_perfomance_profile,
                 None
             )
 
-            scheme, netloc, path, query, fragment = _urlsplit(endpoint['path'])
-            if 'queryString' not in endpoint:
-                endpoint['queryString'] = {}
+            scheme, netloc, path, query, fragment = _urlsplit(endpoint.path)
+            query_string = {}
             parsed_query = parse_qs(query, keep_blank_values=True)
-            endpoint['queryString'].update({k: parsed_query[k] for k, v in parsed_query.items()})
+            query_string.update({k: parsed_query[k] for k, v in parsed_query.items()})
 
             path_recognizer = PathRecognizer(
                 path,
-                endpoint['params'],
-                endpoint['context'],
+                params,
+                context,
                 template_engine,
                 rendering_queue
             )
-            endpoint['path'], endpoint['priority'] = path_recognizer.recognize()
+            path, priority = path_recognizer.recognize()
 
-            if 'headers' in endpoint and endpoint['headers']:
-                headers_recognizer = HeadersRecognizer(
-                    endpoint['headers'],
-                    endpoint['params'],
-                    endpoint['context'],
+            headers_recognizer = HeadersRecognizer(
+                endpoint.headers,
+                params,
+                context,
+                template_engine,
+                rendering_queue
+            )
+            headers = headers_recognizer.recognize()
+
+            query_string_recognizer = QueryStringRecognizer(
+                endpoint['queryString'],
+                params,
+                context,
+                template_engine,
+                rendering_queue
+            )
+            query_string = query_string_recognizer.recognize()
+
+            http_body = None
+            if endpoint.body is not None:
+                body_text_recognizer = BodyTextRecognizer(
+                    endpoint.body.text,
+                    params,
+                    context,
                     template_engine,
                     rendering_queue
                 )
-                endpoint['headers'] = headers_recognizer.recognize()
+                text = body_text_recognizer.recognize()
 
-            if 'queryString' in endpoint and endpoint['queryString']:
-                query_string_recognizer = QueryStringRecognizer(
-                    endpoint['queryString'],
-                    endpoint['params'],
-                    endpoint['context'],
+                body_urlencoded_recognizer = BodyUrlencodedRecognizer(
+                    endpoint.body.urlencoded,
+                    params,
+                    context,
                     template_engine,
                     rendering_queue
                 )
-                endpoint['queryString'] = query_string_recognizer.recognize()
+                urlencoded = body_urlencoded_recognizer.recognize()
 
-            if 'body' in endpoint:
-                if 'text' in endpoint['body'] and endpoint['body']['text']:
-                    body_text_recognizer = BodyTextRecognizer(
-                        endpoint['body']['text'],
-                        endpoint['params'],
-                        endpoint['context'],
-                        template_engine,
-                        rendering_queue
-                    )
-                    endpoint['body']['text'] = body_text_recognizer.recognize()
+                body_multipart_recognizer = BodyMultipartRecognizer(
+                    endpoint.body.multipart,
+                    params,
+                    context,
+                    template_engine,
+                    rendering_queue
+                )
+                multipart = body_multipart_recognizer.recognize()
 
-                if 'urlencoded' in endpoint['body'] and endpoint['body']['urlencoded']:
-                    body_urlencoded_recognizer = BodyUrlencodedRecognizer(
-                        endpoint['body']['urlencoded'],
-                        endpoint['params'],
-                        endpoint['context'],
-                        template_engine,
-                        rendering_queue
-                    )
-                    endpoint['body']['urlencoded'] = body_urlencoded_recognizer.recognize()
+                http_body = HttpBody(
+                    text,
+                    urlencoded,
+                    multipart
+                )
 
-                if 'multipart' in endpoint['body'] and endpoint['body']['multipart']:
-                    body_multipart_recognizer = BodyMultipartRecognizer(
-                        endpoint['body']['multipart'],
-                        endpoint['params'],
-                        endpoint['context'],
-                        template_engine,
-                        rendering_queue
-                    )
-                    endpoint['body']['multipart'] = body_multipart_recognizer.recognize()
+            http_service.add_endpoint(
+                HttpEndpoint(
+                    orig_path,
+                    params,
+                    context,
+                    performance_profile,
+                    priority,
+                    path,
+                    query_string,
+                    headers,
+                    http_body
+                )
+            )
 
-        return service
+        return http_service
 
     def analyze_async_service(
         self,
@@ -319,3 +353,5 @@ class Definition:
 
             kafka_actor.multi_payloads_looped = actor.multi_payloads_looped
             kafka_actor.dataset_looped = actor.dataset_looped
+
+        return kafka_service

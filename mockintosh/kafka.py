@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains Kafka related methods.
+    :synopsis: module that contains Kafka related classes.
 """
 
 import re
