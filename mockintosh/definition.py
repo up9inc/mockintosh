@@ -11,16 +11,18 @@ import logging
 from collections import OrderedDict
 from os import path, environ
 from urllib.parse import parse_qs
-from typing import (
-    Tuple
-)
 
 import yaml
 from jsonschema import validate
 
-from mockintosh.constants import PROGRAM, PYBARS, JINJA
+from mockintosh.constants import PROGRAM
 from mockintosh.builders import ConfigRootBuilder
 from mockintosh.helpers import _detect_engine, _urlsplit
+from mockintosh.config import (
+    ConfigHttpService,
+    ConfigAsyncService,
+    ConfigMultiProduce
+)
 from mockintosh.recognizers import (
     PathRecognizer,
     HeadersRecognizer,
@@ -42,11 +44,8 @@ from mockintosh.kafka import (
 )
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
-    CommaInTagIsForbidden,
     AsyncProducerListQueueMismatch
 )
-from mockintosh.templating import TemplateRenderer
-from mockintosh.performance import PerformanceProfile
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
 
@@ -101,188 +100,32 @@ class Definition:
 
     def analyze(self, data):
         config_root_builder = ConfigRootBuilder()
-        config_root_builder.build(data)  # TODO: not fully implemented yet
+        config_root = config_root_builder.build(data)  # TODO: not fully implemented yet
 
-        if 'performanceProfiles' in data:
-            for key, performance_profile in data['performanceProfiles'].items():
-                ratio = performance_profile.get('ratio')
-                delay = performance_profile.get('delay', 0.0)
-                faults = performance_profile.get('faults', {})
-                data['performanceProfiles'][key] = PerformanceProfile(ratio, delay=delay, faults=faults)
-        else:
-            data['performanceProfiles'] = {}
+        for service in ConfigAsyncService.services:
+            service.address_template_renderer(
+                self.template_engine,
+                self.rendering_queue
+            )
 
-        global_performance_profile = None
-        if 'globals' in data:
-            global_performance_profile = data['globals'].get('performanceProfile', None)
+        for service in config_root.services:
+            self.logs.add_service(service.get_name())
+            self.stats.add_service(service.get_hint())
 
-        data['kafka_services'] = []
-        data['async_producers'] = []
-        data['async_consumers'] = []
-        for i, service in enumerate(data['services']):
-            self.forbid_comma_in_tag(service)
-
-            data['services'][i]['internalServiceId'] = i
-            self.logs.add_service(service.get('name', ''))
-
-            hint = None
-            if 'type' not in service:
-                service['type'] = 'http'
-            else:
-                service['type'] = service['type'].lower()
-
-            if 'type' in service and service['type'] != 'http':
-                service['address'], _ = Definition.async_address_template_renderer(
+            if isinstance(service, ConfigAsyncService):
+                self.analyze_async_service(service)
+            elif isinstance(service, ConfigHttpService):
+                if service.endpoints:
+                    continue
+                service = Definition.analyze_http_service(
+                    service,
                     self.template_engine,
                     self.rendering_queue,
-                    service['address']
+                    performance_profiles=data['performanceProfiles'],
+                    global_performance_profile=config_root.globals.performance_profile
                 )
-                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
-            else:
-                hint = '%s://%s:%s%s' % (
-                    'https' if service.get('ssl', False) else 'http',
-                    service['hostname'] if 'hostname' in service else (
-                        service['address'] if 'address' in service else 'localhost'
-                    ),
-                    service['port'],
-                    ' - %s' % service['name'] if 'name' in service else ''
-                )
-            self.stats.add_service(hint)
 
-            if 'type' in service:
-                if service['type'] == 'kafka':
-                    kafka_service = KafkaService(
-                        service['address'],
-                        name=service.get('name', None),
-                        definition=self,
-                        _id=i,
-                        ssl=service.get('ssl', False)
-                    )
-                    data['kafka_services'].append(kafka_service)
-
-                    for i, actor in enumerate(service['actors']):
-                        kafka_actor = KafkaActor(i, actor.get('name', None))
-                        kafka_service.add_actor(kafka_actor)
-
-                        if 'consume' in actor:
-                            capture_limit = 1 if 'capture' not in actor['consume'] else actor['consume']['capture']
-
-                            value = actor['consume'].get('value', None)
-                            key = actor['consume'].get('key', None)
-                            headers = actor['consume'].get('headers', {})
-
-                            params = kafka_actor.params
-                            context = kafka_actor.context
-
-                            async_producer_value_recognizer = AsyncProducerValueRecognizer(
-                                value,
-                                params,
-                                context,
-                                self.template_engine,
-                                self.rendering_queue
-                            )
-                            value = async_producer_value_recognizer.recognize()
-
-                            async_producer_key_recognizer = AsyncProducerKeyRecognizer(
-                                key,
-                                params,
-                                context,
-                                self.template_engine,
-                                self.rendering_queue
-                            )
-                            key = async_producer_key_recognizer.recognize()
-
-                            async_producer_headers_recognizer = AsyncProducerHeadersRecognizer(
-                                headers,
-                                params,
-                                context,
-                                self.template_engine,
-                                self.rendering_queue
-                            )
-                            headers = async_producer_headers_recognizer.recognize()
-
-                            kafka_consumer = KafkaConsumer(
-                                actor['consume']['queue'],
-                                schema=actor['consume'].get('schema', None),
-                                value=value,
-                                key=key,
-                                headers=headers,
-                                capture_limit=capture_limit
-                            )
-                            kafka_actor.set_consumer(kafka_consumer)
-
-                            kafka_consumer.index = len(data['async_consumers'])
-                            data['async_consumers'].append(kafka_consumer)
-
-                        if 'delay' in actor:
-                            kafka_actor.set_delay(actor['delay'])
-
-                        if 'produce' in actor:
-                            queue = None
-                            payload_list = KafkaProducerPayloadList()
-
-                            produce_list = []
-                            if isinstance(actor['produce'], list):
-                                queue = actor['produce'][0]['queue']
-                                for _produce in actor['produce']:
-                                    if queue != _produce['queue']:
-                                        raise AsyncProducerListQueueMismatch(kafka_actor.get_hint())
-                                produce_list += actor['produce']
-                            else:
-                                queue = actor['produce']['queue']
-                                produce_list += [actor['produce']]
-
-                            for produce in produce_list:
-                                payload = KafkaProducerPayload(
-                                    produce['value'],
-                                    key=produce.get('key', None),
-                                    headers=produce.get('headers', {}),
-                                    tag=produce.get('tag', None),
-                                    enable_topic_creation=produce.get('headers', {})
-                                )
-                                payload_list.add_payload(payload)
-
-                            kafka_producer = KafkaProducer(queue, payload_list)
-                            kafka_actor.set_producer(kafka_producer)
-
-                            kafka_producer.index = len(data['async_producers'])
-                            data['async_producers'].append(kafka_producer)
-
-                        if 'limit' in actor:
-                            kafka_actor.set_limit(actor['limit'])
-
-                        if 'dataset' in actor:
-                            kafka_actor.set_dataset(actor['dataset'])
-
-                        kafka_actor.multi_payloads_looped = actor.get('multiPayloadsLooped', True)
-                        kafka_actor.dataset_looped = actor.get('datasetLooped', True)
-
-                    service['internalRef'] = kafka_service
-
-                if service['type'] != 'http':
-                    continue
-
-            if 'endpoints' not in service:
-                continue
-            service = Definition.analyze_service(
-                service,
-                self.template_engine,
-                self.rendering_queue,
-                performance_profiles=data['performanceProfiles'],
-                global_performance_profile=global_performance_profile
-            )
         return data
-
-    def forbid_comma_in_tag(self, service):
-        if 'endpoints' not in service:
-            return
-
-        for endpoint in service['endpoints']:
-            for key in ('response', 'dataset'):
-                if key in endpoint and isinstance(endpoint[key], list):
-                    for thing in endpoint[key]:
-                        if 'tag' in thing and ',' in thing['tag']:
-                            raise CommaInTagIsForbidden(thing['tag'])
 
     def add_stopper(self, stop: dict):
         self.stoppers.append(stop)
@@ -293,11 +136,11 @@ class Definition:
             stop['val'] = True
 
     @staticmethod
-    def analyze_service(
-        service,
-        template_engine,
+    def analyze_http_service(
+        service: ConfigHttpService,
+        template_engine: str,
         rendering_queue,
-        performance_profiles={},
+        performance_profiles: dict = {},
         global_performance_profile=None
     ):
         service_perfomance_profile = service.get('performanceProfile', global_performance_profile)
@@ -378,23 +221,101 @@ class Definition:
 
         return service
 
-    @staticmethod
-    def async_address_template_renderer(
-        template_engine: str,
-        rendering_queue,
-        text: str
-    ) -> Tuple[str, dict]:
-        if template_engine == PYBARS:
-            from mockintosh.hbs.methods import env
-        elif template_engine == JINJA:
-            from mockintosh.j2.methods import env
-
-        renderer = TemplateRenderer()
-        return renderer.render(
-            template_engine,
-            text,
-            rendering_queue,
-            inject_methods=[
-                env
-            ]
+    def analyze_async_service(
+        self,
+        service: ConfigAsyncService
+    ):
+        kafka_service = KafkaService(
+            service.address,
+            name=service.name,
+            definition=self,
+            _id=service.internal_service_id,
+            ssl=service.ssl
         )
+
+        for i, actor in enumerate(service.actors):
+            kafka_actor = KafkaActor(i, actor.name)
+            kafka_service.add_actor(kafka_actor)
+
+            if actor.consume is not None:
+                capture_limit = actor.consume.capture
+
+                value = actor.consume.value
+                key = actor.consume.key
+                headers = actor.consume.headers
+
+                params = kafka_actor.params
+                context = kafka_actor.context
+
+                async_producer_value_recognizer = AsyncProducerValueRecognizer(
+                    value,
+                    params,
+                    context,
+                    self.template_engine,
+                    self.rendering_queue
+                )
+                value = async_producer_value_recognizer.recognize()
+
+                async_producer_key_recognizer = AsyncProducerKeyRecognizer(
+                    key,
+                    params,
+                    context,
+                    self.template_engine,
+                    self.rendering_queue
+                )
+                key = async_producer_key_recognizer.recognize()
+
+                async_producer_headers_recognizer = AsyncProducerHeadersRecognizer(
+                    headers,
+                    params,
+                    context,
+                    self.template_engine,
+                    self.rendering_queue
+                )
+                headers = async_producer_headers_recognizer.recognize()
+
+                kafka_consumer = KafkaConsumer(
+                    actor.consume.queue,
+                    schema=actor.consume.schema,
+                    value=value,
+                    key=key,
+                    headers=headers,
+                    capture_limit=capture_limit
+                )
+                kafka_actor.set_consumer(kafka_consumer)
+                kafka_actor.set_delay(actor.delay)
+
+            if actor.produce is not None:
+                queue = None
+                payload_list = KafkaProducerPayloadList()
+
+                produce_list = []
+                if isinstance(actor.produce, ConfigMultiProduce):
+                    queue = actor.produce.produce_list[0].queue
+                    for _produce in actor.produce.produce_list:
+                        if queue != _produce.queue:
+                            raise AsyncProducerListQueueMismatch(kafka_actor.get_hint())
+                    produce_list += actor.produce.produce_list[0]
+                else:
+                    queue = actor.produce.queue
+                    produce_list += [actor.produce]
+
+                for produce in produce_list:
+                    payload = KafkaProducerPayload(
+                        produce.value,
+                        key=produce.key,
+                        headers=produce.headers,
+                        tag=produce.tag,
+                        enable_topic_creation=produce.enable_topic_creation
+                    )
+                    payload_list.add_payload(payload)
+
+                kafka_producer = KafkaProducer(queue, payload_list)
+                kafka_actor.set_producer(kafka_producer)
+
+            kafka_actor.set_limit(actor.limit)
+
+            kafka_actor.set_dataset(actor.dataset)
+
+            kafka_actor.multi_payloads_looped = actor.multi_payloads_looped
+            kafka_actor.dataset_looped = actor.dataset_looped

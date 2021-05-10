@@ -699,6 +699,8 @@ class KafkaActor:
 
 class KafkaService:
 
+    services = []
+
     def __init__(self, address: str, name: str = None, definition=None, _id: int = None, ssl: bool = False):
         self.address = address
         self.name = name
@@ -707,6 +709,7 @@ class KafkaService:
         self.id = _id
         self.ssl = ssl
         self.tags = []
+        KafkaService.append(self)
 
     def add_actor(self, actor: KafkaActor):
         actor.service = self

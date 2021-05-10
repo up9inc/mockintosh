@@ -6,13 +6,50 @@
     :synopsis: module that contains classes that mapped to the configuration file.
 """
 
+from abc import abstractmethod
 from typing import (
     List,
     Union,
-    Dict
+    Dict,
+    Tuple
 )
 
-from mockintosh.constants import PYBARS
+from mockintosh.constants import PYBARS, JINJA
+from mockintosh.performance import PerformanceProfile
+from mockintosh.exceptions import (
+    CommaInTagIsForbidden
+)
+from mockintosh.templating import TemplateRenderer
+
+
+class ConfigService:
+
+    services = []
+
+    def __init__(
+        self,
+        _type: str,
+        name: Union[str, None],
+    ):
+        self.type = _type
+        self.name = name
+        self.internal_service_id = len(ConfigService.services)
+        ConfigService.services.append(self)
+
+    def get_name(self):
+        return self.name if self.name is not None else ''
+
+    @abstractmethod
+    def get_hint(self):
+        raise NotImplementedError
+
+
+class ConfigContainsTag:
+
+    def forbid_comma_in_tag(self, data: list):
+        for row in data:
+            if 'tag' in row and ',' in row['tag']:
+                raise CommaInTagIsForbidden(row['tag'])
 
 
 class ConfigExternalFilePath:
@@ -21,10 +58,12 @@ class ConfigExternalFilePath:
         self.path = path
 
 
-class ConfigDataset:
+class ConfigDataset(ConfigContainsTag):
 
     def __init__(self, payload: Union[List[dict], str, ConfigExternalFilePath]):
         self.payload = payload
+        if isinstance(self.payload, list):
+            self.forbid_comma_in_tag(self.payload)
 
 
 class ConfigSchema:
@@ -108,7 +147,9 @@ class ConfigActor:
         self.dataset_looped = dataset_looped
 
 
-class ConfigAsyncService:
+class ConfigAsyncService(ConfigService):
+
+    services = []
 
     def __init__(
         self,
@@ -118,11 +159,35 @@ class ConfigAsyncService:
         name: Union[str, None] = None,
         ssl: bool = False
     ):
+        super().__init__(_type, name)
+        ConfigAsyncService.append(self)
         self.type = _type
         self.address = address
         self.actors = actors
-        self.name = name
         self.ssl = ssl
+
+    def get_hint(self):
+        return '%s://%s' % (self.type, self.address if self.name is None else self.name)
+
+    def address_template_renderer(
+        self,
+        template_engine: str,
+        rendering_queue,
+    ) -> Tuple[str, dict]:
+        if template_engine == PYBARS:
+            from mockintosh.hbs.methods import env
+        elif template_engine == JINJA:
+            from mockintosh.j2.methods import env
+
+        renderer = TemplateRenderer()
+        self.address, _ = renderer.render(
+            template_engine,
+            self.address,
+            rendering_queue,
+            inject_methods=[
+                env
+            ]
+        )
 
 
 class ConfigResponse:
@@ -144,10 +209,12 @@ class ConfigResponse:
         self.tag = tag
 
 
-class ConfigMultiResponse:
+class ConfigMultiResponse(ConfigContainsTag):
 
     def __init__(self, responses: List[Union[ConfigResponse, ConfigExternalFilePath, str]]):
         self.responses = responses
+        if isinstance(self.responses, list):
+            self.forbid_comma_in_tag(self.responses)
 
 
 class ConfigBody:
@@ -196,7 +263,7 @@ class ConfigEndpoint:
         self.performance_profile = performance_profile
 
 
-class ConfigHttpService:
+class ConfigHttpService(ConfigService):
 
     def __init__(
         self,
@@ -212,8 +279,8 @@ class ConfigHttpService:
         performance_profile: Union[str, None] = None,
         fallback_to: Union[str, None] = None
     ):
+        super().__init__('http', name)
         self.port = port
-        self.name = name
         self.hostname = hostname
         self.ssl = ssl
         self.ssl_cert_file = ssl_cert_file
@@ -223,6 +290,16 @@ class ConfigHttpService:
         self.endpoints = endpoints
         self.performance_profile = performance_profile
         self.fallback_to = fallback_to
+
+    def get_hint(self):
+        return '%s://%s:%s%s' % (
+            'https' if self.ssl else 'http',
+            self.hostname if self.hostname is not None else (
+                self.address if self.address is not None else 'localhost'
+            ),
+            self.port,
+            ' - %s' % self.name if self.name is not None else ''
+        )
 
 
 class ConfigGlobals:
@@ -262,6 +339,11 @@ class ConfigPerformanceProfile:
         self.ratio = ratio
         self.delay = delay
         self.faults = faults
+        self.actuator = PerformanceProfile(
+            self.ratio,
+            delay=self.delay,
+            faults=self.faults
+        )
 
 
 class ConfigRoot:
