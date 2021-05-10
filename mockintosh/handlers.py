@@ -21,7 +21,8 @@ from typing import (
     Union,
     Optional,
     Awaitable,
-    Tuple
+    Tuple,
+    List
 )
 
 import httpx
@@ -34,6 +35,9 @@ from tornado import httputil
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
+from mockintosh.http import (
+    HttpAlternative
+)
 from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
@@ -262,7 +266,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         http_server,
         config_dir: str,
         service_id: int,
-        endpoints: list,
+        alternatives: List[HttpAlternative],
         _globals: dict,
         definition_engine: str,
         rendering_queue: RenderingQueue,
@@ -275,7 +279,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         try:
             self.http_server = http_server
             self.config_dir = config_dir
-            self.endpoints = endpoints
+            self.alternatives = alternatives
             self.methods = None
             self.custom_args = ()
             self.stats = self.http_server.definition.stats

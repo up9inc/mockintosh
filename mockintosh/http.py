@@ -95,3 +95,14 @@ class HttpService:
 
     def get_name_or_empty(self) -> str:
         return self.name if self.name is not None else ''
+
+
+class HttpAlternative:
+
+    def __init__(self):
+        self.path = None
+        self.priority = None
+        self.methods = {}
+
+    def __repr__(self):
+        return 'priority: %s, methods: %s' % (self.priority, self.methods)

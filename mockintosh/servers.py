@@ -14,7 +14,8 @@ from collections import OrderedDict
 from os import path
 from typing import (
     Union,
-    Tuple
+    Tuple,
+    List
 )
 
 import tornado.ioloop
@@ -25,7 +26,8 @@ from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.definition import Definition
 from mockintosh.handlers import GenericHandler
 from mockintosh.http import (
-    HttpService
+    HttpService,
+    HttpAlternative
 )
 from mockintosh.management import (
     ManagementRootHandler,
@@ -173,30 +175,30 @@ class HttpServer:
                 return False  # https://github.com/nedbat/coveragepy/issues/198
         return True
 
-    def prepare_app(self, service: HttpService) -> Tuple[list, str]:
-        endpoints = []
+    def prepare_app(self, service: HttpService) -> Tuple[List[HttpAlternative], str]:
+        alternatives = []
         if service.endpoints:
-            endpoints = HttpServer.merge_alternatives(service, self.definition.stats)
+            alternatives = HttpServer.merge_alternatives(service, self.definition.stats)
 
         management_root = service.management_root
 
-        return endpoints, management_root
+        return alternatives, management_root
 
     def load_service(self, service: HttpService, rules: list, ssl: bool, ssl_options: dict) -> bool:
         if not self.load_guard(service):
             return False
 
         protocol = 'https' if ssl else 'http'
-        endpoints, management_root = self.prepare_app(service)
-        app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-        # self._apps.apps[service.internal_service_id] = app
-        # self._apps.listeners[service.internal_service_id] = _Listener(
-        #     service.hostname,
-        #     service.port,
-        #     self.address if self.address else 'localhost'
-        # )
+        alternatives, management_root = self.prepare_app(service)
+        app = self.make_app(service, alternatives, self.globals, debug=self.debug, management_root=management_root)
+        self._apps.apps[service.internal_service_id] = app
+        self._apps.listeners[service.internal_service_id] = _Listener(
+            service.hostname,
+            service.port,
+            self.address if self.address else 'localhost'
+        )
 
-        if service.hostname is not None:
+        if service.hostname is None:
             server = self.impl.get_server(app, ssl, ssl_options)
             server.listen(service.port, address=self.address)
             logging.debug('Will listen port number: %d', service.port)
@@ -255,7 +257,7 @@ class HttpServer:
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(service: HttpService, stats: Stats) -> dict:
+    def merge_alternatives(service: HttpService, stats: Stats) -> List[HttpAlternative]:
         new_endpoints = {}
         i = 0
         for endpoint in service.endpoints:
@@ -280,16 +282,15 @@ class HttpServer:
                 extracted_parts['counters'] = {}
 
             if identifier not in new_endpoints:
-                new_endpoints[identifier] = {}
-                new_endpoints[identifier]['path'] = endpoint.path
-                new_endpoints[identifier]['priority'] = endpoint.priority
-                new_endpoints[identifier]['methods'] = {}
-            if endpoint.method not in new_endpoints[identifier]['methods']:
-                new_endpoints[identifier]['methods'][endpoint.method] = [extracted_parts]
+                new_endpoints[identifier] = HttpAlternative()
+                new_endpoints[identifier].path = endpoint.path
+                new_endpoints[identifier].priority = endpoint.priority
+            if endpoint.method not in new_endpoints[identifier].methods:
+                new_endpoints[identifier].methods[endpoint.method] = [extracted_parts]
             else:
-                new_endpoints[identifier]['methods'][endpoint.method].append(extracted_parts)
+                new_endpoints[identifier].methods[endpoint.method].append(extracted_parts)
 
-        return new_endpoints.values()
+        return list(new_endpoints.values())
 
     def run(self) -> None:
         if 'unittest' in sys.modules.keys():
@@ -310,20 +311,20 @@ class HttpServer:
     def make_app(
         self,
         service: dict,
-        endpoints: list,
+        alternatives: list,
         _globals: dict,
         debug: bool = False,
         management_root: str = None
     ) -> tornado.web.Application:
         endpoint_handlers = []
-        endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
+        alternatives = sorted(alternatives, key=lambda x: x.priority, reverse=False)
 
-        merged_endpoints = []
+        merged_alternatives = []
 
-        for endpoint in endpoints:
-            merged_endpoints.append((endpoint['path'], endpoint['methods']))
+        for alternative in alternatives:
+            merged_alternatives.append((alternative.path, alternative.methods))
 
-        unhandled_enabled = True if (management_root is not None or 'management' in self.definition.data) else False
+        unhandled_enabled = True if (management_root is not None or self.definition.config_root.management is not None) else False
 
         endpoint_handlers.append(
             (
@@ -333,7 +334,7 @@ class HttpServer:
                     http_server=self,
                     config_dir=self.definition.source_dir,
                     service_id=service.internal_service_id,
-                    endpoints=merged_endpoints,
+                    alternatives=merged_alternatives,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
                     rendering_queue=self.definition.rendering_queue,
@@ -345,7 +346,7 @@ class HttpServer:
             )
         )
 
-        HttpServer.log_merged_endpoints(merged_endpoints)
+        HttpServer.log_merged_alternatives(merged_alternatives)
 
         if management_root is not None:
             if management_root and management_root[0] == '/':
@@ -368,7 +369,7 @@ class HttpServer:
                     ManagementServiceConfigHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -376,7 +377,7 @@ class HttpServer:
                     ManagementServiceStatsHandler,
                     dict(
                         stats=self.definition.stats,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -384,7 +385,7 @@ class HttpServer:
                     ManagementServiceLogsHandler,
                     dict(
                         logs=self.definition.logs,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -392,7 +393,7 @@ class HttpServer:
                     ManagementServiceResetIteratorsHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -400,7 +401,7 @@ class HttpServer:
                     ManagementServiceUnhandledHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -408,7 +409,7 @@ class HttpServer:
                     ManagementServiceOasHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -416,7 +417,7 @@ class HttpServer:
                     ManagementServiceTagHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -431,8 +432,8 @@ class HttpServer:
         return tornado.web.Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
     @staticmethod
-    def log_merged_endpoints(merged_endpoints: list) -> None:
-        for _path, methods in merged_endpoints:
+    def log_merged_alternatives(merged_alternatives: list) -> None:
+        for _path, methods in merged_alternatives:
             for method, alternatives in methods.items():
                 logging.debug('Registered endpoint: %s %s', method.upper(), _path)
                 logging.debug('with alternatives:\n%s', alternatives)
@@ -448,102 +449,101 @@ class HttpServer:
         return relative_path
 
     def load_management_api(self) -> None:
-        if 'management' not in self.definition.data:
+        if self.definition.config_root.management is None:
             return
 
-        management_config = self.definition.data['management']
-        ssl, ssl_options = self.resolve_ssl([management_config])
+        config_management = self.definition.config_root.management
+        ssl, ssl_options = self.resolve_ssl([config_management])
         protocol = 'https' if ssl else 'http'
 
-        if 'port' in management_config:
-            app = tornado.web.Application([
-                (
-                    '/',
-                    ManagementRootHandler,
-                    dict()
-                ),
-                (
-                    '/config',
-                    ManagementConfigHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/stats',
-                    ManagementStatsHandler,
-                    dict(
-                        stats=self.definition.stats
-                    )
-                ),
-                (
-                    '/traffic-log',
-                    ManagementLogsHandler,
-                    dict(
-                        logs=self.definition.logs
-                    )
-                ),
-                (
-                    '/reset-iterators',
-                    ManagementResetIteratorsHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/unhandled',
-                    ManagementUnhandledHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/oas',
-                    ManagementOasHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/tag',
-                    ManagementTagHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/resources',
-                    ManagementResourcesHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async',
-                    ManagementAsyncHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async/producers/(.+)',
-                    ManagementAsyncProducersHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async/consumers/(.+)',
-                    ManagementAsyncConsumersHandler,
-                    dict(
-                        http_server=self
-                    )
+        app = tornado.web.Application([
+            (
+                '/',
+                ManagementRootHandler,
+                dict()
+            ),
+            (
+                '/config',
+                ManagementConfigHandler,
+                dict(
+                    http_server=self
                 )
-            ])
-            server = self.impl.get_server(app, ssl, ssl_options)
-            server.listen(management_config['port'], address=self.address)
-            self.services_log.append('Serving management API at %s://%s:%s' % (
-                protocol,
-                self.address if self.address else 'localhost',
-                management_config['port']
-            ))
+            ),
+            (
+                '/stats',
+                ManagementStatsHandler,
+                dict(
+                    stats=self.definition.stats
+                )
+            ),
+            (
+                '/traffic-log',
+                ManagementLogsHandler,
+                dict(
+                    logs=self.definition.logs
+                )
+            ),
+            (
+                '/reset-iterators',
+                ManagementResetIteratorsHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/unhandled',
+                ManagementUnhandledHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/oas',
+                ManagementOasHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/tag',
+                ManagementTagHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/resources',
+                ManagementResourcesHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/async',
+                ManagementAsyncHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/async/producers/(.+)',
+                ManagementAsyncProducersHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/async/consumers/(.+)',
+                ManagementAsyncConsumersHandler,
+                dict(
+                    http_server=self
+                )
+            )
+        ])
+        server = self.impl.get_server(app, ssl, ssl_options)
+        server.listen(config_management.port, address=self.address)
+        self.services_log.append('Serving management API at %s://%s:%s' % (
+            protocol,
+            self.address if self.address else 'localhost',
+            config_management.port
+        ))

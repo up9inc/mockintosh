@@ -160,7 +160,7 @@ class ConfigAsyncService(ConfigService):
         ssl: bool = False
     ):
         super().__init__(_type, name)
-        ConfigAsyncService.append(self)
+        ConfigAsyncService.services.append(self)
         self.type = _type
         self.address = address
         self.actors = actors

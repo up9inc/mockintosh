@@ -709,7 +709,7 @@ class KafkaService:
         self.id = _id
         self.ssl = ssl
         self.tags = []
-        KafkaService.append(self)
+        KafkaService.services.append(self)
 
     def add_actor(self, actor: KafkaActor):
         actor.service = self
