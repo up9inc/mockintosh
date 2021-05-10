@@ -746,7 +746,7 @@ def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor, stop
 
 
 def run_loops(definition, stop: dict):
-    for service_id, service in enumerate(definition.data['kafka_services']):
+    for service_id, service in enumerate(KafkaService.services):
 
         consumer_groups = {}
 

@@ -13,7 +13,8 @@ from os import path, environ
 from urllib.parse import parse_qs
 from typing import (
     List,
-    Union
+    Union,
+    Tuple
 )
 
 import yaml
@@ -23,6 +24,7 @@ from mockintosh.constants import PROGRAM
 from mockintosh.builders import ConfigRootBuilder
 from mockintosh.helpers import _detect_engine, _urlsplit
 from mockintosh.config import (
+    ConfigRoot,
     ConfigHttpService,
     ConfigAsyncService,
     ConfigMultiProduce
@@ -88,7 +90,8 @@ class Definition:
         self.template_engine = _detect_engine(self.data, 'config')
         self.stats = stats
         self.logs = logs
-        self.services = self.analyze(self.data)
+        self.services, self.config_root = self.analyze(self.data)
+        self.globals = self.config_root.globals
         self.stoppers = []
 
     def load(self):
@@ -112,7 +115,7 @@ class Definition:
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    def analyze(self, data: dict) -> List[Union[HttpService, KafkaService]]:
+    def analyze(self, data: dict) -> Tuple[List[Union[HttpService, KafkaService]], ConfigRoot]:
         config_root_builder = ConfigRootBuilder()
         config_root = config_root_builder.build(data)
 
@@ -130,7 +133,7 @@ class Definition:
             if isinstance(service, ConfigAsyncService):
                 new_services.append(self.analyze_async_service(service))
             elif isinstance(service, ConfigHttpService):
-                if service.endpoints:
+                if not service.endpoints:
                     continue
                 new_services.append(
                     Definition.analyze_http_service(
@@ -138,11 +141,11 @@ class Definition:
                         self.template_engine,
                         self.rendering_queue,
                         performance_profiles=config_root.performance_profiles,
-                        global_performance_profile=config_root.globals.performance_profile
+                        global_performance_profile=None if config_root.globals is None else config_root.globals.performance_profile
                     )
                 )
 
-        return new_services
+        return new_services, config_root
 
     def add_stopper(self, stop: dict):
         self.stoppers.append(stop)
@@ -160,7 +163,19 @@ class Definition:
         performance_profiles: dict = {},
         global_performance_profile=None
     ):
-        http_service = HttpService()
+        http_service = HttpService(
+            service.port,
+            service.name,
+            service.hostname,
+            service.ssl,
+            service.ssl_cert_file,
+            service.ssl_key_file,
+            service.management_root,
+            service.oas,
+            service.performance_profile,
+            service.fallback_to,
+            service.internal_service_id
+        )
 
         service_perfomance_profile = service.performance_profile if service.performance_profile is not None else global_performance_profile
         for endpoint in service.endpoints:
@@ -196,7 +211,7 @@ class Definition:
             headers = headers_recognizer.recognize()
 
             query_string_recognizer = QueryStringRecognizer(
-                endpoint['queryString'],
+                endpoint.query_string,
                 params,
                 context,
                 template_engine,
@@ -247,6 +262,8 @@ class Definition:
                     performance_profile,
                     priority,
                     path,
+                    endpoint.comment,
+                    endpoint.method,
                     query_string,
                     headers,
                     http_body

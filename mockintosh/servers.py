@@ -11,7 +11,7 @@ import sys
 import traceback
 from abc import abstractmethod
 from collections import OrderedDict
-from os import path, environ
+from os import path
 from typing import (
     Union,
     Tuple
@@ -24,6 +24,9 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.definition import Definition
 from mockintosh.handlers import GenericHandler
+from mockintosh.http import (
+    HttpService
+)
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -130,20 +133,17 @@ class HttpServer:
         self.load()
 
     def map_ports(self) -> OrderedDict:
-        port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
         port_mapping = OrderedDict()
-        for service in self.definition.data['services']:
-            if 'type' in service and service['type'] != 'http':
-                self._apps.apps[service['internalServiceId']] = service['internalRef']
+
+        for service in self.definition.services:
+            if not isinstance(service, HttpService):
                 continue
 
-            if port_override is not None:
-                service['port'] = int(port_override)
-
-            port = str(service['port'])
+            port = str(service.port)
             if port not in port_mapping:
                 port_mapping[port] = []
             port_mapping[port].append(service)
+
         return port_mapping
 
     def resolve_ssl(self, services: list) -> Tuple[bool, dict]:
@@ -151,12 +151,12 @@ class HttpServer:
         cert_file = path.join(__location__, 'ssl', 'cert.pem')
         key_file = path.join(__location__, 'ssl', 'key.pem')
         for service in services:
-            ssl = service.get('ssl', False)
+            ssl = service.ssl
             if ssl:
-                if 'sslCertFile' in service:
-                    cert_file = self.resolve_cert_path(service['sslCertFile'])
-                if 'sslKeyFile' in service:
-                    key_file = self.resolve_cert_path(service['sslKeyFile'])
+                if service.ssl_cert_file is not None:
+                    cert_file = self.resolve_cert_path(service.ssl_cert_file)
+                if service.ssl_key_file is not None:
+                    key_file = self.resolve_cert_path(service. ssl_key_file)
                 break
         ssl_options = {
             "certfile": cert_file,
@@ -164,75 +164,73 @@ class HttpServer:
         }
         return ssl, ssl_options
 
-    def load_guard(self, service: dict) -> bool:
+    def load_guard(self, service: HttpService) -> bool:
         if self.services_list:
-            if 'name' in service:
-                if service['name'] not in self.services_list:
+            if service.name is not None:
+                if service.name not in self.services_list:
                     return False
             else:  # pragma: no cover
                 return False  # https://github.com/nedbat/coveragepy/issues/198
         return True
 
-    def prepare_app(self, service: dict) -> Tuple[list, str]:
+    def prepare_app(self, service: HttpService) -> Tuple[list, str]:
         endpoints = []
-        if 'endpoints' in service:
+        if service.endpoints:
             endpoints = HttpServer.merge_alternatives(service, self.definition.stats)
 
-        management_root = None
-        if 'managementRoot' in service:
-            management_root = service['managementRoot']
+        management_root = service.management_root
 
         return endpoints, management_root
 
-    def load_service(self, service: dict, rules: list, ssl: bool, ssl_options: dict) -> bool:
+    def load_service(self, service: HttpService, rules: list, ssl: bool, ssl_options: dict) -> bool:
         if not self.load_guard(service):
             return False
 
         protocol = 'https' if ssl else 'http'
         endpoints, management_root = self.prepare_app(service)
         app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-        self._apps.apps[service['internalServiceId']] = app
-        self._apps.listeners[service['internalServiceId']] = _Listener(
-            service['hostname'] if 'hostname' in service else None,
-            service['port'],
-            self.address if self.address else 'localhost'
-        )
+        # self._apps.apps[service.internal_service_id] = app
+        # self._apps.listeners[service.internal_service_id] = _Listener(
+        #     service.hostname,
+        #     service.port,
+        #     self.address if self.address else 'localhost'
+        # )
 
-        if 'hostname' not in service:
+        if service.hostname is not None:
             server = self.impl.get_server(app, ssl, ssl_options)
-            server.listen(service['port'], address=self.address)
-            logging.debug('Will listen port number: %d', service['port'])
+            server.listen(service.port, address=self.address)
+            logging.debug('Will listen port number: %d', service.port)
             self.services_log.append('Serving at %s://%s:%s%s' % (
                 protocol,
                 self.address if self.address else 'localhost',
-                service['port'],
-                ' the mock for %r' % service['name'] if 'name' in service else ''
+                service.port,
+                ' the mock for %r' % service.get_name_or_empty()
             ))
         else:
             rules.append(
-                Rule(HostMatches(service['hostname']), app)
+                Rule(HostMatches(service.hostname), app)
             )
 
             logging.debug(
                 'Registered hostname and port: %s://%s:%d',
                 protocol,
-                service['hostname'],
-                service['port']
+                service.hostname,
+                service.port
             )
             self.services_log.append('Serving at %s://%s:%s%s' % (
                 protocol,
-                service['hostname'],
-                service['port'],
-                ' the mock for %r' % service['name'] if 'name' in service else ''
+                service.hostname,
+                service.port,
+                ' the mock for %r' % service.get_name_or_empty()
             ))
 
-        if 'name' in service:
-            logging.debug('Finished registering: %s', service['name'])
+        if service.name is not None:
+            logging.debug('Finished registering: %s', service.name)
 
         return True
 
     def load(self) -> None:
-        services = self.definition.data['services']
+        services = self.definition.services
         self._apps.apps = len(services) * [None]
         self._apps.listeners = len(services) * [None]
         for service in services:
@@ -251,30 +249,28 @@ class HttpServer:
             if rules:
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
-                server.listen(services[0]['port'], address=self.address)
-                logging.debug('Will listen port number: %d', service['port'])
+                server.listen(services[0].port, address=self.address)
+                logging.debug('Will listen port number: %d', service.port)
 
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(service: dict, stats: Stats) -> dict:
+    def merge_alternatives(service: HttpService, stats: Stats) -> dict:
         new_endpoints = {}
         i = 0
-        for endpoint in service['endpoints']:
-            if 'method' not in endpoint:
-                endpoint['method'] = 'GET'
+        for endpoint in service.endpoints:
             hint = '%s %s%s' % (
-                endpoint['method'].upper(),
-                endpoint['internalOrigPath'],
-                ' - %s' % endpoint['id'] if 'id' in endpoint else ''
+                endpoint.method,
+                endpoint.orig_path,
+                ' - %s' % ''
             )
-            stats.services[service['internalServiceId']].add_endpoint(hint)
-            identifier = endpoint['path']
+            stats.services[service.internal_service_id].add_endpoint(hint)
+            identifier = endpoint.path
             extracted_parts = {}
-            for key in endpoint:
+            for key in endpoint.__dict__.keys():
                 if key in ('method', 'path', 'priority'):
                     continue
-                extracted_parts[key] = endpoint[key]
+                extracted_parts[key] = getattr(endpoint, key)
 
             extracted_parts['internalEndpointId'] = i
             i += 1
@@ -285,13 +281,13 @@ class HttpServer:
 
             if identifier not in new_endpoints:
                 new_endpoints[identifier] = {}
-                new_endpoints[identifier]['path'] = endpoint['path']
-                new_endpoints[identifier]['priority'] = endpoint['priority']
+                new_endpoints[identifier]['path'] = endpoint.path
+                new_endpoints[identifier]['priority'] = endpoint.priority
                 new_endpoints[identifier]['methods'] = {}
-            if endpoint['method'] not in new_endpoints[identifier]['methods']:
-                new_endpoints[identifier]['methods'][endpoint['method']] = [extracted_parts]
+            if endpoint.method not in new_endpoints[identifier]['methods']:
+                new_endpoints[identifier]['methods'][endpoint.method] = [extracted_parts]
             else:
-                new_endpoints[identifier]['methods'][endpoint['method']].append(extracted_parts)
+                new_endpoints[identifier]['methods'][endpoint.method].append(extracted_parts)
 
         return new_endpoints.values()
 
@@ -336,14 +332,14 @@ class HttpServer:
                 dict(
                     http_server=self,
                     config_dir=self.definition.source_dir,
-                    service_id=service['internalServiceId'],
+                    service_id=service.internal_service_id,
                     endpoints=merged_endpoints,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
                     rendering_queue=self.definition.rendering_queue,
                     interceptors=self.interceptors,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
-                    fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
+                    fallback_to=service.fallback_to,
                     tags=self.tags
                 )
             )

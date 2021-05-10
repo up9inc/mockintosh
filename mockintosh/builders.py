@@ -187,8 +187,8 @@ class ConfigRootBuilder:
             _id=endpoint.get('id', None),
             comment=endpoint.get('comment', None),
             method=endpoint.get('method', None),
-            query_string=endpoint.get('query_string', None),
-            headers=endpoint.get('headers', None),
+            query_string=endpoint.get('query_string', {}),
+            headers=endpoint.get('headers', {}),
             body=self.build_config_body(endpoint.get('body', None)),
             dataset=self.build_config_dataset(endpoint.get('dataset', None)),
             response=response,
@@ -253,7 +253,7 @@ class ConfigRootBuilder:
         config_templating_engine = data.get('templatingEngine', PYBARS)
         config_globals = self.build_config_globals(data)
 
-        config_performance_profiles = None
+        config_performance_profiles = {}
         if 'performanceProfiles' in data:
             config_performance_profiles = {}
             for key, value in data['performanceProfiles'].items():

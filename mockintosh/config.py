@@ -239,9 +239,9 @@ class ConfigEndpoint:
         path: str,
         _id: Union[str, None] = None,
         comment: Union[str, None] = None,
-        method: Union[str, None] = None,
-        query_string: Dict[str, str] = None,
-        headers: Dict[str, str] = None,
+        method: str = 'GET',
+        query_string: Dict[str, str] = {},
+        headers: Dict[str, str] = {},
         body: Union[ConfigBody, None] = None,
         dataset: Union[ConfigDataset, None] = None,
         response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None] = None,
@@ -252,7 +252,7 @@ class ConfigEndpoint:
         self.path = path
         self.id = _id
         self.comment = comment
-        self.method = method
+        self.method = method.upper()
         self.query_string = query_string
         self.headers = headers
         self.body = body
@@ -295,7 +295,7 @@ class ConfigHttpService(ConfigService):
         return '%s://%s:%s%s' % (
             'https' if self.ssl else 'http',
             self.hostname if self.hostname is not None else (
-                self.address if self.address is not None else 'localhost'
+                'localhost'
             ),
             self.port,
             ' - %s' % self.name if self.name is not None else ''
@@ -354,7 +354,7 @@ class ConfigRoot:
         management: Union[ConfigManagement, None] = None,
         templating_engine: str = PYBARS,
         _globals: Union[ConfigGlobals, None] = None,
-        performance_profiles: Union[Dict[str, ConfigPerformanceProfile], None] = None
+        performance_profiles: Union[Dict[str, ConfigPerformanceProfile]] = {}
     ):
         self.services = services
         self.management = management
