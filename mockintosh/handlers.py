@@ -903,10 +903,10 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             if alternative.response is not None:
                 response = alternative.response
                 if isinstance(response, ConfigMultiResponse):
-                    if not len(response.responses) > 0:
+                    if not len(response.payload) > 0:
                         response = {'body': None}
                     else:
-                        response = self.loop_alternative(alternative, 'response', 'multiResponses')
+                        response = self.loop_alternative(alternative, 'response', 'multi_responses')
                         if not response:
                             return ()
 
@@ -1016,37 +1016,41 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def loop_alternative(self, alternative: dict, key: str, subkey: str) -> dict:
         """Method that contains the logic to loop through the alternatives."""
-        index_key = '%sIndex' % subkey
-        loop_key = '%sLooped' % subkey
-        if index_key not in alternative:
-            alternative[index_key] = 0
+        index_attr = '%s_index' % subkey
+        loop_attr = '%s_looped' % subkey
+        if getattr(alternative, index_attr) is None:
+            setattr(alternative, index_attr, 0)
         else:
-            alternative[index_key] += 1
+            setattr(alternative, index_attr, getattr(alternative, index_attr) + 1)
 
         resetted = False
-        if alternative[index_key] > len(alternative[key]) - 1:
-            if alternative.get(loop_key, True):
-                alternative[index_key] = 0
+        if getattr(alternative, index_attr) > len(getattr(alternative, key).payload) - 1:
+            if getattr(alternative, loop_attr):
+                setattr(alternative, index_attr, 0)
                 resetted = True
             else:
-                self.internal_endpoint_id = alternative['internalEndpointId']
+                self.internal_endpoint_id = alternative.internal_endpoint_id
                 self.set_status(410)
                 self.finish()
                 return False
 
-        if 'tag' in alternative[key][alternative[index_key]]:
-            if alternative[key][alternative[index_key]]['tag'] not in self.tags:
-                if resetted:
-                    self.internal_endpoint_id = alternative['internalEndpointId']
-                    self.set_status(410)
-                    self.finish()
-                    return False
-                else:
-                    return self.loop_alternative(alternative, key, subkey)
+        selection = getattr(alternative, key).payload[getattr(alternative, index_attr)]  # type: Union[ConfigResponse, dict]
+        tag = None
+        if isinstance(selection, ConfigResponse):
+            tag = selection.tag
+        elif isinstance(selection, dict):
+            tag = None if 'tag' not in selection else selection['tag']
+
+        if tag is not None and tag not in self.tags:
+            if resetted:
+                self.internal_endpoint_id = alternative.internal_endpoint_id
+                self.set_status(410)
+                self.finish()
+                return False
             else:
-                return alternative[key][alternative[index_key]]
+                return self.loop_alternative(alternative, key, subkey)
         else:
-            return alternative[key][alternative[index_key]]
+            return selection
 
     async def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""

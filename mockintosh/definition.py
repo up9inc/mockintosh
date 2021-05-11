@@ -268,7 +268,9 @@ class Definition:
                     headers,
                     http_body,
                     endpoint.dataset,
-                    endpoint.response
+                    endpoint.response,
+                    endpoint.multi_responses_looped,
+                    endpoint.dataset_looped
                 )
             )
 

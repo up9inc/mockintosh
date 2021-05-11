@@ -186,7 +186,7 @@ class ConfigRootBuilder:
             endpoint['path'],
             _id=endpoint.get('id', None),
             comment=endpoint.get('comment', None),
-            method=endpoint.get('method', None),
+            method=endpoint.get('method', 'GET'),
             query_string=endpoint.get('query_string', {}),
             headers=endpoint.get('headers', {}),
             body=self.build_config_body(endpoint.get('body', None)),

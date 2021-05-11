@@ -48,8 +48,15 @@ class ConfigContainsTag:
 
     def forbid_comma_in_tag(self, data: list):
         for row in data:
-            if row.tag is not None and ',' in row.tag:
-                raise CommaInTagIsForbidden(row.tag)
+            if isinstance(row, str):
+                return
+            elif isinstance(row, dict):
+                for key, value in row.items():
+                    if ',' in key:
+                        raise CommaInTagIsForbidden(key)
+            else:
+                if row.tag is not None and ',' in row.tag:
+                    raise CommaInTagIsForbidden(row.tag)
 
 
 class ConfigExternalFilePath:
@@ -211,10 +218,9 @@ class ConfigResponse:
 
 class ConfigMultiResponse(ConfigContainsTag):
 
-    def __init__(self, responses: List[Union[ConfigResponse, ConfigExternalFilePath, str]]):
-        self.responses = responses
-        if isinstance(self.responses, list):
-            self.forbid_comma_in_tag(self.responses)
+    def __init__(self, payload: List[Union[ConfigResponse, ConfigExternalFilePath, str]]):
+        self.payload = payload
+        self.forbid_comma_in_tag(self.payload)
 
 
 class ConfigBody:

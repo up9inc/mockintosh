@@ -281,6 +281,8 @@ class HttpServer:
                 endpoint.body,
                 endpoint.dataset,
                 endpoint.response,
+                endpoint.multi_responses_looped,
+                endpoint.dataset_looped,
                 i
             )
 

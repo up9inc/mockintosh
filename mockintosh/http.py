@@ -55,6 +55,8 @@ class HttpEndpoint:
         body: Union[HttpBody, None],
         dataset: Union[ConfigDataset, None],
         response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None],
+        multi_responses_looped: bool,
+        dataset_looped: bool,
     ):
         self.id = _id
         self.orig_path = orig_path
@@ -70,6 +72,8 @@ class HttpEndpoint:
         self.body = body
         self.dataset = dataset
         self.response = response
+        self.multi_responses_looped = multi_responses_looped
+        self.dataset_looped = dataset_looped
 
 
 class HttpService:
@@ -138,6 +142,8 @@ class HttpAlternative:
         body: Union[HttpBody, None],
         dataset: Union[ConfigDataset, None],
         response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None],
+        multi_responses_looped: bool,
+        dataset_looped: bool,
         internal_endpoint_id: int
     ):
         self.id = _id
@@ -151,6 +157,10 @@ class HttpAlternative:
         self.body = body
         self.dataset = dataset
         self.response = response
+        self.multi_responses_looped = multi_responses_looped
+        self.multi_responses_index = None
+        self.dataset_looped = dataset_looped
+        self.dataset_index = None
         self.internal_endpoint_id = internal_endpoint_id
         self.id = None
         self.counters = {}
