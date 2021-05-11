@@ -184,10 +184,13 @@ class Definition:
                 endpoint.performance_profile if endpoint.performance_profile is not None else service_perfomance_profile,
                 None
             )
+            if performance_profile is not None:
+                performance_profile = performance_profile.actuator
 
             scheme, netloc, path, query, fragment = _urlsplit(endpoint.path)
             query_string = {}
             parsed_query = parse_qs(query, keep_blank_values=True)
+            query_string.update(endpoint.query_string)
             query_string.update({k: parsed_query[k] for k, v in parsed_query.items()})
 
             path_recognizer = PathRecognizer(
@@ -209,7 +212,7 @@ class Definition:
             headers = headers_recognizer.recognize()
 
             query_string_recognizer = QueryStringRecognizer(
-                endpoint.query_string,
+                query_string,
                 params,
                 context,
                 template_engine,
@@ -247,7 +250,7 @@ class Definition:
                 multipart = body_multipart_recognizer.recognize()
 
                 http_body = HttpBody(
-                    endpoint.schema,
+                    endpoint.body.schema,
                     text,
                     urlencoded,
                     multipart

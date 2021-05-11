@@ -798,8 +798,8 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 # Schema
                 if alternative.body.schema is not None:
                     json_schema = None
-                    if isinstance(alternative.body.schema, ConfigExternalFilePath):
-                        json_schema_path, _ = self.resolve_relative_path(alternative.body.schema.path)
+                    if isinstance(alternative.body.schema.payload, ConfigExternalFilePath):
+                        json_schema_path, _ = self.resolve_relative_path(alternative.body.schema.payload.path)
                         with open(json_schema_path, 'r') as file:
                             logging.info('Reading JSON schema file from path: %s', json_schema_path)
                             try:
@@ -807,12 +807,12 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                             except json.decoder.JSONDecodeError:
                                 self.send_error(
                                     500,
-                                    message='JSON decode error of the JSON schema file: %s' % json_schema
+                                    message='JSON decode error of the JSON schema file: %s' % alternative.body.schema.payload.path
                                 )
                                 return
                             logging.debug('JSON schema: %s', json_schema)
                     else:
-                        json_schema = alternative.body.schema
+                        json_schema = alternative.body.schema.payload
                     json_data = None
 
                     if body and json_schema:

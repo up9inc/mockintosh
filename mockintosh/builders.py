@@ -178,16 +178,18 @@ class ConfigRootBuilder:
             if isinstance(response, dict):
                 response = self.build_config_response(response)
             elif isinstance(response, str):
-                response = self.build_config_external_file_path(response)
+                response = ConfigResponse(body=self.build_config_external_file_path(response))
             elif isinstance(response, list):
                 response = self.build_config_multi_response(response)
+        else:
+            response = ConfigResponse()
 
         return ConfigEndpoint(
             endpoint['path'],
             _id=endpoint.get('id', None),
             comment=endpoint.get('comment', None),
             method=endpoint.get('method', 'GET'),
-            query_string=endpoint.get('query_string', {}),
+            query_string=endpoint.get('queryString', {}),
             headers=endpoint.get('headers', {}),
             body=self.build_config_body(endpoint.get('body', None)),
             dataset=self.build_config_dataset(endpoint.get('dataset', None)),
@@ -257,7 +259,7 @@ class ConfigRootBuilder:
         if 'performanceProfiles' in data:
             config_performance_profiles = {}
             for key, value in data['performanceProfiles'].items():
-                config_performance_profiles['key'] = self.build_config_performance_profile(value)
+                config_performance_profiles[key] = self.build_config_performance_profile(value)
 
         return ConfigRoot(
             config_services,

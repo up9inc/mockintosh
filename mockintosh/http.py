@@ -26,10 +26,10 @@ class HttpBody:
 
     def __init__(
         self,
-        schema: ConfigSchema,
+        schema: Union[ConfigSchema, ConfigExternalFilePath, None],
         text: Union[str, None],
-        urlencoded: Dict[str, str],
-        multipart: Dict[str, str]
+        urlencoded: Union[Dict[str, str], None],
+        multipart: Union[Dict[str, str], None]
     ):
         self.schema = schema
         self.text = text
@@ -162,5 +162,4 @@ class HttpAlternative:
         self.dataset_looped = dataset_looped
         self.dataset_index = None
         self.internal_endpoint_id = internal_endpoint_id
-        self.id = None
         self.counters = {}

@@ -75,8 +75,8 @@ class ConfigDataset(ConfigContainsTag):
 
 class ConfigSchema:
 
-    def __init__(self, schema: Union[dict, ConfigExternalFilePath]):
-        self.schema = schema
+    def __init__(self, payload: Union[dict, ConfigExternalFilePath]):
+        self.payload = payload
 
 
 class ConfigHeaders:
@@ -202,7 +202,7 @@ class ConfigResponse:
     def __init__(
         self,
         headers: Union[ConfigHeaders, None] = None,
-        status: Union[str, int, None] = None,
+        status: Union[str, int] = 200,
         body: Union[str, ConfigExternalFilePath, None] = None,
         use_templating: bool = True,
         templating_engine: str = PYBARS,
@@ -360,7 +360,7 @@ class ConfigRoot:
         management: Union[ConfigManagement, None] = None,
         templating_engine: str = PYBARS,
         _globals: Union[ConfigGlobals, None] = None,
-        performance_profiles: Union[Dict[str, ConfigPerformanceProfile]] = {}
+        performance_profiles: Dict[str, ConfigPerformanceProfile] = {}
     ):
         self.services = services
         self.management = management

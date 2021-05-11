@@ -135,7 +135,7 @@ class RecognizerBase():
             new_parts[key] = new_part
         return priority
 
-    def recognize_generic(self) -> Union[Tuple[str, int], dict]:
+    def recognize_generic(self) -> Union[Tuple[str, int], dict, None]:
         parts = None
         new_parts = None
         priority = 0
@@ -147,6 +147,9 @@ class RecognizerBase():
         else:
             parts = self.payload
             new_parts = {}
+
+        if parts is None:
+            return None
 
         for key, value in parts.items():
             if not isinstance(value, list):
