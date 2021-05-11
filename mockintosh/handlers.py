@@ -38,7 +38,8 @@ from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.config import (
     ConfigExternalFilePath,
     ConfigResponse,
-    ConfigMultiResponse
+    ConfigMultiResponse,
+    ConfigHeaders
 )
 from mockintosh.http import (
     HttpAlternative
@@ -198,11 +199,13 @@ class BaseHandler:
 
         return log_record
 
-    def load_dataset(self, dataset: [list, str]) -> dict:
+    def load_dataset(self, dataset: Union[list, str, ConfigExternalFilePath]) -> dict:
         """Method that loads a dataset."""
         if isinstance(dataset, list):
             return dataset
         else:
+            if isinstance(dataset, ConfigExternalFilePath):
+                dataset = dataset.path
             dataset_path, _ = self.resolve_relative_path(dataset)
             with open(dataset_path, 'r') as file:
                 logging.info('Reading dataset file from path: %s', dataset_path)
@@ -1233,8 +1236,8 @@ class KafkaHandler(BaseHandler):
 
     def _render_value(self, value):
         is_binary = False
-        if len(value) > 1 and value[0] == '@':
-            template_path, context = self.resolve_relative_path(value)
+        if isinstance(value, ConfigExternalFilePath):
+            template_path, context = self.resolve_relative_path(value.path)
             with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 value = file.read()
@@ -1342,7 +1345,13 @@ class KafkaHandler(BaseHandler):
         request.path = '/%s' % self.topic
 
         # Headers
-        for key, value in self.headers.items():
+        headers = None
+        if isinstance(self.headers, ConfigHeaders):
+            headers = self.headers.payload
+        else:
+            headers = self.headers
+
+        for key, value in headers.items():
             request.headers[key.title()] = value
 
         # Query String

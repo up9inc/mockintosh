@@ -35,7 +35,12 @@ from mockintosh.exceptions import (
     AsyncProducerPayloadLoopEnd,
     AsyncProducerDatasetLoopEnd
 )
-from mockintosh.kafka import KafkaService, run_loops as kafka_run_loops
+from mockintosh.kafka import (
+    KafkaService,
+    KafkaProducer,
+    KafkaConsumer,
+    run_loops as kafka_run_loops
+)
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -162,7 +167,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 )
             self.http_server.definition.stats.add_service(hint)
 
-        for kafka_service in data['kafka_services']:
+        for kafka_service in KafkaService.services:
             self.http_server._apps.apps[kafka_service.id] = kafka_service
 
         for i, service in enumerate(data['services']):
@@ -1133,10 +1138,10 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             'consumers': []
         }
 
-        for producer in self.http_server.definition.data['async_producers']:
+        for producer in KafkaProducer.producers:
             data['producers'].append(producer.info())
 
-        for consumer in self.http_server.definition.data['async_consumers']:
+        for consumer in KafkaConsumer.consumers:
             data['consumers'].append(consumer.info())
 
         self.dump(data)
@@ -1159,7 +1164,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                producer = self.http_server.definition.data['async_producers'][index]
+                producer = KafkaProducer.producers[index]
                 try:
                     producer.check_tags()
                     producer.check_payload_lock()
@@ -1186,8 +1191,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         else:
             producer = None
             actor_name = unquote(value)
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
+            for service_id, service in enumerate(KafkaService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.producer is None:  # pragma: no cover
@@ -1229,7 +1233,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer = KafkaConsumer.consumers[index]
                 self.write(consumer.single_log_service.json())
             except IndexError:
                 self.set_status(400)
@@ -1238,8 +1242,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         else:
             consumer = None
             actor_name = unquote(value)
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
+            for service_id, service in enumerate(KafkaService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.consumer is None:  # pragma: no cover
@@ -1257,7 +1260,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer = KafkaConsumer.consumers[index]
                 consumer.single_log_service.reset()
                 self.set_status(204)
             except IndexError:
@@ -1267,8 +1270,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         else:
             consumer = None
             actor_name = unquote(value)
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
+            for service_id, service in enumerate(KafkaService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.consumer is None:  # pragma: no cover

@@ -25,6 +25,9 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka.cimpl import KafkaException
 
 from mockintosh.constants import LOGGING_LENGTH_LIMIT
+from mockintosh.config import (
+    ConfigExternalFilePath
+)
 from mockintosh.helpers import _delay
 from mockintosh.handlers import KafkaHandler
 from mockintosh.replicas import Consumed
@@ -100,12 +103,13 @@ class KafkaConsumerProducerBase:
 
     def __init__(
         self,
+        index: int,
         topic: str
     ):
         self.topic = topic
         self.actor = None
         self.internal_endpoint_id = None
-        self.index = None
+        self.index = index
         self.counter = 0
         self.last_timestamp = None
 
@@ -127,6 +131,8 @@ class KafkaConsumerProducerBase:
 
 class KafkaConsumer(KafkaConsumerProducerBase):
 
+    consumers = []
+
     def __init__(
         self,
         topic: str,
@@ -137,7 +143,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         capture_limit: int = 1,
         enable_topic_creation: bool = False
     ):
-        super().__init__(topic)
+        super().__init__(len(KafkaConsumer.consumers), topic)
         self.schema = schema
         self.match_value = value
         self.match_key = key
@@ -146,6 +152,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.log = []
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
+        KafkaConsumer.consumers.append(self)
 
     def _match_str(self, x: str, y: Union[str, None]):
         if y is None:
@@ -173,9 +180,9 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             return self._match_str(x, y)
 
     def match_schema(self, value: str, kafka_handler: KafkaHandler) -> bool:
-        json_schema = self.schema
-        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-            json_schema_path, _ = kafka_handler.resolve_relative_path(json_schema)
+        json_schema = self.schema.payload
+        if isinstance(json_schema, ConfigExternalFilePath):
+            json_schema_path, _ = kafka_handler.resolve_relative_path(json_schema.path)
             with open(json_schema_path, 'r') as file:
                 logging.info('Reading JSON schema file from path: %s', json_schema_path)
                 try:
@@ -434,17 +441,20 @@ class KafkaProducerPayloadList:
 
 class KafkaProducer(KafkaConsumerProducerBase):
 
+    producers = []
+
     def __init__(
         self,
         topic: str,
         payload_list: KafkaProducerPayloadList
     ):
-        super().__init__(topic)
+        super().__init__(len(KafkaProducer.producers), topic)
         self.payload_list = payload_list
         self.payload_iteration = 0
         self.dataset_iteration = 0
         self.lock_payload = False
         self.lock_dataset = False
+        KafkaProducer.producers.append(self)
 
     def check_tags(self) -> None:
         if all(_payload.tag is not None and _payload.tag not in self.actor.service.tags for _payload in self.payload_list.list):
@@ -513,7 +523,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         row = None
         set_row = False
         if self.actor.dataset is not None:
-            self.actor._dataset = kafka_handler.load_dataset(self.actor.dataset)
+            self.actor._dataset = kafka_handler.load_dataset(self.actor.dataset.payload)
             row = self.get_current_dataset_row()
             self.increment_dataset_iteration()
             if 'tag' in row and row['tag'] not in self.actor.service.tags:
@@ -687,7 +697,10 @@ class KafkaActor:
         self.service.definition.stats.services[self.service.id].add_endpoint(hint)
         self.producer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
-    def set_delay(self, value: Union[int, float]):
+    def set_delay(self, value: Union[int, float, None]):
+        if value is None:
+            return
+
         self.delay = value
 
     def set_limit(self, value: int):

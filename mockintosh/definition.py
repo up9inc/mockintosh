@@ -324,7 +324,7 @@ class Definition:
                 key = async_producer_key_recognizer.recognize()
 
                 async_producer_headers_recognizer = AsyncProducerHeadersRecognizer(
-                    headers,
+                    {} if headers is None else headers.payload,
                     params,
                     context,
                     self.template_engine,
@@ -341,7 +341,8 @@ class Definition:
                     capture_limit=capture_limit
                 )
                 kafka_actor.set_consumer(kafka_consumer)
-                kafka_actor.set_delay(actor.delay)
+
+            kafka_actor.set_delay(actor.delay)
 
             if actor.produce is not None:
                 queue = None
@@ -353,7 +354,7 @@ class Definition:
                     for _produce in actor.produce.produce_list:
                         if queue != _produce.queue:
                             raise AsyncProducerListQueueMismatch(kafka_actor.get_hint())
-                    produce_list += actor.produce.produce_list[0]
+                    produce_list += actor.produce.produce_list
                 else:
                     queue = actor.produce.queue
                     produce_list += [actor.produce]
@@ -362,9 +363,9 @@ class Definition:
                     payload = KafkaProducerPayload(
                         produce.value,
                         key=produce.key,
-                        headers=produce.headers,
+                        headers={} if produce.headers is None else produce.headers.payload,
                         tag=produce.tag,
-                        enable_topic_creation=produce.enable_topic_creation
+                        enable_topic_creation=produce.create
                     )
                     payload_list.add_payload(payload)
 
