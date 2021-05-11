@@ -170,8 +170,8 @@ class ManagementConfigHandler(ManagementBaseHandler):
         for kafka_service in KafkaService.services:
             self.http_server._apps.apps[kafka_service.id] = kafka_service
 
-        for i, service in enumerate(HttpService.services):
-            self.update_service(service, i)
+        for service in HttpService.services:
+            self.update_service(service, service.internal_service_id)
 
         self.http_server.definition.stats.reset()
         self.http_server.definition.data = data
@@ -231,7 +231,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, service in enumerate(HttpService.services):
+        for i, service in enumerate(self.http_server.definition.services):
+            if not isinstance(service, HttpService):
+                continue
+
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}

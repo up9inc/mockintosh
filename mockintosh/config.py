@@ -177,7 +177,7 @@ class ConfigAsyncService(ConfigService):
         self.ssl = ssl
 
     def get_hint(self):
-        return '%s://%s' % (self.type, self.address if self.name is None else self.name)
+        return '%s://%s' % (self.type, self.address) if self.name is None else self.name
 
     def address_template_renderer(
         self,

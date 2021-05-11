@@ -237,6 +237,8 @@ class HttpServer:
         self._apps.apps = len(services) * [None]
         self._apps.listeners = len(services) * [None]
         for service in services:
+            if not isinstance(service, HttpService):
+                self._apps.apps[service.id] = service
             self.unhandled_data.requests.append({})
 
         port_mapping = self.map_ports()

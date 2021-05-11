@@ -482,19 +482,19 @@ class KafkaProducer(KafkaConsumerProducerBase):
             raise AsyncProducerDatasetLoopEnd(self.actor.get_hint())
 
     def check_dataset(self) -> bool:
-        if all('tag' in row and row['tag'] not in self.actor.service.tags for row in self.actor._dataset):
+        if all('tag' in row and row['tag'] not in self.actor.service.tags for row in self.actor._dataset.payload):
             return False
         return True
 
     def increment_dataset_iteration(self) -> None:
         self.dataset_iteration += 1
-        if self.dataset_iteration > len(self.actor._dataset) - 1:
+        if self.dataset_iteration > len(self.actor._dataset.payload) - 1:
             if not self.actor.dataset_looped:
                 self.lock_dataset = True
             self.dataset_iteration = 0
 
     def get_current_dataset_row(self) -> dict:
-        return self.actor._dataset[self.dataset_iteration]
+        return self.actor._dataset.payload[self.dataset_iteration]
 
     def is_dataset_locked(self) -> bool:
         if self.actor.dataset is None:
@@ -523,7 +523,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         row = None
         set_row = False
         if self.actor.dataset is not None:
-            self.actor._dataset = kafka_handler.load_dataset(self.actor.dataset.payload)
+            self.actor._dataset = kafka_handler.load_dataset(self.actor.dataset)
             row = self.get_current_dataset_row()
             self.increment_dataset_iteration()
             if 'tag' in row and row['tag'] not in self.actor.service.tags:
