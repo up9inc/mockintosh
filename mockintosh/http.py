@@ -42,6 +42,7 @@ class HttpAlternativeBase:
     def __init__(
         self,
         _id: Union[str, None],
+        orig_path: str,
         params: dict,
         context: OrderedDict,
         performance_profile: str,
@@ -54,6 +55,7 @@ class HttpAlternativeBase:
         dataset_looped: bool
     ):
         self.id = _id
+        self.orig_path = orig_path
         self.params = params
         self.context = context
         self.performance_profile = performance_profile
@@ -89,6 +91,7 @@ class HttpEndpoint(HttpAlternativeBase):
     ):
         super().__init__(
             _id,
+            orig_path,
             params,
             context,
             performance_profile,
@@ -100,7 +103,6 @@ class HttpEndpoint(HttpAlternativeBase):
             multi_responses_looped,
             dataset_looped
         )
-        self.orig_path = orig_path
         self.priority = priority
         self.path = path
         self.comment = comment
@@ -120,7 +122,7 @@ class HttpService:
         ssl_cert_file: Union[str, None],
         ssl_key_file: Union[str, None],
         management_root: Union[str, None],
-        oas: Union[str, None],
+        oas: Union[str, ConfigExternalFilePath, None],
         performance_profile: Union[str, None],
         fallback_to: Union[str, None],
         internal_service_id
@@ -166,6 +168,7 @@ class HttpAlternative(HttpAlternativeBase):
     def __init__(
         self,
         _id: Union[str, None],
+        orig_path: str,
         params: dict,
         context: OrderedDict,
         performance_profile: str,
@@ -180,6 +183,7 @@ class HttpAlternative(HttpAlternativeBase):
     ):
         super().__init__(
             _id,
+            orig_path,
             params,
             context,
             performance_profile,

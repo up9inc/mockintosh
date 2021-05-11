@@ -48,7 +48,7 @@ class ConfigContainsTag:
 
     def forbid_comma_in_tag(self, data: list):
         for row in data:
-            if isinstance(row, str):
+            if isinstance(row, (str, ConfigExternalFilePath)):
                 return
             elif isinstance(row, dict):
                 for key, value in row.items():

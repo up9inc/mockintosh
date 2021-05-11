@@ -28,7 +28,9 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.config import (
-    ConfigService
+    ConfigService,
+    ConfigExternalFilePath,
+    ConfigResponse
 )
 from mockintosh.http import (
     HttpService
@@ -316,15 +318,11 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             'services': []
         }
 
-        services = self.http_server.definition.orig_data['services']
-        for i, service in enumerate(services):
-            if 'type' in service and service['type'] != 'http':
-                continue
-
+        for i, service in enumerate(HttpService.services):
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
-            new_service = dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service)
+            new_service = dict((k, getattr(service, k)) for k in UNHANDLED_SERVICE_KEYS if getattr(service, k) is not None)
             new_service['endpoints'] = endpoints
             data['services'].append(new_service)
 
@@ -433,27 +431,23 @@ class ManagementOasHandler(ManagementBaseHandler):
             'documents': []
         }
 
-        services = self.http_server.definition.orig_data['services']
-        for i, service in enumerate(services):
-            if 'type' in service and service['type'] != 'http':
-                continue
-
+        for i, service in enumerate(HttpService.services):
             data['documents'].append(self.build_oas(i))
 
         self.write(data)
 
     def build_oas(self, service_id):
-        service = self.http_server.definition.orig_data['services'][service_id]
-        ssl = service.get('ssl', False)
+        service = HttpService.services[service_id]
+        ssl = service.ssl
         protocol = 'https' if ssl else 'http'
         hostname = self.http_server.address if self.http_server.address else (
-            'localhost' if 'hostname' not in service else service['hostname']
+            'localhost' if service.hostname is None else service.hostname
         )
 
-        if 'oas' in service:
-            custom_oas = service['oas']
-            if isinstance(custom_oas, str) and len(custom_oas) > 1 and custom_oas[0] == '@':
-                custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas)
+        if service.oas is not None:
+            custom_oas = service.oas
+            if isinstance(custom_oas, ConfigExternalFilePath):
+                custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas.path)
                 with open(custom_oas_path, 'r') as file:
                     custom_oas = json.load(file)
             if 'servers' not in custom_oas:
@@ -461,8 +455,8 @@ class ManagementOasHandler(ManagementBaseHandler):
             custom_oas['servers'].insert(
                 0,
                 {
-                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
-                    'description': service['name'] if 'name' in service else ''
+                    'url': '%s://%s:%s' % (protocol, hostname, service.port),
+                    'description': service.get_name_or_empty()
                 }
             )
             return custom_oas
@@ -470,31 +464,32 @@ class ManagementOasHandler(ManagementBaseHandler):
         document = {
             'openapi': '3.0.0',
             'info': {
-                'title': service['name'] if 'name' in service else '%s://%s:%s' % (protocol, hostname, service['port']),
+                'title': service.name if service.name is not None else '%s://%s:%s' % (protocol, hostname, service.port),
                 'description': 'Automatically generated Open API Specification.',
                 'version': '0.1.9'
             },
             'servers': [
                 {
-                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
-                    'description': service['name'] if 'name' in service else ''
+                    'url': '%s://%s:%s' % (protocol, hostname, service.port),
+                    'description': service.get_name_or_empty()
                 }
             ],
             'paths': {}
         }
 
-        endpoints = []
+        path_methods = []
         for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
-                endpoints = rule.target_kwargs['endpoints']
+                path_methods = rule.target_kwargs['path_methods']
 
-        for endpoint in endpoints:
-            original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
+        for _, _methods in path_methods:
+            first_alternative = list(_methods.values())[0][0]
+            original_path = first_alternative.orig_path
             scheme, netloc, original_path, query, fragment = _urlsplit(original_path)
             query_string = parse_qs(query, keep_blank_values=True)
             path, path_params = self.path_handlebars_to_oas(original_path)
             methods = {}
-            for method, alternatives in endpoint[1].items():
+            for method, alternatives in _methods.items():
                 if not alternatives:  # pragma: no cover
                     continue  # https://github.com/nedbat/coveragepy/issues/198
 
@@ -502,13 +497,13 @@ class ManagementOasHandler(ManagementBaseHandler):
                 alternative = alternatives[0]
 
                 # requestBody
-                if 'body' in alternative:
+                if alternative.body is not None:
 
                     # schema
-                    if 'schema' in alternative['body']:
-                        json_schema = alternative['body']['schema']
-                        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
+                    if alternative.body.schema is not None:
+                        json_schema = alternative.body.schema.payload
+                        if isinstance(json_schema, ConfigExternalFilePath):
+                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema.path)
                             with open(json_schema_path, 'r') as file:
                                 json_schema = json.load(file)
                         method_data['requestBody'] = {
@@ -521,7 +516,7 @@ class ManagementOasHandler(ManagementBaseHandler):
                         }
 
                     # text
-                    if 'text' in alternative['body']:
+                    if alternative.body.text is not None:
                         method_data['requestBody'] = {
                             'required': True,
                             'content': {
@@ -549,10 +544,10 @@ class ManagementOasHandler(ManagementBaseHandler):
                         method_data['parameters'].append(data)
 
                 # header parameters
-                if 'headers' in alternative:
+                if alternative.headers is not None:
                     if 'parameters' not in method_data:
                         method_data['parameters'] = []
-                    for key in alternative['headers'].keys():
+                    for key in alternative.headers.keys():
                         data = {
                             'in': 'header',
                             'name': key,
@@ -564,10 +559,10 @@ class ManagementOasHandler(ManagementBaseHandler):
                         method_data['parameters'].append(data)
 
                 # query string parameters
-                if 'queryString' in alternative:
+                if alternative.query_string is not None:
                     if 'parameters' not in method_data:
                         method_data['parameters'] = []
-                    query_string.update(alternative['queryString'])
+                    query_string.update(alternative.query_string)
                     for key in query_string.keys():
                         data = {
                             'in': 'query',
@@ -580,19 +575,19 @@ class ManagementOasHandler(ManagementBaseHandler):
                         method_data['parameters'].append(data)
 
                 # responses
-                if 'response' in alternative:
-                    response = alternative['response']
+                if alternative.response is not None:
+                    response = alternative.response
                     status = 200
-                    if isinstance(response, dict) and 'status' in response:
-                        status = str(response['status'])
+                    if isinstance(response, ConfigResponse) and response.status is not None:
+                        status = str(response.status)
                     if status not in ('RST', 'FIN'):
                         try:
                             int(status)
                         except ValueError:
                             status = 'default'
                         status_data = {}
-                        if isinstance(response, dict) and 'headers' in response:
-                            new_headers = {k.title(): v for k, v in response['headers'].items()}
+                        if isinstance(response, ConfigResponse) and response.headers is not None:
+                            new_headers = {k.title(): v for k, v in response.headers.payload.items()}
                             if 'Content-Type' in new_headers:
                                 if new_headers['Content-Type'].startswith('application/json'):
                                     status_data = {
@@ -1040,11 +1035,11 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             'services': []
         }
 
-        service = self.http_server.definition.orig_data['services'][self.service_id]
-        data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
+        service = self.http_server.definition.services[self.service_id]
+        data['services'].append(dict((k, getattr(service, k)) for k in UNHANDLED_SERVICE_KEYS if getattr(service, k) is not None))
         data['services'][0]['endpoints'] = self.build_unhandled_requests(self.service_id)
 
-        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config = copy.deepcopy(self.http_server.definition.data)
         imaginary_config['services'] = data['services']
 
         if not self.validate(imaginary_config):  # pragma: no cover

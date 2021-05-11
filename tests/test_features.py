@@ -2630,9 +2630,7 @@ class TestManagement():
         'configs/yaml/hbs/core/big_config.yaml'
     ])
     def test_get_oas(self, config):
-        config_path = None
-        config_path = get_config_path(config)
-        self.mock_server_process = run_mock_server(config_path)
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = None
         resp = httpx.get(MGMT + '/oas', verify=False)

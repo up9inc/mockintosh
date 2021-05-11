@@ -271,6 +271,7 @@ class HttpServer:
             identifier = endpoint.path
             alternative = HttpAlternative(
                 endpoint.id,
+                endpoint.orig_path,
                 endpoint.params,
                 endpoint.context,
                 endpoint.performance_profile,

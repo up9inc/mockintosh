@@ -797,7 +797,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     continue
 
             # Body
-            if alternative.body:
+            if alternative.body is not None:
                 body = self.request.body.decode()
 
                 # Schema
