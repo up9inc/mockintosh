@@ -37,7 +37,36 @@ class HttpBody:
         self.multipart = multipart
 
 
-class HttpEndpoint:
+class HttpAlternativeBase:
+
+    def __init__(
+        self,
+        _id: Union[str, None],
+        params: dict,
+        context: OrderedDict,
+        performance_profile: str,
+        query_string: Dict[str, str],
+        headers: Dict[str, str],
+        body: Union[HttpBody, None],
+        dataset: Union[ConfigDataset, None],
+        response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None],
+        multi_responses_looped: bool,
+        dataset_looped: bool
+    ):
+        self.id = _id
+        self.params = params
+        self.context = context
+        self.performance_profile = performance_profile
+        self.query_string = query_string
+        self.headers = headers
+        self.body = body
+        self.dataset = dataset
+        self.response = response
+        self.multi_responses_looped = multi_responses_looped
+        self.dataset_looped = dataset_looped
+
+
+class HttpEndpoint(HttpAlternativeBase):
 
     def __init__(
         self,
@@ -58,22 +87,24 @@ class HttpEndpoint:
         multi_responses_looped: bool,
         dataset_looped: bool,
     ):
-        self.id = _id
+        super().__init__(
+            _id,
+            params,
+            context,
+            performance_profile,
+            query_string,
+            headers,
+            body,
+            dataset,
+            response,
+            multi_responses_looped,
+            dataset_looped
+        )
         self.orig_path = orig_path
-        self.params = params
-        self.context = context
-        self.performance_profile = performance_profile
         self.priority = priority
         self.path = path
         self.comment = comment
         self.method = method
-        self.query_string = query_string
-        self.headers = headers
-        self.body = body
-        self.dataset = dataset
-        self.response = response
-        self.multi_responses_looped = multi_responses_looped
-        self.dataset_looped = dataset_looped
 
 
 class HttpService:
@@ -127,16 +158,14 @@ class HttpPath:
         return 'priority: %s, methods: %s' % (self.priority, self.methods)
 
 
-class HttpAlternative:
+class HttpAlternative(HttpAlternativeBase):
 
     def __init__(
         self,
         _id: Union[str, None],
-        orig_path: str,
         params: dict,
         context: OrderedDict,
         performance_profile: str,
-        comment: Union[str, None],
         query_string: Dict[str, str],
         headers: Dict[str, str],
         body: Union[HttpBody, None],
@@ -146,20 +175,20 @@ class HttpAlternative:
         dataset_looped: bool,
         internal_endpoint_id: int
     ):
-        self.id = _id
-        self.orig_path = orig_path
-        self.params = params
-        self.context = context
-        self.performance_profile = performance_profile
-        self.comment = comment
-        self.query_string = query_string
-        self.headers = headers
-        self.body = body
-        self.dataset = dataset
-        self.response = response
-        self.multi_responses_looped = multi_responses_looped
+        super().__init__(
+            _id,
+            params,
+            context,
+            performance_profile,
+            query_string,
+            headers,
+            body,
+            dataset,
+            response,
+            multi_responses_looped,
+            dataset_looped
+        )
         self.multi_responses_index = None
-        self.dataset_looped = dataset_looped
         self.dataset_index = None
         self.internal_endpoint_id = internal_endpoint_id
         self.counters = {}
