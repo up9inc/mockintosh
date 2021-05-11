@@ -61,8 +61,11 @@ class ConfigContainsTag:
 
 class ConfigExternalFilePath:
 
+    files = []
+
     def __init__(self, path: str):
         self.path = path
+        ConfigExternalFilePath.files.append(self.path[1:])
 
 
 class ConfigDataset(ConfigContainsTag):
