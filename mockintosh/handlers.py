@@ -22,7 +22,6 @@ from typing import (
     Optional,
     Awaitable,
     Tuple,
-    List,
     Dict
 )
 
@@ -39,8 +38,7 @@ from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.config import (
     ConfigExternalFilePath,
     ConfigResponse,
-    ConfigMultiResponse,
-    ConfigDataset
+    ConfigMultiResponse
 )
 from mockintosh.http import (
     HttpAlternative

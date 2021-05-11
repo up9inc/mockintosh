@@ -133,8 +133,6 @@ class Definition:
             if isinstance(service, ConfigAsyncService):
                 new_services.append(self.analyze_async_service(service))
             elif isinstance(service, ConfigHttpService):
-                if not service.endpoints:
-                    continue
                 new_services.append(
                     Definition.analyze_http_service(
                         service,

@@ -48,8 +48,8 @@ class ConfigContainsTag:
 
     def forbid_comma_in_tag(self, data: list):
         for row in data:
-            if 'tag' in row and ',' in row['tag']:
-                raise CommaInTagIsForbidden(row['tag'])
+            if row.tag is not None and ',' in row.tag:
+                raise CommaInTagIsForbidden(row.tag)
 
 
 class ConfigExternalFilePath:
