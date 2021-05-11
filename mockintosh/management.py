@@ -27,6 +27,12 @@ from tornado.util import unicode_type
 from tornado.escape import utf8
 
 import mockintosh
+from mockintosh.config import (
+    ConfigService
+)
+from mockintosh.http import (
+    HttpService
+)
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import (
@@ -132,54 +138,39 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.http_server = http_server
 
     async def get(self):
-        data = self.http_server.definition.orig_data
+        data = self.http_server.definition.data
         self.dump(data)
 
     async def post(self):
-        orig_data = self.decode()
-        if orig_data is None:
+        data = self.decode()
+        if data is None:
             return
-
-        data = copy.deepcopy(orig_data)
 
         if not self.validate(data):
             return
-
-        self.http_server.definition.stats.services = []
-        data = self.http_server.definition.analyze(data)
-        for service in data['services']:
-            hint = None
-            if 'type' in service and service['type'] != 'http':
-                service['address'], _ = mockintosh.definition.Definition.async_address_template_renderer(
-                    self.http_server.definition.template_engine,
-                    self.http_server.definition.rendering_queue,
-                    service['address']
-                )
-                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
-            else:
-                hint = '%s://%s:%s%s' % (
-                    'https' if service.get('ssl', False) else 'http',
-                    service['hostname'] if 'hostname' in service else (
-                        self.http_server.address if self.http_server.address else 'localhost'
-                    ),
-                    service['port'],
-                    ' - %s' % service['name'] if 'name' in service else ''
-                )
-            self.http_server.definition.stats.add_service(hint)
-
-        for kafka_service in KafkaService.services:
-            self.http_server._apps.apps[kafka_service.id] = kafka_service
 
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
 
-            service['internalServiceId'] = i
-            if not self.update_service(service, i):
+            if not self.check_restricted_fields(service, i):
                 return
 
+        self.http_server.definition.stats.services = []
+        KafkaService.services = []
+        KafkaProducer.producers = []
+        KafkaConsumer.consumers = []
+        HttpService.services = []
+        ConfigService.services = []
+        self.http_server.definition.analyze(data)
+
+        for kafka_service in KafkaService.services:
+            self.http_server._apps.apps[kafka_service.id] = kafka_service
+
+        for i, service in enumerate(HttpService.services):
+            self.update_service(service, i)
+
         self.http_server.definition.stats.reset()
-        self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
         self.update_globals()
@@ -191,55 +182,53 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
         self.set_status(204)
 
-    def update_service(self, service, service_index) -> bool:
+    def update_service(self, service: HttpService, service_index: int) -> None:
+        self.http_server.definition.stats.services[service_index].endpoints = []
+        self.http_server.definition.logs.services[service_index].name = service.get_name_or_empty()
+
+        http_path_list = []
+        if service.endpoints:
+            http_path_list = mockintosh.servers.HttpServer.merge_alternatives(
+                service,
+                self.http_server.definition.stats
+            )
+
+        path_methods = []
+        for http_path in http_path_list:
+            path_methods.append((http_path.path, http_path.methods))
+
+        for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['path_methods'] = path_methods
+                break
+
+        mockintosh.servers.HttpServer.log_path_methods(path_methods)
+
+    def check_restricted_fields(self, service: dict, service_index) -> bool:
         try:
-            self._update_service(service, service_index)
+            self._check_restricted_fields(service, service_index)
             return True
         except RestrictedFieldError as e:
             self.set_status(500)
             self.write(str(e))
             return False
 
-    def _update_service(self, service, service_index):
-        self.check_restricted_fields(service, service_index)
-        endpoints = []
-        self.http_server.definition.stats.services[service_index].endpoints = []
-        self.http_server.definition.logs.services[service_index].name = service['name'] if 'name' in service else ''
-
-        if 'endpoints' in service:
-            endpoints = mockintosh.servers.HttpServer.merge_alternatives(
-                service,
-                self.http_server.definition.stats
-            )
-        merged_endpoints = []
-        for endpoint in endpoints:
-            merged_endpoints.append((endpoint['path'], endpoint['methods']))
-
-        for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                rule.target_kwargs['endpoints'] = merged_endpoints
-                break
-
-        mockintosh.servers.HttpServer.log_merged_endpoints(merged_endpoints)
-
-    def check_restricted_fields(self, service, service_index):
+    def _check_restricted_fields(self, service, service_index):
+        old_service = self.http_server.definition.data['services'][service_index]
         for field in POST_CONFIG_RESTRICTED_FIELDS:
             if (
-                (field in service and field not in self.http_server.definition.orig_data['services'][service_index])
+                (field in service and field not in old_service)
                 or  # noqa: W504, W503
-                (field not in service and field in self.http_server.definition.orig_data['services'][service_index])
+                (field not in service and field in old_service)
                 or  # noqa: W504, W503
-                field in service and field in self.http_server.definition.orig_data['services'][service_index] and (
-                    service[field] != self.http_server.definition.orig_data['services'][service_index][field]
+                field in service and field in old_service and (
+                    service[field] != old_service[field]
                 )
             ):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, service in enumerate(self.http_server.definition.data['services']):
-            if 'type' in service and service['type'] != 'http':  # pragma: no cover
-                continue
-
+        for i, service in enumerate(HttpService.services):
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
@@ -970,39 +959,26 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         self.service_id = service_id
 
     async def get(self):
-        data = self.http_server.definition.orig_data['services'][self.service_id]
+        data = self.http_server.definition.data['services'][self.service_id]
         self.dump(data)
 
     async def post(self):
-        orig_data = self.decode()
-        if orig_data is None:
-            return
+        data = self.decode()
+        definition = self.http_server.definition
 
-        data = copy.deepcopy(orig_data)
-
-        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config = copy.deepcopy(definition.data)
         imaginary_config['services'][self.service_id] = data
 
-        if not self.validate(imaginary_config):
+        if not self.validate(imaginary_config) or not self.check_restricted_fields(data, self.service_id):
             return
 
-        global_performance_profile = None
-        if 'globals' in self.http_server.definition.orig_data:
-            global_performance_profile = self.http_server.definition.orig_data['globals'].get('performanceProfile', None)
-        data = mockintosh.definition.Definition.analyze_http_service(
-            data,
-            self.http_server.definition.template_engine,
-            self.http_server.definition.rendering_queue,
-            performance_profiles=self.http_server.definition.data['performanceProfiles'],
-            global_performance_profile=global_performance_profile
-        )
-        data['internalServiceId'] = self.service_id
-        if not self.update_service(data, self.service_id):
-            return
+        ConfigService.services = []
+        definition.data['services'][self.service_id] = data
+        definition.services, definition.config_root = definition.analyze(definition.data)
 
-        self.http_server.definition.stats.reset()
-        self.http_server.definition.orig_data['services'][self.service_id] = orig_data
-        self.http_server.definition.data['services'][self.service_id] = data
+        self.update_service(definition.services[self.service_id], self.service_id)
+
+        definition.stats.reset()
 
         self.set_status(204)
 

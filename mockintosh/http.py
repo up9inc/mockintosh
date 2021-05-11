@@ -109,6 +109,8 @@ class HttpEndpoint(HttpAlternativeBase):
 
 class HttpService:
 
+    services = []
+
     def __init__(
         self,
         port: int,
@@ -139,6 +141,7 @@ class HttpService:
         if port_override is not None:
             self.port = int(port_override)
         self.endpoints = []
+        HttpService.services.append(self)
 
     def add_endpoint(self, endpoint: HttpEndpoint) -> None:
         self.endpoints.append(endpoint)

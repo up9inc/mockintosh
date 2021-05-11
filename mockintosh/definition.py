@@ -6,7 +6,6 @@
     :synopsis: module that contains a class that encompasses the properties of the configuration file and maps it.
 """
 
-import copy
 import logging
 from collections import OrderedDict
 from os import path, environ
@@ -85,7 +84,6 @@ class Definition:
         self.schema = schema
         self.rendering_queue = rendering_queue
         self.load()
-        self.orig_data = copy.deepcopy(self.data)
         self.validate()
         self.template_engine = _detect_engine(self.data, 'config')
         self.stats = stats
