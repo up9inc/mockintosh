@@ -929,9 +929,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
         """Overriden method of tornado.web.RequestHandler"""
+        if self.replica_response is None:
+            self.replica_response = self.build_replica_response()
         if self._status_code not in (204, 500, 'RST', 'FIN'):
-            if self.replica_response is None:
-                self.replica_response = self.build_replica_response()
             self.trigger_interceptors()
             if self.interceptors:
                 self.update_response()
