@@ -265,7 +265,7 @@ class HttpServer:
             hint = '%s %s%s' % (
                 endpoint.method,
                 endpoint.orig_path,
-                ' - %s' % ''
+                ' - %s' % endpoint.id if endpoint.id is not None else ''
             )
             stats.services[service.internal_service_id].add_endpoint(hint)
             identifier = endpoint.path

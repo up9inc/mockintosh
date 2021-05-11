@@ -37,6 +37,7 @@ import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
 from mockintosh.config import (
     ConfigExternalFilePath,
+    ConfigDataset,
     ConfigResponse,
     ConfigMultiResponse,
     ConfigHeaders
@@ -199,19 +200,20 @@ class BaseHandler:
 
         return log_record
 
-    def load_dataset(self, dataset: Union[list, str, ConfigExternalFilePath]) -> dict:
+    def load_dataset(self, dataset: Union[list, str, ConfigExternalFilePath]) -> ConfigDataset:
         """Method that loads a dataset."""
         if isinstance(dataset, list):
-            return dataset
-        else:
-            if isinstance(dataset, ConfigExternalFilePath):
-                dataset = dataset.path
-            dataset_path, _ = self.resolve_relative_path(dataset)
-            with open(dataset_path, 'r') as file:
-                logging.info('Reading dataset file from path: %s', dataset_path)
-                data = json.load(file)
-                logging.debug('Dataset: %s', data)
-                return data
+            return ConfigDataset(dataset)
+        elif isinstance(dataset, ConfigDataset):
+            if isinstance(dataset.payload, ConfigExternalFilePath):
+                dataset_path, _ = self.resolve_relative_path(dataset.payload.path)
+                with open(dataset_path, 'r') as file:
+                    logging.info('Reading dataset file from path: %s', dataset_path)
+                    data = json.load(file)
+                    logging.debug('Dataset: %s', data)
+                    return ConfigDataset(data)
+            else:
+                return dataset
 
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
@@ -907,24 +909,23 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 response = alternative.response
                 if isinstance(response, ConfigMultiResponse):
                     if not len(response.payload) > 0:
-                        response = {'body': None}
+                        response = ConfigResponse(body=None)
                     else:
                         response = self.loop_alternative(alternative, 'response', 'multi_responses')
                         if not response:
                             return ()
 
-                response = response if isinstance(response, ConfigResponse) else {'body': response}
+                response = response if isinstance(response, ConfigResponse) else ConfigResponse(body=response)
             else:
-                response = {'body': None}
+                response = ConfigResponse(body=None)
 
             # Dataset
             dataset = {}
             if alternative.dataset is not None:
                 alternative.dataset = self.load_dataset(alternative.dataset)
-                if alternative.dataset:
-                    dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
-                    if not dataset:
-                        return ()
+                dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
+                if not dataset:
+                    return ()
 
             _id = alternative.id
             params = alternative.params

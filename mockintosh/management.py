@@ -91,12 +91,12 @@ def _reset_iterators(app):
 
     for rule in app.default_router.rules[0].target.rules:
         if rule.target == GenericHandler:
-            endpoints = rule.target_kwargs['endpoints']
-            for _, methods in endpoints:
+            path_methods = rule.target_kwargs['path_methods']
+            for _, methods in path_methods:
                 for _, alternatives in methods.items():
                     for alternative in alternatives:
-                        alternative.pop('multiResponsesIndex', None)
-                        alternative.pop('datasetIndex', None)
+                        alternative.multi_responses_index = None
+                        alternative.dataset_index = None
             break
 
 
