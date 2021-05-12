@@ -14,7 +14,8 @@ import shutil
 import logging
 import threading
 from typing import (
-    Union
+    Union,
+    Tuple
 )
 from collections import OrderedDict
 from urllib.parse import parse_qs, unquote
@@ -30,7 +31,6 @@ import mockintosh
 from mockintosh.config import (
     ConfigService,
     ConfigExternalFilePath,
-    ConfigResponse,
     ConfigAsyncService,
     ConfigHttpService
 )
@@ -450,21 +450,7 @@ class ManagementOasHandler(ManagementBaseHandler):
         )
 
         if service.oas is not None:
-            custom_oas = service.oas
-            if isinstance(custom_oas, ConfigExternalFilePath):
-                custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas.path)
-                with open(custom_oas_path, 'r') as file:
-                    custom_oas = json.load(file)
-            if 'servers' not in custom_oas:
-                custom_oas['servers'] = []
-            custom_oas['servers'].insert(
-                0,
-                {
-                    'url': '%s://%s:%s' % (protocol, hostname, service.port),
-                    'description': service.get_name_or_empty()
-                }
-            )
-            return custom_oas
+            return self.build_oas_custom(protocol, hostname, service)
 
         document = {
             'openapi': '3.0.0',
@@ -488,142 +474,52 @@ class ManagementOasHandler(ManagementBaseHandler):
                 path_methods = rule.target_kwargs['path_methods']
 
         for _, _methods in path_methods:
-            first_alternative = list(_methods.values())[0][0]
-            original_path = first_alternative.orig_path
-            scheme, netloc, original_path, query, fragment = _urlsplit(original_path)
-            query_string = parse_qs(query, keep_blank_values=True)
-            path, path_params = self.path_handlebars_to_oas(original_path)
-            methods = {}
-            for method, alternatives in _methods.items():
-                if not alternatives:  # pragma: no cover
-                    continue  # https://github.com/nedbat/coveragepy/issues/198
-
-                method_data = {'responses': {}}
-                alternative = alternatives[0]
-
-                # requestBody
-                if alternative.body is not None:
-
-                    # schema
-                    if alternative.body.schema is not None:
-                        json_schema = alternative.body.schema.payload
-                        if isinstance(json_schema, ConfigExternalFilePath):
-                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema.path)
-                            with open(json_schema_path, 'r') as file:
-                                json_schema = json.load(file)
-                        method_data['requestBody'] = {
-                            'required': True,
-                            'content': {
-                                'application/json': {
-                                    'schema': json_schema
-                                }
-                            }
-                        }
-
-                    # text
-                    if alternative.body.text is not None:
-                        method_data['requestBody'] = {
-                            'required': True,
-                            'content': {
-                                '*/*': {
-                                    'schema': {
-                                        'type': 'string'
-                                    }
-                                }
-                            }
-                        }
-
-                # path parameters
-                if path_params:
-                    if 'parameters' not in method_data:
-                        method_data['parameters'] = []
-                    for param in path_params:
-                        data = {
-                            'in': 'path',
-                            'name': param,
-                            'required': True,
-                            'schema': {
-                                'type': 'string'
-                            }
-                        }
-                        method_data['parameters'].append(data)
-
-                # header parameters
-                if alternative.headers is not None:
-                    if 'parameters' not in method_data:
-                        method_data['parameters'] = []
-                    for key in alternative.headers.keys():
-                        data = {
-                            'in': 'header',
-                            'name': key,
-                            'required': True,
-                            'schema': {
-                                'type': 'string'
-                            }
-                        }
-                        method_data['parameters'].append(data)
-
-                # query string parameters
-                if alternative.query_string is not None:
-                    if 'parameters' not in method_data:
-                        method_data['parameters'] = []
-                    query_string.update(alternative.query_string)
-                    for key in query_string.keys():
-                        data = {
-                            'in': 'query',
-                            'name': key,
-                            'required': True,
-                            'schema': {
-                                'type': 'string'
-                            }
-                        }
-                        method_data['parameters'].append(data)
-
-                # responses
-                if alternative.response is not None:
-                    response = alternative.response
-                    status = 200
-                    if isinstance(response, ConfigResponse) and response.status is not None:
-                        status = str(response.status)
-                    if status not in ('RST', 'FIN'):
-                        try:
-                            int(status)
-                        except ValueError:
-                            status = 'default'
-                        status_data = {}
-                        if isinstance(response, ConfigResponse) and response.headers is not None:
-                            new_headers = {k.title(): v for k, v in response.headers.payload.items()}
-                            if 'Content-Type' in new_headers:
-                                if new_headers['Content-Type'].startswith('application/json'):
-                                    status_data = {
-                                        'content': {
-                                            'application/json': {
-                                                'schema': {}
-                                            }
-                                        }
-                                    }
-                            status_data['headers'] = {}
-                            for key in new_headers.keys():
-                                status_data['headers'][key] = {
-                                    'schema': {
-                                        'type': 'string'
-                                    }
-                                }
-                        status_data['description'] = ''
-                        method_data['responses'][status] = status_data
-
-                if not method_data['responses']:
-                    method_data['responses']['default'] = {
-                        'description': ''
-                    }
-                methods[method.lower()] = method_data
+            path, methods = self.build_oas_methods(_methods)
             document['paths']['%s' % path] = methods
 
         document['paths'] = OrderedDict(sorted(document['paths'].items(), key=lambda t: t[0]))
 
         return document
 
-    def path_handlebars_to_oas(self, path):
+    def build_oas_methods(self, _methods: dict) -> Tuple[str, dict]:
+        first_alternative = list(_methods.values())[0][0]
+        original_path = first_alternative.orig_path
+        scheme, netloc, original_path, query, fragment = _urlsplit(original_path)
+        query_string = parse_qs(query, keep_blank_values=True)
+        path, path_params = self.path_handlebars_to_oas(original_path)
+        methods = {}
+        for method, alternatives in _methods.items():
+            if not alternatives:  # pragma: no cover
+                continue  # https://github.com/nedbat/coveragepy/issues/198
+
+            alternative = alternatives[0]
+            method_data = alternative.oas(path_params, query_string, self)
+
+            if not method_data['responses']:
+                method_data['responses']['default'] = {
+                    'description': ''
+                }
+            methods[method.lower()] = method_data
+        return path, methods
+
+    def build_oas_custom(self, protocol: str, hostname: str, service: HttpService) -> dict:
+        custom_oas = service.oas
+        if isinstance(custom_oas, ConfigExternalFilePath):
+            custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas.path)
+            with open(custom_oas_path, 'r') as file:
+                custom_oas = json.load(file)
+        if 'servers' not in custom_oas:
+            custom_oas['servers'] = []
+        custom_oas['servers'].insert(
+            0,
+            {
+                'url': '%s://%s:%s' % (protocol, hostname, service.port),
+                'description': service.get_name_or_empty()
+            }
+        )
+        return custom_oas
+
+    def path_handlebars_to_oas(self, path: str) -> Tuple[str, list]:
         segments = _safe_path_split(path)
         params = []
         new_segments = []

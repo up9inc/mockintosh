@@ -6,6 +6,7 @@
     :synopsis: module that contains HTTP related classes.
 """
 
+import json
 from os import environ
 from collections import OrderedDict
 from typing import (
@@ -35,6 +36,40 @@ class HttpBody:
         self.text = text
         self.urlencoded = urlencoded
         self.multipart = multipart
+
+    def oas(self, handler) -> Union[dict, None]:
+        request_body = None
+
+        # schema
+        if self.schema is not None:
+            json_schema = self.schema.payload
+            if isinstance(json_schema, ConfigExternalFilePath):
+                json_schema_path = handler.resolve_relative_path(handler.http_server.definition.source_dir, json_schema.path)
+                with open(json_schema_path, 'r') as file:
+                    json_schema = json.load(file)
+            request_body = {
+                'required': True,
+                'content': {
+                    'application/json': {
+                        'schema': json_schema
+                    }
+                }
+            }
+
+        # text
+        if self.text is not None:
+            request_body = {
+                'required': True,
+                'content': {
+                    '*/*': {
+                        'schema': {
+                            'type': 'string'
+                        }
+                    }
+                }
+            }
+
+        return request_body
 
 
 class HttpAlternativeBase:
@@ -206,3 +241,86 @@ class HttpAlternative(HttpAlternativeBase):
         self.dataset_index = None
         self.internal_endpoint_id = internal_endpoint_id
         self.counters = {}
+
+    def oas(self, path_params: list, query_string: dict, handler) -> dict:
+        method_data = {'responses': {}}
+
+        # requestBody
+        if self.body is not None:
+            request_body = self.body.oas(handler)
+            if request_body is not None:
+                method_data['requestBody'] = request_body
+
+        # path parameters
+        if path_params:
+            method_data['parameters'] = self.oas_path_params(path_params, method_data.get('parameters', []))
+
+        # header parameters
+        if self.headers is not None:
+            method_data['parameters'] = self.oas_headers(method_data.get('parameters', []))
+
+        # query string parameters
+        if self.query_string is not None:
+            method_data['parameters'] = self.oas_query_string(query_string, method_data.get('parameters', []))
+
+        # responses
+        if self.response is not None:
+            self.oas_responses(method_data)
+
+        return method_data
+
+    def oas_path_params(self, path_params: list, parameters: list) -> list:
+        for param in path_params:
+            data = {
+                'in': 'path',
+                'name': param,
+                'required': True,
+                'schema': {
+                    'type': 'string'
+                }
+            }
+            parameters.append(data)
+        return parameters
+
+    def oas_headers(self, parameters: list) -> list:
+        for key in self.headers.keys():
+            data = {
+                'in': 'header',
+                'name': key,
+                'required': True,
+                'schema': {
+                    'type': 'string'
+                }
+            }
+            parameters.append(data)
+        return parameters
+
+    def oas_query_string(self, query_string: dict, parameters: list) -> list:
+        query_string.update(self.query_string)
+        for key in query_string.keys():
+            data = {
+                'in': 'query',
+                'name': key,
+                'required': True,
+                'schema': {
+                    'type': 'string'
+                }
+            }
+            parameters.append(data)
+        return parameters
+
+    def oas_responses(self, method_data: dict) -> None:
+        response = self.response
+        status = 200
+        if isinstance(response, ConfigResponse) and response.status is not None:
+            status = str(response.status)
+        if status not in ('RST', 'FIN'):
+            try:
+                int(status)
+            except ValueError:
+                status = 'default'
+            status_data = {}
+            if isinstance(response, ConfigResponse) and response.headers is not None:
+                response.oas(status_data)
+            status_data['description'] = ''
+            method_data['responses'][status] = status_data

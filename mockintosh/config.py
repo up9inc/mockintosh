@@ -224,6 +224,25 @@ class ConfigResponse:
         self.templating_engine = templating_engine
         self.tag = tag
 
+    def oas(self, status_data: dict):
+        new_headers = {k.title(): v for k, v in self.headers.payload.items()}
+        if 'Content-Type' in new_headers:
+            if new_headers['Content-Type'].startswith('application/json'):
+                status_data = {
+                    'content': {
+                        'application/json': {
+                            'schema': {}
+                        }
+                    }
+                }
+        status_data['headers'] = {}
+        for key in new_headers.keys():
+            status_data['headers'][key] = {
+                'schema': {
+                    'type': 'string'
+                }
+            }
+
 
 class ConfigMultiResponse(ConfigContainsTag):
 
