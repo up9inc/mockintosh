@@ -658,27 +658,30 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             payload = self.request.files
 
         for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
-            _key = key
-            if component == 'headers':
-                _key = key.title()
-            if _key in payload or component == 'bodyText':
-                if value['type'] == 'regex':
-                    match_string = None
-                    if component == 'headers':
-                        match_string = self.request.headers.get(key)
-                    elif component == 'queryString':
-                        match_string = self.get_query_argument(key)
-                    elif component == 'bodyText':
-                        match_string = payload
-                    elif component == 'bodyUrlencoded':
-                        match_string = self.get_body_argument(key)
-                    elif component == 'bodyMultipart':
-                        match_string = self.request.files[key][0].body.decode()
+            self.analyze_component_inject_to_context(key, value, component, payload)
 
-                    match = re.search(value['regex'], match_string)
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i + 1)
+    def analyze_component_inject_to_context(self, key: str, value: dict, component: str, payload: Union[dict, str]):
+        _key = key
+        if component == 'headers':
+            _key = key.title()
+        if _key in payload or component == 'bodyText':
+            if value['type'] == 'regex':
+                match_string = None
+                if component == 'headers':
+                    match_string = self.request.headers.get(key)
+                elif component == 'queryString':
+                    match_string = self.get_query_argument(key)
+                elif component == 'bodyText':
+                    match_string = payload
+                elif component == 'bodyUrlencoded':
+                    match_string = self.get_body_argument(key)
+                elif component == 'bodyMultipart':
+                    match_string = self.request.files[key][0].body.decode()
+
+                match = re.search(value['regex'], match_string)
+                if match is not None:
+                    for i, key in enumerate(value['args']):
+                        self.custom_context[key] = match.group(i + 1)
 
     def determine_headers(self) -> None:
         """Method to determine the headers of the response."""
@@ -1468,21 +1471,25 @@ class KafkaHandler(BaseHandler):
             payload = self.key
 
         for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
-            _key = key
-            if (payload is not None and _key in payload) or component in ('asyncValue', 'asyncKey'):
-                if value['type'] == 'regex':
-                    match_string = None
-                    if component == 'asyncHeaders':
-                        match_string = self.headers.get(key)
-                    elif component == 'asyncValue':
-                        match_string = payload
-                    elif component == 'asyncKey':
-                        match_string = payload
+            if not self.analyze_component_inject_to_context(key, value, component, payload):
+                continue
 
-                    if match_string is None:
-                        continue
+    def analyze_component_inject_to_context(self, key: str, value: dict, component: str, payload: Union[dict, str]) -> bool:
+        if (payload is not None and key in payload) or component in ('asyncValue', 'asyncKey'):
+            if value['type'] == 'regex':
+                match_string = None
+                if component == 'asyncHeaders':
+                    match_string = self.headers.get(key)
+                elif component == 'asyncValue':
+                    match_string = payload
+                elif component == 'asyncKey':
+                    match_string = payload
 
-                    match = re.search(value['regex'], match_string)
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i)
+                if match_string is None:
+                    return False
+
+                match = re.search(value['regex'], match_string)
+                if match is not None:
+                    for i, _key in enumerate(value['args']):
+                        self.custom_context[_key] = match.group(i)
+        return True
