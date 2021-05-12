@@ -52,6 +52,7 @@ from mockintosh.services.kafka import (
     KafkaConsumer,
     run_loops as kafka_run_loops
 )
+from mockintosh.replicas import Request, Response
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -342,7 +343,47 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                 self.http_server.unhandled_data.requests[i][key] = []
         self.set_status(204)
 
-    def build_unhandled_requests(self, service_id):
+    def build_unhandled_requests_headers(self, config_template: dict, request: Request, requests: dict) -> None:
+        for key, value in request.headers._dict.items():
+            continue_parent = False
+            for _request in requests:
+                if (
+                    (key.title() not in _request[0].headers._dict)
+                    or  # noqa: W504, W503
+                    (key.title() in _request[0].headers._dict and value != _request[0].headers._dict[key.title()])
+                ):
+                    continue_parent = True
+                    break
+            if continue_parent:
+                continue
+            if key.lower() not in UNHANDLED_IGNORED_HEADERS:
+                if 'headers' not in config_template:
+                    config_template['headers'] = {}
+                config_template['headers'][key] = value
+
+    def build_unhandled_requests_response(self, config_template: dict, response: Response) -> None:
+        if response is None:
+            config_template['response'] = ''
+        else:
+            response.headers.pop('Content-Length', None)
+
+            config_template['response'] = {
+                'status': response.status,
+                'headers': {},
+                'body': ''
+            }
+            for key, value in response.headers.items():
+                try:
+                    config_template['response']['headers'][key] = value.decode()
+                except (AttributeError, UnicodeDecodeError):
+                    config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
+            if response.body is not None:
+                try:
+                    config_template['response']['body'] = response.body.decode()
+                except (AttributeError, UnicodeDecodeError):
+                    config_template['response']['body'] = _b64encode(response.body) if isinstance(response.body, (bytes, bytearray)) else response.body
+
+    def build_unhandled_requests(self, service_id: int) -> list:
         endpoints = []
 
         for requests in self.http_server.unhandled_data.requests[service_id].values():
@@ -361,22 +402,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             config_template['method'] = request.method
 
             # Headers
-            for key, value in request.headers._dict.items():
-                continue_parent = False
-                for _request in requests:
-                    if (
-                        (key.title() not in _request[0].headers._dict)
-                        or  # noqa: W504, W503
-                        (key.title() in _request[0].headers._dict and value != _request[0].headers._dict[key.title()])
-                    ):
-                        continue_parent = True
-                        break
-                if continue_parent:
-                    continue
-                if key.lower() not in UNHANDLED_IGNORED_HEADERS:
-                    if 'headers' not in config_template:
-                        config_template['headers'] = {}
-                    config_template['headers'][key] = value
+            self.build_unhandled_requests_headers(config_template, request, requests)
 
             # Query String
             for key, value in request.query_arguments.items():
@@ -384,26 +410,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = value[0].decode()
 
-            if response is None:
-                config_template['response'] = ''
-            else:
-                response.headers.pop('Content-Length', None)
+            # Response
+            self.build_unhandled_requests_response(config_template, response)
 
-                config_template['response'] = {
-                    'status': response.status,
-                    'headers': {},
-                    'body': ''
-                }
-                for key, value in response.headers.items():
-                    try:
-                        config_template['response']['headers'][key] = value.decode()
-                    except (AttributeError, UnicodeDecodeError):
-                        config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
-                if response.body is not None:
-                    try:
-                        config_template['response']['body'] = response.body.decode()
-                    except (AttributeError, UnicodeDecodeError):
-                        config_template['response']['body'] = _b64encode(response.body) if isinstance(response.body, (bytes, bytearray)) else response.body
             endpoints.append(config_template)
 
         return endpoints
