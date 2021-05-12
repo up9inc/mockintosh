@@ -775,6 +775,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             self.write('The path %s is not defined in the configuration file!' % orig_path)
             raise InternalResourcePathCheckError()
 
+
 class ManagementServiceRootHandler(ManagementBaseHandler):
 
     async def get(self):

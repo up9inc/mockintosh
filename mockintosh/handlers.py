@@ -735,174 +735,40 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             fail = False
 
             # Headers
-            if alternative.headers is not None:
-                for key, value in alternative.headers.items():
-                    request_header_val = self.request.headers.get(key.title())
-                    if key.title() not in self.request.headers._dict:
-                        self.internal_endpoint_id = alternative.internal_endpoint_id
-                        fail = True
-                        reason = '%r not in the request headers!' % key.title()
-                        break
-                    if value == request_header_val:
-                        continue
-                    value = '^%s$' % value
-                    match = re.search(value, request_header_val)
-                    if match is None:
-                        self.internal_endpoint_id = alternative.internal_endpoint_id
-                        fail = True
-                        reason = 'Request header value %r on key %r does not match to regex: %s' % (
-                            request_header_val,
-                            key.title(),
-                            value
-                        )
-                        break
-                if fail:
-                    continue
+            fail, reason = self.match_alternative_headers(alternative)
+            if fail:
+                continue
 
             # Query String
-            if alternative.query_string is not None:
-                for key, value in alternative.query_string.items():
-                    # To prevent 400, default=None
-                    default = None
-                    request_query_val = self.get_query_argument(key, default=default)
-                    if request_query_val is default:
-                        is_matched = False
-                        if re.escape(key) != key:
-                            for _key in self.request.query_arguments:
-                                match = re.search(key, _key)
-                                if match is not None:
-                                    is_matched = True
-                                    break
-                        if not is_matched:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Key %r couldn\'t found in the query string!' % key
-                            break
-                    if value == request_query_val:
-                        continue
-                    if request_query_val is default:
-                        continue
-                    value = '^%s$' % value
-                    match = re.search(value, request_query_val)
-                    if match is None:
-                        self.internal_endpoint_id = alternative.internal_endpoint_id
-                        fail = True
-                        reason = 'Request query parameter value %r on key %r does not match to regex: %s' % (
-                            request_query_val,
-                            key,
-                            value
-                        )
-                        break
-                if fail:
-                    continue
+            fail, reason = self.match_alternative_query_string(alternative)
+            if fail:
+                continue
 
             # Body
             if alternative.body is not None:
                 body = self.request.body.decode()
 
                 # Schema
-                if alternative.body.schema is not None:
-                    json_schema = None
-                    if isinstance(alternative.body.schema.payload, ConfigExternalFilePath):
-                        json_schema_path, _ = self.resolve_relative_path(alternative.body.schema.payload.path)
-                        with open(json_schema_path, 'r') as file:
-                            logging.info('Reading JSON schema file from path: %s', json_schema_path)
-                            try:
-                                json_schema = json.load(file)
-                            except json.decoder.JSONDecodeError:
-                                self.send_error(
-                                    500,
-                                    message='JSON decode error of the JSON schema file: %s' % alternative.body.schema.payload.path
-                                )
-                                return
-                            logging.debug('JSON schema: %s', json_schema)
-                    else:
-                        json_schema = alternative.body.schema.payload
-                    json_data = None
-
-                    if body and json_schema:
-                        try:
-                            json_data = json.loads(body)
-                        except json.decoder.JSONDecodeError:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'JSON decode error of the request body:\n\n%s' % body
-                            break
-
-                    if json_schema:
-                        try:
-                            jsonschema.validate(instance=json_data, schema=json_schema)
-                        except jsonschema.exceptions.ValidationError:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Request body:\n\n%s\nDoes not match to JSON schema:\n\n%s' % (
-                                json_data,
-                                json_schema
-                            )
-                            break
+                fail, reason, error = self.match_alternative_body_schema(body, alternative)
+                if error:
+                    return
+                elif fail:
+                    break
 
                 # Text
-                if alternative.body.text is not None:
-                    value = alternative.body.text
-                    if not body == value:
-                        match = re.search(value, body)
-                        if match is None:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
-                            break
+                fail, reason = self.match_alternative_body_text(body, alternative)
+                if fail:
+                    break
 
                 # Urlencoded
-                if alternative.body.urlencoded is not None:
-                    for key, value in alternative.body.urlencoded.items():
-                        # To prevent 400, default=None
-                        default = None
-                        body_argument = self.get_body_argument(key, default=default)
-                        if body_argument is default:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Key %r couldn\'t found in the form data!' % key
-                            break
-                        if value == body_argument:
-                            continue
-                        value = '^%s$' % value
-                        match = re.search(value, body_argument)
-                        if match is None:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Form field value %r on key %r does not match to regex: %s' % (
-                                body_argument,
-                                key,
-                                value
-                            )
-                            break
-                    if fail:
-                        continue
+                fail, reason = self.match_alternative_body_urlencoded(body, alternative)
+                if fail:
+                    continue
 
                 # Multipart
-                if alternative.body.multipart:
-                    for key, value in alternative.body.multipart.items():
-                        if key not in self.request.files:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Key %r couldn\'t found in the multipart data!' % key
-                            break
-                        multipart_argument = self.request.files[key][0].body.decode()
-                        if value == multipart_argument:
-                            continue
-                        value = '^%s$' % value
-                        match = re.search(value, multipart_argument)
-                        if match is None:
-                            self.internal_endpoint_id = alternative.internal_endpoint_id
-                            fail = True
-                            reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
-                                multipart_argument,
-                                key,
-                                value
-                            )
-                            break
-                    if fail:
-                        continue
+                fail, reason = self.match_alternative_body_multipart(body, alternative)
+                if fail:
+                    continue
 
             # Multiple responses
             if alternative.response is not None:
@@ -936,6 +802,181 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         self.write(reason)
         await self.raise_http_error(400)
+
+    def match_alternative_headers(self, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.headers is not None:
+            for key, value in alternative.headers.items():
+                request_header_val = self.request.headers.get(key.title())
+                if key.title() not in self.request.headers._dict:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = '%r not in the request headers!' % key.title()
+                    break
+                if value == request_header_val:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, request_header_val)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request header value %r on key %r does not match to regex: %s' % (
+                        request_header_val,
+                        key.title(),
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_query_string(self, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.query_string is not None:
+            for key, value in alternative.query_string.items():
+                # To prevent 400, default=None
+                default = None
+                request_query_val = self.get_query_argument(key, default=default)
+                if request_query_val is default:
+                    is_matched = False
+                    if re.escape(key) != key:
+                        for _key in self.request.query_arguments:
+                            match = re.search(key, _key)
+                            if match is not None:
+                                is_matched = True
+                                break
+                    if not is_matched:
+                        self.internal_endpoint_id = alternative.internal_endpoint_id
+                        fail = True
+                        reason = 'Key %r couldn\'t found in the query string!' % key
+                        break
+                if value == request_query_val:
+                    continue
+                if request_query_val is default:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, request_query_val)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request query parameter value %r on key %r does not match to regex: %s' % (
+                        request_query_val,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_body_schema(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None], bool]:
+        reason = None
+        fail = False
+        if alternative.body.schema is not None:
+            json_schema = None
+            if isinstance(alternative.body.schema.payload, ConfigExternalFilePath):
+                json_schema_path, _ = self.resolve_relative_path(alternative.body.schema.payload.path)
+                with open(json_schema_path, 'r') as file:
+                    logging.info('Reading JSON schema file from path: %s', json_schema_path)
+                    try:
+                        json_schema = json.load(file)
+                    except json.decoder.JSONDecodeError:
+                        self.send_error(
+                            500,
+                            message='JSON decode error of the JSON schema file: %s' % alternative.body.schema.payload.path
+                        )
+                        return fail, reason, True
+                    logging.debug('JSON schema: %s', json_schema)
+            else:
+                json_schema = alternative.body.schema.payload
+            json_data = None
+
+            if body and json_schema:
+                try:
+                    json_data = json.loads(body)
+                except json.decoder.JSONDecodeError:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'JSON decode error of the request body:\n\n%s' % body
+                    return fail, reason, False
+
+            if json_schema:
+                try:
+                    jsonschema.validate(instance=json_data, schema=json_schema)
+                except jsonschema.exceptions.ValidationError:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request body:\n\n%s\nDoes not match to JSON schema:\n\n%s' % (
+                        json_data,
+                        json_schema
+                    )
+                    return fail, reason, False
+        return fail, reason, False
+
+    def match_alternative_body_text(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.text is not None:
+            value = alternative.body.text
+            if not body == value:
+                match = re.search(value, body)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
+        return fail, reason
+
+    def match_alternative_body_urlencoded(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.urlencoded is not None:
+            for key, value in alternative.body.urlencoded.items():
+                # To prevent 400, default=None
+                default = None
+                body_argument = self.get_body_argument(key, default=default)
+                if body_argument is default:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Key %r couldn\'t found in the form data!' % key
+                    break
+                if value == body_argument:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, body_argument)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Form field value %r on key %r does not match to regex: %s' % (
+                        body_argument,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_body_multipart(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.multipart:
+            for key, value in alternative.body.multipart.items():
+                if key not in self.request.files:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Key %r couldn\'t found in the multipart data!' % key
+                    break
+                multipart_argument = self.request.files[key][0].body.decode()
+                if value == multipart_argument:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, multipart_argument)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
+                        multipart_argument,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
 
     def trigger_interceptors(self) -> None:
         """Method to trigger the interceptors"""
