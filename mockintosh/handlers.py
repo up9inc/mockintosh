@@ -1112,13 +1112,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         raise NewHTTPError()
 
-    async def resolve_unhandled_request(self) -> None:
-        if self.fallback_to is None:
-            if not self.is_request_image_like():
-                self.insert_unhandled_data((self.request, None))
-            return
-
-        # Headers
+    def resolve_unhandled_request_headers(self) -> dict:
         headers = {}
         for key, value in self.request.headers._dict.items():
             if key.title() in (
@@ -1129,8 +1123,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             headers[key] = value
         headers['Cache-Control'] = 'no-cache'
         headers['If-None-Match'] = '0'
+        return headers
 
-        # Query String
+    def resolve_unhandled_request_query_string(self) -> str:
         query_string = ''
         for key, value in self.request.query_arguments.items():
             if not query_string:
@@ -1141,8 +1136,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             else:
                 for _value in values:
                     query_string += '%s[]=%s' % (key, _value)
+        return query_string
 
-        # Body
+    def resolve_unhandled_request_body(self) -> Tuple[dict, dict]:
         data = {}
         files = {}
         if self.request.body_arguments:
@@ -1163,6 +1159,23 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     files[key] = files[key][0]
         else:
             data = self.request.body.decode()
+
+        return data, files
+
+    async def resolve_unhandled_request(self) -> None:
+        if self.fallback_to is None:
+            if not self.is_request_image_like():
+                self.insert_unhandled_data((self.request, None))
+            return
+
+        # Headers
+        headers = self.resolve_unhandled_request_headers()
+
+        # Query String
+        query_string = self.resolve_unhandled_request_query_string()
+
+        # Body
+        data, files = self.resolve_unhandled_request_body()
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
