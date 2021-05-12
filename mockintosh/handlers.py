@@ -1272,7 +1272,7 @@ class KafkaHandler(BaseHandler):
                 for key, value in arg.items():
                     new_arg[key] = self._render_value(value)
                 rendered.append(new_arg)
-            elif isinstance(arg, str):
+            elif isinstance(arg, (str, ConfigExternalFilePath)):
                 rendered.append(self._render_value(arg))
 
         return rendered
@@ -1353,6 +1353,8 @@ class KafkaHandler(BaseHandler):
             headers = self.headers
 
         for key, value in headers.items():
+            if isinstance(value, ConfigExternalFilePath):
+                value = value.path
             request.headers[key.title()] = value
 
         # Query String
@@ -1360,14 +1362,18 @@ class KafkaHandler(BaseHandler):
             request.queryString['key'] = self.key
 
         # Body
+        value = self.value
+        if isinstance(value, ConfigExternalFilePath):
+            value = value.path
+
         request.mimeType = 'text/plain'
-        if isinstance(self.value, (bytes, bytearray)):
+        if isinstance(value, (bytes, bytearray)):
             request.bodyType = BASE64
-            request.body = _b64encode(self.value)
+            request.body = _b64encode(value)
         else:
             request.bodyType = 'str'
-            request.body = self.value
-        request.bodySize = 0 if self.value is None else len(self.value)
+            request.body = value
+        request.bodySize = 0 if value is None else len(value)
 
         # Files
         request.files = []
