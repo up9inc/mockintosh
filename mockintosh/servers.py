@@ -25,7 +25,7 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.definition import Definition
 from mockintosh.handlers import GenericHandler
-from mockintosh.http import (
+from mockintosh.services.http import (
     HttpService,
     HttpPath,
     HttpAlternative
@@ -55,7 +55,7 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
-from mockintosh import kafka
+from mockintosh.services import kafka
 
 
 __location__ = path.abspath(path.dirname(__file__))

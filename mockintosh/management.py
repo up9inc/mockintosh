@@ -34,7 +34,7 @@ from mockintosh.config import (
     ConfigAsyncService,
     ConfigHttpService
 )
-from mockintosh.http import (
+from mockintosh.services.http import (
     HttpService
 )
 from mockintosh.builders import ConfigRootBuilder
@@ -46,7 +46,7 @@ from mockintosh.exceptions import (
     AsyncProducerPayloadLoopEnd,
     AsyncProducerDatasetLoopEnd
 )
-from mockintosh.kafka import (
+from mockintosh.services.kafka import (
     KafkaService,
     KafkaProducer,
     KafkaConsumer,

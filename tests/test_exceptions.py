@@ -12,7 +12,7 @@ from jsonschema.exceptions import ValidationError
 
 from mockintosh import get_schema
 from mockintosh.definition import Definition
-from mockintosh.http import (
+from mockintosh.services.http import (
     HttpService
 )
 from mockintosh.exceptions import (

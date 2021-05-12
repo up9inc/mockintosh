@@ -40,12 +40,12 @@ from mockintosh.recognizers import (
     AsyncProducerKeyRecognizer,
     AsyncProducerHeadersRecognizer
 )
-from mockintosh.http import (
+from mockintosh.services.http import (
     HttpService,
     HttpEndpoint,
     HttpBody
 )
-from mockintosh.kafka import (
+from mockintosh.services.kafka import (
     KafkaService,
     KafkaActor,
     KafkaConsumer,

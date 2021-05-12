@@ -42,7 +42,7 @@ from mockintosh.config import (
     ConfigMultiResponse,
     ConfigHeaders
 )
-from mockintosh.http import (
+from mockintosh.services.http import (
     HttpAlternative
 )
 from mockintosh.replicas import Request, Response
