@@ -44,7 +44,8 @@ from mockintosh.exceptions import (
     RestrictedFieldError,
     AsyncProducerListHasNoPayloadsMatchingTags,
     AsyncProducerPayloadLoopEnd,
-    AsyncProducerDatasetLoopEnd
+    AsyncProducerDatasetLoopEnd,
+    InternalResourcePathCheckError
 )
 from mockintosh.services.kafka import (
     KafkaService,
@@ -639,28 +640,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             self.write(data)
             return
         else:
-            if not path:
-                self.set_status(400)
-                self.write('\'path\' cannot be empty!')
-                return
-            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
-            if not path.startswith(cwd):
-                self.set_status(403)
-                self.write('The path %s couldn\'t be accessed!' % orig_path)
-                return
-            # path is SAFE
-            if not os.path.exists(path):
-                self.set_status(400)
-                self.write('The path %s does not exist!' % orig_path)
-                return
-            # path is OK
-            if os.path.isdir(path):
-                self.set_status(400)
-                self.write('The path %s is a directory!' % orig_path)
-                return
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
+            try:
+                self.check_path_empty(path)
+                path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+                self.check_path_access(cwd, path, orig_path)
+                # path is SAFE
+                self.check_path_exists(path, orig_path)
+                # path is OK
+                self.check_path_is_not_directory(path, orig_path)
+                self.check_if_path_defined_in_configuration_file(path, orig_path)
+            except InternalResourcePathCheckError:
                 return
             else:
                 _format = self.get_query_argument('format', default='text')
@@ -684,95 +673,59 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         cwd = self.http_server.definition.source_dir
         path = self.get_body_argument('path', default=None)
         orig_path = path
-        if path is not None:
-            if not path:
-                self.set_status(400)
-                self.write('\'path\' cannot be empty!')
-                return
-            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
-            if not path.startswith(cwd):
-                self.set_status(403)
-                self.write('The path %s couldn\'t be accessed!' % orig_path)
-                return
-            # path is SAFE
+        try:
+            if path is not None:
+                self.check_path_empty(path)
+                path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+                self.check_path_access(cwd, path, orig_path)
+                # path is SAFE
 
-        if self.request.files:
-            for key, files in self.request.files.items():
-                for file in files:
-                    if path is None:
-                        file_path = os.path.join(cwd, key if key else file['filename'])
-                    else:
-                        file_path = os.path.join(path, key if key else file['filename'])
-                    file_path = os.path.abspath(file_path)
-                    if not file_path.startswith(cwd):
-                        self.set_status(403)
-                        self.write('The path %s couldn\'t be accessed!' % orig_path)
-                        return
-                    # file_path is SAFE
-                    if os.path.exists(file_path) and os.path.isdir(file_path):
-                        self.set_status(400)
-                        self.write('The path %s is a directory!' % file_path[len(cwd) + 1:])
-                        return
-                    if file_path not in self.files_abs:
-                        self.set_status(400)
-                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
-                        return
-                    # file_path is OK
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                    with open(file_path, 'wb') as _file:
-                        _file.write(file['body'])
-        else:
-            file = self.get_body_argument('file', default=None)
-            if file is None:
-                self.set_status(400)
-                self.write('\'file\' parameter is required!')
-                return
-            if path is None:
-                self.set_status(400)
-                self.write('\'path\' parameter is required!')
-                return
-            if os.path.exists(path) and os.path.isdir(path):
-                self.set_status(400)
-                self.write('The path %s is a directory!' % orig_path)
-                return
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
-                return
-            # path is OK
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'w') as _file:
-                _file.write(file)
-        self.set_status(204)
+            if self.request.files:
+                for key, files in self.request.files.items():
+                    for file in files:
+                        if path is None:
+                            file_path = os.path.join(cwd, key if key else file['filename'])
+                        else:
+                            file_path = os.path.join(path, key if key else file['filename'])
+                        file_path = os.path.abspath(file_path)
+                        self.check_path_access(cwd, file_path, file_path)
+                        # file_path is SAFE
+                        self.check_path_is_not_directory(file_path, file_path[len(cwd) + 1:])
+                        self.check_if_path_defined_in_configuration_file(file_path, file_path[len(cwd) + 1:])
+                        # file_path is OK
+                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                        with open(file_path, 'wb') as _file:
+                            _file.write(file['body'])
+            else:
+                file = self.get_body_argument('file', default=None)
+                self.check_parameter_required(file, 'file')
+                self.check_parameter_required(path, 'path')
+                self.check_path_is_not_directory(path, orig_path)
+                self.check_if_path_defined_in_configuration_file(path, orig_path)
+                # path is OK
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w') as _file:
+                    _file.write(file)
+            self.set_status(204)
+        except InternalResourcePathCheckError:
+            return
 
     async def delete(self):
         cwd = self.http_server.definition.source_dir
         path = self.get_query_argument('path', default=None)
         keep = self.get_query_argument('keep', default=False)
         orig_path = path
-        if path is None:
-            self.set_status(400)
-            self.write('\'path\' parameter is required!')
+        try:
+            self.check_parameter_required(path, 'path')
+            self.check_path_empty(path)
+            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+            self.check_path_access(cwd, path, orig_path)
+            # path is SAFE
+            self.check_path_exists(path, orig_path)
+            self.check_if_path_defined_in_configuration_file(path, orig_path)
+            # path is OK
+        except InternalResourcePathCheckError:
             return
-        if not path:
-            self.set_status(400)
-            self.write('\'path\' cannot be empty!')
-            return
-        path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
-        if not path.startswith(cwd):
-            self.set_status(403)
-            self.write('The path %s couldn\'t be accessed!' % orig_path)
-            return
-        # path is SAFE
-        if not os.path.exists(path):
-            self.set_status(400)
-            self.write('The path %s does not exist!' % orig_path)
-            return
-        if path not in self.files_abs:
-            self.set_status(400)
-            self.write('The path %s is not defined in the configuration file!' % orig_path)
-            return
-        # path is OK
         if os.path.isfile(path):
             os.remove(path)
             if not keep:
@@ -786,6 +739,41 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             shutil.rmtree(path)
         self.set_status(204)
 
+    def check_path_empty(self, path: str) -> None:
+        if not path:
+            self.set_status(400)
+            self.write('\'path\' cannot be empty!')
+            raise InternalResourcePathCheckError()
+
+    def check_path_access(self, cwd: str, path: str, orig_path: str) -> None:
+        if not path.startswith(cwd):
+            self.set_status(403)
+            self.write('The path %s couldn\'t be accessed!' % orig_path)
+            raise InternalResourcePathCheckError()
+
+    def check_path_exists(self, path: str, orig_path: str) -> None:
+        if not os.path.exists(path):
+            self.set_status(400)
+            self.write('The path %s does not exist!' % orig_path)
+            raise InternalResourcePathCheckError()
+
+    def check_parameter_required(self, obj: str, subject: str) -> None:
+        if obj is None:
+            self.set_status(400)
+            self.write('\'%s\' parameter is required!' % subject)
+            raise InternalResourcePathCheckError()
+
+    def check_path_is_not_directory(self, path: str, orig_path: str) -> None:
+        if os.path.isdir(path):
+            self.set_status(400)
+            self.write('The path %s is a directory!' % orig_path)
+            raise InternalResourcePathCheckError()
+
+    def check_if_path_defined_in_configuration_file(self, path: str, orig_path: str) -> None:
+        if path not in self.files_abs:
+            self.set_status(400)
+            self.write('The path %s is not defined in the configuration file!' % orig_path)
+            raise InternalResourcePathCheckError()
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
 

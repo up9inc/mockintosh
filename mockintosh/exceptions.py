@@ -72,3 +72,11 @@ class AsyncProducerDatasetLoopEnd(Exception):
 
     def __init__(self, actor_name):
         super().__init__('Dataset loop for producer actor \'%s\' is ended!' % actor_name)
+
+
+class InternalResourcePathCheckError(Exception):
+    """Raised in case of a resource path check fails in `ManagementResourcesHandler`.
+    """
+
+    def __init__(self):
+        super().__init__(None)
