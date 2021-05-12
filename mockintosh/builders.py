@@ -127,7 +127,7 @@ class ConfigRootBuilder:
             dataset_looped=actor.get('datasetLooped', True)
         )
 
-    def build_config_async_service(self, data: dict) -> ConfigAsyncService:
+    def build_config_async_service(self, data: dict, internal_service_id: Union[int, None] = None) -> ConfigAsyncService:
         actors = []
         if 'actors' in data:
             actors = [self.build_config_actor(actor) for actor in data['actors']]
@@ -137,7 +137,8 @@ class ConfigRootBuilder:
             data['address'],
             actors=actors,
             name=data.get('name', None),
-            ssl=data.get('ssl', False)
+            ssl=data.get('ssl', False),
+            internal_service_id=internal_service_id
         )
 
     def build_config_response(self, data: dict) -> ConfigResponse:
@@ -199,7 +200,7 @@ class ConfigRootBuilder:
             performance_profile=endpoint.get('performanceProfile', None)
         )
 
-    def build_config_http_service(self, service: dict) -> ConfigHttpService:
+    def build_config_http_service(self, service: dict, internal_service_id: Union[int, None] = None) -> ConfigHttpService:
         return ConfigHttpService(
             service['port'],
             name=service.get('name', None),
@@ -211,7 +212,8 @@ class ConfigRootBuilder:
             oas=self.build_config_external_file_path(service.get('oas', None)),
             endpoints=[self.build_config_endpoint(endpoint) for endpoint in service.get('endpoints', [])],
             performance_profile=service.get('performanceProfile', None),
-            fallback_to=service.get('fallbackTo', None)
+            fallback_to=service.get('fallbackTo', None),
+            internal_service_id=internal_service_id
         )
 
     def build_config_management(self, data: dict) -> Union[ConfigManagement, None]:
@@ -243,14 +245,17 @@ class ConfigRootBuilder:
             data.get('faults', {})
         )
 
+    def build_config_service(self, service: dict, internal_service_id: Union[int, None] = None) -> Union[ConfigHttpService, ConfigAsyncService]:
+        _type = service.get('type', 'http')
+        if _type == 'http':
+            return self.build_config_http_service(service, internal_service_id)
+        else:
+            return self.build_config_async_service(service, internal_service_id)
+
     def build_config_root(self, data: dict) -> ConfigRoot:
         config_services = []
         for service in data['services']:
-            _type = service.get('type', 'http')
-            if _type == 'http':
-                config_services.append(self.build_config_http_service(service))
-            else:
-                config_services.append(self.build_config_async_service(service))
+            config_services.append(self.build_config_service(service))
         config_management = self.build_config_management(data)
         config_templating_engine = data.get('templatingEngine', PYBARS)
         config_globals = self.build_config_globals(data)

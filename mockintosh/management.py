@@ -30,11 +30,14 @@ import mockintosh
 from mockintosh.config import (
     ConfigService,
     ConfigExternalFilePath,
-    ConfigResponse
+    ConfigResponse,
+    ConfigAsyncService,
+    ConfigHttpService
 )
 from mockintosh.http import (
     HttpService
 )
+from mockintosh.builders import ConfigRootBuilder
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import (
@@ -145,6 +148,8 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
     async def post(self):
         data = self.decode()
+        definition = self.http_server.definition
+
         if data is None:
             return
 
@@ -158,30 +163,27 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.check_restricted_fields(service, i):
                 return
 
-        self.http_server.definition.stats.services = []
+        definition.stats.services = []
         KafkaService.services = []
         KafkaProducer.producers = []
         KafkaConsumer.consumers = []
         HttpService.services = []
         ConfigService.services = []
         ConfigExternalFilePath.files = []
-        self.http_server.definition.analyze(data)
-
-        for kafka_service in KafkaService.services:
-            self.http_server._apps.apps[kafka_service.id] = kafka_service
+        definition.services, definition.config_root = definition.analyze(data)
 
         for service in HttpService.services:
             self.update_service(service, service.internal_service_id)
 
-        self.http_server.definition.stats.reset()
-        self.http_server.definition.data = data
+        definition.stats.reset()
+        definition.data = data
 
         self.update_globals()
 
-        self.http_server.definition.trigger_stoppers()
+        definition.trigger_stoppers()
         stop = {'val': False}
-        self.http_server.definition.add_stopper(stop)
-        kafka_run_loops(self.http_server.definition, stop)
+        definition.add_stopper(stop)
+        kafka_run_loops(definition, stop)
 
         self.set_status(204)
 
@@ -200,7 +202,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
         for http_path in http_path_list:
             path_methods.append((http_path.path, http_path.methods))
 
-        for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 rule.target_kwargs['path_methods'] = path_methods
                 break
@@ -231,14 +233,11 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, service in enumerate(self.http_server.definition.services):
-            if not isinstance(service, HttpService):
-                continue
-
+        for service in HttpService.services:
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
-            for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
+            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['_globals'] = self.http_server.globals
 
@@ -308,6 +307,8 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         for app in self.http_server._apps.apps:
+            _reset_iterators(app)
+        for app in KafkaService.services:
             _reset_iterators(app)
         self.set_status(204)
 
@@ -435,13 +436,13 @@ class ManagementOasHandler(ManagementBaseHandler):
             'documents': []
         }
 
-        for i, service in enumerate(HttpService.services):
-            data['documents'].append(self.build_oas(i))
+        for service in HttpService.services:
+            data['documents'].append(self.build_oas(service.internal_service_id))
 
         self.write(data)
 
     def build_oas(self, service_id):
-        service = HttpService.services[service_id]
+        service = self.http_server.definition.services[service_id]
         ssl = service.ssl
         protocol = 'https' if ssl else 'http'
         hostname = self.http_server.address if self.http_server.address else (
@@ -482,7 +483,7 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         path_methods = []
-        for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
                 path_methods = rule.target_kwargs['path_methods']
 
@@ -671,13 +672,12 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
-            if isinstance(app, KafkaService):
-                data['tags'] += app.tags
-                continue
-
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     data['tags'] += rule.target_kwargs['tags']
+
+        for service in KafkaService.services:
+            data['tags'] += service.tags
 
         data['tags'] = list(set(data['tags']))
 
@@ -688,14 +688,14 @@ class ManagementTagHandler(ManagementBaseHandler):
         if data is None:
             data = self.request.body.decode()
         data = data.split(',')
-        for app in self.http_server._apps.apps:
-            if isinstance(app, KafkaService):
-                app.tags = data
-                continue
 
+        for app in self.http_server._apps.apps:
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['tags'] = data
+
+        for service in KafkaService.services:
+            service.tags = data
 
         self.set_status(204)
 
@@ -913,19 +913,46 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         data = self.decode()
         definition = self.http_server.definition
 
+        if data is None:
+            return
+
         imaginary_config = copy.deepcopy(definition.data)
         imaginary_config['services'][self.service_id] = data
 
         if not self.validate(imaginary_config) or not self.check_restricted_fields(data, self.service_id):
             return
 
-        ConfigService.services = []
+        internal_service_id = self.service_id
+        internal_http_service_id = self.http_server.definition.services[self.service_id].internal_http_service_id
+
+        config_root_builder = ConfigRootBuilder()
+        service = config_root_builder.build_config_service(data, internal_service_id=internal_service_id)
+        definition.config_root.services = service
+
+        if isinstance(service, ConfigAsyncService):
+            service.address_template_renderer(
+                definition.template_engine,
+                definition.rendering_queue
+            )
+
+        definition.logs.update_service(self.service_id, service.get_name())
+        definition.stats.update_service(self.service_id, service.get_hint())
+
+        if isinstance(service, ConfigAsyncService):
+            definition.services[self.service_id] = definition.analyze_async_service(service)
+        elif isinstance(service, ConfigHttpService):
+            definition.services[self.service_id] = definition.analyze_http_service(
+                service,
+                definition.template_engine,
+                definition.rendering_queue,
+                performance_profiles=definition.config_root.performance_profiles,
+                global_performance_profile=None if definition.config_root.globals is None else definition.config_root.globals.performance_profile,
+                internal_http_service_id=internal_http_service_id
+            )
+
         definition.data['services'][self.service_id] = data
-        definition.services, definition.config_root = definition.analyze(definition.data)
 
         self.update_service(definition.services[self.service_id], self.service_id)
-
-        definition.stats.reset()
 
         self.set_status(204)
 
@@ -971,7 +998,14 @@ class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
         self.service_id = service_id
 
     async def post(self):
-        app = self.http_server._apps.apps[self.service_id]
+        app = None
+        service = self.http_server.definition.services[self.service_id]
+
+        if isinstance(service, HttpService):
+            app = self.http_server._apps.apps[service.internal_http_service_id]
+        elif isinstance(service, KafkaService):
+            app = service
+
         _reset_iterators(app)
         self.set_status(204)
 
@@ -1022,25 +1056,37 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
         self.service_id = service_id
 
     async def get(self):
-        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                tags = rule.target_kwargs['tags']
-                if not tags:
-                    self.set_status(204)
-                else:
-                    data = {
-                        'tags': tags
-                    }
-                    self.write(data)
+        service = self.http_server.definition.services[self.service_id]
+
+        tags = None
+        if isinstance(service, HttpService):
+            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    tags = rule.target_kwargs['tags']
+        elif isinstance(service, KafkaService):
+            tags = service.tags
+
+        if not tags:
+            self.set_status(204)
+        else:
+            data = {
+                'tags': tags
+            }
+            self.write(data)
 
     async def post(self):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
         data = data.split(',')
-        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                rule.target_kwargs['tags'] = data
+
+        service = self.http_server.definition.services[self.service_id]
+        if isinstance(service, HttpService):
+            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    rule.target_kwargs['tags'] = data
+        elif isinstance(service, KafkaService):
+            service.tags = data
 
         self.set_status(204)
 

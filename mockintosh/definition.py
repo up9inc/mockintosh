@@ -26,7 +26,8 @@ from mockintosh.config import (
     ConfigRoot,
     ConfigHttpService,
     ConfigAsyncService,
-    ConfigMultiProduce
+    ConfigMultiProduce,
+    ConfigGlobals
 )
 from mockintosh.recognizers import (
     PathRecognizer,
@@ -132,7 +133,7 @@ class Definition:
                 new_services.append(self.analyze_async_service(service))
             elif isinstance(service, ConfigHttpService):
                 new_services.append(
-                    Definition.analyze_http_service(
+                    self.analyze_http_service(
                         service,
                         self.template_engine,
                         self.rendering_queue,
@@ -151,13 +152,14 @@ class Definition:
             stop = self.stoppers.pop()
             stop['val'] = True
 
-    @staticmethod
     def analyze_http_service(
+        self,
         service: ConfigHttpService,
         template_engine: str,
         rendering_queue: RenderingQueue,
         performance_profiles: dict = {},
-        global_performance_profile=None
+        global_performance_profile: Union[ConfigGlobals, None] = None,
+        internal_http_service_id: Union[int, None] = None
     ):
         http_service = HttpService(
             service.port,
@@ -170,7 +172,8 @@ class Definition:
             service.oas,
             service.performance_profile,
             service.fallback_to,
-            service.internal_service_id
+            service.internal_service_id,
+            internal_http_service_id=internal_http_service_id
         )
 
         service_perfomance_profile = service.performance_profile if service.performance_profile is not None else global_performance_profile

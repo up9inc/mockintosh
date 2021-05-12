@@ -30,11 +30,16 @@ class ConfigService:
         self,
         _type: str,
         name: Union[str, None],
+        internal_service_id: Union[int, None]
     ):
         self.type = _type
         self.name = name
-        self.internal_service_id = len(ConfigService.services)
-        ConfigService.services.append(self)
+        if internal_service_id is None:
+            self.internal_service_id = len(ConfigService.services)
+            ConfigService.services.append(self)
+        else:
+            self.internal_service_id = internal_service_id
+            ConfigService.services[internal_service_id] = self
 
     def get_name(self):
         return self.name if self.name is not None else ''
@@ -167,9 +172,10 @@ class ConfigAsyncService(ConfigService):
         address: str,
         actors: List[ConfigActor] = [],
         name: Union[str, None] = None,
-        ssl: bool = False
+        ssl: bool = False,
+        internal_service_id: Union[int, None] = None
     ):
-        super().__init__(_type, name)
+        super().__init__(_type, name, internal_service_id)
         ConfigAsyncService.services.append(self)
         self.type = _type
         self.address = address
@@ -286,9 +292,10 @@ class ConfigHttpService(ConfigService):
         oas: Union[str, ConfigExternalFilePath, None] = None,
         endpoints: List[ConfigEndpoint] = [],
         performance_profile: Union[str, None] = None,
-        fallback_to: Union[str, None] = None
+        fallback_to: Union[str, None] = None,
+        internal_service_id: Union[int, None] = None
     ):
-        super().__init__('http', name)
+        super().__init__('http', name, internal_service_id)
         self.port = port
         self.hostname = hostname
         self.ssl = ssl

@@ -138,10 +138,7 @@ class HttpServer:
     def map_ports(self) -> OrderedDict:
         port_mapping = OrderedDict()
 
-        for service in self.definition.services:
-            if not isinstance(service, HttpService):
-                continue
-
+        for service in HttpService.services:
             port = str(service.port)
             if port not in port_mapping:
                 port_mapping[port] = []
@@ -192,8 +189,8 @@ class HttpServer:
         protocol = 'https' if ssl else 'http'
         http_path_list, management_root = self.prepare_app(service)
         app = self.make_app(service, http_path_list, self.globals, debug=self.debug, management_root=management_root)
-        self._apps.apps[service.internal_service_id] = app
-        self._apps.listeners[service.internal_service_id] = _Listener(
+        self._apps.apps[service.internal_http_service_id] = app
+        self._apps.listeners[service.internal_http_service_id] = _Listener(
             service.hostname,
             service.port,
             self.address if self.address else 'localhost'
@@ -233,12 +230,10 @@ class HttpServer:
         return True
 
     def load(self) -> None:
-        services = self.definition.services
-        self._apps.apps = len(services) * [None]
-        self._apps.listeners = len(services) * [None]
-        for service in services:
-            if not isinstance(service, HttpService):
-                self._apps.apps[service.id] = service
+        self._apps.apps = len(HttpService.services) * [None]
+        self._apps.listeners = len(HttpService.services) * [None]
+
+        for service in self.definition.services:
             self.unhandled_data.requests.append({})
 
         port_mapping = self.map_ports()

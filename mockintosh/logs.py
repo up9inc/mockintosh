@@ -113,10 +113,14 @@ class Logs():
     def is_enabled(self) -> bool:
         return any(service.is_enabled() for service in self.services)
 
-    def add_service(self, name) -> None:
+    def add_service(self, name: str) -> None:
         service_logs = ServiceLogs(name)
         service_logs.parent = self
         self.services.append(service_logs)
+
+    def update_service(self, index: int, name: str) -> None:
+        service_logs = self.services[index]
+        service_logs.name = name
 
     def json(self) -> dict:
         data = _get_log_root(self.is_enabled())

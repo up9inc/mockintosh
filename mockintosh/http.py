@@ -125,7 +125,8 @@ class HttpService:
         oas: Union[str, ConfigExternalFilePath, None],
         performance_profile: Union[str, None],
         fallback_to: Union[str, None],
-        internal_service_id
+        internal_service_id: int,
+        internal_http_service_id: Union[int, None] = None
     ):
         port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
         self.port = port
@@ -143,7 +144,13 @@ class HttpService:
         if port_override is not None:
             self.port = int(port_override)
         self.endpoints = []
-        HttpService.services.append(self)
+
+        if internal_http_service_id is None:
+            self.internal_http_service_id = len(HttpService.services)
+            HttpService.services.append(self)
+        else:
+            self.internal_http_service_id = internal_http_service_id
+            HttpService.services[self.internal_http_service_id] = self
 
     def add_endpoint(self, endpoint: HttpEndpoint) -> None:
         self.endpoints.append(endpoint)

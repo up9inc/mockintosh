@@ -102,6 +102,11 @@ class Stats(ServiceStats):
         service_stats.parent = self
         self.services.append(service_stats)
 
+    def update_service(self, index: int, hint: str) -> None:
+        service_stats = self.services[index]
+        service_stats.hint = hint
+        service_stats.reset()
+
     def json(self) -> dict:
         data = {
             'global': {
