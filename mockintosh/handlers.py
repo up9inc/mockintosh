@@ -39,8 +39,7 @@ from mockintosh.config import (
     ConfigExternalFilePath,
     ConfigDataset,
     ConfigResponse,
-    ConfigMultiResponse,
-    ConfigHeaders
+    ConfigMultiResponse
 )
 from mockintosh.services.http import (
     HttpAlternative
@@ -200,20 +199,17 @@ class BaseHandler:
 
         return log_record
 
-    def load_dataset(self, dataset: Union[list, str, ConfigExternalFilePath]) -> ConfigDataset:
+    def load_dataset(self, dataset: ConfigDataset) -> ConfigDataset:
         """Method that loads a dataset."""
-        if isinstance(dataset, list):
-            return ConfigDataset(dataset)
-        elif isinstance(dataset, ConfigDataset):
-            if isinstance(dataset.payload, ConfigExternalFilePath):
-                dataset_path, _ = self.resolve_relative_path(dataset.payload.path)
-                with open(dataset_path, 'r') as file:
-                    logging.info('Reading dataset file from path: %s', dataset_path)
-                    data = json.load(file)
-                    logging.debug('Dataset: %s', data)
-                    return ConfigDataset(data)
-            else:
-                return dataset
+        if isinstance(dataset.payload, ConfigExternalFilePath):
+            dataset_path, _ = self.resolve_relative_path(dataset.payload.path)
+            with open(dataset_path, 'r') as file:
+                logging.info('Reading dataset file from path: %s', dataset_path)
+                data = json.load(file)
+                logging.debug('Dataset: %s', data)
+                return ConfigDataset(data)
+        else:
+            return dataset
 
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
@@ -785,7 +781,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                             return ()
 
                 response = response if isinstance(response, ConfigResponse) else ConfigResponse(body=response)
-            else:
+            else:  # pragma: no cover
                 response = ConfigResponse(body=None)
 
             # Dataset
@@ -1403,11 +1399,7 @@ class KafkaHandler(BaseHandler):
         request.path = '/%s' % self.topic
 
         # Headers
-        headers = None
-        if isinstance(self.headers, ConfigHeaders):
-            headers = self.headers.payload
-        else:
-            headers = self.headers
+        headers = self.headers
 
         for key, value in headers.items():
             if isinstance(value, ConfigExternalFilePath):

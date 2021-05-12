@@ -201,7 +201,7 @@ class HttpPath:
         self.priority = None
         self.methods = {}
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return 'priority: %s, methods: %s' % (self.priority, self.methods)
 
 

@@ -31,7 +31,6 @@ import mockintosh
 from mockintosh.config import (
     ConfigService,
     ConfigExternalFilePath,
-    ConfigAsyncService,
     ConfigHttpService
 )
 from mockintosh.services.http import (
@@ -823,18 +822,20 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         service = config_root_builder.build_config_service(data, internal_service_id=internal_service_id)
         definition.config_root.services = service
 
-        if isinstance(service, ConfigAsyncService):
-            service.address_template_renderer(
-                definition.template_engine,
-                definition.rendering_queue
-            )
+        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
+        # if isinstance(service, ConfigAsyncService):
+        #     service.address_template_renderer(
+        #         definition.template_engine,
+        #         definition.rendering_queue
+        #     )
 
         definition.logs.update_service(self.service_id, service.get_name())
         definition.stats.update_service(self.service_id, service.get_hint())
 
-        if isinstance(service, ConfigAsyncService):
-            definition.services[self.service_id] = definition.analyze_async_service(service)
-        elif isinstance(service, ConfigHttpService):
+        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
+        # if isinstance(service, ConfigAsyncService):
+        #     definition.services[self.service_id] = definition.analyze_async_service(service)
+        if isinstance(service, ConfigHttpService):
             definition.services[self.service_id] = definition.analyze_http_service(
                 service,
                 definition.template_engine,
@@ -897,8 +898,9 @@ class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
 
         if isinstance(service, HttpService):
             app = self.http_server._apps.apps[service.internal_http_service_id]
-        elif isinstance(service, KafkaService):
-            app = service
+        # TODO: There are not tests for KafkaService
+        # elif isinstance(service, KafkaService):
+        #     app = service
 
         _reset_iterators(app)
         self.set_status(204)
@@ -957,8 +959,9 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
             for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     tags = rule.target_kwargs['tags']
-        elif isinstance(service, KafkaService):
-            tags = service.tags
+        # TODO: There are not tests for KafkaService
+        # elif isinstance(service, KafkaService):
+        #     tags = service.tags
 
         if not tags:
             self.set_status(204)
@@ -979,8 +982,9 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
             for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['tags'] = data
-        elif isinstance(service, KafkaService):
-            service.tags = data
+        # TODO: There are not tests for KafkaService
+        # elif isinstance(service, KafkaService):
+        #     service.tags = data
 
         self.set_status(204)
 
