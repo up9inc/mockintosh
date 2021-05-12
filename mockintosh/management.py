@@ -14,7 +14,8 @@ import shutil
 import logging
 import threading
 from typing import (
-    Union
+    Union,
+    Tuple
 )
 from collections import OrderedDict
 from urllib.parse import parse_qs, unquote
@@ -27,15 +28,31 @@ from tornado.util import unicode_type
 from tornado.escape import utf8
 
 import mockintosh
+from mockintosh.config import (
+    ConfigService,
+    ConfigExternalFilePath,
+    ConfigHttpService
+)
+from mockintosh.services.http import (
+    HttpService
+)
+from mockintosh.builders import ConfigRootBuilder
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
 from mockintosh.exceptions import (
     RestrictedFieldError,
     AsyncProducerListHasNoPayloadsMatchingTags,
     AsyncProducerPayloadLoopEnd,
-    AsyncProducerDatasetLoopEnd
+    AsyncProducerDatasetLoopEnd,
+    InternalResourcePathCheckError
 )
-from mockintosh.kafka import KafkaService, run_loops as kafka_run_loops
+from mockintosh.services.kafka import (
+    KafkaService,
+    KafkaProducer,
+    KafkaConsumer,
+    run_loops as kafka_run_loops
+)
+from mockintosh.replicas import Request, Response
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -80,12 +97,12 @@ def _reset_iterators(app):
 
     for rule in app.default_router.rules[0].target.rules:
         if rule.target == GenericHandler:
-            endpoints = rule.target_kwargs['endpoints']
-            for _, methods in endpoints:
+            path_methods = rule.target_kwargs['path_methods']
+            for _, methods in path_methods:
                 for _, alternatives in methods.items():
                     for alternative in alternatives:
-                        alternative.pop('multiResponsesIndex', None)
-                        alternative.pop('datasetIndex', None)
+                        alternative.multi_responses_index = None
+                        alternative.dataset_index = None
             break
 
 
@@ -127,118 +144,101 @@ class ManagementConfigHandler(ManagementBaseHandler):
         self.http_server = http_server
 
     async def get(self):
-        data = self.http_server.definition.orig_data
+        data = self.http_server.definition.data
         self.dump(data)
 
     async def post(self):
-        orig_data = self.decode()
-        if orig_data is None:
-            return
+        data = self.decode()
+        definition = self.http_server.definition
 
-        data = copy.deepcopy(orig_data)
+        if data is None:
+            return
 
         if not self.validate(data):
             return
-
-        self.http_server.definition.stats.services = []
-        data = self.http_server.definition.analyze(data)
-        for service in data['services']:
-            hint = None
-            if 'type' in service and service['type'] != 'http':
-                service['address'], _ = mockintosh.Definition.async_address_template_renderer(
-                    self.http_server.definition.template_engine,
-                    self.http_server.definition.rendering_queue,
-                    service['address']
-                )
-                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
-            else:
-                hint = '%s://%s:%s%s' % (
-                    'https' if service.get('ssl', False) else 'http',
-                    service['hostname'] if 'hostname' in service else (
-                        self.http_server.address if self.http_server.address else 'localhost'
-                    ),
-                    service['port'],
-                    ' - %s' % service['name'] if 'name' in service else ''
-                )
-            self.http_server.definition.stats.add_service(hint)
-
-        for kafka_service in data['kafka_services']:
-            self.http_server._apps.apps[kafka_service.id] = kafka_service
 
         for i, service in enumerate(data['services']):
             if 'type' in service and service['type'] != 'http':  # pragma: no cover
                 continue
 
-            service['internalServiceId'] = i
-            if not self.update_service(service, i):
+            if not self.check_restricted_fields(service, i):
                 return
 
-        self.http_server.definition.stats.reset()
-        self.http_server.definition.orig_data = orig_data
-        self.http_server.definition.data = data
+        definition.stats.services = []
+        KafkaService.services = []
+        KafkaProducer.producers = []
+        KafkaConsumer.consumers = []
+        HttpService.services = []
+        ConfigService.services = []
+        ConfigExternalFilePath.files = []
+        definition.services, definition.config_root = definition.analyze(data)
+
+        for service in HttpService.services:
+            self.update_service(service, service.internal_service_id)
+
+        definition.stats.reset()
+        definition.data = data
 
         self.update_globals()
 
-        self.http_server.definition.trigger_stoppers()
+        definition.trigger_stoppers()
         stop = {'val': False}
-        self.http_server.definition.add_stopper(stop)
-        kafka_run_loops(self.http_server.definition, stop)
+        definition.add_stopper(stop)
+        kafka_run_loops(definition, stop)
 
         self.set_status(204)
 
-    def update_service(self, service, service_index) -> bool:
+    def update_service(self, service: HttpService, service_index: int) -> None:
+        self.http_server.definition.stats.services[service_index].endpoints = []
+        self.http_server.definition.logs.services[service_index].name = service.get_name_or_empty()
+
+        http_path_list = []
+        if service.endpoints:
+            http_path_list = mockintosh.servers.HttpServer.merge_alternatives(
+                service,
+                self.http_server.definition.stats
+            )
+
+        path_methods = []
+        for http_path in http_path_list:
+            path_methods.append((http_path.path, http_path.methods))
+
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['path_methods'] = path_methods
+                break
+
+        mockintosh.servers.HttpServer.log_path_methods(path_methods)
+
+    def check_restricted_fields(self, service: dict, service_index) -> bool:
         try:
-            self._update_service(service, service_index)
+            self._check_restricted_fields(service, service_index)
             return True
         except RestrictedFieldError as e:
             self.set_status(500)
             self.write(str(e))
             return False
 
-    def _update_service(self, service, service_index):
-        self.check_restricted_fields(service, service_index)
-        endpoints = []
-        self.http_server.definition.stats.services[service_index].endpoints = []
-        self.http_server.definition.logs.services[service_index].name = service['name'] if 'name' in service else ''
-
-        if 'endpoints' in service:
-            endpoints = mockintosh.servers.HttpServer.merge_alternatives(
-                service,
-                self.http_server.definition.stats
-            )
-        merged_endpoints = []
-        for endpoint in endpoints:
-            merged_endpoints.append((endpoint['path'], endpoint['methods']))
-
-        for rule in self.http_server._apps.apps[service_index].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                rule.target_kwargs['endpoints'] = merged_endpoints
-                break
-
-        mockintosh.servers.HttpServer.log_merged_endpoints(merged_endpoints)
-
-    def check_restricted_fields(self, service, service_index):
+    def _check_restricted_fields(self, service, service_index):
+        old_service = self.http_server.definition.data['services'][service_index]
         for field in POST_CONFIG_RESTRICTED_FIELDS:
             if (
-                (field in service and field not in self.http_server.definition.orig_data['services'][service_index])
+                (field in service and field not in old_service)
                 or  # noqa: W504, W503
-                (field not in service and field in self.http_server.definition.orig_data['services'][service_index])
+                (field not in service and field in old_service)
                 or  # noqa: W504, W503
-                field in service and field in self.http_server.definition.orig_data['services'][service_index] and (
-                    service[field] != self.http_server.definition.orig_data['services'][service_index][field]
+                field in service and field in old_service and (
+                    service[field] != old_service[field]
                 )
             ):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, service in enumerate(self.http_server.definition.data['services']):
-            if 'type' in service and service['type'] != 'http':  # pragma: no cover
-                continue
-
+        for service in HttpService.services:
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
-            for rule in self.http_server._apps.apps[i].default_router.rules[0].target.rules:
+            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['_globals'] = self.http_server.globals
 
@@ -309,6 +309,8 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
     async def post(self):
         for app in self.http_server._apps.apps:
             _reset_iterators(app)
+        for app in KafkaService.services:
+            _reset_iterators(app)
         self.set_status(204)
 
 
@@ -322,15 +324,11 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             'services': []
         }
 
-        services = self.http_server.definition.orig_data['services']
-        for i, service in enumerate(services):
-            if 'type' in service and service['type'] != 'http':
-                continue
-
+        for i, service in enumerate(HttpService.services):
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
-            new_service = dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service)
+            new_service = dict((k, getattr(service, k)) for k in UNHANDLED_SERVICE_KEYS if getattr(service, k) is not None)
             new_service['endpoints'] = endpoints
             data['services'].append(new_service)
 
@@ -345,7 +343,47 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                 self.http_server.unhandled_data.requests[i][key] = []
         self.set_status(204)
 
-    def build_unhandled_requests(self, service_id):
+    def build_unhandled_requests_headers(self, config_template: dict, request: Request, requests: dict) -> None:
+        for key, value in request.headers._dict.items():
+            continue_parent = False
+            for _request in requests:
+                if (
+                    (key.title() not in _request[0].headers._dict)
+                    or  # noqa: W504, W503
+                    (key.title() in _request[0].headers._dict and value != _request[0].headers._dict[key.title()])
+                ):
+                    continue_parent = True
+                    break
+            if continue_parent:
+                continue
+            if key.lower() not in UNHANDLED_IGNORED_HEADERS:
+                if 'headers' not in config_template:
+                    config_template['headers'] = {}
+                config_template['headers'][key] = value
+
+    def build_unhandled_requests_response(self, config_template: dict, response: Response) -> None:
+        if response is None:
+            config_template['response'] = ''
+        else:
+            response.headers.pop('Content-Length', None)
+
+            config_template['response'] = {
+                'status': response.status,
+                'headers': {},
+                'body': ''
+            }
+            for key, value in response.headers.items():
+                try:
+                    config_template['response']['headers'][key] = value.decode()
+                except (AttributeError, UnicodeDecodeError):
+                    config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
+            if response.body is not None:
+                try:
+                    config_template['response']['body'] = response.body.decode()
+                except (AttributeError, UnicodeDecodeError):
+                    config_template['response']['body'] = _b64encode(response.body) if isinstance(response.body, (bytes, bytearray)) else response.body
+
+    def build_unhandled_requests(self, service_id: int) -> list:
         endpoints = []
 
         for requests in self.http_server.unhandled_data.requests[service_id].values():
@@ -364,22 +402,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             config_template['method'] = request.method
 
             # Headers
-            for key, value in request.headers._dict.items():
-                continue_parent = False
-                for _request in requests:
-                    if (
-                        (key.title() not in _request[0].headers._dict)
-                        or  # noqa: W504, W503
-                        (key.title() in _request[0].headers._dict and value != _request[0].headers._dict[key.title()])
-                    ):
-                        continue_parent = True
-                        break
-                if continue_parent:
-                    continue
-                if key.lower() not in UNHANDLED_IGNORED_HEADERS:
-                    if 'headers' not in config_template:
-                        config_template['headers'] = {}
-                    config_template['headers'][key] = value
+            self.build_unhandled_requests_headers(config_template, request, requests)
 
             # Query String
             for key, value in request.query_arguments.items():
@@ -387,26 +410,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                     config_template['queryString'] = {}
                 config_template['queryString'][key] = value[0].decode()
 
-            if response is None:
-                config_template['response'] = ''
-            else:
-                response.headers.pop('Content-Length', None)
+            # Response
+            self.build_unhandled_requests_response(config_template, response)
 
-                config_template['response'] = {
-                    'status': response.status,
-                    'headers': {},
-                    'body': ''
-                }
-                for key, value in response.headers.items():
-                    try:
-                        config_template['response']['headers'][key] = value.decode()
-                    except (AttributeError, UnicodeDecodeError):
-                        config_template['response']['headers'][key] = _b64encode(value) if isinstance(value, (bytes, bytearray)) else value
-                if response.body is not None:
-                    try:
-                        config_template['response']['body'] = response.body.decode()
-                    except (AttributeError, UnicodeDecodeError):
-                        config_template['response']['body'] = _b64encode(response.body) if isinstance(response.body, (bytes, bytearray)) else response.body
             endpoints.append(config_template)
 
         return endpoints
@@ -439,197 +445,90 @@ class ManagementOasHandler(ManagementBaseHandler):
             'documents': []
         }
 
-        services = self.http_server.definition.orig_data['services']
-        for i, service in enumerate(services):
-            if 'type' in service and service['type'] != 'http':
-                continue
-
-            data['documents'].append(self.build_oas(i))
+        for service in HttpService.services:
+            data['documents'].append(self.build_oas(service.internal_service_id))
 
         self.write(data)
 
     def build_oas(self, service_id):
-        service = self.http_server.definition.orig_data['services'][service_id]
-        ssl = service.get('ssl', False)
+        service = self.http_server.definition.services[service_id]
+        ssl = service.ssl
         protocol = 'https' if ssl else 'http'
         hostname = self.http_server.address if self.http_server.address else (
-            'localhost' if 'hostname' not in service else service['hostname']
+            'localhost' if service.hostname is None else service.hostname
         )
 
-        if 'oas' in service:
-            custom_oas = service['oas']
-            if isinstance(custom_oas, str) and len(custom_oas) > 1 and custom_oas[0] == '@':
-                custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas)
-                with open(custom_oas_path, 'r') as file:
-                    custom_oas = json.load(file)
-            if 'servers' not in custom_oas:
-                custom_oas['servers'] = []
-            custom_oas['servers'].insert(
-                0,
-                {
-                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
-                    'description': service['name'] if 'name' in service else ''
-                }
-            )
-            return custom_oas
+        if service.oas is not None:
+            return self.build_oas_custom(protocol, hostname, service)
 
         document = {
             'openapi': '3.0.0',
             'info': {
-                'title': service['name'] if 'name' in service else '%s://%s:%s' % (protocol, hostname, service['port']),
+                'title': service.name if service.name is not None else '%s://%s:%s' % (protocol, hostname, service.port),
                 'description': 'Automatically generated Open API Specification.',
                 'version': '0.1.9'
             },
             'servers': [
                 {
-                    'url': '%s://%s:%s' % (protocol, hostname, service['port']),
-                    'description': service['name'] if 'name' in service else ''
+                    'url': '%s://%s:%s' % (protocol, hostname, service.port),
+                    'description': service.get_name_or_empty()
                 }
             ],
             'paths': {}
         }
 
-        endpoints = []
-        for rule in self.http_server._apps.apps[service_id].default_router.rules[0].target.rules:
+        path_methods = []
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
-                endpoints = rule.target_kwargs['endpoints']
+                path_methods = rule.target_kwargs['path_methods']
 
-        for endpoint in endpoints:
-            original_path = list(endpoint[1].values())[0][0]['internalOrigPath']
-            scheme, netloc, original_path, query, fragment = _urlsplit(original_path)
-            query_string = parse_qs(query, keep_blank_values=True)
-            path, path_params = self.path_handlebars_to_oas(original_path)
-            methods = {}
-            for method, alternatives in endpoint[1].items():
-                if not alternatives:  # pragma: no cover
-                    continue  # https://github.com/nedbat/coveragepy/issues/198
-
-                method_data = {'responses': {}}
-                alternative = alternatives[0]
-
-                # requestBody
-                if 'body' in alternative:
-
-                    # schema
-                    if 'schema' in alternative['body']:
-                        json_schema = alternative['body']['schema']
-                        if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                            json_schema_path = self.resolve_relative_path(rule.target_kwargs['config_dir'], json_schema)
-                            with open(json_schema_path, 'r') as file:
-                                json_schema = json.load(file)
-                        method_data['requestBody'] = {
-                            'required': True,
-                            'content': {
-                                'application/json': {
-                                    'schema': json_schema
-                                }
-                            }
-                        }
-
-                    # text
-                    if 'text' in alternative['body']:
-                        method_data['requestBody'] = {
-                            'required': True,
-                            'content': {
-                                '*/*': {
-                                    'schema': {
-                                        'type': 'string'
-                                    }
-                                }
-                            }
-                        }
-
-                # path parameters
-                if path_params:
-                    if 'parameters' not in method_data:
-                        method_data['parameters'] = []
-                    for param in path_params:
-                        data = {
-                            'in': 'path',
-                            'name': param,
-                            'required': True,
-                            'schema': {
-                                'type': 'string'
-                            }
-                        }
-                        method_data['parameters'].append(data)
-
-                # header parameters
-                if 'headers' in alternative:
-                    if 'parameters' not in method_data:
-                        method_data['parameters'] = []
-                    for key in alternative['headers'].keys():
-                        data = {
-                            'in': 'header',
-                            'name': key,
-                            'required': True,
-                            'schema': {
-                                'type': 'string'
-                            }
-                        }
-                        method_data['parameters'].append(data)
-
-                # query string parameters
-                if 'queryString' in alternative:
-                    if 'parameters' not in method_data:
-                        method_data['parameters'] = []
-                    query_string.update(alternative['queryString'])
-                    for key in query_string.keys():
-                        data = {
-                            'in': 'query',
-                            'name': key,
-                            'required': True,
-                            'schema': {
-                                'type': 'string'
-                            }
-                        }
-                        method_data['parameters'].append(data)
-
-                # responses
-                if 'response' in alternative:
-                    response = alternative['response']
-                    status = 200
-                    if isinstance(response, dict) and 'status' in response:
-                        status = str(response['status'])
-                    if status not in ('RST', 'FIN'):
-                        try:
-                            int(status)
-                        except ValueError:
-                            status = 'default'
-                        status_data = {}
-                        if isinstance(response, dict) and 'headers' in response:
-                            new_headers = {k.title(): v for k, v in response['headers'].items()}
-                            if 'Content-Type' in new_headers:
-                                if new_headers['Content-Type'].startswith('application/json'):
-                                    status_data = {
-                                        'content': {
-                                            'application/json': {
-                                                'schema': {}
-                                            }
-                                        }
-                                    }
-                            status_data['headers'] = {}
-                            for key in new_headers.keys():
-                                status_data['headers'][key] = {
-                                    'schema': {
-                                        'type': 'string'
-                                    }
-                                }
-                        status_data['description'] = ''
-                        method_data['responses'][status] = status_data
-
-                if not method_data['responses']:
-                    method_data['responses']['default'] = {
-                        'description': ''
-                    }
-                methods[method.lower()] = method_data
+        for _, _methods in path_methods:
+            path, methods = self.build_oas_methods(_methods)
             document['paths']['%s' % path] = methods
 
         document['paths'] = OrderedDict(sorted(document['paths'].items(), key=lambda t: t[0]))
 
         return document
 
-    def path_handlebars_to_oas(self, path):
+    def build_oas_methods(self, _methods: dict) -> Tuple[str, dict]:
+        first_alternative = list(_methods.values())[0][0]
+        original_path = first_alternative.orig_path
+        scheme, netloc, original_path, query, fragment = _urlsplit(original_path)
+        query_string = parse_qs(query, keep_blank_values=True)
+        path, path_params = self.path_handlebars_to_oas(original_path)
+        methods = {}
+        for method, alternatives in _methods.items():
+            if not alternatives:  # pragma: no cover
+                continue  # https://github.com/nedbat/coveragepy/issues/198
+
+            alternative = alternatives[0]
+            method_data = alternative.oas(path_params, query_string, self)
+
+            if not method_data['responses']:
+                method_data['responses']['default'] = {
+                    'description': ''
+                }
+            methods[method.lower()] = method_data
+        return path, methods
+
+    def build_oas_custom(self, protocol: str, hostname: str, service: HttpService) -> dict:
+        custom_oas = service.oas
+        if isinstance(custom_oas, ConfigExternalFilePath):
+            custom_oas_path = self.resolve_relative_path(self.http_server.definition.source_dir, custom_oas.path)
+            with open(custom_oas_path, 'r') as file:
+                custom_oas = json.load(file)
+        if 'servers' not in custom_oas:
+            custom_oas['servers'] = []
+        custom_oas['servers'].insert(
+            0,
+            {
+                'url': '%s://%s:%s' % (protocol, hostname, service.port),
+                'description': service.get_name_or_empty()
+            }
+        )
+        return custom_oas
+
+    def path_handlebars_to_oas(self, path: str) -> Tuple[str, list]:
         segments = _safe_path_split(path)
         params = []
         new_segments = []
@@ -678,13 +577,12 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
-            if isinstance(app, KafkaService):
-                data['tags'] += app.tags
-                continue
-
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     data['tags'] += rule.target_kwargs['tags']
+
+        for service in KafkaService.services:
+            data['tags'] += service.tags
 
         data['tags'] = list(set(data['tags']))
 
@@ -695,14 +593,14 @@ class ManagementTagHandler(ManagementBaseHandler):
         if data is None:
             data = self.request.body.decode()
         data = data.split(',')
-        for app in self.http_server._apps.apps:
-            if isinstance(app, KafkaService):
-                app.tags = data
-                continue
 
+        for app in self.http_server._apps.apps:
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
                     rule.target_kwargs['tags'] = data
+
+        for service in KafkaService.services:
+            service.tags = data
 
         self.set_status(204)
 
@@ -711,60 +609,8 @@ class ManagementResourcesHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
-        files = []
+        files = ConfigExternalFilePath.files
         cwd = self.http_server.definition.source_dir
-        for service in self.http_server.definition.orig_data['services']:
-            if 'type' in service and service['type'] == 'kafka':
-                for actor in service['actors']:
-                    if 'consume' in actor and 'schema' in actor['consume'] and (
-                        isinstance(actor['consume']['schema'], str) and actor['consume']['schema'].startswith('@')
-                    ):
-                        files.append(actor['consume']['schema'][1:])
-                    if 'produce' in actor:
-                        if 'headers' in actor['produce']:
-                            for key, value in actor['produce']['headers'].items():
-                                if value.startswith('@'):
-                                    files.append(value[1:])
-                        if 'value' in actor['produce'] and (
-                            isinstance(actor['produce']['value'], str) and actor['produce']['value'].startswith('@')
-                        ):
-                            files.append(actor['produce']['value'][1:])
-                    if 'dataset' in actor and (
-                        isinstance(actor['dataset'], str) and actor['dataset'].startswith('@')
-                    ):
-                        files.append(actor['dataset'][1:])
-            else:
-                if 'oas' in service:
-                    if service['oas'].startswith('@'):
-                        files.append(service['oas'][1:])
-                if 'endpoints' not in service:
-                    continue
-                for endpoint in service['endpoints']:
-                    if 'body' in endpoint and 'schema' in endpoint['body'] and (
-                        isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
-                    ):
-                        files.append(endpoint['body']['schema'][1:])
-                    if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
-                        endpoint['dataset'].startswith('@')
-                    ):
-                        files.append(endpoint['dataset'][1:])
-                    if 'response' not in endpoint:
-                        continue
-                    response = endpoint['response']
-                    if isinstance(response, str):
-                        if response.startswith('@'):
-                            files.append(response[1:])
-                    elif isinstance(response, dict) and 'body' in response:
-                        if response['body'].startswith('@'):
-                            files.append(response['body'][1:])
-                    elif isinstance(response, list):
-                        for el in response:
-                            if isinstance(el, str):
-                                if el.startswith('@'):
-                                    files.append(el[1:])
-                            elif isinstance(el, dict) and 'body' in el:
-                                if el['body'].startswith('@'):
-                                    files.append(el['body'][1:])
         files = list(set(files))
         files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
         new_files = []
@@ -793,28 +639,16 @@ class ManagementResourcesHandler(ManagementBaseHandler):
             self.write(data)
             return
         else:
-            if not path:
-                self.set_status(400)
-                self.write('\'path\' cannot be empty!')
-                return
-            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
-            if not path.startswith(cwd):
-                self.set_status(403)
-                self.write('The path %s couldn\'t be accessed!' % orig_path)
-                return
-            # path is SAFE
-            if not os.path.exists(path):
-                self.set_status(400)
-                self.write('The path %s does not exist!' % orig_path)
-                return
-            # path is OK
-            if os.path.isdir(path):
-                self.set_status(400)
-                self.write('The path %s is a directory!' % orig_path)
-                return
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
+            try:
+                self.check_path_empty(path)
+                path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+                self.check_path_access(cwd, path, orig_path)
+                # path is SAFE
+                self.check_path_exists(path, orig_path)
+                # path is OK
+                self.check_path_is_not_directory(path, orig_path)
+                self.check_if_path_defined_in_configuration_file(path, orig_path)
+            except InternalResourcePathCheckError:
                 return
             else:
                 _format = self.get_query_argument('format', default='text')
@@ -838,95 +672,59 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         cwd = self.http_server.definition.source_dir
         path = self.get_body_argument('path', default=None)
         orig_path = path
-        if path is not None:
-            if not path:
-                self.set_status(400)
-                self.write('\'path\' cannot be empty!')
-                return
-            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
-            if not path.startswith(cwd):
-                self.set_status(403)
-                self.write('The path %s couldn\'t be accessed!' % orig_path)
-                return
-            # path is SAFE
+        try:
+            if path is not None:
+                self.check_path_empty(path)
+                path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+                self.check_path_access(cwd, path, orig_path)
+                # path is SAFE
 
-        if self.request.files:
-            for key, files in self.request.files.items():
-                for file in files:
-                    if path is None:
-                        file_path = os.path.join(cwd, key if key else file['filename'])
-                    else:
-                        file_path = os.path.join(path, key if key else file['filename'])
-                    file_path = os.path.abspath(file_path)
-                    if not file_path.startswith(cwd):
-                        self.set_status(403)
-                        self.write('The path %s couldn\'t be accessed!' % orig_path)
-                        return
-                    # file_path is SAFE
-                    if os.path.exists(file_path) and os.path.isdir(file_path):
-                        self.set_status(400)
-                        self.write('The path %s is a directory!' % file_path[len(cwd) + 1:])
-                        return
-                    if file_path not in self.files_abs:
-                        self.set_status(400)
-                        self.write('The path %s is not defined in the configuration file!' % file_path[len(cwd) + 1:])
-                        return
-                    # file_path is OK
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                    with open(file_path, 'wb') as _file:
-                        _file.write(file['body'])
-        else:
-            file = self.get_body_argument('file', default=None)
-            if file is None:
-                self.set_status(400)
-                self.write('\'file\' parameter is required!')
-                return
-            if path is None:
-                self.set_status(400)
-                self.write('\'path\' parameter is required!')
-                return
-            if os.path.exists(path) and os.path.isdir(path):
-                self.set_status(400)
-                self.write('The path %s is a directory!' % orig_path)
-                return
-            if path not in self.files_abs:
-                self.set_status(400)
-                self.write('The path %s is not defined in the configuration file!' % orig_path)
-                return
-            # path is OK
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'w') as _file:
-                _file.write(file)
-        self.set_status(204)
+            if self.request.files:
+                for key, files in self.request.files.items():
+                    for file in files:
+                        if path is None:
+                            file_path = os.path.join(cwd, key if key else file['filename'])
+                        else:
+                            file_path = os.path.join(path, key if key else file['filename'])
+                        file_path = os.path.abspath(file_path)
+                        self.check_path_access(cwd, file_path, file_path)
+                        # file_path is SAFE
+                        self.check_path_is_not_directory(file_path, file_path[len(cwd) + 1:])
+                        self.check_if_path_defined_in_configuration_file(file_path, file_path[len(cwd) + 1:])
+                        # file_path is OK
+                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                        with open(file_path, 'wb') as _file:
+                            _file.write(file['body'])
+            else:
+                file = self.get_body_argument('file', default=None)
+                self.check_parameter_required(file, 'file')
+                self.check_parameter_required(path, 'path')
+                self.check_path_is_not_directory(path, orig_path)
+                self.check_if_path_defined_in_configuration_file(path, orig_path)
+                # path is OK
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w') as _file:
+                    _file.write(file)
+            self.set_status(204)
+        except InternalResourcePathCheckError:
+            return
 
     async def delete(self):
         cwd = self.http_server.definition.source_dir
         path = self.get_query_argument('path', default=None)
         keep = self.get_query_argument('keep', default=False)
         orig_path = path
-        if path is None:
-            self.set_status(400)
-            self.write('\'path\' parameter is required!')
+        try:
+            self.check_parameter_required(path, 'path')
+            self.check_path_empty(path)
+            path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
+            self.check_path_access(cwd, path, orig_path)
+            # path is SAFE
+            self.check_path_exists(path, orig_path)
+            self.check_if_path_defined_in_configuration_file(path, orig_path)
+            # path is OK
+        except InternalResourcePathCheckError:
             return
-        if not path:
-            self.set_status(400)
-            self.write('\'path\' cannot be empty!')
-            return
-        path = os.path.abspath(os.path.join(cwd, path.lstrip('/')))
-        if not path.startswith(cwd):
-            self.set_status(403)
-            self.write('The path %s couldn\'t be accessed!' % orig_path)
-            return
-        # path is SAFE
-        if not os.path.exists(path):
-            self.set_status(400)
-            self.write('The path %s does not exist!' % orig_path)
-            return
-        if path not in self.files_abs:
-            self.set_status(400)
-            self.write('The path %s is not defined in the configuration file!' % orig_path)
-            return
-        # path is OK
         if os.path.isfile(path):
             os.remove(path)
             if not keep:
@@ -939,6 +737,42 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         elif os.path.isdir(path):
             shutil.rmtree(path)
         self.set_status(204)
+
+    def check_path_empty(self, path: str) -> None:
+        if not path:
+            self.set_status(400)
+            self.write('\'path\' cannot be empty!')
+            raise InternalResourcePathCheckError()
+
+    def check_path_access(self, cwd: str, path: str, orig_path: str) -> None:
+        if not path.startswith(cwd):
+            self.set_status(403)
+            self.write('The path %s couldn\'t be accessed!' % orig_path)
+            raise InternalResourcePathCheckError()
+
+    def check_path_exists(self, path: str, orig_path: str) -> None:
+        if not os.path.exists(path):
+            self.set_status(400)
+            self.write('The path %s does not exist!' % orig_path)
+            raise InternalResourcePathCheckError()
+
+    def check_parameter_required(self, obj: str, subject: str) -> None:
+        if obj is None:
+            self.set_status(400)
+            self.write('\'%s\' parameter is required!' % subject)
+            raise InternalResourcePathCheckError()
+
+    def check_path_is_not_directory(self, path: str, orig_path: str) -> None:
+        if os.path.isdir(path):
+            self.set_status(400)
+            self.write('The path %s is a directory!' % orig_path)
+            raise InternalResourcePathCheckError()
+
+    def check_if_path_defined_in_configuration_file(self, path: str, orig_path: str) -> None:
+        if path not in self.files_abs:
+            self.set_status(400)
+            self.write('The path %s is not defined in the configuration file!' % orig_path)
+            raise InternalResourcePathCheckError()
 
 
 class ManagementServiceRootHandler(ManagementBaseHandler):
@@ -965,39 +799,55 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         self.service_id = service_id
 
     async def get(self):
-        data = self.http_server.definition.orig_data['services'][self.service_id]
+        data = self.http_server.definition.data['services'][self.service_id]
         self.dump(data)
 
     async def post(self):
-        orig_data = self.decode()
-        if orig_data is None:
+        data = self.decode()
+        definition = self.http_server.definition
+
+        if data is None:
             return
 
-        data = copy.deepcopy(orig_data)
-
-        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config = copy.deepcopy(definition.data)
         imaginary_config['services'][self.service_id] = data
 
-        if not self.validate(imaginary_config):
+        if not self.validate(imaginary_config) or not self.check_restricted_fields(data, self.service_id):
             return
 
-        global_performance_profile = None
-        if 'globals' in self.http_server.definition.orig_data:
-            global_performance_profile = self.http_server.definition.orig_data['globals'].get('performanceProfile', None)
-        data = mockintosh.Definition.analyze_service(
-            data,
-            self.http_server.definition.template_engine,
-            self.http_server.definition.rendering_queue,
-            performance_profiles=self.http_server.definition.data['performanceProfiles'],
-            global_performance_profile=global_performance_profile
-        )
-        data['internalServiceId'] = self.service_id
-        if not self.update_service(data, self.service_id):
-            return
+        internal_service_id = self.service_id
+        internal_http_service_id = self.http_server.definition.services[self.service_id].internal_http_service_id
 
-        self.http_server.definition.stats.reset()
-        self.http_server.definition.orig_data['services'][self.service_id] = orig_data
-        self.http_server.definition.data['services'][self.service_id] = data
+        config_root_builder = ConfigRootBuilder()
+        service = config_root_builder.build_config_service(data, internal_service_id=internal_service_id)
+        definition.config_root.services = service
+
+        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
+        # if isinstance(service, ConfigAsyncService):
+        #     service.address_template_renderer(
+        #         definition.template_engine,
+        #         definition.rendering_queue
+        #     )
+
+        definition.logs.update_service(self.service_id, service.get_name())
+        definition.stats.update_service(self.service_id, service.get_hint())
+
+        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
+        # if isinstance(service, ConfigAsyncService):
+        #     definition.services[self.service_id] = definition.analyze_async_service(service)
+        if isinstance(service, ConfigHttpService):
+            definition.services[self.service_id] = definition.analyze_http_service(
+                service,
+                definition.template_engine,
+                definition.rendering_queue,
+                performance_profiles=definition.config_root.performance_profiles,
+                global_performance_profile=None if definition.config_root.globals is None else definition.config_root.globals.performance_profile,
+                internal_http_service_id=internal_http_service_id
+            )
+
+        definition.data['services'][self.service_id] = data
+
+        self.update_service(definition.services[self.service_id], self.service_id)
 
         self.set_status(204)
 
@@ -1043,7 +893,15 @@ class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
         self.service_id = service_id
 
     async def post(self):
-        app = self.http_server._apps.apps[self.service_id]
+        app = None
+        service = self.http_server.definition.services[self.service_id]
+
+        if isinstance(service, HttpService):
+            app = self.http_server._apps.apps[service.internal_http_service_id]
+        # TODO: There are not tests for KafkaService
+        # elif isinstance(service, KafkaService):
+        #     app = service
+
         _reset_iterators(app)
         self.set_status(204)
 
@@ -1059,11 +917,11 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
             'services': []
         }
 
-        service = self.http_server.definition.orig_data['services'][self.service_id]
-        data['services'].append(dict((k, service[k]) for k in UNHANDLED_SERVICE_KEYS if k in service))
+        service = self.http_server.definition.services[self.service_id]
+        data['services'].append(dict((k, getattr(service, k)) for k in UNHANDLED_SERVICE_KEYS if getattr(service, k) is not None))
         data['services'][0]['endpoints'] = self.build_unhandled_requests(self.service_id)
 
-        imaginary_config = copy.deepcopy(self.http_server.definition.orig_data)
+        imaginary_config = copy.deepcopy(self.http_server.definition.data)
         imaginary_config['services'] = data['services']
 
         if not self.validate(imaginary_config):  # pragma: no cover
@@ -1094,25 +952,39 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
         self.service_id = service_id
 
     async def get(self):
-        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                tags = rule.target_kwargs['tags']
-                if not tags:
-                    self.set_status(204)
-                else:
-                    data = {
-                        'tags': tags
-                    }
-                    self.write(data)
+        service = self.http_server.definition.services[self.service_id]
+
+        tags = None
+        if isinstance(service, HttpService):
+            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    tags = rule.target_kwargs['tags']
+        # TODO: There are not tests for KafkaService
+        # elif isinstance(service, KafkaService):
+        #     tags = service.tags
+
+        if not tags:
+            self.set_status(204)
+        else:
+            data = {
+                'tags': tags
+            }
+            self.write(data)
 
     async def post(self):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
         data = data.split(',')
-        for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
-            if rule.target == GenericHandler:
-                rule.target_kwargs['tags'] = data
+
+        service = self.http_server.definition.services[self.service_id]
+        if isinstance(service, HttpService):
+            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    rule.target_kwargs['tags'] = data
+        # TODO: There are not tests for KafkaService
+        # elif isinstance(service, KafkaService):
+        #     service.tags = data
 
         self.set_status(204)
 
@@ -1133,10 +1005,10 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             'consumers': []
         }
 
-        for producer in self.http_server.definition.data['async_producers']:
+        for producer in KafkaProducer.producers:
             data['producers'].append(producer.info())
 
-        for consumer in self.http_server.definition.data['async_consumers']:
+        for consumer in KafkaConsumer.consumers:
             data['consumers'].append(consumer.info())
 
         self.dump(data)
@@ -1159,7 +1031,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                producer = self.http_server.definition.data['async_producers'][index]
+                producer = KafkaProducer.producers[index]
                 try:
                     producer.check_tags()
                     producer.check_payload_lock()
@@ -1186,8 +1058,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         else:
             producer = None
             actor_name = unquote(value)
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
+            for service_id, service in enumerate(KafkaService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.producer is None:  # pragma: no cover
@@ -1229,7 +1100,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer = KafkaConsumer.consumers[index]
                 self.write(consumer.single_log_service.json())
             except IndexError:
                 self.set_status(400)
@@ -1238,8 +1109,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         else:
             consumer = None
             actor_name = unquote(value)
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
+            for service_id, service in enumerate(KafkaService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.consumer is None:  # pragma: no cover
@@ -1257,7 +1127,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer = KafkaConsumer.consumers[index]
                 consumer.single_log_service.reset()
                 self.set_status(204)
             except IndexError:
@@ -1267,8 +1137,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         else:
             consumer = None
             actor_name = unquote(value)
-            services = self.http_server.definition.data['kafka_services']
-            for service_id, service in enumerate(services):
+            for service_id, service in enumerate(KafkaService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.consumer is None:  # pragma: no cover

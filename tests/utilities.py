@@ -7,6 +7,7 @@ import time
 import signal
 import io
 import uuid
+import logging
 import http.server
 import socketserver
 from os import path, chdir
@@ -55,7 +56,7 @@ def tcping(host, port=65533, timeout=2):
         result = True
         end = time.time()
     except Exception:
-        pass
+        logging.warning('Pinging to %s:%s is failed!', host, port)
     end = time.time()
     ms = 1000 * (end - start)
     return result, round(ms, 2)

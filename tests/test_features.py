@@ -29,7 +29,8 @@ from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
-from mockintosh import kafka, start_render_queue
+from mockintosh import start_render_queue
+from mockintosh.services import kafka
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
@@ -2630,9 +2631,7 @@ class TestManagement():
         'configs/yaml/hbs/core/big_config.yaml'
     ])
     def test_get_oas(self, config):
-        config_path = None
-        config_path = get_config_path(config)
-        self.mock_server_process = run_mock_server(config_path)
+        self.mock_server_process = run_mock_server(get_config_path(config))
 
         resp = None
         resp = httpx.get(MGMT + '/oas', verify=False)
@@ -3412,7 +3411,6 @@ class TestManagement():
         resp = httpx.get(SRV_8004 + '/serviceX', headers={'Host': SRV_8004_HOST}, timeout=30)
         assert resp.status_code in (502, 504)
         assert 'Content-Type' not in resp.headers
-        assert resp.text == 'Name or service not known: http://service4.example.com:8004'
 
 
 class TestPerformanceProfile():

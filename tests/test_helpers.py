@@ -8,10 +8,13 @@
 
 import pytest
 
-from mockintosh import Definition, start_render_queue
+from mockintosh import start_render_queue
 from mockintosh.helpers import _urlsplit
 from mockintosh.j2.methods import env
 from mockintosh.constants import JINJA
+from mockintosh.config import (
+    ConfigAsyncService
+)
 
 
 class TestHelpers():
@@ -33,16 +36,25 @@ class TestHelpers():
         assert env('TESTING_NOT_ENV', 'someothervalue') == 'someothervalue'
 
         queue, job = start_render_queue()
-        result, _ = Definition.async_address_template_renderer(
-            JINJA,
-            queue,
+
+        config_async_service = ConfigAsyncService(
+            'kafka',
             "{{env('TESTING_ENV', 'someothervalue')}}"
         )
-        assert result == 'somevalue'
-        result, _ = Definition.async_address_template_renderer(
+        config_async_service.address_template_renderer(
             JINJA,
-            queue,
+            queue
+        )
+        assert config_async_service.address == 'somevalue'
+
+        config_async_service = ConfigAsyncService(
+            'kafka',
             "{{env('TESTING_NOT_ENV', 'someothervalue')}}"
         )
-        assert result == 'someothervalue'
+        config_async_service.address_template_renderer(
+            JINJA,
+            queue
+        )
+        assert config_async_service.address == 'someothervalue'
+
         job.kill()

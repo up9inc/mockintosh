@@ -21,7 +21,8 @@ from typing import (
     Union,
     Optional,
     Awaitable,
-    Tuple
+    Tuple,
+    Dict
 )
 
 import httpx
@@ -34,6 +35,15 @@ from tornado import httputil
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
+from mockintosh.config import (
+    ConfigExternalFilePath,
+    ConfigDataset,
+    ConfigResponse,
+    ConfigMultiResponse
+)
+from mockintosh.services.http import (
+    HttpAlternative
+)
 from mockintosh.replicas import Request, Response
 from mockintosh.hbs.methods import Random as hbs_Random, Date as hbs_Date
 from mockintosh.j2.methods import Random as j2_Random, Date as j2_Date
@@ -189,17 +199,17 @@ class BaseHandler:
 
         return log_record
 
-    def load_dataset(self, dataset: [list, str]) -> dict:
+    def load_dataset(self, dataset: ConfigDataset) -> ConfigDataset:
         """Method that loads a dataset."""
-        if isinstance(dataset, list):
-            return dataset
-        else:
-            dataset_path, _ = self.resolve_relative_path(dataset)
+        if isinstance(dataset.payload, ConfigExternalFilePath):
+            dataset_path, _ = self.resolve_relative_path(dataset.payload.path)
             with open(dataset_path, 'r') as file:
                 logging.info('Reading dataset file from path: %s', dataset_path)
                 data = json.load(file)
                 logging.debug('Dataset: %s', data)
-                return data
+                return ConfigDataset(data)
+        else:
+            return dataset
 
 
 class GenericHandler(tornado.web.RequestHandler, BaseHandler):
@@ -262,7 +272,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         http_server,
         config_dir: str,
         service_id: int,
-        endpoints: list,
+        path_methods: Tuple[str, Dict[str, HttpAlternative]],
         _globals: dict,
         definition_engine: str,
         rendering_queue: RenderingQueue,
@@ -275,7 +285,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         try:
             self.http_server = http_server
             self.config_dir = config_dir
-            self.endpoints = endpoints
+            self.path_methods = path_methods
             self.methods = None
             self.custom_args = ()
             self.stats = self.http_server.definition.stats
@@ -286,7 +296,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.fallback_to = fallback_to
             self.tags = tags
 
-            for path, methods in self.endpoints:
+            for path, methods in self.path_methods:
                 if re.fullmatch(path, self.request.path):
                     groups = re.findall(path, self.request.path)
                     if isinstance(groups[0], tuple):
@@ -467,13 +477,13 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         """Method that handles response template rendering."""
         is_binary = False
         template_engine = _detect_engine(self.custom_response, 'response', default=self.definition_engine)
-        source_text = self.custom_response['body'] if 'body' in self.custom_response else None
+        source_text = self.custom_response.body
 
         if source_text is None:
             return source_text
 
-        if len(source_text) > 1 and source_text[0] == '@':
-            template_path, _ = self.resolve_relative_path(source_text)
+        if isinstance(source_text, ConfigExternalFilePath):
+            template_path, _ = self.resolve_relative_path(source_text.path)
             with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 source_text = file.read()
@@ -486,7 +496,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         compiled = None
         context = None
-        if is_binary or not self.custom_response.get('useTemplating', True):
+        if is_binary or not self.custom_response.use_templating:
             compiled = source_text
         else:
             compiled, context = self.common_template_renderer(template_engine, source_text)
@@ -591,11 +601,11 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
     def determine_status_code(self) -> None:
         """Method to determine the status code of the response."""
         status_code = None
-        if 'status' in self.custom_response:
-            if isinstance(self.custom_response['status'], str):
+        if self.custom_response.status is not None:
+            if isinstance(self.custom_response.status, str):
                 compiled, context = self.common_template_renderer(
                     self.definition_engine,
-                    self.custom_response['status']
+                    self.custom_response.status
                 )
                 self.populate_counters(context)
                 try:
@@ -603,7 +613,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 except ValueError:
                     status_code = compiled
             else:
-                status_code = self.custom_response['status']
+                status_code = self.custom_response.status
         else:
             status_code = 200
 
@@ -644,27 +654,30 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             payload = self.request.files
 
         for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
-            _key = key
-            if component == 'headers':
-                _key = key.title()
-            if _key in payload or component == 'bodyText':
-                if value['type'] == 'regex':
-                    match_string = None
-                    if component == 'headers':
-                        match_string = self.request.headers.get(key)
-                    elif component == 'queryString':
-                        match_string = self.get_query_argument(key)
-                    elif component == 'bodyText':
-                        match_string = payload
-                    elif component == 'bodyUrlencoded':
-                        match_string = self.get_body_argument(key)
-                    elif component == 'bodyMultipart':
-                        match_string = self.request.files[key][0].body.decode()
+            self.analyze_component_inject_to_context(key, value, component, payload)
 
-                    match = re.search(value['regex'], match_string)
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i + 1)
+    def analyze_component_inject_to_context(self, key: str, value: dict, component: str, payload: Union[dict, str]):
+        _key = key
+        if component == 'headers':
+            _key = key.title()
+        if _key in payload or component == 'bodyText':
+            if value['type'] == 'regex':
+                match_string = None
+                if component == 'headers':
+                    match_string = self.request.headers.get(key)
+                elif component == 'queryString':
+                    match_string = self.get_query_argument(key)
+                elif component == 'bodyText':
+                    match_string = payload
+                elif component == 'bodyUrlencoded':
+                    match_string = self.get_body_argument(key)
+                elif component == 'bodyMultipart':
+                    match_string = self.request.files[key][0].body.decode()
+
+                match = re.search(value['regex'], match_string)
+                if match is not None:
+                    for i, key in enumerate(value['args']):
+                        self.custom_context[key] = match.group(i + 1)
 
     def determine_headers(self) -> None:
         """Method to determine the headers of the response."""
@@ -675,10 +688,10 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             for key, value in self.globals['headers'].items():
                 self.set_header(key, value)
 
-        if 'headers' not in self.custom_response:
+        if self.custom_response.headers is None:
             return
 
-        for key, value in self.custom_response['headers'].items():
+        for key, value in self.custom_response.headers.payload.items():
             value_list = None
             if isinstance(value, list):
                 value_list = value
@@ -721,206 +734,248 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             fail = False
 
             # Headers
-            if 'headers' in alternative:
-                for key, value in alternative['headers'].items():
-                    request_header_val = self.request.headers.get(key.title())
-                    if key.title() not in self.request.headers._dict:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = '%r not in the request headers!' % key.title()
-                        break
-                    if value == request_header_val:
-                        continue
-                    value = '^%s$' % value
-                    match = re.search(value, request_header_val)
-                    if match is None:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Request header value %r on key %r does not match to regex: %s' % (
-                            request_header_val,
-                            key.title(),
-                            value
-                        )
-                        break
-                if fail:
-                    continue
+            fail, reason = self.match_alternative_headers(alternative)
+            if fail:
+                continue
 
             # Query String
-            if 'queryString' in alternative:
-                for key, value in alternative['queryString'].items():
-                    # To prevent 400, default=None
-                    default = None
-                    request_query_val = self.get_query_argument(key, default=default)
-                    if request_query_val is default:
-                        is_matched = False
-                        if re.escape(key) != key:
-                            for _key in self.request.query_arguments:
-                                match = re.search(key, _key)
-                                if match is not None:
-                                    is_matched = True
-                                    break
-                        if not is_matched:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Key %r couldn\'t found in the query string!' % key
-                            break
-                    if value == request_query_val:
-                        continue
-                    if request_query_val is default:
-                        continue
-                    value = '^%s$' % value
-                    match = re.search(value, request_query_val)
-                    if match is None:
-                        self.internal_endpoint_id = alternative['internalEndpointId']
-                        fail = True
-                        reason = 'Request query parameter value %r on key %r does not match to regex: %s' % (
-                            request_query_val,
-                            key,
-                            value
-                        )
-                        break
-                if fail:
-                    continue
+            fail, reason = self.match_alternative_query_string(alternative)
+            if fail:
+                continue
 
             # Body
-            if 'body' in alternative:
+            if alternative.body is not None:
                 body = self.request.body.decode()
 
                 # Schema
-                if 'schema' in alternative['body']:
-                    json_schema = alternative['body']['schema']
-                    if isinstance(json_schema, str) and len(json_schema) > 1 and json_schema[0] == '@':
-                        json_schema_path, _ = self.resolve_relative_path(json_schema)
-                        with open(json_schema_path, 'r') as file:
-                            logging.info('Reading JSON schema file from path: %s', json_schema_path)
-                            try:
-                                json_schema = json.load(file)
-                            except json.decoder.JSONDecodeError:
-                                self.send_error(
-                                    500,
-                                    message='JSON decode error of the JSON schema file: %s' % json_schema
-                                )
-                                return
-                            logging.debug('JSON schema: %s', json_schema)
-                    json_data = None
-
-                    if body and json_schema:
-                        try:
-                            json_data = json.loads(body)
-                        except json.decoder.JSONDecodeError:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'JSON decode error of the request body:\n\n%s' % body
-                            break
-
-                    if json_schema:
-                        try:
-                            jsonschema.validate(instance=json_data, schema=json_schema)
-                        except jsonschema.exceptions.ValidationError:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Request body:\n\n%s\nDoes not match to JSON schema:\n\n%s' % (
-                                json_data,
-                                json_schema
-                            )
-                            break
+                fail, reason, error = self.match_alternative_body_schema(body, alternative)
+                if error:
+                    return
+                elif fail:
+                    break
 
                 # Text
-                if 'text' in alternative['body']:
-                    value = alternative['body']['text']
-                    if not body == value:
-                        match = re.search(value, body)
-                        if match is None:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
-                            break
+                fail, reason = self.match_alternative_body_text(body, alternative)
+                if fail:
+                    break
 
                 # Urlencoded
-                if 'urlencoded' in alternative['body']:
-                    for key, value in alternative['body']['urlencoded'].items():
-                        # To prevent 400, default=None
-                        default = None
-                        body_argument = self.get_body_argument(key, default=default)
-                        if body_argument is default:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Key %r couldn\'t found in the form data!' % key
-                            break
-                        if value == body_argument:
-                            continue
-                        value = '^%s$' % value
-                        match = re.search(value, body_argument)
-                        if match is None:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Form field value %r on key %r does not match to regex: %s' % (
-                                body_argument,
-                                key,
-                                value
-                            )
-                            break
-                    if fail:
-                        continue
+                fail, reason = self.match_alternative_body_urlencoded(body, alternative)
+                if fail:
+                    continue
 
                 # Multipart
-                if 'multipart' in alternative['body']:
-                    for key, value in alternative['body']['multipart'].items():
-                        if key not in self.request.files:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Key %r couldn\'t found in the multipart data!' % key
-                            break
-                        multipart_argument = self.request.files[key][0].body.decode()
-                        if value == multipart_argument:
-                            continue
-                        value = '^%s$' % value
-                        match = re.search(value, multipart_argument)
-                        if match is None:
-                            self.internal_endpoint_id = alternative['internalEndpointId']
-                            fail = True
-                            reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
-                                multipart_argument,
-                                key,
-                                value
-                            )
-                            break
-                    if fail:
-                        continue
+                fail, reason = self.match_alternative_body_multipart(body, alternative)
+                if fail:
+                    continue
 
             # Multiple responses
-            if 'response' in alternative:
-                response = alternative['response']
-                if isinstance(alternative['response'], list):
-                    if not len(alternative['response']) > 0:
-                        response = {'body': None}
+            if alternative.response is not None:
+                response = alternative.response
+                if isinstance(response, ConfigMultiResponse):
+                    if not len(response.payload) > 0:
+                        response = ConfigResponse(body=None)
                     else:
-                        response = self.loop_alternative(alternative, 'response', 'multiResponses')
+                        response = self.loop_alternative(alternative, 'response', 'multi_responses')
                         if not response:
                             return ()
 
-                response = response if isinstance(response, dict) else {'body': response}
-            else:
-                response = {'body': None}
+                response = response if isinstance(response, ConfigResponse) else ConfigResponse(body=response)
+            else:  # pragma: no cover
+                response = ConfigResponse(body=None)
 
             # Dataset
             dataset = {}
-            if 'dataset' in alternative:
-                alternative['dataset'] = self.load_dataset(alternative['dataset'])
-                if alternative['dataset']:
-                    dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
-                    if not dataset:
-                        return ()
+            if alternative.dataset is not None:
+                alternative.dataset = self.load_dataset(alternative.dataset)
+                dataset = self.loop_alternative(alternative, 'dataset', 'dataset')
+                if not dataset:
+                    return ()
 
-            _id = alternative['id']
-            params = alternative['params']
-            context = alternative['context']
-            internal_endpoint_id = alternative['internalEndpointId']
-            performance_profile = alternative['performanceProfile']
+            _id = alternative.id
+            params = alternative.params
+            context = alternative.context
+            internal_endpoint_id = alternative.internal_endpoint_id
+            performance_profile = alternative.performance_profile
             return (_id, response, params, context, dataset, internal_endpoint_id, performance_profile)
 
         self.write(reason)
         await self.raise_http_error(400)
+
+    def match_alternative_headers(self, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.headers is not None:
+            for key, value in alternative.headers.items():
+                request_header_val = self.request.headers.get(key.title())
+                if key.title() not in self.request.headers._dict:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = '%r not in the request headers!' % key.title()
+                    break
+                if value == request_header_val:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, request_header_val)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request header value %r on key %r does not match to regex: %s' % (
+                        request_header_val,
+                        key.title(),
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_query_string(self, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.query_string is not None:
+            for key, value in alternative.query_string.items():
+                # To prevent 400, default=None
+                default = None
+                request_query_val = self.get_query_argument(key, default=default)
+                if request_query_val is default:
+                    is_matched = False
+                    if re.escape(key) != key:
+                        for _key in self.request.query_arguments:
+                            match = re.search(key, _key)
+                            if match is not None:
+                                is_matched = True
+                                break
+                    if not is_matched:
+                        self.internal_endpoint_id = alternative.internal_endpoint_id
+                        fail = True
+                        reason = 'Key %r couldn\'t found in the query string!' % key
+                        break
+                if value == request_query_val:
+                    continue
+                if request_query_val is default:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, request_query_val)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request query parameter value %r on key %r does not match to regex: %s' % (
+                        request_query_val,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_body_schema(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None], bool]:
+        reason = None
+        fail = False
+        if alternative.body.schema is not None:
+            json_schema = None
+            if isinstance(alternative.body.schema.payload, ConfigExternalFilePath):
+                json_schema_path, _ = self.resolve_relative_path(alternative.body.schema.payload.path)
+                with open(json_schema_path, 'r') as file:
+                    logging.info('Reading JSON schema file from path: %s', json_schema_path)
+                    try:
+                        json_schema = json.load(file)
+                    except json.decoder.JSONDecodeError:
+                        self.send_error(
+                            500,
+                            message='JSON decode error of the JSON schema file: %s' % alternative.body.schema.payload.path
+                        )
+                        return fail, reason, True
+                    logging.debug('JSON schema: %s', json_schema)
+            else:
+                json_schema = alternative.body.schema.payload
+            json_data = None
+
+            if body and json_schema:
+                try:
+                    json_data = json.loads(body)
+                except json.decoder.JSONDecodeError:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'JSON decode error of the request body:\n\n%s' % body
+                    return fail, reason, False
+
+            if json_schema:
+                try:
+                    jsonschema.validate(instance=json_data, schema=json_schema)
+                except jsonschema.exceptions.ValidationError:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request body:\n\n%s\nDoes not match to JSON schema:\n\n%s' % (
+                        json_data,
+                        json_schema
+                    )
+                    return fail, reason, False
+        return fail, reason, False
+
+    def match_alternative_body_text(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.text is not None:
+            value = alternative.body.text
+            if not body == value:
+                match = re.search(value, body)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Request body:\n\n%s\nDeos not match to regex:\n\n%s' % (body, value)
+        return fail, reason
+
+    def match_alternative_body_urlencoded(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.urlencoded is not None:
+            for key, value in alternative.body.urlencoded.items():
+                # To prevent 400, default=None
+                default = None
+                body_argument = self.get_body_argument(key, default=default)
+                if body_argument is default:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Key %r couldn\'t found in the form data!' % key
+                    break
+                if value == body_argument:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, body_argument)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Form field value %r on key %r does not match to regex: %s' % (
+                        body_argument,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_body_multipart(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.multipart:
+            for key, value in alternative.body.multipart.items():
+                if key not in self.request.files:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Key %r couldn\'t found in the multipart data!' % key
+                    break
+                multipart_argument = self.request.files[key][0].body.decode()
+                if value == multipart_argument:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, multipart_argument)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
+                        multipart_argument,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
 
     def trigger_interceptors(self) -> None:
         """Method to trigger the interceptors"""
@@ -945,7 +1000,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def should_write(self) -> bool:
         """Method that decides whether if calling `self.write()` is applicable or not."""
-        return not hasattr(self, 'custom_response') or 'body' in self.custom_response
+        return not hasattr(self, 'custom_response') or self.custom_response.body is not None
 
     def resolve_relative_path(self, source_text: str) -> [None, str]:
         relative_path, orig_relative_path = super().resolve_relative_path(source_text)
@@ -1005,37 +1060,41 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
     def loop_alternative(self, alternative: dict, key: str, subkey: str) -> dict:
         """Method that contains the logic to loop through the alternatives."""
-        index_key = '%sIndex' % subkey
-        loop_key = '%sLooped' % subkey
-        if index_key not in alternative:
-            alternative[index_key] = 0
+        index_attr = '%s_index' % subkey
+        loop_attr = '%s_looped' % subkey
+        if getattr(alternative, index_attr) is None:
+            setattr(alternative, index_attr, 0)
         else:
-            alternative[index_key] += 1
+            setattr(alternative, index_attr, getattr(alternative, index_attr) + 1)
 
         resetted = False
-        if alternative[index_key] > len(alternative[key]) - 1:
-            if alternative.get(loop_key, True):
-                alternative[index_key] = 0
+        if getattr(alternative, index_attr) > len(getattr(alternative, key).payload) - 1:
+            if getattr(alternative, loop_attr):
+                setattr(alternative, index_attr, 0)
                 resetted = True
             else:
-                self.internal_endpoint_id = alternative['internalEndpointId']
+                self.internal_endpoint_id = alternative.internal_endpoint_id
                 self.set_status(410)
                 self.finish()
                 return False
 
-        if 'tag' in alternative[key][alternative[index_key]]:
-            if alternative[key][alternative[index_key]]['tag'] not in self.tags:
-                if resetted:
-                    self.internal_endpoint_id = alternative['internalEndpointId']
-                    self.set_status(410)
-                    self.finish()
-                    return False
-                else:
-                    return self.loop_alternative(alternative, key, subkey)
+        selection = getattr(alternative, key).payload[getattr(alternative, index_attr)]  # type: Union[ConfigResponse, dict]
+        tag = None
+        if isinstance(selection, ConfigResponse):
+            tag = selection.tag
+        elif isinstance(selection, dict):
+            tag = None if 'tag' not in selection else selection['tag']
+
+        if tag is not None and tag not in self.tags:
+            if resetted:
+                self.internal_endpoint_id = alternative.internal_endpoint_id
+                self.set_status(410)
+                self.finish()
+                return False
             else:
-                return alternative[key][alternative[index_key]]
+                return self.loop_alternative(alternative, key, subkey)
         else:
-            return alternative[key][alternative[index_key]]
+            return selection
 
     async def raise_http_error(self, status_code: int) -> None:
         """Method to throw a `NewHTTPError`."""
@@ -1052,13 +1111,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         raise NewHTTPError()
 
-    async def resolve_unhandled_request(self) -> None:
-        if self.fallback_to is None:
-            if not self.is_request_image_like():
-                self.insert_unhandled_data((self.request, None))
-            return
-
-        # Headers
+    def resolve_unhandled_request_headers(self) -> dict:
         headers = {}
         for key, value in self.request.headers._dict.items():
             if key.title() in (
@@ -1069,8 +1122,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             headers[key] = value
         headers['Cache-Control'] = 'no-cache'
         headers['If-None-Match'] = '0'
+        return headers
 
-        # Query String
+    def resolve_unhandled_request_query_string(self) -> str:
         query_string = ''
         for key, value in self.request.query_arguments.items():
             if not query_string:
@@ -1081,8 +1135,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             else:
                 for _value in values:
                     query_string += '%s[]=%s' % (key, _value)
+        return query_string
 
-        # Body
+    def resolve_unhandled_request_body(self) -> Tuple[dict, dict]:
         data = {}
         files = {}
         if self.request.body_arguments:
@@ -1103,6 +1158,23 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     files[key] = files[key][0]
         else:
             data = self.request.body.decode()
+
+        return data, files
+
+    async def resolve_unhandled_request(self) -> None:
+        if self.fallback_to is None:
+            if not self.is_request_image_like():
+                self.insert_unhandled_data((self.request, None))
+            return
+
+        # Headers
+        headers = self.resolve_unhandled_request_headers()
+
+        # Query String
+        query_string = self.resolve_unhandled_request_query_string()
+
+        # Body
+        data, files = self.resolve_unhandled_request_body()
 
         url = self.fallback_to.rstrip('/') + self.request.path + query_string
 
@@ -1218,8 +1290,8 @@ class KafkaHandler(BaseHandler):
 
     def _render_value(self, value):
         is_binary = False
-        if len(value) > 1 and value[0] == '@':
-            template_path, context = self.resolve_relative_path(value)
+        if isinstance(value, ConfigExternalFilePath):
+            template_path, context = self.resolve_relative_path(value.path)
             with open(template_path, 'rb') as file:
                 logging.debug('Reading external file from path: %s', template_path)
                 value = file.read()
@@ -1253,7 +1325,7 @@ class KafkaHandler(BaseHandler):
                 for key, value in arg.items():
                     new_arg[key] = self._render_value(value)
                 rendered.append(new_arg)
-            elif isinstance(arg, str):
+            elif isinstance(arg, (str, ConfigExternalFilePath)):
                 rendered.append(self._render_value(arg))
 
         return rendered
@@ -1327,7 +1399,11 @@ class KafkaHandler(BaseHandler):
         request.path = '/%s' % self.topic
 
         # Headers
-        for key, value in self.headers.items():
+        headers = self.headers
+
+        for key, value in headers.items():
+            if isinstance(value, ConfigExternalFilePath):
+                value = value.path
             request.headers[key.title()] = value
 
         # Query String
@@ -1335,14 +1411,18 @@ class KafkaHandler(BaseHandler):
             request.queryString['key'] = self.key
 
         # Body
+        value = self.value
+        if isinstance(value, ConfigExternalFilePath):
+            value = value.path
+
         request.mimeType = 'text/plain'
-        if isinstance(self.value, (bytes, bytearray)):
+        if isinstance(value, (bytes, bytearray)):
             request.bodyType = BASE64
-            request.body = _b64encode(self.value)
+            request.body = _b64encode(value)
         else:
             request.bodyType = 'str'
-            request.body = self.value
-        request.bodySize = 0 if self.value is None else len(self.value)
+            request.body = value
+        request.bodySize = 0 if value is None else len(value)
 
         # Files
         request.files = []
@@ -1383,21 +1463,25 @@ class KafkaHandler(BaseHandler):
             payload = self.key
 
         for key, value in self.initial_context[SPECIAL_CONTEXT][component].items():
-            _key = key
-            if (payload is not None and _key in payload) or component in ('asyncValue', 'asyncKey'):
-                if value['type'] == 'regex':
-                    match_string = None
-                    if component == 'asyncHeaders':
-                        match_string = self.headers.get(key)
-                    elif component == 'asyncValue':
-                        match_string = payload
-                    elif component == 'asyncKey':
-                        match_string = payload
+            if not self.analyze_component_inject_to_context(key, value, component, payload):
+                continue
 
-                    if match_string is None:
-                        continue
+    def analyze_component_inject_to_context(self, key: str, value: dict, component: str, payload: Union[dict, str]) -> bool:
+        if (payload is not None and key in payload) or component in ('asyncValue', 'asyncKey'):
+            if value['type'] == 'regex':
+                match_string = None
+                if component == 'asyncHeaders':
+                    match_string = self.headers.get(key)
+                elif component == 'asyncValue':
+                    match_string = payload
+                elif component == 'asyncKey':
+                    match_string = payload
 
-                    match = re.search(value['regex'], match_string)
-                    if match is not None:
-                        for i, key in enumerate(value['args']):
-                            self.custom_context[key] = match.group(i)
+                if match_string is None:
+                    return False
+
+                match = re.search(value['regex'], match_string)
+                if match is not None:
+                    for i, _key in enumerate(value['args']):
+                        self.custom_context[_key] = match.group(i)
+        return True

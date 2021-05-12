@@ -9,15 +9,22 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
-test: test-style test-integration copy-assets up-kafka
-	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
-	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG && \
-	docker stop $$(docker ps -a -q)
+test: test-style test-integration test-without-coverage
+	${MAKE} stop-containers
+
+test-fast: test-style test-without-coverage
+	${MAKE} stop-containers
+
+coverage: test-with-coverage coverage-after
 
 test-integration: build
 	tests_integrated/acceptance.sh && \
-	docker stop $$(docker ps -a -q)
+	${MAKE} stop-containers
+
+test-without-coverage: copy-assets up-kafka
+	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
+	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG
 
 test-with-coverage: test-style copy-assets up-kafka
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
@@ -36,6 +43,9 @@ test-with-coverage: test-style copy-assets up-kafka
 	coverage run --parallel -m mockintosh tests/configs/yaml/hbs/kafka/config_error.yaml || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+stop-containers:
 	docker stop $$(docker ps -a -q)
 
 test-style:
@@ -45,7 +55,21 @@ coverage-after:
 	coverage combine && \
 	coverage report -m
 
-coverage: test-with-coverage coverage-after
+radon: radon-mi radon-cc
+
+radon-full: radon radon-raw radon-hal
+
+radon-cc:
+	radon cc . --show-complexity --average
+
+radon-mi:
+	radon mi . --multi --show
+
+radon-raw:
+	radon raw . --summary
+
+radon-hal:
+	radon hal . --functions
 
 cert:
 	openssl req \

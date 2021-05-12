@@ -11,15 +11,25 @@ import sys
 import traceback
 from abc import abstractmethod
 from collections import OrderedDict
-from os import path, environ
-from typing import Union
+from os import path
+from typing import (
+    Union,
+    Tuple,
+    List
+)
 
 import tornado.ioloop
 import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
+from mockintosh.definition import Definition
 from mockintosh.handlers import GenericHandler
+from mockintosh.services.http import (
+    HttpService,
+    HttpPath,
+    HttpAlternative
+)
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -45,7 +55,7 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
-from mockintosh import kafka
+from mockintosh.services import kafka
 
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -53,7 +63,12 @@ __location__ = path.abspath(path.dirname(__file__))
 
 class Impl:
     @abstractmethod
-    def get_server(self, app, is_ssl, ssl_options):
+    def get_server(
+        self,
+        router: Union[RuleRouter, tornado.web.Application],
+        is_ssl: bool,
+        ssl_options: dict
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -62,7 +77,12 @@ class Impl:
 
 
 class TornadoImpl(Impl):
-    def get_server(self, router, is_ssl, ssl_options):
+    def get_server(
+        self,
+        router: Union[RuleRouter, tornado.web.Application],
+        is_ssl: bool,
+        ssl_options: dict
+    ) -> tornado.web.HTTPServer:
         if is_ssl:
             server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
         else:
@@ -70,7 +90,7 @@ class TornadoImpl(Impl):
 
         return server
 
-    def serve(self):
+    def serve(self) -> None:
         try:
             tornado.ioloop.IOLoop.current().start()
         except KeyboardInterrupt:
@@ -94,13 +114,13 @@ class HttpServer:
 
     def __init__(
         self,
-        definition,
+        definition: Definition,
         impl: Impl,
-        debug=False,
-        interceptors=(),
-        address='',
-        services_list=(),
-        tags=[]
+        debug: bool = False,
+        interceptors: tuple = (),
+        address: str = '',
+        services_list: tuple = (),
+        tags: list = []
     ):
         self.definition = definition
         self.impl = impl
@@ -115,152 +135,165 @@ class HttpServer:
         self.tags = tags
         self.load()
 
-    def load(self):
-        port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
-
-        services = self.definition.data['services']
-        self._apps.apps = len(services) * [None]
-        self._apps.listeners = len(services) * [None]
-        for service in services:
-            self.unhandled_data.requests.append({})
-
+    def map_ports(self) -> OrderedDict:
         port_mapping = OrderedDict()
-        for service in self.definition.data['services']:
-            if 'type' in service and service['type'] != 'http':
-                self._apps.apps[service['internalServiceId']] = service['internalRef']
-                continue
 
-            if port_override is not None:
-                service['port'] = int(port_override)
-
-            port = str(service['port'])
+        for service in HttpService.services:
+            port = str(service.port)
             if port not in port_mapping:
                 port_mapping[port] = []
             port_mapping[port].append(service)
 
+        return port_mapping
+
+    def resolve_ssl(self, services: list) -> Tuple[bool, dict]:
+        ssl = False
+        cert_file = path.join(__location__, 'ssl', 'cert.pem')
+        key_file = path.join(__location__, 'ssl', 'key.pem')
+        for service in services:
+            ssl = service.ssl
+            if ssl:
+                if service.ssl_cert_file is not None:
+                    cert_file = self.resolve_cert_path(service.ssl_cert_file)
+                if service.ssl_key_file is not None:
+                    key_file = self.resolve_cert_path(service. ssl_key_file)
+                break
+        ssl_options = {
+            "certfile": cert_file,
+            "keyfile": key_file,
+        }
+        return ssl, ssl_options
+
+    def load_guard(self, service: HttpService) -> bool:
+        if self.services_list:
+            if service.name is not None:
+                if service.name not in self.services_list:
+                    return False
+            else:  # pragma: no cover
+                return False  # https://github.com/nedbat/coveragepy/issues/198
+        return True
+
+    def prepare_app(self, service: HttpService) -> Tuple[List[HttpPath], str]:
+        http_path_list = []
+        if service.endpoints:
+            http_path_list = HttpServer.merge_alternatives(service, self.definition.stats)
+
+        management_root = service.management_root
+
+        return http_path_list, management_root
+
+    def load_service(self, service: HttpService, rules: list, ssl: bool, ssl_options: dict) -> bool:
+        if not self.load_guard(service):
+            return False
+
+        protocol = 'https' if ssl else 'http'
+        http_path_list, management_root = self.prepare_app(service)
+        app = self.make_app(service, http_path_list, self.globals, debug=self.debug, management_root=management_root)
+        self._apps.apps[service.internal_http_service_id] = app
+        self._apps.listeners[service.internal_http_service_id] = _Listener(
+            service.hostname,
+            service.port,
+            self.address if self.address else 'localhost'
+        )
+
+        if service.hostname is None:
+            server = self.impl.get_server(app, ssl, ssl_options)
+            server.listen(service.port, address=self.address)
+            logging.debug('Will listen port number: %d', service.port)
+            self.services_log.append('Serving at %s://%s:%s%s' % (
+                protocol,
+                self.address if self.address else 'localhost',
+                service.port,
+                ' the mock for %r' % service.get_name_or_empty()
+            ))
+        else:
+            rules.append(
+                Rule(HostMatches(service.hostname), app)
+            )
+
+            logging.debug(
+                'Registered hostname and port: %s://%s:%d',
+                protocol,
+                service.hostname,
+                service.port
+            )
+            self.services_log.append('Serving at %s://%s:%s%s' % (
+                protocol,
+                service.hostname,
+                service.port,
+                ' the mock for %r' % service.get_name_or_empty()
+            ))
+
+        if service.name is not None:
+            logging.debug('Finished registering: %s', service.name)
+
+        return True
+
+    def load(self) -> None:
+        self._apps.apps = len(HttpService.services) * [None]
+        self._apps.listeners = len(HttpService.services) * [None]
+
+        for service in self.definition.services:
+            self.unhandled_data.requests.append({})
+
+        port_mapping = self.map_ports()
+
         for port, services in port_mapping.items():
+            ssl, ssl_options = self.resolve_ssl(services)
+
             rules = []
-            ssl = False
-            cert_file = path.join(__location__, 'ssl', 'cert.pem')
-            key_file = path.join(__location__, 'ssl', 'key.pem')
             for service in services:
-                ssl = service.get('ssl', False)
-                if ssl:
-                    if 'sslCertFile' in service:
-                        cert_file = self.resolve_cert_path(service['sslCertFile'])
-                    if 'sslKeyFile' in service:
-                        key_file = self.resolve_cert_path(service['sslKeyFile'])
-                    break
-
-            protocol = 'https' if ssl else 'http'
-            ssl_options = {
-                "certfile": cert_file,
-                "keyfile": key_file,
-            }
-
-            for service in services:
-                if self.services_list:
-
-                    if 'name' in service:
-                        if service['name'] not in self.services_list:
-                            continue
-                    else:  # pragma: no cover
-                        continue  # https://github.com/nedbat/coveragepy/issues/198
-
-                endpoints = []
-                if 'endpoints' in service:
-                    endpoints = HttpServer.merge_alternatives(service, self.definition.stats)
-
-                management_root = None
-                if 'managementRoot' in service:
-                    management_root = service['managementRoot']
-
-                app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-                self._apps.apps[service['internalServiceId']] = app
-                self._apps.listeners[service['internalServiceId']] = _Listener(
-                    service['hostname'] if 'hostname' in service else None,
-                    service['port'],
-                    self.address if self.address else 'localhost'
-                )
-
-                if 'hostname' not in service:
-                    server = self.impl.get_server(app, ssl, ssl_options)
-                    server.listen(service['port'], address=self.address)
-                    logging.debug('Will listen port number: %d', service['port'])
-                    self.services_log.append('Serving at %s://%s:%s%s' % (
-                        protocol,
-                        self.address if self.address else 'localhost',
-                        service['port'],
-                        ' the mock for %r' % service['name'] if 'name' in service else ''
-                    ))
-                else:
-                    rules.append(
-                        Rule(HostMatches(service['hostname']), app)
-                    )
-
-                    logging.debug(
-                        'Registered hostname and port: %s://%s:%d',
-                        protocol,
-                        service['hostname'],
-                        service['port']
-                    )
-                    self.services_log.append('Serving at %s://%s:%s%s' % (
-                        protocol,
-                        service['hostname'],
-                        service['port'],
-                        ' the mock for %r' % service['name'] if 'name' in service else ''
-                    ))
-
-                if 'name' in service:
-                    logging.debug('Finished registering: %s', service['name'])
+                if not self.load_service(service, rules, ssl, ssl_options):
+                    continue
 
             if rules:
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
-                server.listen(services[0]['port'], address=self.address)
-                logging.debug('Will listen port number: %d', service['port'])
+                server.listen(services[0].port, address=self.address)
+                logging.debug('Will listen port number: %d', service.port)
 
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(service: dict, stats: Stats):
+    def merge_alternatives(service: HttpService, stats: Stats) -> List[HttpPath]:
         new_endpoints = {}
         i = 0
-        for endpoint in service['endpoints']:
-            if 'method' not in endpoint:
-                endpoint['method'] = 'GET'
+        for i, endpoint in enumerate(service.endpoints):
             hint = '%s %s%s' % (
-                endpoint['method'].upper(),
-                endpoint['internalOrigPath'],
-                ' - %s' % endpoint['id'] if 'id' in endpoint else ''
+                endpoint.method,
+                endpoint.orig_path,
+                ' - %s' % endpoint.id if endpoint.id is not None else ''
             )
-            stats.services[service['internalServiceId']].add_endpoint(hint)
-            identifier = endpoint['path']
-            extracted_parts = {}
-            for key in endpoint:
-                if key in ('method', 'path', 'priority'):
-                    continue
-                extracted_parts[key] = endpoint[key]
-
-            extracted_parts['internalEndpointId'] = i
-            i += 1
-            if 'id' not in extracted_parts:
-                extracted_parts['id'] = None
-            if 'counters' not in extracted_parts:
-                extracted_parts['counters'] = {}
+            stats.services[service.internal_service_id].add_endpoint(hint)
+            identifier = endpoint.path
+            alternative = HttpAlternative(
+                endpoint.id,
+                endpoint.orig_path,
+                endpoint.params,
+                endpoint.context,
+                endpoint.performance_profile,
+                endpoint.query_string,
+                endpoint.headers,
+                endpoint.body,
+                endpoint.dataset,
+                endpoint.response,
+                endpoint.multi_responses_looped,
+                endpoint.dataset_looped,
+                i
+            )
 
             if identifier not in new_endpoints:
-                new_endpoints[identifier] = {}
-                new_endpoints[identifier]['path'] = endpoint['path']
-                new_endpoints[identifier]['priority'] = endpoint['priority']
-                new_endpoints[identifier]['methods'] = {}
-            if endpoint['method'] not in new_endpoints[identifier]['methods']:
-                new_endpoints[identifier]['methods'][endpoint['method']] = [extracted_parts]
+                new_endpoints[identifier] = HttpPath()
+                new_endpoints[identifier].path = endpoint.path
+                new_endpoints[identifier].priority = endpoint.priority
+            if endpoint.method not in new_endpoints[identifier].methods:
+                new_endpoints[identifier].methods[endpoint.method] = [alternative]
             else:
-                new_endpoints[identifier]['methods'][endpoint['method']].append(extracted_parts)
-        return new_endpoints.values()
+                new_endpoints[identifier].methods[endpoint.method].append(alternative)
 
-    def run(self):
+        return list(new_endpoints.values())
+
+    def run(self) -> None:
         if 'unittest' in sys.modules.keys():
             import os
             import signal
@@ -276,16 +309,23 @@ class HttpServer:
         kafka.run_loops(self.definition, stop)
         self.impl.serve()
 
-    def make_app(self, service, endpoints, _globals, debug=False, management_root=None):
+    def make_app(
+        self,
+        service: dict,
+        http_path_list: List[HttpPath],
+        _globals: dict,
+        debug: bool = False,
+        management_root: str = None
+    ) -> tornado.web.Application:
         endpoint_handlers = []
-        endpoints = sorted(endpoints, key=lambda x: x['priority'], reverse=False)
+        http_path_list = sorted(http_path_list, key=lambda x: x.priority, reverse=False)
 
-        merged_endpoints = []
+        path_methods = []
 
-        for endpoint in endpoints:
-            merged_endpoints.append((endpoint['path'], endpoint['methods']))
+        for http_path in http_path_list:
+            path_methods.append((http_path.path, http_path.methods))
 
-        unhandled_enabled = True if (management_root is not None or 'management' in self.definition.data) else False
+        unhandled_enabled = True if (management_root is not None or self.definition.config_root.management is not None) else False
 
         endpoint_handlers.append(
             (
@@ -294,20 +334,20 @@ class HttpServer:
                 dict(
                     http_server=self,
                     config_dir=self.definition.source_dir,
-                    service_id=service['internalServiceId'],
-                    endpoints=merged_endpoints,
+                    service_id=service.internal_service_id,
+                    path_methods=path_methods,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
                     rendering_queue=self.definition.rendering_queue,
                     interceptors=self.interceptors,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
-                    fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
+                    fallback_to=service.fallback_to,
                     tags=self.tags
                 )
             )
         )
 
-        HttpServer.log_merged_endpoints(merged_endpoints)
+        HttpServer.log_path_methods(path_methods)
 
         if management_root is not None:
             if management_root and management_root[0] == '/':
@@ -330,7 +370,7 @@ class HttpServer:
                     ManagementServiceConfigHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -338,7 +378,7 @@ class HttpServer:
                     ManagementServiceStatsHandler,
                     dict(
                         stats=self.definition.stats,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -346,7 +386,7 @@ class HttpServer:
                     ManagementServiceLogsHandler,
                     dict(
                         logs=self.definition.logs,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -354,7 +394,7 @@ class HttpServer:
                     ManagementServiceResetIteratorsHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -362,7 +402,7 @@ class HttpServer:
                     ManagementServiceUnhandledHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -370,7 +410,7 @@ class HttpServer:
                     ManagementServiceOasHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -378,7 +418,7 @@ class HttpServer:
                     ManagementServiceTagHandler,
                     dict(
                         http_server=self,
-                        service_id=service['internalServiceId']
+                        service_id=service.internal_service_id
                     )
                 ),
                 (
@@ -393,13 +433,13 @@ class HttpServer:
         return tornado.web.Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
     @staticmethod
-    def log_merged_endpoints(merged_endpoints):
-        for _path, methods in merged_endpoints:
+    def log_path_methods(path_methods: list) -> None:
+        for _path, methods in path_methods:
             for method, alternatives in methods.items():
                 logging.debug('Registered endpoint: %s %s', method.upper(), _path)
                 logging.debug('with alternatives:\n%s', alternatives)
 
-    def resolve_cert_path(self, cert_path):
+    def resolve_cert_path(self, cert_path: str) -> str:
         relative_path = path.join(self.definition.source_dir, cert_path)
         relative_path = path.abspath(relative_path)
         if not path.isfile(relative_path):
@@ -409,116 +449,102 @@ class HttpServer:
 
         return relative_path
 
-    def load_management_api(self):
-        if 'management' not in self.definition.data:
+    def load_management_api(self) -> None:
+        if self.definition.config_root.management is None:
             return
 
-        management_config = self.definition.data['management']
-
-        cert_file = path.join(__location__, 'ssl', 'cert.pem')
-        key_file = path.join(__location__, 'ssl', 'key.pem')
-        ssl = management_config.get('ssl', False)
-        if ssl:
-            if 'sslCertFile' in management_config:
-                cert_file = self.resolve_cert_path(management_config['sslCertFile'])
-            if 'sslKeyFile' in management_config:
-                key_file = self.resolve_cert_path(management_config['sslKeyFile'])
-
+        config_management = self.definition.config_root.management
+        ssl, ssl_options = self.resolve_ssl([config_management])
         protocol = 'https' if ssl else 'http'
-        ssl_options = {
-            "certfile": cert_file,
-            "keyfile": key_file,
-        }
 
-        if 'port' in management_config:
-            app = tornado.web.Application([
-                (
-                    '/',
-                    ManagementRootHandler,
-                    dict()
-                ),
-                (
-                    '/config',
-                    ManagementConfigHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/stats',
-                    ManagementStatsHandler,
-                    dict(
-                        stats=self.definition.stats
-                    )
-                ),
-                (
-                    '/traffic-log',
-                    ManagementLogsHandler,
-                    dict(
-                        logs=self.definition.logs
-                    )
-                ),
-                (
-                    '/reset-iterators',
-                    ManagementResetIteratorsHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/unhandled',
-                    ManagementUnhandledHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/oas',
-                    ManagementOasHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/tag',
-                    ManagementTagHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/resources',
-                    ManagementResourcesHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async',
-                    ManagementAsyncHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async/producers/(.+)',
-                    ManagementAsyncProducersHandler,
-                    dict(
-                        http_server=self
-                    )
-                ),
-                (
-                    '/async/consumers/(.+)',
-                    ManagementAsyncConsumersHandler,
-                    dict(
-                        http_server=self
-                    )
+        app = tornado.web.Application([
+            (
+                '/',
+                ManagementRootHandler,
+                dict()
+            ),
+            (
+                '/config',
+                ManagementConfigHandler,
+                dict(
+                    http_server=self
                 )
-            ])
-            server = self.impl.get_server(app, ssl, ssl_options)
-            server.listen(management_config['port'], address=self.address)
-            self.services_log.append('Serving management API at %s://%s:%s' % (
-                protocol,
-                self.address if self.address else 'localhost',
-                management_config['port']
-            ))
+            ),
+            (
+                '/stats',
+                ManagementStatsHandler,
+                dict(
+                    stats=self.definition.stats
+                )
+            ),
+            (
+                '/traffic-log',
+                ManagementLogsHandler,
+                dict(
+                    logs=self.definition.logs
+                )
+            ),
+            (
+                '/reset-iterators',
+                ManagementResetIteratorsHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/unhandled',
+                ManagementUnhandledHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/oas',
+                ManagementOasHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/tag',
+                ManagementTagHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/resources',
+                ManagementResourcesHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/async',
+                ManagementAsyncHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/async/producers/(.+)',
+                ManagementAsyncProducersHandler,
+                dict(
+                    http_server=self
+                )
+            ),
+            (
+                '/async/consumers/(.+)',
+                ManagementAsyncConsumersHandler,
+                dict(
+                    http_server=self
+                )
+            )
+        ])
+        server = self.impl.get_server(app, ssl, ssl_options)
+        server.listen(config_management.port, address=self.address)
+        self.services_log.append('Serving management API at %s://%s:%s' % (
+            protocol,
+            self.address if self.address else 'localhost',
+            config_management.port
+        ))

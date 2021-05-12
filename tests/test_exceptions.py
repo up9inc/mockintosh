@@ -10,7 +10,11 @@ import sys
 import pytest
 from jsonschema.exceptions import ValidationError
 
-from mockintosh import Definition, get_schema
+from mockintosh import get_schema
+from mockintosh.definition import Definition
+from mockintosh.services.http import (
+    HttpService
+)
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     CertificateLoadingError,
@@ -25,6 +29,9 @@ schema = get_schema()
 
 
 class TestExceptions:
+
+    def teardown_method(self):
+        HttpService.services = []
 
     def test_file_not_found_error(self):
         config = 'configs/not_existing_file'
