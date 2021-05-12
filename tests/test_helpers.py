@@ -9,10 +9,12 @@
 import pytest
 
 from mockintosh import start_render_queue
-from mockintosh.definition import Definition
 from mockintosh.helpers import _urlsplit
 from mockintosh.j2.methods import env
 from mockintosh.constants import JINJA
+from mockintosh.config import (
+    ConfigAsyncService
+)
 
 
 class TestHelpers():
@@ -29,22 +31,30 @@ class TestHelpers():
         with pytest.raises(ValueError, match=r"Invalid IPv6 URL"):
             _urlsplit('https://[::1/path/resource.txt?a=b&c=d#fragment')
 
-    @pytest.mark.skip(reason="The `async_address_template_renderer` method is no longer static.")
     def test_jinja_env_helper(self):
         assert env('TESTING_ENV', 'someothervalue') == 'somevalue'
         assert env('TESTING_NOT_ENV', 'someothervalue') == 'someothervalue'
 
         queue, job = start_render_queue()
-        result, _ = Definition.async_address_template_renderer(
-            JINJA,
-            queue,
+
+        config_async_service = ConfigAsyncService(
+            'kafka',
             "{{env('TESTING_ENV', 'someothervalue')}}"
         )
-        assert result == 'somevalue'
-        result, _ = Definition.async_address_template_renderer(
+        config_async_service.address_template_renderer(
             JINJA,
-            queue,
+            queue
+        )
+        assert config_async_service.address == 'somevalue'
+
+        config_async_service = ConfigAsyncService(
+            'kafka',
             "{{env('TESTING_NOT_ENV', 'someothervalue')}}"
         )
-        assert result == 'someothervalue'
+        config_async_service.address_template_renderer(
+            JINJA,
+            queue
+        )
+        assert config_async_service.address == 'someothervalue'
+
         job.kill()
