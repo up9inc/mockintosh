@@ -152,6 +152,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.log = []
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
+        self._index = len(KafkaConsumer.consumers)
         KafkaConsumer.consumers.append(self)
 
     def _match_str(self, x: str, y: Union[str, None]):
@@ -448,7 +449,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         payload_list: KafkaProducerPayloadList
     ):
-        super().__init__(len(KafkaProducer.producers), topic)
+        self._index = len(KafkaProducer.producers)
+        super().__init__(self._index, topic)
         self.payload_list = payload_list
         self.payload_iteration = 0
         self.dataset_iteration = 0
@@ -722,6 +724,7 @@ class KafkaService:
         self.id = _id
         self.ssl = ssl
         self.tags = []
+        self._index = len(KafkaService.services)
         KafkaService.services.append(self)
 
     def add_actor(self, actor: KafkaActor):

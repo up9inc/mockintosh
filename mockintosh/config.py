@@ -74,7 +74,8 @@ class ConfigExternalFilePath:
 
     def __init__(self, path: str, service: ConfigService = None):
         self.path = path
-        ConfigExternalFilePath.files.append(self.path[1:])
+        self._index = len(ConfigExternalFilePath.files)
+        ConfigExternalFilePath.files.append(self)
         if service is not None:
             service.add_external_file_path(self)
 

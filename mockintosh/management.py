@@ -609,7 +609,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
-        files = ConfigExternalFilePath.files
+        files = (obj.path[1:] for obj in ConfigExternalFilePath.files)
         cwd = self.http_server.definition.source_dir
         files = list(set(files))
         files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
