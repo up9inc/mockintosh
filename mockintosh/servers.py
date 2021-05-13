@@ -62,6 +62,7 @@ __location__ = path.abspath(path.dirname(__file__))
 
 
 class Impl:
+
     @abstractmethod
     def get_server(
         self,

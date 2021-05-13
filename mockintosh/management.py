@@ -815,12 +815,12 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         if not self.validate(imaginary_config) or not self.check_restricted_fields(data, self.service_id):
             return
 
-        internal_service_id = self.service_id
-        internal_http_service_id = self.http_server.definition.services[self.service_id].internal_http_service_id
+        internal_http_service_id = definition.services[self.service_id].internal_http_service_id
+        definition.services[self.service_id].destroy()
 
         config_root_builder = ConfigRootBuilder()
-        service = config_root_builder.build_config_service(data, internal_service_id=internal_service_id)
-        definition.config_root.services = service
+        service = config_root_builder.build_config_service(data, internal_service_id=self.service_id)
+        definition.config_root.services[self.service_id] = service
 
         # TODO: Service-level `POST /config` for Kafka services is not fully implemented
         # if isinstance(service, ConfigAsyncService):

@@ -35,6 +35,7 @@ class ConfigService:
         self.type = _type
         self.name = name
         self.external_file_paths = []
+        self._impl = None
         if internal_service_id is None:
             self.internal_service_id = len(ConfigService.services)
             ConfigService.services.append(self)
@@ -42,15 +43,19 @@ class ConfigService:
             self.internal_service_id = internal_service_id
             ConfigService.services[internal_service_id] = self
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self.name if self.name is not None else ''
 
     @abstractmethod
     def get_hint(self):
         raise NotImplementedError
 
-    def add_external_file_path(self, external_file_path):
+    def add_external_file_path(self, external_file_path) -> None:
         self.external_file_paths.append(external_file_path)
+
+    def destroy(self) -> None:
+        for external_file_path in self.external_file_paths:
+            external_file_path.destroy()
 
 
 class ConfigContainsTag:
@@ -78,6 +83,9 @@ class ConfigExternalFilePath:
         ConfigExternalFilePath.files.append(self)
         if service is not None:
             service.add_external_file_path(self)
+
+    def destroy(self) -> None:
+        ConfigExternalFilePath.files.pop(self._index)
 
 
 class ConfigDataset(ConfigContainsTag):

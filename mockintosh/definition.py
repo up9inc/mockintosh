@@ -175,6 +175,7 @@ class Definition:
             service.internal_service_id,
             internal_http_service_id=internal_http_service_id
         )
+        service._impl = http_service
 
         service_perfomance_profile = service.performance_profile if service.performance_profile is not None else global_performance_profile
         for endpoint in service.endpoints:
@@ -291,6 +292,7 @@ class Definition:
             _id=service.internal_service_id,
             ssl=service.ssl
         )
+        service._impl = kafka_service
 
         for i, actor in enumerate(service.actors):
             kafka_actor = KafkaActor(i, actor.name)

@@ -727,9 +727,12 @@ class KafkaService:
         self._index = len(KafkaService.services)
         KafkaService.services.append(self)
 
-    def add_actor(self, actor: KafkaActor):
+    def add_actor(self, actor: KafkaActor) -> None:
         actor.service = self
         self.actors.append(actor)
+
+    def destroy(self) -> None:
+        KafkaService.services.pop(self._index)
 
 
 def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor, stop: dict):
