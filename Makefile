@@ -18,15 +18,13 @@ test-fast: test-style test-without-coverage
 coverage: test-with-coverage coverage-after
 
 test-integration: build
-	tests_integrated/acceptance.sh || \
-	docker ps -q | xargs -L 1 docker logs && \
+	tests_integrated/acceptance.sh && \
 	${MAKE} stop-containers
 
 test-without-coverage: copy-assets up-kafka
 	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG || \
-	docker ps -q | xargs -L 1 docker logs
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG
 
 test-with-coverage: test-style copy-assets up-kafka
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
@@ -44,12 +42,12 @@ test-with-coverage: test-style copy-assets up-kafka
 	COVERAGE_NO_RUN=true coverage run --parallel mockintosh --wrong-arg || \
 	coverage run --parallel -m mockintosh tests/configs/yaml/hbs/kafka/config_error.yaml || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
-		tests/test_features.py -s -vv --log-level=DEBUG || \
-	docker ps -q | xargs -L 1 docker logs && \
+		tests/test_features.py -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
 stop-containers:
-	docker stop $$(docker ps -a -q)
+	docker ps -q | xargs -L 1 docker logs
+	docker ps -q | xargs -L 1 docker stop
 
 test-style:
 	flake8
