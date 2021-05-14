@@ -1828,6 +1828,19 @@ class TestManagement():
                 data = json.loads(text)
                 assert data == resp.json()
 
+        with open(get_config_path('configs/yaml/hbs/kafka/config.yaml'), 'r') as file:
+            data = yaml.safe_load(file.read())
+            kafka_service = data['services'][0]
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(kafka_service), verify=False)
+            assert 400 == resp.status_code
+            assert resp.text == '\'port\' field is restricted!'
+
+            kafka_service['port'] = 8001
+            kafka_service['hostname'] = 'service1.example.com'
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(kafka_service), verify=False)
+            assert 400 == resp.status_code
+            assert resp.text.startswith('JSON schema validation error:')
+
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert 'Content-Type' not in resp.headers
@@ -1895,7 +1908,7 @@ class TestManagement():
             data = yaml.safe_load(file.read())
             data['services'][0]['port'] = 42
             resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
-            assert 500 == resp.status_code
+            assert 400 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
 
@@ -1903,7 +1916,7 @@ class TestManagement():
             data = yaml.safe_load(file.read())
             data['port'] = 42
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
-            assert 500 == resp.status_code
+            assert 400 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
 

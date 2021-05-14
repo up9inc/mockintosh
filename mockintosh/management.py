@@ -30,8 +30,7 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.config import (
     ConfigService,
-    ConfigExternalFilePath,
-    ConfigHttpService
+    ConfigExternalFilePath
 )
 from mockintosh.services.http import (
     HttpService
@@ -222,7 +221,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self._check_restricted_fields(service, service_index)
             return True
         except RestrictedFieldError as e:
-            self.set_status(500)
+            self.set_status(400)
             self.write(str(e))
             return False
 
@@ -800,6 +799,7 @@ class ManagementServiceRootRedirectHandler(ManagementBaseHandler):
 
 
 class ManagementServiceConfigHandler(ManagementConfigHandler):
+    """This handler is only valid for HTTP services and should always operate on `ConfigHttpService`."""
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
@@ -819,38 +819,30 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         imaginary_config = copy.deepcopy(definition.data)
         imaginary_config['services'][self.service_id] = data
 
+        # This check fails for asynchronous services
         if not self.validate(imaginary_config) or not self.check_restricted_fields(data, self.service_id):
             return
 
         internal_http_service_id = definition.services[self.service_id].internal_http_service_id
-        definition.services[self.service_id].destroy()
 
         config_root_builder = ConfigRootBuilder()
+        # `service` should always be an instance of `ConfigHttpService`
         service = config_root_builder.build_config_service(data, internal_service_id=self.service_id)
-        definition.config_root.services[self.service_id] = service
 
-        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
-        # if isinstance(service, ConfigAsyncService):
-        #     service.address_template_renderer(
-        #         definition.template_engine,
-        #         definition.rendering_queue
-        #     )
+        definition.services[self.service_id].destroy()
+        definition.config_root.services[self.service_id] = service
 
         definition.logs.update_service(self.service_id, service.get_name())
         definition.stats.update_service(self.service_id, service.get_hint())
 
-        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
-        # if isinstance(service, ConfigAsyncService):
-        #     definition.services[self.service_id] = definition.analyze_async_service(service)
-        if isinstance(service, ConfigHttpService):
-            definition.services[self.service_id] = definition.analyze_http_service(
-                service,
-                definition.template_engine,
-                definition.rendering_queue,
-                performance_profiles=definition.config_root.performance_profiles,
-                global_performance_profile=None if definition.config_root.globals is None else definition.config_root.globals.performance_profile,
-                internal_http_service_id=internal_http_service_id
-            )
+        definition.services[self.service_id] = definition.analyze_http_service(
+            service,
+            definition.template_engine,
+            definition.rendering_queue,
+            performance_profiles=definition.config_root.performance_profiles,
+            global_performance_profile=None if definition.config_root.globals is None else definition.config_root.globals.performance_profile,
+            internal_http_service_id=internal_http_service_id
+        )
 
         definition.data['services'][self.service_id] = data
 
