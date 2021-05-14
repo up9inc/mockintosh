@@ -886,6 +886,7 @@ class ManagementServiceLogsHandler(ManagementBaseHandler):
 
 
 class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
+    """This handler is only valid for HTTP services and should always operate on `HttpService`."""
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
@@ -893,13 +894,10 @@ class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         app = None
+        # `service` should always be an instance of `HttpService`
         service = self.http_server.definition.services[self.service_id]
 
-        if isinstance(service, HttpService):
-            app = self.http_server._apps.apps[service.internal_http_service_id]
-        # TODO: There are not tests for KafkaService
-        # elif isinstance(service, KafkaService):
-        #     app = service
+        app = self.http_server._apps.apps[service.internal_http_service_id]
 
         _reset_iterators(app)
         self.set_status(204)
@@ -945,22 +943,20 @@ class ManagementServiceOasHandler(ManagementOasHandler):
 
 
 class ManagementServiceTagHandler(ManagementBaseHandler):
+    """This handler is only valid for HTTP services and should always operate on `HttpService`."""
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
         self.service_id = service_id
 
     async def get(self):
+        # `service` should always be an instance of `HttpService`
         service = self.http_server.definition.services[self.service_id]
 
         tags = None
-        if isinstance(service, HttpService):
-            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
-                if rule.target == GenericHandler:
-                    tags = rule.target_kwargs['tags']
-        # TODO: There are not tests for KafkaService
-        # elif isinstance(service, KafkaService):
-        #     tags = service.tags
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                tags = rule.target_kwargs['tags']
 
         if not tags:
             self.set_status(204)
@@ -976,14 +972,11 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
             data = self.request.body.decode()
         data = data.split(',')
 
+        # `service` should always be an instance of `HttpService`
         service = self.http_server.definition.services[self.service_id]
-        if isinstance(service, HttpService):
-            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
-                if rule.target == GenericHandler:
-                    rule.target_kwargs['tags'] = data
-        # TODO: There are not tests for KafkaService
-        # elif isinstance(service, KafkaService):
-        #     service.tags = data
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 
