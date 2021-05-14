@@ -25,6 +25,14 @@ services:
   - path: /service1-post
     method: POST
     response: service1
+  - path: /service1-resource
+    method: POST
+    response:
+      body: '@templates/hello.json.hbs'
+  - path: /service1-resource2
+    method: POST
+    response:
+      body: '@templates/hello2.json.hbs'
 - name: Mock for Service2
   hostname: service2.example.com
   port: 8002

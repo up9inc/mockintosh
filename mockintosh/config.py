@@ -86,6 +86,8 @@ class ConfigExternalFilePath:
 
     def destroy(self) -> None:
         ConfigExternalFilePath.files.pop(self._index)
+        for i, external_file_path in enumerate(ConfigExternalFilePath.files):
+            external_file_path._index = i
 
 
 class ConfigDataset(ConfigContainsTag):

@@ -772,9 +772,6 @@ class KafkaService:
         actor.service = self
         self.actors.append(actor)
 
-    def destroy(self) -> None:
-        KafkaService.services.pop(self._index)
-
 
 def run_loops():
     for service_id, service in enumerate(KafkaService.services):

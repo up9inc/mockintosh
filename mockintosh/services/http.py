@@ -21,7 +21,6 @@ from mockintosh.config import (
     ConfigMultiResponse,
     ConfigDataset
 )
-from mockintosh.services import ImplService
 
 
 class HttpBody:
@@ -145,7 +144,7 @@ class HttpEndpoint(HttpAlternativeBase):
         self.method = method
 
 
-class HttpService(ImplService):
+class HttpService:
 
     services = []
 
@@ -193,9 +192,6 @@ class HttpService(ImplService):
 
     def get_name_or_empty(self) -> str:
         return self.name if self.name is not None else ''
-
-    def destroy(self) -> None:
-        pass
 
 
 class HttpPath:

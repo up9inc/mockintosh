@@ -829,7 +829,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         # `service` should always be an instance of `ConfigHttpService`
         service = config_root_builder.build_config_service(data, internal_service_id=self.service_id)
 
-        definition.services[self.service_id].destroy()
+        definition.config_root.services[self.service_id].destroy()
         definition.config_root.services[self.service_id] = service
 
         definition.logs.update_service(self.service_id, service.get_name())
