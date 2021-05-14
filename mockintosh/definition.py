@@ -91,7 +91,6 @@ class Definition:
         self.logs = logs
         self.services, self.config_root = self.analyze(self.data)
         self.globals = self.config_root.globals
-        self.stoppers = []
 
     def load(self):
         if self.source_text is None:
@@ -143,14 +142,6 @@ class Definition:
                 )
 
         return new_services, config_root
-
-    def add_stopper(self, stop: dict):
-        self.stoppers.append(stop)
-
-    def trigger_stoppers(self):
-        while len(self.stoppers) > 0:
-            stop = self.stoppers.pop()
-            stop['val'] = True
 
     def analyze_http_service(
         self,

@@ -3913,7 +3913,6 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -3925,9 +3924,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -3942,7 +3939,7 @@ class TestAsync():
             headers
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -3961,7 +3958,6 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -3973,9 +3969,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -3990,7 +3984,7 @@ class TestAsync():
             headers
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -4035,7 +4029,6 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -4047,9 +4040,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4079,7 +4070,7 @@ class TestAsync():
             producer_headers
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -4115,7 +4106,6 @@ class TestAsync():
             )
 
     def test_post_async_producer_templated(self):
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -4127,9 +4117,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4142,7 +4130,7 @@ class TestAsync():
             kafka_consumer
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -4612,7 +4600,6 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -4624,9 +4611,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4638,7 +4623,7 @@ class TestAsync():
             kafka_consumer
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 

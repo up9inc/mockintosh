@@ -48,8 +48,10 @@ from mockintosh.exceptions import (
 )
 from mockintosh.services.kafka import (
     KafkaService,
+    KafkaActor,
     KafkaProducer,
     KafkaConsumer,
+    KafkaConsumerGroup,
     run_loops as kafka_run_loops
 )
 from mockintosh.replicas import Request, Response
@@ -164,10 +166,18 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.check_restricted_fields(service, i):
                 return
 
+        for actor in KafkaActor.actors:
+            actor.stop = True
+
+        for consumer_group in KafkaConsumerGroup.groups:
+            consumer_group.stop = True
+
         definition.stats.services = []
         KafkaService.services = []
+        KafkaActor.actors = []
         KafkaProducer.producers = []
         KafkaConsumer.consumers = []
+        KafkaConsumerGroup.groups = []
         HttpService.services = []
         ConfigService.services = []
         ConfigExternalFilePath.files = []
@@ -181,10 +191,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
         self.update_globals()
 
-        definition.trigger_stoppers()
-        stop = {'val': False}
-        definition.add_stopper(stop)
-        kafka_run_loops(definition, stop)
+        kafka_run_loops()
 
         self.set_status(204)
 
