@@ -46,7 +46,8 @@ test-with-coverage: test-style copy-assets up-kafka
 	${MAKE} stop-containers
 
 stop-containers:
-	docker stop $$(docker ps -a -q)
+	docker ps -q | xargs -L 1 docker logs
+	docker ps -q | xargs -L 1 docker stop
 
 test-style:
 	flake8
