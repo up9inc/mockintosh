@@ -71,7 +71,7 @@ SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
 
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
-KAFKA_CONSUME_TIMEOUT = os.environ.get('KAFKA_CONSUME_TIMEOUT', 120)
+KAFKA_CONSUME_TIMEOUT = os.environ.get('KAFKA_CONSUME_TIMEOUT', 40)
 KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 0.5)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
