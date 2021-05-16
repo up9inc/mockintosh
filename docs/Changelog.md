@@ -127,6 +127,25 @@
 
 # Next Version
 
+- fix the bug with traffic log not working after certain mgmt requests
+
+---
+
+- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+
+- Nicer logging of requests, with special option to enable it.
+- Nicer formatted error pages for known errors, explaining the problem
+
+- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
+
+- Tornado has auto-multicpu startup mode, use it optionally with CLI arg/env var
+- test the performance of ourself and optimize it
+
+- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
+- https://github.com/jasonrbriggs/stomp.py - promises rabbitmq+activemq
+- mqtt for async servers
+- SQS as one more async tech
+
 # Roadmap Ideas
 
 ## Async Mock Actors
@@ -135,35 +154,26 @@
 - what to do with binary headers in Kafka? data-url prefix?
 - interceptors to access kafka comms
 - allow overriding on-demand producer fields via mgmt API
-- trigger async produce via HTTP endpoint
 
-- [https://github.com/jasonrbriggs/stomp.py](https://github.com/jasonrbriggs/stomp.py) - promises rabbitmq+activemq
 - rabbitmq for async servers
 - activemq for async servers
-- mqtt for async servers
-- SQS as one more async tech
 
 ## Management API/UI
 
+- find solution better than querying traffic log each second
 - In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
 - config editor to provide hyperlinks from resource files into corresponding editing
 - allow enabling multiple tags + allow response to trigger tag up/down => state machine for complex scenarios
-- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
 
 ## Other
-
-- Tornado has auto-multicpu startup mode, use it optionally
-- test the performance of ourself and optimize it
-
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
-- Nicer formatted error pages for known errors
-- Nicer logging of requests, with special option to enable it.
-- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
 
 
 - mocks for gRPC servers?
+
+- gatsby-style approach to telemetry
