@@ -57,6 +57,8 @@ class ConfigContainsTag:
                 return
             elif isinstance(row, dict):
                 for key, value in row.items():
+                    if key != 'tag':
+                        continue
                     if ',' in value:  # pragma: no cover
                         raise CommaInTagIsForbidden(value)
             else:
