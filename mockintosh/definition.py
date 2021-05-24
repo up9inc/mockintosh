@@ -91,7 +91,6 @@ class Definition:
         self.logs = logs
         self.services, self.config_root = self.analyze(self.data)
         self.globals = self.config_root.globals
-        self.stoppers = []
 
     def load(self):
         if self.source_text is None:
@@ -144,14 +143,6 @@ class Definition:
 
         return new_services, config_root
 
-    def add_stopper(self, stop: dict):
-        self.stoppers.append(stop)
-
-    def trigger_stoppers(self):
-        while len(self.stoppers) > 0:
-            stop = self.stoppers.pop()
-            stop['val'] = True
-
     def analyze_http_service(
         self,
         service: ConfigHttpService,
@@ -175,6 +166,7 @@ class Definition:
             service.internal_service_id,
             internal_http_service_id=internal_http_service_id
         )
+        service._impl = http_service
 
         service_perfomance_profile = service.performance_profile if service.performance_profile is not None else global_performance_profile
         for endpoint in service.endpoints:
@@ -291,6 +283,7 @@ class Definition:
             _id=service.internal_service_id,
             ssl=service.ssl
         )
+        service._impl = kafka_service
 
         for i, actor in enumerate(service.actors):
             kafka_actor = KafkaActor(i, actor.name)

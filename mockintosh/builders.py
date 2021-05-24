@@ -13,6 +13,7 @@ from typing import (
 
 from mockintosh.constants import PYBARS
 from mockintosh.config import (
+    ConfigService,
     ConfigActor,
     ConfigAsyncService,
     ConfigBody,
@@ -36,13 +37,13 @@ from mockintosh.config import (
 
 class ConfigRootBuilder:
 
-    def build_config_external_file_path(self, data: Union[str, list, dict, None]) -> Union[ConfigExternalFilePath, str, list, dict, None]:
+    def build_config_external_file_path(self, data: Union[str, list, dict, None], service: ConfigService = None) -> Union[ConfigExternalFilePath, str, list, dict, None]:
         if isinstance(data, str) and len(data) > 1 and data[0] == '@':
-            return ConfigExternalFilePath(data)
+            return ConfigExternalFilePath(data, service=service)
         else:
             return data
 
-    def build_config_dataset(self, data: Union[List[dict], str, None]) -> Union[ConfigDataset, None]:
+    def build_config_dataset(self, data: Union[List[dict], str, None], service: ConfigService = None) -> Union[ConfigDataset, None]:
         if data is None:
             return None
 
@@ -50,11 +51,11 @@ class ConfigRootBuilder:
         if isinstance(data, list):
             payload = data
         elif isinstance(data, str):
-            payload = self.build_config_external_file_path(data)
+            payload = self.build_config_external_file_path(data, service=service)
 
         return ConfigDataset(payload)
 
-    def build_config_schema(self, data: Union[dict, str, None]) -> Union[ConfigSchema, None]:
+    def build_config_schema(self, data: Union[dict, str, None], service: ConfigService = None) -> Union[ConfigSchema, None]:
         if data is None:
             return data
 
@@ -62,21 +63,21 @@ class ConfigRootBuilder:
         if isinstance(data, dict):
             schema = data
         elif isinstance(data, str):
-            schema = self.build_config_external_file_path(data)
+            schema = self.build_config_external_file_path(data, service=service)
 
         return ConfigSchema(schema)
 
-    def build_config_headers(self, data: dict) -> Union[ConfigHeaders, None]:
+    def build_config_headers(self, data: dict, service: ConfigService = None) -> Union[ConfigHeaders, None]:
         config_headers = None
         if 'headers' in data:
             payload = {}
             data_headers = data['headers']
             for key, value in data_headers.items():
-                payload[key] = self.build_config_external_file_path(value)
+                payload[key] = self.build_config_external_file_path(value, service=service)
             config_headers = ConfigHeaders(payload)
         return config_headers
 
-    def build_config_consume(self, consume: Union[dict, None]) -> Union[ConfigConsume, None]:
+    def build_config_consume(self, consume: Union[dict, None], service: ConfigService = None) -> Union[ConfigConsume, None]:
         if consume is None:
             return None
 
@@ -84,43 +85,43 @@ class ConfigRootBuilder:
             consume['queue'],
             group=consume.get('group', None),
             key=consume.get('key', None),
-            schema=self.build_config_schema(consume.get('schema', None)),
+            schema=self.build_config_schema(consume.get('schema', None), service=service),
             value=consume.get('value', None),
-            headers=self.build_config_headers(consume),
+            headers=self.build_config_headers(consume, service=service),
             capture=consume.get('capture', 1)
         )
 
-    def build_config_produce(self, produce: dict) -> ConfigProduce:
+    def build_config_produce(self, produce: dict, service: ConfigService = None) -> ConfigProduce:
         return ConfigProduce(
             produce['queue'],
-            self.build_config_external_file_path(produce['value']),
+            self.build_config_external_file_path(produce['value'], service=service),
             produce.get('create', False),
             tag=produce.get('tag', None),
             key=produce.get('key', None),
-            headers=self.build_config_headers(produce)
+            headers=self.build_config_headers(produce, service=service)
         )
 
-    def build_config_multi_produce(self, data: List[dict]) -> ConfigMultiResponse:
+    def build_config_multi_produce(self, data: List[dict], service: ConfigService = None) -> ConfigMultiResponse:
         produce_list = []
         for produce in data:
-            produce_list.append(self.build_config_produce(produce))
+            produce_list.append(self.build_config_produce(produce, service=service))
 
         return ConfigMultiProduce(produce_list)
 
-    def build_config_actor(self, actor: dict) -> ConfigActor:
+    def build_config_actor(self, actor: dict, service: ConfigService = None) -> ConfigActor:
         produce = None
         if 'produce' in actor:
             produce = actor['produce']
             if isinstance(produce, list):
-                produce = self.build_config_multi_produce(produce)
+                produce = self.build_config_multi_produce(produce, service=service)
             elif isinstance(produce, dict):
-                produce = self.build_config_produce(produce)
+                produce = self.build_config_produce(produce, service=service)
 
         return ConfigActor(
             name=actor.get('name', None),
-            dataset=self.build_config_dataset(actor.get('dataset', None)),
+            dataset=self.build_config_dataset(actor.get('dataset', None), service=service),
             produce=produce,
-            consume=self.build_config_consume(actor.get('consume', None)),
+            consume=self.build_config_consume(actor.get('consume', None), service=service),
             delay=actor.get('delay', None),
             limit=actor.get('limit', None),
             multi_payloads_looped=actor.get('multiPayloadsLooped', True),
@@ -128,60 +129,63 @@ class ConfigRootBuilder:
         )
 
     def build_config_async_service(self, data: dict, internal_service_id: Union[int, None] = None) -> ConfigAsyncService:
-        actors = []
-        if 'actors' in data:
-            actors = [self.build_config_actor(actor) for actor in data['actors']]
-
-        return ConfigAsyncService(
+        config_service = ConfigAsyncService(
             data['type'],
             data['address'],
-            actors=actors,
+            actors=[],
             name=data.get('name', None),
             ssl=data.get('ssl', False),
             internal_service_id=internal_service_id
         )
 
-    def build_config_response(self, data: dict) -> ConfigResponse:
+        actors = []
+        if 'actors' in data:
+            actors = [self.build_config_actor(actor, service=config_service) for actor in data['actors']]
+        config_service.actors = actors
+
+        return config_service
+
+    def build_config_response(self, data: dict, service: ConfigService = None) -> ConfigResponse:
         return ConfigResponse(
-            headers=self.build_config_headers(data),
+            headers=self.build_config_headers(data, service=service),
             status=data.get('status', None),
-            body=self.build_config_external_file_path(data.get('body', None)),
+            body=self.build_config_external_file_path(data.get('body', None), service=service),
             use_templating=data.get('useTemplating', True),
             templating_engine=data.get('templatingEngine', PYBARS),
             tag=data.get('tag', None)
         )
 
-    def build_config_multi_response(self, data: List[Union[dict, str]]) -> ConfigMultiResponse:
+    def build_config_multi_response(self, data: List[Union[dict, str]], service: ConfigService) -> ConfigMultiResponse:
         responses = []
         for response in data:
             if isinstance(response, dict):
-                responses.append(self.build_config_response(response))
+                responses.append(self.build_config_response(response, service=service))
             elif isinstance(response, str):
-                responses.append(self.build_config_external_file_path(response))
+                responses.append(self.build_config_external_file_path(response, service=service))
 
         return ConfigMultiResponse(responses)
 
-    def build_config_body(self, data: Union[dict, None]) -> Union[ConfigBody, None]:
+    def build_config_body(self, data: Union[dict, None], service: ConfigService = None) -> Union[ConfigBody, None]:
         if data is None:
             return data
 
         return ConfigBody(
-            schema=self.build_config_schema(data.get('schema', None)),
+            schema=self.build_config_schema(data.get('schema', None), service=service),
             text=data.get('text', None),
             urlencoded=data.get('urlencoded', None),
             multipart=data.get('multipart', None),
         )
 
-    def build_config_endpoint(self, endpoint: dict) -> ConfigEndpoint:
+    def build_config_endpoint(self, endpoint: dict, service: ConfigService = None) -> ConfigEndpoint:
         response = None
         if 'response' in endpoint:
             response = endpoint['response']
             if isinstance(response, dict):
-                response = self.build_config_response(response)
+                response = self.build_config_response(response, service=service)
             elif isinstance(response, str):
-                response = ConfigResponse(body=self.build_config_external_file_path(response))
+                response = ConfigResponse(body=self.build_config_external_file_path(response, service=service))
             elif isinstance(response, list):
-                response = self.build_config_multi_response(response)
+                response = self.build_config_multi_response(response, service=service)
         else:
             response = ConfigResponse()
 
@@ -192,8 +196,8 @@ class ConfigRootBuilder:
             method=endpoint.get('method', 'GET'),
             query_string=endpoint.get('queryString', {}),
             headers=endpoint.get('headers', {}),
-            body=self.build_config_body(endpoint.get('body', None)),
-            dataset=self.build_config_dataset(endpoint.get('dataset', None)),
+            body=self.build_config_body(endpoint.get('body', None), service=service),
+            dataset=self.build_config_dataset(endpoint.get('dataset', None), service=service),
             response=response,
             multi_responses_looped=endpoint.get('multiResponsesLooped', True),
             dataset_looped=endpoint.get('datasetLooped', True),
@@ -201,7 +205,8 @@ class ConfigRootBuilder:
         )
 
     def build_config_http_service(self, service: dict, internal_service_id: Union[int, None] = None) -> ConfigHttpService:
-        return ConfigHttpService(
+        oas = self.build_config_external_file_path(service.get('oas', None))
+        config_service = ConfigHttpService(
             service['port'],
             name=service.get('name', None),
             hostname=service.get('hostname', None),
@@ -209,12 +214,19 @@ class ConfigRootBuilder:
             ssl_cert_file=service.get('sslCertFile', None),
             ssl_key_file=service.get('sslKeyFile', None),
             management_root=service.get('managementRoot', None),
-            oas=self.build_config_external_file_path(service.get('oas', None)),
-            endpoints=[self.build_config_endpoint(endpoint) for endpoint in service.get('endpoints', [])],
+            oas=oas,
+            endpoints=[],
             performance_profile=service.get('performanceProfile', None),
             fallback_to=service.get('fallbackTo', None),
             internal_service_id=internal_service_id
         )
+
+        if isinstance(oas, ConfigExternalFilePath):
+            config_service.add_external_file_path(oas)
+
+        config_service.endpoints = [self.build_config_endpoint(endpoint, service=config_service) for endpoint in service.get('endpoints', [])]
+
+        return config_service
 
     def build_config_management(self, data: dict) -> Union[ConfigManagement, None]:
         config_management = None

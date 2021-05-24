@@ -152,6 +152,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.log = []
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
+        self._index = len(KafkaConsumer.consumers)
         KafkaConsumer.consumers.append(self)
 
     def _match_str(self, x: str, y: Union[str, None]):
@@ -244,8 +245,13 @@ class KafkaConsumer(KafkaConsumerProducerBase):
 
 class KafkaConsumerGroup:
 
+    groups = []
+
     def __init__(self):
         self.consumers = []
+        self.stop = False
+        self._index = len(KafkaConsumerGroup.groups)
+        KafkaConsumerGroup.groups.append(self)
 
     def add_consumer(self, consumer: KafkaConsumer) -> None:
         self.consumers.append(consumer)
@@ -308,9 +314,9 @@ class KafkaConsumerGroup:
 
         return True
 
-    def consume_loop(self, first_actor, consumer: Consumer, stop: dict) -> None:
+    def consume_loop(self, first_actor, consumer: Consumer) -> None:
         while True:
-            if stop.get('val', False):  # pragma: no cover
+            if self.stop:  # pragma: no cover
                 break
 
             msg = consumer.poll(1.0)
@@ -388,7 +394,7 @@ class KafkaConsumerGroup:
                 headers
             )
 
-    def consume(self, stop: dict = {}) -> None:
+    def consume(self) -> None:
         first_actor = self.consumers[0].actor
 
         if any(consumer.enable_topic_creation for consumer in self.consumers):
@@ -410,7 +416,7 @@ class KafkaConsumerGroup:
         _wait_for_topic_to_exist(consumer, first_actor.consumer.topic)
         consumer.subscribe([first_actor.consumer.topic])
 
-        self.consume_loop(first_actor, consumer, stop)
+        self.consume_loop(first_actor, consumer)
 
 
 class KafkaProducerPayload:
@@ -448,7 +454,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
         topic: str,
         payload_list: KafkaProducerPayloadList
     ):
-        super().__init__(len(KafkaProducer.producers), topic)
+        self._index = len(KafkaProducer.producers)
+        super().__init__(self._index, topic)
         self.payload_list = payload_list
         self.payload_iteration = 0
         self.dataset_iteration = 0
@@ -645,6 +652,8 @@ class KafkaProducer(KafkaConsumerProducerBase):
 
 class KafkaActor:
 
+    actors = []
+
     def __init__(self, _id, name: str = None):
         self.id = _id
         self.name = name
@@ -660,11 +669,14 @@ class KafkaActor:
         self._dataset = None
         self.multi_payloads_looped = True
         self.dataset_looped = True
+        self.stop = False
+        self._index = len(KafkaActor.actors)
+        KafkaActor.actors.append(self)
 
     def get_hint(self) -> str:
         return self.name if self.name is not None else '#%d' % self.id
 
-    def set_consumer(self, consumer: KafkaConsumer):
+    def set_consumer(self, consumer: KafkaConsumer) -> None:
         self.consumer = consumer
         self.consumer.actor = self
         self.consumer.init_single_log_service()
@@ -681,7 +693,7 @@ class KafkaActor:
         self.service.definition.stats.services[self.service.id].add_endpoint(hint)
         self.consumer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
-    def set_producer(self, producer: KafkaProducer):
+    def set_producer(self, producer: KafkaProducer) -> None:
         self.producer = producer
         self.producer.actor = self
         if self.service.definition.stats is None:
@@ -697,17 +709,48 @@ class KafkaActor:
         self.service.definition.stats.services[self.service.id].add_endpoint(hint)
         self.producer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
-    def set_delay(self, value: Union[int, float, None]):
+    def set_delay(self, value: Union[int, float, None]) -> None:
         if value is None:
             return
 
         self.delay = value
 
-    def set_limit(self, value: int):
+    def set_limit(self, value: int) -> None:
         self.limit = value
 
-    def set_dataset(self, dataset: Union[list, str]):
+    def set_dataset(self, dataset: Union[list, str]) -> None:
         self.dataset = dataset
+
+    def run_produce_loop(self) -> None:
+        if self.consumer is not None or self.producer is None or self.delay is None:
+            return
+
+        if self.limit is None:
+            logging.debug('Running a Kafka loop (%s) indefinitely...', self.get_hint())
+        else:
+            logging.debug('Running a Kafka loop (%s) for %d iterations...', self.get_hint(), self.limit)
+
+        while self.limit is None or self.limit > 0:
+            if self.stop:  # pragma: no cover
+                break
+
+            try:
+                self.producer.check_payload_lock()
+                self.producer.check_dataset_lock()
+                self.producer.produce()
+            except (
+                AsyncProducerPayloadLoopEnd,
+                AsyncProducerDatasetLoopEnd
+            ):
+                break
+
+            if self.delay is not None:
+                _delay(self.delay)
+
+            if self.limit is not None and self.limit > 0:
+                self.limit -= 1
+
+        logging.debug('Kafka loop (%s) is finished.', self.get_hint())
 
 
 class KafkaService:
@@ -722,52 +765,23 @@ class KafkaService:
         self.id = _id
         self.ssl = ssl
         self.tags = []
+        self._index = len(KafkaService.services)
         KafkaService.services.append(self)
 
-    def add_actor(self, actor: KafkaActor):
+    def add_actor(self, actor: KafkaActor) -> None:
         actor.service = self
         self.actors.append(actor)
 
 
-def _run_produce_loop(definition, service: KafkaService, actor: KafkaActor, stop: dict):
-    if actor.limit is None:
-        logging.debug('Running a Kafka loop (%s) indefinitely...', actor.get_hint())
-    else:
-        logging.debug('Running a Kafka loop (%s) for %d iterations...', actor.get_hint(), actor.limit)
-
-    while actor.limit is None or actor.limit > 0:
-        if stop.get('val', False):  # pragma: no cover
-            break
-
-        try:
-            actor.producer.check_payload_lock()
-            actor.producer.check_dataset_lock()
-            actor.producer.produce()
-        except (
-            AsyncProducerPayloadLoopEnd,
-            AsyncProducerDatasetLoopEnd
-        ):
-            break
-
-        if actor.delay is not None:
-            _delay(actor.delay)
-
-        if actor.limit is not None and actor.limit > 0:
-            actor.limit -= 1
-
-    logging.debug('Kafka loop (%s) is finished.', actor.get_hint())
-
-
-def run_loops(definition, stop: dict):
+def run_loops():
     for service_id, service in enumerate(KafkaService.services):
 
         consumer_groups = {}
 
         for actor_id, actor in enumerate(service.actors):
-            if actor.consumer is None and actor.producer is not None and actor.delay is not None:
-                t = threading.Thread(target=_run_produce_loop, args=(definition, service, actor, stop), kwargs={})
-                t.daemon = True
-                t.start()
+            t = threading.Thread(target=actor.run_produce_loop, args=(), kwargs={})
+            t.daemon = True
+            t.start()
 
             if actor.consumer is not None:
                 if actor.consumer.topic not in consumer_groups.keys():
@@ -777,8 +791,8 @@ def run_loops(definition, stop: dict):
                 else:
                     consumer_groups[actor.consumer.topic].add_consumer(actor.consumer)
 
-        for _, consumer_group in consumer_groups.items():
-            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={'stop': stop})
+        for consumer_group in KafkaConsumerGroup.groups:
+            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
             t.daemon = True
             t.start()
 

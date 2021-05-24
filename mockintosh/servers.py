@@ -62,6 +62,7 @@ __location__ = path.abspath(path.dirname(__file__))
 
 
 class Impl:
+
     @abstractmethod
     def get_server(
         self,
@@ -304,9 +305,7 @@ class HttpServer:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
-        stop = {'val': False}
-        self.definition.add_stopper(stop)
-        kafka.run_loops(self.definition, stop)
+        kafka.run_loops()
         self.impl.serve()
 
     def make_app(
