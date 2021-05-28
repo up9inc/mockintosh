@@ -47,8 +47,36 @@ class OASToConfigTranspiler:
             for method, details in _details.items():
                 endpoint = {
                     'path': _path,
-                    'method': method.upper()
+                    'method': method.upper(),
+                    'headers': {},
+                    'queryString': {},
+                    'body': {}
                 }
+
+                # consumes
+                if 'consumes' in details and details['consumes']:
+                    accept = ''
+                    for mime in details['consumes']:
+                        accept += '%s, ' % mime
+                    endpoint['headers']['Accept'] = accept.strip()[:-1]
+
+                # parameters
+                for parameter in details['parameters']:
+                    if not parameter['required']:
+                        continue
+
+                    if parameter['in'] == 'header':
+                        endpoint['headers'][parameter['name']] = '{{ %s }}' % parameter['name']
+                    elif parameter['in'] == 'query':
+                        endpoint['queryString'][parameter['name']] = '{{ %s }}' % parameter['name']
+                    elif parameter['in'] == 'formData':
+                        if 'urlencoded' not in endpoint['body']:
+                            endpoint['body']['urlencoded'] = {}
+
+                        endpoint['body']['urlencoded'][parameter['name']] = '{{ %s }}' % parameter['name']
+                    elif parameter['in'] == 'body':
+                        endpoint['body']['schema'] = parameter['schema']
+
                 service['endpoints'].append(endpoint)
 
         out = {
