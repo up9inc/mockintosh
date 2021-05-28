@@ -92,7 +92,7 @@ class Definition:
         self.services, self.config_root = self.analyze(self.data)
         self.globals = self.config_root.globals
 
-    def load(self):
+    def load(self) -> None:
         if self.source_text is None:
             with open(self.source, 'r') as file:
                 logging.info('Reading configuration file from path: %s', self.source)

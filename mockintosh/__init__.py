@@ -24,6 +24,7 @@ from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _nostderr, _import_from
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.templating import RenderingQueue, RenderingJob
+from mockintosh.transpilers import OASToConfigTranspiler
 
 __version__ = "0.9"
 __location__ = path.abspath(path.dirname(__file__))
@@ -150,6 +151,11 @@ def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
     return interceptors, address, tags
 
 
+def _handle_oas_input(source: str, convert: str) -> None:
+    oas_transpiler = OASToConfigTranspiler(source, convert)
+    oas_transpiler.transpile()
+
+
 def initiate():
     if should_cov:  # pragma: no cover
         signal.signal(signal.SIGTERM, _gracefully_exit)
@@ -187,12 +193,16 @@ def initiate():
     )
     ap.add_argument('-l', '--logfile', help='Also write log into a file', action='store')
     ap.add_argument('-b', '--bind', help='Address to specify the network interface', action='store')
+    ap.add_argument(
+        '-c',
+        '--convert',
+        help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config' % PROGRAM.capitalize(),
+        action='store'
+    )
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     args = vars(ap.parse_args())
 
     interceptors, address, tags = _handle_cli_args(args)
-
-    logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
@@ -200,13 +210,20 @@ def initiate():
 
     source = args['source'][0]
     services_list = args['source'][1:]
+    convert = args['convert']
 
-    if not cov_no_run:  # pragma: no cover
-        run(
-            source,
-            debug=debug_mode,
-            interceptors=interceptors,
-            address=address,
-            services_list=services_list,
-            tags=tags
-        )
+    if convert is not None:
+        logging.info("Converting OpenAPI Specification %s to ./%s ...", source, convert)
+        _handle_oas_input(source, convert)
+    else:
+        logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
+
+        if not cov_no_run:  # pragma: no cover
+            run(
+                source,
+                debug=debug_mode,
+                interceptors=interceptors,
+                address=address,
+                services_list=services_list,
+                tags=tags
+            )
