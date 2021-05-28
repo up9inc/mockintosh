@@ -50,7 +50,8 @@ class OASToConfigTranspiler:
                     'method': method.upper(),
                     'headers': {},
                     'queryString': {},
-                    'body': {}
+                    'body': {},
+                    'response': []
                 }
 
                 # consumes
@@ -76,6 +77,51 @@ class OASToConfigTranspiler:
                         endpoint['body']['urlencoded'][parameter['name']] = '{{ %s }}' % parameter['name']
                     elif parameter['in'] == 'body':
                         endpoint['body']['schema'] = parameter['schema']
+
+                # produces
+                content_type = None
+                if 'produces' in details and details['produces']:
+                    content_type = details['produces'][0]
+
+                # responses
+                for status, _response in details['responses'].items():
+                    response = {
+                        'status': status,
+                        'headers': {
+                            'Content-Type': content_type
+                        }
+                    }
+
+                    if 'schema' in _response:
+                        body_json = ''
+                        schema = _response['schema']
+                        ref = {}
+                        if schema['type'] == 'object':
+                            if 'properties' in schema:
+                                ref = schema['properties']
+                            if 'additionalProperties' in schema:
+                                ref.update(schema['additionalProperties'])
+                        elif schema['type'] == 'array':
+                            ref = schema['items']['properties']
+
+                        for field, _details in ref.items():
+                            if 'example' in _details:
+                                if _details['type'] == 'string':
+                                    body_json += '"%s": "%s"' % (field, _details['example'])
+                                else:
+                                    body_json += '"%s": %s' % (field, _details['example'])
+                            else:
+                                if isinstance(_details, dict):
+                                    if _details['type'] == 'integer':
+                                        body_json += '"%s": {{ random.int }}, ' % field
+                                    elif _details['type'] == 'float':
+                                        body_json += '"%s": {{ random.float }}, ' % field
+                                    else:
+                                        body_json += '"%s": {{ fake.text }}, ' % field
+
+                        response['body'] = '{%s}' % body_json
+
+                    endpoint['response'].append(response)
 
                 service['endpoints'].append(endpoint)
 
