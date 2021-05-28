@@ -7,6 +7,7 @@
 """
 
 from os import getcwd, path
+from collections import OrderedDict
 
 import yaml
 from prance import ResolvingParser
@@ -30,16 +31,25 @@ class OASToConfigTranspiler:
         self.data = parser.specification
 
     def transpile(self) -> None:
-        service = {
-            'port': 8001,
-            'endpoints': []
-        }
+        service = OrderedDict()
+        service['port'] = 8001
+        service['hostname'] = self.data['host']
+        if 'https' in self.data['schemes']:
+            service['ssl'] = True
+        service['endpoints'] = []
 
-        for _path, details in self.data['paths'].items():
-            endpoint = {
-                'path': _path
-            }
-            service['endpoints'].append(endpoint)
+        base_path = self.data['basePath']
+
+        for _path, _details in self.data['paths'].items():
+            _path = _path.replace('{', '{{ ')
+            _path = _path.replace('}', ' }}')
+            _path = base_path + _path
+            for method, details in _details.items():
+                endpoint = {
+                    'path': _path,
+                    'method': method.upper()
+                }
+                service['endpoints'].append(endpoint)
 
         out = {
             'services': [service]
