@@ -151,9 +151,9 @@ def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
     return interceptors, address, tags
 
 
-def _handle_oas_input(source: str, convert: str) -> None:
+def _handle_oas_input(source: str, convert: str) -> str:
     oas_transpiler = OASToConfigTranspiler(source, convert)
-    oas_transpiler.transpile()
+    return oas_transpiler.transpile()
 
 
 def initiate():
@@ -214,7 +214,8 @@ def initiate():
 
     if convert is not None:
         logging.info("Converting OpenAPI Specification %s to ./%s ...", source, convert)
-        _handle_oas_input(source, convert)
+        target_path = _handle_oas_input(source, convert)
+        logging.info("The transpiled config YAML is ready at %s", target_path)
     else:
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 

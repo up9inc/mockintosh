@@ -30,15 +30,18 @@ class OASToConfigTranspiler:
         # print(parser.version)
         self.data = parser.specification
 
-    def transpile(self) -> None:
+    def transpile(self) -> str:
         service = OrderedDict()
         service['port'] = 8001
-        service['hostname'] = self.data['host']
-        if 'https' in self.data['schemes']:
+        if 'host' in self.data:
+            service['hostname'] = self.data['host']
+        if 'schemes' in self.data and 'https' in self.data['schemes']:
             service['ssl'] = True
         service['endpoints'] = []
 
-        base_path = self.data['basePath']
+        base_path = ''
+        if 'basePath' in self.data:
+            base_path = self.data['basePath']
 
         for _path, _details in self.data['paths'].items():
             _path = _path.replace('{', '{{ ')
@@ -62,21 +65,22 @@ class OASToConfigTranspiler:
                     endpoint['headers']['Accept'] = accept.strip()[:-1]
 
                 # parameters
-                for parameter in details['parameters']:
-                    if not parameter['required']:
-                        continue
+                if 'parameters' in details:
+                    for parameter in details['parameters']:
+                        if 'required' not in parameter or not parameter['required']:
+                            continue
 
-                    if parameter['in'] == 'header':
-                        endpoint['headers'][parameter['name']] = '{{ %s }}' % parameter['name']
-                    elif parameter['in'] == 'query':
-                        endpoint['queryString'][parameter['name']] = '{{ %s }}' % parameter['name']
-                    elif parameter['in'] == 'formData':
-                        if 'urlencoded' not in endpoint['body']:
-                            endpoint['body']['urlencoded'] = {}
+                        if parameter['in'] == 'header':
+                            endpoint['headers'][parameter['name']] = '{{ %s }}' % parameter['name']
+                        elif parameter['in'] == 'query':
+                            endpoint['queryString'][parameter['name']] = '{{ %s }}' % parameter['name']
+                        elif parameter['in'] == 'formData':
+                            if 'urlencoded' not in endpoint['body']:
+                                endpoint['body']['urlencoded'] = {}
 
-                        endpoint['body']['urlencoded'][parameter['name']] = '{{ %s }}' % parameter['name']
-                    elif parameter['in'] == 'body':
-                        endpoint['body']['schema'] = parameter['schema']
+                            endpoint['body']['urlencoded'][parameter['name']] = '{{ %s }}' % parameter['name']
+                        elif parameter['in'] == 'body':
+                            endpoint['body']['schema'] = parameter['schema']
 
                 # produces
                 content_type = None
@@ -99,25 +103,30 @@ class OASToConfigTranspiler:
                         if schema['type'] == 'object':
                             if 'properties' in schema:
                                 ref = schema['properties']
-                            if 'additionalProperties' in schema:
+                            if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
                                 ref.update(schema['additionalProperties'])
                         elif schema['type'] == 'array':
                             ref = schema['items']['properties']
 
                         for field, _details in ref.items():
+                            if not isinstance(_details, dict):
+                                continue
+
                             if 'example' in _details:
                                 if _details['type'] == 'string':
                                     body_json += '"%s": "%s"' % (field, _details['example'])
                                 else:
                                     body_json += '"%s": %s' % (field, _details['example'])
                             else:
-                                if isinstance(_details, dict):
-                                    if _details['type'] == 'integer':
-                                        body_json += '"%s": {{ random.int }}, ' % field
-                                    elif _details['type'] == 'float':
-                                        body_json += '"%s": {{ random.float }}, ' % field
-                                    else:
-                                        body_json += '"%s": {{ fake.text }}, ' % field
+                                if 'type' not in _details:
+                                    continue
+
+                                if _details['type'] == 'integer':
+                                    body_json += '"%s": {{ random.int }}, ' % field
+                                elif _details['type'] == 'float':
+                                    body_json += '"%s": {{ random.float }}, ' % field
+                                else:
+                                    body_json += '"%s": {{ fake.text }}, ' % field
 
                         response['body'] = '{%s}' % body_json
 
@@ -130,5 +139,8 @@ class OASToConfigTranspiler:
         }
 
         cwd = getcwd()
-        with open(path.join(cwd, self.target_filename), 'w') as file:
+        target_path = path.join(cwd, self.target_filename)
+        with open(target_path, 'w') as file:
             yaml.dump(out, file, sort_keys=False)
+
+        return target_path
