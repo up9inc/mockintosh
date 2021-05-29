@@ -1,9 +1,9 @@
 #!/bin/bash
 
-total=$(find ./tests/openapi-directory/APIs -type f | wc -l)
+total=20
 i=0
 
-find ./tests/openapi-directory/APIs -type f -print0 | while read -d $'\0' file
+find ./tests/openapi-directory/APIs -type f | shuf -n $total | while read -d $'\n' file
 do
     ((i++))
     echo -e "\n${i}/${total}"
@@ -13,7 +13,7 @@ do
 
         # TODO: Throws avalidation error in case of `exclusiveMaximum` is bool.
         # TODO: Setting `--validator Draft4Validator` causes more issues
-        jsonschema -i dev.json mockintosh/schema.json
+        jsonschema -i dev.json mockintosh/schema.json || exit 1
     else
         echo -e "Passing $file"
     fi
