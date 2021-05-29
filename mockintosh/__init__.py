@@ -27,6 +27,8 @@ from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.templating import RenderingQueue, RenderingJob
 from mockintosh.transpilers import OASToConfigTranspiler
 
+from prance import ValidationError
+
 __version__ = "0.9"
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -230,6 +232,12 @@ def initiate():
         target_path = _handle_oas_input(source, convert_args)
         logging.info("The transpiled config %s is ready at %s", convert_args[1].upper(), target_path)
     else:
+        try:
+            source = _handle_oas_input(source, ['config.yaml', 'yaml'])
+            logging.info("The transpiled config YAML is ready at %s", source)
+        except ValidationError:
+            logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
+
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
         if not cov_no_run:  # pragma: no cover
