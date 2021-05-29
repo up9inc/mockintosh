@@ -6,8 +6,12 @@
     :synopsis: module that contains config transpiler classes.
 """
 
+import json
 from os import getcwd, path
 from collections import OrderedDict
+from typing import (
+    List
+)
 
 import yaml
 from prance import ResolvingParser
@@ -15,19 +19,14 @@ from prance import ResolvingParser
 
 class OASToConfigTranspiler:
 
-    def __init__(self, source: str, target_filename: str):
+    def __init__(self, source: str, convert_args: List[str]):
         self.source = source
         self.data = None
-        self.target_filename = target_filename
+        self.target_filename, self.format = convert_args
         self.load()
 
     def load(self) -> None:
         parser = ResolvingParser(self.source)
-        # print(dir(parser))
-        # print(parser.semver)
-        # print(parser.backend)
-        # print(parser.options)
-        # print(parser.version)
         self.data = parser.specification
 
     def transpile(self) -> str:
@@ -48,6 +47,9 @@ class OASToConfigTranspiler:
             _path = _path.replace('}', ' }}')
             _path = base_path + _path
             for method, details in _details.items():
+                if method == 'parameters':
+                    continue
+
                 endpoint = {
                     'path': _path,
                     'method': method.upper(),
@@ -90,23 +92,27 @@ class OASToConfigTranspiler:
                 # responses
                 for status, _response in details['responses'].items():
                     response = {
-                        'status': status,
-                        'headers': {
-                            'Content-Type': content_type
-                        }
+                        'status': 200 if status == 'default' else int(status),
+                        'headers': {}
                     }
+
+                    if content_type is not None:
+                        response['headers']['Content-Type'] = content_type
 
                     if 'schema' in _response:
                         body_json = ''
                         schema = _response['schema']
                         ref = {}
-                        if schema['type'] == 'object':
+                        if 'type' not in schema or schema['type'] == 'object':
                             if 'properties' in schema:
                                 ref = schema['properties']
                             if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
                                 ref.update(schema['additionalProperties'])
                         elif schema['type'] == 'array':
-                            ref = schema['items']['properties']
+                            if 'allOf' in schema['items']:
+                                ref = schema['items']['allOf'][0]['properties']
+                            else:
+                                ref = schema['items']['properties']
 
                         for field, _details in ref.items():
                             if not isinstance(_details, dict):
@@ -141,6 +147,9 @@ class OASToConfigTranspiler:
         cwd = getcwd()
         target_path = path.join(cwd, self.target_filename)
         with open(target_path, 'w') as file:
-            yaml.dump(out, file, sort_keys=False)
+            if self.format == 'yaml':
+                yaml.dump(out, file, sort_keys=False)
+            else:
+                json.dump(out, file, indent=2)
 
         return target_path

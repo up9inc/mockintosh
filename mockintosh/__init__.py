@@ -15,7 +15,8 @@ import sys
 from os import path, environ
 from gettext import gettext
 from typing import (
-    Tuple
+    Tuple,
+    List
 )
 
 from mockintosh.constants import PROGRAM
@@ -151,8 +152,8 @@ def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
     return interceptors, address, tags
 
 
-def _handle_oas_input(source: str, convert: str) -> str:
-    oas_transpiler = OASToConfigTranspiler(source, convert)
+def _handle_oas_input(source: str, convert_args: List[str]) -> str:
+    oas_transpiler = OASToConfigTranspiler(source, convert_args)
     return oas_transpiler.transpile()
 
 
@@ -197,7 +198,9 @@ def initiate():
         '-c',
         '--convert',
         help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config' % PROGRAM.capitalize(),
-        action='store'
+        action='store',
+        nargs='+',
+        metavar=('filename', 'format')
     )
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     args = vars(ap.parse_args())
@@ -210,12 +213,22 @@ def initiate():
 
     source = args['source'][0]
     services_list = args['source'][1:]
-    convert = args['convert']
+    convert_args = args['convert']
 
-    if convert is not None:
-        logging.info("Converting OpenAPI Specification %s to ./%s ...", source, convert)
-        target_path = _handle_oas_input(source, convert)
-        logging.info("The transpiled config YAML is ready at %s", target_path)
+    if convert_args:
+        if len(convert_args) < 2:
+            convert_args.append('yaml')
+        elif convert_args[1] != 'json':
+            convert_args[1] = 'yaml'
+
+        logging.info(
+            "Converting OpenAPI Specification %s to ./%s in %s format...",
+            source,
+            convert_args[0],
+            convert_args[1].upper()
+        )
+        target_path = _handle_oas_input(source, convert_args)
+        logging.info("The transpiled config %s is ready at %s", convert_args[1].upper(), target_path)
     else:
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
