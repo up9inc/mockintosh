@@ -6,6 +6,7 @@
     :synopsis: module that contains config transpiler classes.
 """
 
+import sys
 import json
 from os import getcwd, path
 from collections import OrderedDict
@@ -120,21 +121,29 @@ class OASToConfigTranspiler:
 
                             if 'example' in _details:
                                 if _details['type'] == 'string':
-                                    body_json += '"%s": "%s"' % (field, _details['example'])
+                                    body_json += '"%s": "%s", ' % (field, _details['example'])
                                 else:
-                                    body_json += '"%s": %s' % (field, _details['example'])
+                                    body_json += '"%s": %s, ' % (field, _details['example'])
                             else:
                                 if 'type' not in _details:
                                     continue
 
                                 if _details['type'] == 'integer':
-                                    body_json += '"%s": {{ random.int }}, ' % field
+                                    body_json += '"%s": {{ random.int %d %d }}, ' % (
+                                        field,
+                                        - sys.maxsize - 1,
+                                        sys.maxsize
+                                    )
                                 elif _details['type'] == 'float':
-                                    body_json += '"%s": {{ random.float }}, ' % field
+                                    body_json += '"%s": {{ random.float %f %f (random.int 1 5) }}, ' % (
+                                        field,
+                                        sys.float_info.min,
+                                        sys.float_info.max
+                                    )
                                 else:
-                                    body_json += '"%s": {{ fake.text }}, ' % field
+                                    body_json += '"%s": "{{ fake.sentence nb_words=10 }}", ' % field
 
-                        response['body'] = '{%s}' % body_json
+                        response['body'] = '{%s}' % body_json[:-2]
 
                     endpoint['response'].append(response)
 
