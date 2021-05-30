@@ -183,6 +183,9 @@ class OASToConfigTranspiler:
                 service['endpoints'].append(endpoint)
 
         out = {
+            'management': {
+                'port': 8000
+            },
             'services': [service]
         }
 
