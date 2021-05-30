@@ -6,16 +6,20 @@
     :synopsis: module that contains config transpiler classes.
 """
 
+import re
 import sys
 import json
 from os import getcwd, path
 from collections import OrderedDict
 from typing import (
-    List
+    List,
+    Union
 )
 
 import yaml
 from prance import ResolvingParser
+
+from mockintosh.helpers import _safe_path_split
 
 
 class OASToConfigTranspiler:
@@ -29,6 +33,115 @@ class OASToConfigTranspiler:
     def load(self) -> None:
         parser = ResolvingParser(self.source)
         self.data = parser.specification
+
+    def path_oas_to_handlebars(self, path: str) -> str:
+        segments = _safe_path_split(path)
+        new_segments = []
+        for segment in segments:
+            match = re.search(r'{(.*)}', segment)
+            if match is not None:
+                name = match.group(1).strip()
+                new_segments.append('{{ %s }}' % name)
+            else:
+                new_segments.append(segment)
+        return '/'.join(new_segments)
+
+    def _transpile_consumes(self, details: dict, endpoint: dict) -> dict:
+        if 'consumes' in details and details['consumes']:
+            accept = ''
+            for mime in details['consumes']:
+                accept += '%s, ' % mime
+            endpoint['headers']['Accept'] = accept.strip()[:-1]
+        return endpoint
+
+    def _transpile_parameters(self, details: dict, endpoint: dict) -> dict:
+        if 'parameters' in details:
+            for parameter in details['parameters']:
+                if 'required' not in parameter or not parameter['required']:
+                    continue
+
+                if parameter['in'] == 'header':
+                    endpoint['headers'][parameter['name']] = '{{ %s }}' % parameter['name']
+                elif parameter['in'] == 'query':
+                    endpoint['queryString'][parameter['name']] = '{{ %s }}' % parameter['name']
+                elif parameter['in'] == 'formData':
+                    if 'urlencoded' not in endpoint['body']:
+                        endpoint['body']['urlencoded'] = {}
+
+                    endpoint['body']['urlencoded'][parameter['name']] = '{{ %s }}' % parameter['name']
+                elif parameter['in'] == 'body':
+                    endpoint['body']['schema'] = parameter['schema']
+        return endpoint
+
+    def _transpile_produces(self, details: dict) -> Union[str, None]:
+        content_type = None
+        if 'produces' in details and details['produces']:
+            content_type = details['produces'][0]
+        return content_type
+
+    def _transpile_schema(self, schema: dict) -> dict:
+        ref = {}
+        if 'type' not in schema or schema['type'] == 'object':
+            if 'properties' in schema:
+                ref = schema['properties']
+            if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
+                ref.update(schema['additionalProperties'])
+        elif schema['type'] == 'array':
+            if 'allOf' in schema['items']:
+                ref = schema['items']['allOf'][0]['properties']
+            else:
+                ref = schema['items']['properties']
+        return ref
+
+    def _transpile_body_json(self, ref: dict) -> str:
+        body_json = ''
+        for field, _details in ref.items():
+            if not isinstance(_details, dict):
+                continue
+
+            if 'example' in _details:
+                if _details['type'] == 'string':
+                    body_json += '"%s": "%s", ' % (field, _details['example'])
+                else:
+                    body_json += '"%s": %s, ' % (field, _details['example'])
+            else:
+                if 'type' not in _details:
+                    continue
+
+                if _details['type'] == 'integer':
+                    body_json += '"%s": {{ random.int %d %d }}, ' % (
+                        field,
+                        - sys.maxsize - 1,
+                        sys.maxsize
+                    )
+                elif _details['type'] == 'float':
+                    body_json += '"%s": {{ random.float %f %f (random.int 1 5) }}, ' % (
+                        field,
+                        sys.float_info.min,
+                        sys.float_info.max
+                    )
+                else:
+                    body_json += '"%s": "{{ fake.sentence nb_words=10 }}", ' % field
+        return body_json
+
+    def _transpile_responses(self, details: dict, endpoint: dict, content_type: Union[str, None]) -> dict:
+        for status, _response in details['responses'].items():
+            response = {
+                'status': 200 if status == 'default' else int(status),
+                'headers': {}
+            }
+
+            if content_type is not None:
+                response['headers']['Content-Type'] = content_type
+
+            if 'schema' in _response:
+                ref = self._transpile_schema(_response['schema'])
+                body_json = self._transpile_body_json(ref)
+                response['body'] = '{%s}' % body_json[:-2]
+
+            endpoint['response'].append(response)
+
+        return endpoint
 
     def transpile(self) -> str:
         service = OrderedDict()
@@ -44,8 +157,7 @@ class OASToConfigTranspiler:
             base_path = self.data['basePath']
 
         for _path, _details in self.data['paths'].items():
-            _path = _path.replace('{', '{{ ')
-            _path = _path.replace('}', ' }}')
+            _path = self.path_oas_to_handlebars(_path)
             _path = base_path + _path
             for method, details in _details.items():
                 if method == 'parameters':
@@ -60,92 +172,10 @@ class OASToConfigTranspiler:
                     'response': []
                 }
 
-                # consumes
-                if 'consumes' in details and details['consumes']:
-                    accept = ''
-                    for mime in details['consumes']:
-                        accept += '%s, ' % mime
-                    endpoint['headers']['Accept'] = accept.strip()[:-1]
-
-                # parameters
-                if 'parameters' in details:
-                    for parameter in details['parameters']:
-                        if 'required' not in parameter or not parameter['required']:
-                            continue
-
-                        if parameter['in'] == 'header':
-                            endpoint['headers'][parameter['name']] = '{{ %s }}' % parameter['name']
-                        elif parameter['in'] == 'query':
-                            endpoint['queryString'][parameter['name']] = '{{ %s }}' % parameter['name']
-                        elif parameter['in'] == 'formData':
-                            if 'urlencoded' not in endpoint['body']:
-                                endpoint['body']['urlencoded'] = {}
-
-                            endpoint['body']['urlencoded'][parameter['name']] = '{{ %s }}' % parameter['name']
-                        elif parameter['in'] == 'body':
-                            endpoint['body']['schema'] = parameter['schema']
-
-                # produces
-                content_type = None
-                if 'produces' in details and details['produces']:
-                    content_type = details['produces'][0]
-
-                # responses
-                for status, _response in details['responses'].items():
-                    response = {
-                        'status': 200 if status == 'default' else int(status),
-                        'headers': {}
-                    }
-
-                    if content_type is not None:
-                        response['headers']['Content-Type'] = content_type
-
-                    if 'schema' in _response:
-                        body_json = ''
-                        schema = _response['schema']
-                        ref = {}
-                        if 'type' not in schema or schema['type'] == 'object':
-                            if 'properties' in schema:
-                                ref = schema['properties']
-                            if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
-                                ref.update(schema['additionalProperties'])
-                        elif schema['type'] == 'array':
-                            if 'allOf' in schema['items']:
-                                ref = schema['items']['allOf'][0]['properties']
-                            else:
-                                ref = schema['items']['properties']
-
-                        for field, _details in ref.items():
-                            if not isinstance(_details, dict):
-                                continue
-
-                            if 'example' in _details:
-                                if _details['type'] == 'string':
-                                    body_json += '"%s": "%s", ' % (field, _details['example'])
-                                else:
-                                    body_json += '"%s": %s, ' % (field, _details['example'])
-                            else:
-                                if 'type' not in _details:
-                                    continue
-
-                                if _details['type'] == 'integer':
-                                    body_json += '"%s": {{ random.int %d %d }}, ' % (
-                                        field,
-                                        - sys.maxsize - 1,
-                                        sys.maxsize
-                                    )
-                                elif _details['type'] == 'float':
-                                    body_json += '"%s": {{ random.float %f %f (random.int 1 5) }}, ' % (
-                                        field,
-                                        sys.float_info.min,
-                                        sys.float_info.max
-                                    )
-                                else:
-                                    body_json += '"%s": "{{ fake.sentence nb_words=10 }}", ' % field
-
-                        response['body'] = '{%s}' % body_json[:-2]
-
-                    endpoint['response'].append(response)
+                endpoint = self._transpile_consumes(details, endpoint)
+                endpoint = self._transpile_parameters(details, endpoint)
+                content_type = self._transpile_produces(details)
+                endpoint = self._transpile_responses(details, endpoint, content_type)
 
                 service['endpoints'].append(endpoint)
 
