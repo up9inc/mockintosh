@@ -1,5 +1,10 @@
 #!/bin/bash
 
+petstore=tests/configs/oas/petstore.json
+COVERAGE_NO_RUN=true mockintosh $petstore && \
+mockintosh $petstore -c dev.json json && \
+jsonschema -i dev.json mockintosh/schema.json || exit 1
+
 total=20
 i=0
 

@@ -100,7 +100,7 @@ class OASToConfigTranspiler:
                 continue
 
             if 'example' in _details:
-                if _details['type'] == 'string':
+                if 'type' in _details and _details['type'] == 'string':
                     body_json += '"%s": "%s", ' % (field, _details['example'])
                 else:
                     body_json += '"%s": %s, ' % (field, _details['example'])
@@ -125,6 +125,9 @@ class OASToConfigTranspiler:
         return body_json
 
     def _transpile_responses(self, details: dict, endpoint: dict, content_type: Union[str, None]) -> dict:
+        if isinstance(details, list):
+            return endpoint
+
         for status, _response in details['responses'].items():
             response = {
                 'status': 200 if status == 'default' else int(status),
