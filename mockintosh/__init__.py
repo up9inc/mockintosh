@@ -28,6 +28,7 @@ from mockintosh.templating import RenderingQueue, RenderingJob
 from mockintosh.transpilers import OASToConfigTranspiler
 
 from prance import ValidationError
+from prance.util.url import ResolutionError
 
 __version__ = "0.9"
 __location__ = path.abspath(path.dirname(__file__))
@@ -237,6 +238,8 @@ def initiate():
             logging.info("The transpiled config YAML is ready at %s", source)
         except ValidationError:
             logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
+        except ResolutionError:
+            pass
 
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
