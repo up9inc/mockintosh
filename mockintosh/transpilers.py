@@ -10,6 +10,7 @@ import re
 import sys
 import json
 from os import getcwd, path
+from urllib.parse import urlparse
 from collections import OrderedDict
 from typing import (
     List,
@@ -146,11 +147,19 @@ class OASToConfigTranspiler:
 
         return endpoint
 
+    def _determine_management_port(self, service_port: int) -> int:
+        port = 8000
+        while port == service_port and port < 9001:
+            port += 1
+        return port
+
     def transpile(self) -> str:
         service = OrderedDict()
         service['port'] = 8001
         if 'host' in self.data:
-            service['hostname'] = self.data['host']
+            host_parsed = urlparse('http://%s' % self.data['host'])
+            service['hostname'] = host_parsed.hostname
+            service['port'] = host_parsed.port if host_parsed.port is not None else service['port']
         if 'schemes' in self.data and 'https' in self.data['schemes']:
             service['ssl'] = True
         service['endpoints'] = []
@@ -184,7 +193,7 @@ class OASToConfigTranspiler:
 
         out = {
             'management': {
-                'port': 8000
+                'port': self._determine_management_port(service['port'])
             },
             'services': [service]
         }
