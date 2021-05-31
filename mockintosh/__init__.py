@@ -238,7 +238,7 @@ def initiate():
             logging.info("The transpiled config YAML is ready at %s", source)
         except ValidationError:
             logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
-        except ResolutionError:
+        except ResolutionError:  # pragma: no cover
             pass
 
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
