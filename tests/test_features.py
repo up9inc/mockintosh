@@ -3026,7 +3026,7 @@ class TestManagement():
                 assert entry['timings']['ssl'] == 0
 
                 addr = socket.gethostbyname(url_parsed1.hostname)
-                assert entry['serverIPAddress'] == addr
+                assert entry['serverIPAddress'] in (addr, '::1')
                 assert int(entry['connection']) == url_parsed1.port
 
             if not admin_headers:
