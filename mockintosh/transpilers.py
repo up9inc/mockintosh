@@ -90,8 +90,13 @@ class OASToConfigTranspiler:
         elif schema['type'] == 'array':
             if 'allOf' in schema['items']:
                 ref = schema['items']['allOf'][0]['properties']
+            elif isinstance(schema['items'], list):
+                ref = schema['items'][0]['properties']
             else:
-                ref = schema['items']['properties']
+                try:
+                    ref = schema['items']['properties']
+                except KeyError:
+                    ref = schema['items']
         return ref
 
     def _transpile_body_json(self, ref: dict) -> str:
@@ -126,12 +131,22 @@ class OASToConfigTranspiler:
         return body_json
 
     def _transpile_responses(self, details: dict, endpoint: dict, content_type: Union[str, None]) -> dict:
-        if isinstance(details, list):
+        if not isinstance(details, dict) or 'responses' not in details:
             return endpoint
 
         for status, _response in details['responses'].items():
+            status = 200 if status == 'default' else status
+
+            if isinstance(status, str) and len(status) == 3 and status.endswith('XX'):
+                status = '%s%s' % (status[0], '00')
+
+            try:
+                status = int(status)
+            except ValueError:
+                status = 200
+
             response = {
-                'status': 200 if status == 'default' else int(status),
+                'status': status,
                 'headers': {}
             }
 
@@ -143,6 +158,8 @@ class OASToConfigTranspiler:
                 body_json = self._transpile_body_json(ref)
                 response['body'] = '{%s}' % body_json[:-2]
 
+            self._delete_key_if_empty(response, 'headers')
+
             endpoint['response'].append(response)
 
         return endpoint
@@ -152,6 +169,10 @@ class OASToConfigTranspiler:
         while port == service_port and port < 9001:
             port += 1
         return port
+
+    def _delete_key_if_empty(self, endpoint, key):
+        if not endpoint[key]:
+            del endpoint[key]
 
     def transpile(self) -> str:
         service = OrderedDict()
@@ -189,6 +210,11 @@ class OASToConfigTranspiler:
                 content_type = self._transpile_produces(details)
                 endpoint = self._transpile_responses(details, endpoint, content_type)
 
+                self._delete_key_if_empty(endpoint, 'headers')
+                self._delete_key_if_empty(endpoint, 'queryString')
+                self._delete_key_if_empty(endpoint, 'body')
+                self._delete_key_if_empty(endpoint, 'response')
+
                 service['endpoints'].append(endpoint)
 
         out = {
@@ -204,6 +230,6 @@ class OASToConfigTranspiler:
             if self.format == 'yaml':
                 yaml.dump(out, file, sort_keys=False)
             else:
-                json.dump(out, file, indent=2)
+                json.dump(out, file, indent=2, default=str)
 
         return target_path
