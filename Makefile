@@ -45,7 +45,7 @@ test-with-coverage: test-style copy-assets up-kafka test-openapi-transpiler
 		tests/test_features.py -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
-test-openapi-transpiler: fetch-openapi-directory
+test-openapi-transpiler:
 	./tests/test-openapi-transpiler.sh
 
 stop-containers:
@@ -107,6 +107,3 @@ copy-data-dir-override:
 
 up-kafka:
 	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
-
-fetch-openapi-directory:
-	./tests/fetch-openapi-directory.sh
