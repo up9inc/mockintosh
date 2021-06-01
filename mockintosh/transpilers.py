@@ -10,6 +10,7 @@ import re
 import sys
 import json
 import tempfile
+import logging
 from os import getcwd, path
 from urllib.parse import urlparse
 from collections import OrderedDict
@@ -231,6 +232,7 @@ class OASToConfigTranspiler:
         try:
             file = open(target_path, 'w')
         except PermissionError:
+            logging.warning('The current working directory \'%s\' is not writable!', cwd)
             file = tempfile.NamedTemporaryFile(mode='w', delete=False)
             target_path = file.name
 
