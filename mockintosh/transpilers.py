@@ -9,6 +9,7 @@
 import re
 import sys
 import json
+import tempfile
 from os import getcwd, path
 from urllib.parse import urlparse
 from collections import OrderedDict
@@ -226,10 +227,18 @@ class OASToConfigTranspiler:
 
         cwd = getcwd()
         target_path = path.join(cwd, self.target_filename)
-        with open(target_path, 'w') as file:
-            if self.format == 'yaml':
-                yaml.dump(out, file, sort_keys=False)
-            else:
-                json.dump(out, file, indent=2, default=str)
+        file = None
+        try:
+            file = open(target_path, 'w')
+        except PermissionError:
+            file = tempfile.NamedTemporaryFile(mode='w', delete=False)
+            target_path = file.name
+
+        if self.format == 'yaml':
+            yaml.dump(out, file, sort_keys=False)
+        else:
+            json.dump(out, file, indent=2, default=str)
+
+        file.close()
 
         return target_path
