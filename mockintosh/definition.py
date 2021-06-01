@@ -72,7 +72,8 @@ class Definition:
         source: str,
         schema: dict,
         rendering_queue: RenderingQueue,
-        is_file: bool = True
+        is_file: bool = True,
+        load_override: Union[dict, None] = None
     ):
         self.source = source
         self.source_text = None if is_file else source
@@ -84,8 +85,11 @@ class Definition:
         self.data = None
         self.schema = schema
         self.rendering_queue = rendering_queue
-        self.load()
-        self.validate()
+        if load_override is not None:
+            self.data = load_override
+        else:
+            self.load()
+            self.validate()
         self.template_engine = _detect_engine(self.data, 'config')
         self.stats = stats
         self.logs = logs

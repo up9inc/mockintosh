@@ -85,15 +85,14 @@ $ mockintosh swagger.json -c new_config.yaml yaml
 
 #### Automatic Conversion
 
-If you start Mockintosh with a valid OpenAPI Specification file then it automatically dumps a `config.yaml`
-to your current working directory:
+If you start Mockintosh with a valid OpenAPI Specification file then it automatically detects that the input
+is an OpenAPI Specification file:
 
 ```shell
 $ mockintosh swagger.json
-$ cat config.yaml
 ```
 
-and automatically starts itself from that `config.yaml` file. So you can start to edit this file
+and automatically starts itself from that file. Without producing any new files. So you can start to edit this file
 through the management UI without even restarting Mockintosh.
 
 ## Interceptors

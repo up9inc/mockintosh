@@ -176,7 +176,7 @@ class OASToConfigTranspiler:
         if not endpoint[key]:
             del endpoint[key]
 
-    def transpile(self) -> str:
+    def transpile(self, direct: bool = False) -> Union[str, dict]:
         service = OrderedDict()
         service['port'] = 8001
         if 'host' in self.data:
@@ -225,6 +225,9 @@ class OASToConfigTranspiler:
             },
             'services': [service]
         }
+
+        if direct:
+            return out
 
         cwd = getcwd()
         target_path = path.join(cwd, self.target_filename)

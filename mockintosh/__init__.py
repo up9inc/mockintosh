@@ -15,6 +15,7 @@ import sys
 from os import path, environ
 from gettext import gettext
 from typing import (
+    Union,
     Tuple,
     List
 )
@@ -82,7 +83,8 @@ def run(
     interceptors: tuple = (),
     address: str = '',
     services_list: list = [],
-    tags: list = []
+    tags: list = [],
+    load_override: Union[dict, None] = None
 ):
     queue, _ = start_render_queue()
 
@@ -91,7 +93,7 @@ def run(
     schema = get_schema()
 
     try:
-        definition = Definition(source, schema, queue, is_file=is_file)
+        definition = Definition(source, schema, queue, is_file=is_file, load_override=load_override)
         http_server = HttpServer(
             definition,
             TornadoImpl(),
@@ -155,9 +157,9 @@ def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
     return interceptors, address, tags
 
 
-def _handle_oas_input(source: str, convert_args: List[str]) -> str:
+def _handle_oas_input(source: str, convert_args: List[str], direct: bool = False) -> Union[str, dict]:
     oas_transpiler = OASToConfigTranspiler(source, convert_args)
-    return oas_transpiler.transpile()
+    return oas_transpiler.transpile(direct=direct)
 
 
 def initiate():
@@ -218,6 +220,8 @@ def initiate():
     services_list = args['source'][1:]
     convert_args = args['convert']
 
+    load_override = None
+
     if convert_args:
         if len(convert_args) < 2:
             convert_args.append('yaml')
@@ -234,8 +238,8 @@ def initiate():
         logging.info("The transpiled config %s is ready at %s", convert_args[1].upper(), target_path)
     else:
         try:
-            source = _handle_oas_input(source, ['config.yaml', 'yaml'])
-            logging.info("The transpiled config YAML is ready at %s", source)
+            load_override = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
+            logging.info("Automatically transpiled the config YAML from OpenAPI Specification.")
         except ValidationError:
             logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
         except ResolutionError:  # pragma: no cover
@@ -250,5 +254,6 @@ def initiate():
                 interceptors=interceptors,
                 address=address,
                 services_list=services_list,
-                tags=tags
+                tags=tags,
+                load_override=load_override
             )
