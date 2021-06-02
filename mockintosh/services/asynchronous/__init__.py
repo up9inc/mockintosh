@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains Kafka related classes.
+    :synopsis: module that contains asynchronous services related classes.
 """
 
 import re
