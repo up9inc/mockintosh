@@ -34,7 +34,7 @@ def intercept_logging(req: Request, resp: Response):
 def request_object(req: Request, resp: Response):
     if req.path == '/request1':
         assert req.version == 'HTTP/1.1'
-        assert req.remoteIp == '127.0.0.1'
+        assert req.remoteIp in ('127.0.0.1', '::1')
         assert req.protocol == 'http'
         assert req.host == 'localhost:8003'
         assert req.hostName == 'localhost'
