@@ -125,7 +125,6 @@ class KafkaProducerPayloadList(AsyncProducerPayloadList):
 class KafkaProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
-        # Producing
         config = {'bootstrap.servers': self.actor.service.address}
         if self.actor.service.ssl:
             config['security.protocol'] = 'SSL'

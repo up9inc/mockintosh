@@ -6,6 +6,12 @@
     :synopsis: module that contains STOMP related classes.
 """
 
+from typing import (
+    Union
+)
+
+from stomp import Connection
+
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
     AsyncConsumer,
@@ -39,7 +45,15 @@ class StompProducerPayloadList(AsyncProducerPayloadList):
 
 
 class StompProducer(AsyncProducer):
-    pass
+
+    def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
+        host, port = self.actor.service.address.split(':')
+        conn = Connection([(host, int(port))])
+
+        conn.connect(wait=True)
+        conn.send('/queue/%s' % self.topic, value)
+
+        conn.close()
 
 
 class StompActor(AsyncActor):
