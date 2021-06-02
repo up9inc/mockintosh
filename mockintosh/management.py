@@ -45,7 +45,7 @@ from mockintosh.exceptions import (
     AsyncProducerDatasetLoopEnd,
     InternalResourcePathCheckError
 )
-from mockintosh.services.kafka import (
+from mockintosh.services.asynchronous.kafka import (
     KafkaService,
     KafkaActor,
     KafkaProducer,

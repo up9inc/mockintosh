@@ -55,7 +55,7 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
-from mockintosh.services import kafka
+from mockintosh.services.asynchronous import kafka
 
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -78,6 +78,7 @@ class Impl:
 
 
 class TornadoImpl(Impl):
+
     def get_server(
         self,
         router: Union[RuleRouter, tornado.web.Application],

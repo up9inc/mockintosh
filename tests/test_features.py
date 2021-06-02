@@ -30,7 +30,7 @@ from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
 from mockintosh import start_render_queue
-from mockintosh.services import kafka
+from mockintosh.services.asynchronous import kafka
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode

@@ -1234,7 +1234,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         return (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS
 
 
-class KafkaHandler(BaseHandler):
+class AsyncHandler(BaseHandler):
     """Class to handle mocked Kafka data."""
 
     def __init__(

@@ -45,7 +45,7 @@ from mockintosh.services.http import (
     HttpEndpoint,
     HttpBody
 )
-from mockintosh.services.kafka import (
+from mockintosh.services.asynchronous.kafka import (
     KafkaService,
     KafkaActor,
     KafkaConsumer,
