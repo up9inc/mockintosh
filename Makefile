@@ -106,4 +106,7 @@ copy-data-dir-override:
 	cp tests/configs/yaml/hbs/body/body_schema_error.json tests/configs/yaml/hbs/data_dir_override/
 
 up-kafka:
-	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
+	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
+
+up-rabbitmq:
+	docker run -d -it --rm --name rabbitmq -p 61613:61613 itzg/rabbitmq-stomp

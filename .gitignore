@@ -134,9 +134,3 @@ tests/configs/json/hbs/core/imagex
 # Copied JSON schemas
 tests/configs/yaml/hbs/data_dir_override/body_schema.json
 tests/configs/yaml/hbs/data_dir_override/body_schema_error.json
-
-# OpenAPI Directory
-tests/openapi-directory
-
-# Automatically Transpiled OAS to YAML
-config.yaml
