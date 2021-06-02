@@ -98,7 +98,7 @@ class KafkaConsumerGroup(AsyncConsumerGroup):
         _wait_for_topic_to_exist(consumer, first_actor.consumer.topic)
         consumer.subscribe([first_actor.consumer.topic])
 
-        self.consume_loop(first_actor)
+        self.consume_loop(first_actor, consumer)
 
     def poll_message(self, consumer: Consumer) -> Union[Message, None]:
         return consumer.poll(1.0)

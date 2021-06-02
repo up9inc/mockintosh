@@ -45,14 +45,14 @@ from mockintosh.exceptions import (
     AsyncProducerDatasetLoopEnd,
     InternalResourcePathCheckError
 )
-from mockintosh.services.asynchronous.kafka import (
-    KafkaService,
-    KafkaActor,
-    KafkaProducer,
-    KafkaConsumer,
-    KafkaConsumerGroup,
-    run_loops as kafka_run_loops
+from mockintosh.services.asynchronous import (
+    AsyncService,
+    AsyncActor,
+    AsyncProducer,
+    AsyncConsumer,
+    AsyncConsumerGroup
 )
+from mockintosh.services.asynchronous.kafka import run_loops as kafka_run_loops
 from mockintosh.replicas import Request, Response
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -90,7 +90,7 @@ yaml.add_representer(OrderedDict, Representer.represent_dict)
 
 
 def _reset_iterators(app):
-    if isinstance(app, KafkaService):
+    if isinstance(app, AsyncService):
         for actor in app.actors:
             if actor.producer is not None:
                 actor.producer.iteration = 0
@@ -165,18 +165,18 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.check_restricted_fields(service, i):
                 return
 
-        for actor in KafkaActor.actors:
+        for actor in AsyncActor.actors:
             actor.stop = True
 
-        for consumer_group in KafkaConsumerGroup.groups:
+        for consumer_group in AsyncConsumerGroup.groups:
             consumer_group.stop = True
 
         definition.stats.services = []
-        KafkaService.services = []
-        KafkaActor.actors = []
-        KafkaProducer.producers = []
-        KafkaConsumer.consumers = []
-        KafkaConsumerGroup.groups = []
+        AsyncService.services = []
+        AsyncActor.actors = []
+        AsyncProducer.producers = []
+        AsyncConsumer.consumers = []
+        AsyncConsumerGroup.groups = []
         HttpService.services = []
         ConfigService.services = []
         ConfigExternalFilePath.files = []
@@ -315,7 +315,7 @@ class ManagementResetIteratorsHandler(ManagementBaseHandler):
     async def post(self):
         for app in self.http_server._apps.apps:
             _reset_iterators(app)
-        for app in KafkaService.services:
+        for app in AsyncService.services:
             _reset_iterators(app)
         self.set_status(204)
 
@@ -587,7 +587,7 @@ class ManagementTagHandler(ManagementBaseHandler):
                 if rule.target == GenericHandler:
                     data['tags'] += rule.target_kwargs['tags']
 
-        for service in KafkaService.services:
+        for service in AsyncService.services:
             data['tags'] += service.tags
 
         data['tags'] = list(set(data['tags']))
@@ -605,7 +605,7 @@ class ManagementTagHandler(ManagementBaseHandler):
                 if rule.target == GenericHandler:
                     rule.target_kwargs['tags'] = data
 
-        for service in KafkaService.services:
+        for service in AsyncService.services:
             service.tags = data
 
         self.set_status(204)
@@ -997,10 +997,10 @@ class ManagementAsyncHandler(ManagementBaseHandler):
             'consumers': []
         }
 
-        for producer in KafkaProducer.producers:
+        for producer in AsyncProducer.producers:
             data['producers'].append(producer.info())
 
-        for consumer in KafkaConsumer.consumers:
+        for consumer in AsyncConsumer.consumers:
             data['consumers'].append(consumer.info())
 
         self.dump(data)
@@ -1023,7 +1023,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                producer = KafkaProducer.producers[index]
+                producer = AsyncProducer.producers[index]
                 try:
                     producer.check_tags()
                     producer.check_payload_lock()
@@ -1050,7 +1050,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         else:
             producer = None
             actor_name = unquote(value)
-            for service_id, service in enumerate(KafkaService.services):
+            for service_id, service in enumerate(AsyncService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.producer is None:  # pragma: no cover
@@ -1092,7 +1092,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                consumer = KafkaConsumer.consumers[index]
+                consumer = AsyncConsumer.consumers[index]
                 self.write(consumer.single_log_service.json())
             except IndexError:
                 self.set_status(400)
@@ -1101,7 +1101,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         else:
             consumer = None
             actor_name = unquote(value)
-            for service_id, service in enumerate(KafkaService.services):
+            for service_id, service in enumerate(AsyncService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.consumer is None:  # pragma: no cover
@@ -1119,7 +1119,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         if value.isnumeric():
             try:
                 index = int(value)
-                consumer = KafkaConsumer.consumers[index]
+                consumer = AsyncConsumer.consumers[index]
                 consumer.single_log_service.reset()
                 self.set_status(204)
             except IndexError:
@@ -1129,7 +1129,7 @@ class ManagementAsyncConsumersHandler(ManagementBaseHandler):
         else:
             consumer = None
             actor_name = unquote(value)
-            for service_id, service in enumerate(KafkaService.services):
+            for service_id, service in enumerate(AsyncService.services):
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.consumer is None:  # pragma: no cover
