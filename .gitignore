@@ -120,15 +120,24 @@ tests/configs/json/hbs/management/cert.pem
 tests/configs/json/hbs/management/key.pem
 tests/configs/yaml/hbs/management/cert.pem
 tests/configs/yaml/hbs/management/key.pem
+tests/configs/yaml/hbs/core/cert.pem
+tests/configs/yaml/hbs/core/key.pem
+
+## Kafka
 tests/configs/json/hbs/kafka/cert.pem
 tests/configs/json/hbs/kafka/key.pem
 tests/configs/yaml/hbs/kafka/cert.pem
 tests/configs/yaml/hbs/kafka/key.pem
-tests/configs/yaml/hbs/core/cert.pem
-tests/configs/yaml/hbs/core/key.pem
+
+## RabbitMQ
+tests/configs/json/hbs/rabbitmq/cert.pem
+tests/configs/json/hbs/rabbitmq/key.pem
+tests/configs/yaml/hbs/rabbitmq/cert.pem
+tests/configs/yaml/hbs/rabbitmq/key.pem
 
 # Copied Images
 tests/configs/yaml/hbs/kafka/image.png
+tests/configs/yaml/hbs/rabbitmq/image.png
 tests/configs/json/hbs/core/imagex
 
 # Copied JSON schemas
