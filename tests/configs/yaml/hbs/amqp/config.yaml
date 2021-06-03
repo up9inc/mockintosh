@@ -10,9 +10,9 @@ globals:
     global-hdr1: globalval1
     global-hdr2: globalval2
 services:
-- name: RabbitMQ Mocks
-  type: rabbitmq
-  address: "{{env 'RABBITMQ_ADDR' 'localhost:61613'}}"
+- name: AMQP Mocks
+  type: amqp
+  address: "{{env 'AMQP_ADDR' 'localhost:5672'}}"
   actors:
   - produce:
       queue: topic1
@@ -96,7 +96,7 @@ services:
         name: templated
         constant: constant-value
         timestamp: "{{date.timestamp}}"
-        counter: "{{counter 'rabbitmqCounter'}}"
+        counter: "{{counter 'amqpCounter'}}"
         fromFile: "@templates/example.txt"
   - consume:
       queue: topic10
@@ -320,7 +320,7 @@ services:
   hostname: service1.example.com
   port: 8001
   endpoints: []
-- type: rabbitmq
+- type: amqp
   address: localhost:9093
   ssl: true
   actors:
@@ -334,6 +334,6 @@ services:
     limit: 20
   - consume:
       queue: topic42
-- type: rabbitmq
+- type: amqp
   address: localhost:9094
   actors: []

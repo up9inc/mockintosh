@@ -259,7 +259,7 @@ services:
         response: no fallback
 
   - name: Kafka Mocks
-    type: kafka # rabbitmq, redis
+    type: kafka # amqp, redis
     address: localhost:9092 # deployed address
     actors:
       # on-demand producer
