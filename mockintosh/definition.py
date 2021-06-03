@@ -6,6 +6,7 @@
     :synopsis: module that contains a class that encompasses the properties of the configuration file and maps it.
 """
 
+import sys
 import logging
 from collections import OrderedDict
 from os import path, environ
@@ -52,6 +53,14 @@ from mockintosh.services.asynchronous.kafka import (
     KafkaProducer,
     KafkaProducerPayloadList,
     KafkaProducerPayload
+)
+from mockintosh.services.asynchronous.amqp import (
+    AmqpService,
+    AmqpActor,
+    AmqpConsumer,
+    AmqpProducer,
+    AmqpProducerPayloadList,
+    AmqpProducerPayload
 )
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
@@ -117,7 +126,7 @@ class Definition:
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    def analyze(self, data: dict) -> Tuple[List[Union[HttpService, KafkaService]], ConfigRoot]:
+    def analyze(self, data: dict) -> Tuple[List[Union[HttpService, KafkaService, AmqpService]], ConfigRoot]:
         config_root_builder = ConfigRootBuilder()
         config_root = config_root_builder.build(data)
 
@@ -280,7 +289,8 @@ class Definition:
         self,
         service: ConfigAsyncService
     ):
-        kafka_service = KafkaService(
+        class_name_prefix = service.type.capitalize()
+        kafka_service = getattr(sys.modules[__name__], '%sService' % class_name_prefix)(
             service.address,
             name=service.name,
             definition=self,
@@ -290,7 +300,7 @@ class Definition:
         service._impl = kafka_service
 
         for i, actor in enumerate(service.actors):
-            kafka_actor = KafkaActor(i, actor.name)
+            kafka_actor = getattr(sys.modules[__name__], '%sActor' % class_name_prefix)(i, actor.name)
             kafka_service.add_actor(kafka_actor)
 
             if actor.consume is not None:
@@ -330,7 +340,7 @@ class Definition:
                 )
                 headers = async_producer_headers_recognizer.recognize()
 
-                kafka_consumer = KafkaConsumer(
+                kafka_consumer = getattr(sys.modules[__name__], '%sConsumer' % class_name_prefix)(
                     actor.consume.queue,
                     schema=actor.consume.schema,
                     value=value,
@@ -344,7 +354,7 @@ class Definition:
 
             if actor.produce is not None:
                 queue = None
-                payload_list = KafkaProducerPayloadList()
+                payload_list = getattr(sys.modules[__name__], '%sProducerPayloadList' % class_name_prefix)()
 
                 produce_list = []
                 if isinstance(actor.produce, ConfigMultiProduce):
@@ -358,7 +368,7 @@ class Definition:
                     produce_list += [actor.produce]
 
                 for produce in produce_list:
-                    payload = KafkaProducerPayload(
+                    payload = getattr(sys.modules[__name__], '%sProducerPayload' % class_name_prefix)(
                         produce.value,
                         key=produce.key,
                         headers={} if produce.headers is None else produce.headers.payload,
@@ -367,7 +377,7 @@ class Definition:
                     )
                     payload_list.add_payload(payload)
 
-                kafka_producer = KafkaProducer(queue, payload_list)
+                kafka_producer = getattr(sys.modules[__name__], '%sProducer' % class_name_prefix)(queue, payload_list)
                 kafka_actor.set_producer(kafka_producer)
 
             kafka_actor.set_limit(actor.limit)

@@ -1235,7 +1235,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
 
 class AsyncHandler(BaseHandler):
-    """Class to handle mocked Kafka data."""
+    """Class to handle mocked async data."""
 
     def __init__(
         self,
