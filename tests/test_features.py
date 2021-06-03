@@ -35,7 +35,7 @@ from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
 from utilities import (
-    DefinitionMockForKafka,
+    DefinitionMockForAsync,
     tcping,
     run_mock_server,
     get_config_path,
@@ -3662,7 +3662,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -3782,7 +3782,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, JINJA, queue)
+            definition=DefinitionMockForAsync(None, JINJA, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -3834,7 +3834,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -3929,7 +3929,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -3974,7 +3974,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, JINJA, queue)
+            definition=DefinitionMockForAsync(None, JINJA, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -4045,7 +4045,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -4059,7 +4059,7 @@ class TestAsync():
 
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -4122,7 +4122,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -4151,7 +4151,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             'localhost:9092',
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)
@@ -4616,7 +4616,7 @@ class TestAsync():
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         kafka_actor = kafka.KafkaActor(0)
         kafka_service.add_actor(kafka_actor)

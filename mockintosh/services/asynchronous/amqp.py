@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains STOMP related classes.
+    :synopsis: module that contains AMQP related classes.
 """
 
 import logging
