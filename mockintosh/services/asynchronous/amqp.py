@@ -6,11 +6,13 @@
     :synopsis: module that contains STOMP related classes.
 """
 
+import logging
 from typing import (
     Union
 )
 
 from pika import BlockingConnection, ConnectionParameters
+from pika.exceptions import ChannelClosedByBroker
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -50,13 +52,16 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
         queue = self.consumers[0].topic
 
-        if any(consumer.enable_topic_creation for consumer in self.consumers):
-            channel.queue_declare(queue=queue)
-        else:
-            channel.queue_declare(queue=queue, passive=True)
+        try:
+            if any(consumer.enable_topic_creation for consumer in self.consumers):
+                channel.queue_declare(queue=queue)
+            else:
+                channel.queue_declare(queue=queue, passive=True)
 
-        channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
-        channel.start_consuming()
+            channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
+            channel.start_consuming()
+        except ChannelClosedByBroker as e:
+            logging.info('Queue %s does not exists: %s', queue, e)
 
 
 class AmqpProducerPayload(AsyncProducerPayload):
@@ -78,16 +83,20 @@ class AmqpProducer(AsyncProducer):
 
         queue = self.topic
 
-        if payload.enable_topic_creation:
-            channel.queue_declare(queue=queue)
-        else:
-            channel.queue_declare(queue=queue, passive=True)
+        try:
+            if payload.enable_topic_creation:
+                channel.queue_declare(queue=queue)
+            else:
+                channel.queue_declare(queue=queue, passive=True)
 
-        channel.basic_publish(
-            exchange='',
-            routing_key=key,
-            body=value
-        )
+            channel.basic_publish(
+                exchange='',
+                routing_key=key,
+                body=value
+            )
+        except ChannelClosedByBroker as e:
+            logging.info('Queue %s does not exists: %s', queue, e)
+
         connection.close()
 
 

@@ -321,7 +321,7 @@ services:
   port: 8001
   endpoints: []
 - type: amqp
-  address: localhost:9093
+  address: localhost:5672
   ssl: true
   actors:
   - produce:
