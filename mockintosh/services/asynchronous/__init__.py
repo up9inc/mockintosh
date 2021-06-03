@@ -37,20 +37,6 @@ from mockintosh.exceptions import (
 )
 
 
-def _decoder(value):
-    try:
-        return value.decode()
-    except (AttributeError, UnicodeDecodeError):
-        return value
-
-
-def _headers_decode(headers: list):
-    new_headers = {}
-    for el in headers if headers else []:
-        new_headers[el[0]] = _decoder(el[1])
-    return new_headers
-
-
 def _merge_global_headers(_globals: dict, kafka_payload):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
@@ -223,7 +209,7 @@ class AsyncConsumerGroup:
         async_handler: AsyncHandler,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {},
+        headers: dict = {}
     ) -> None:
         matched_consumer.log.append(
             (key, value, headers)
@@ -265,93 +251,82 @@ class AsyncConsumerGroup:
             ) as e:  # pragma: no cover
                 logging.error(str(e))
 
-    @abstractmethod
-    def is_consumed(self, msg) -> bool:
-        raise NotImplementedError
+    def consume_message(
+        self,
+        value: Union[str, None] = None,
+        key: Union[str, None] = None,
+        headers: dict = {}
+    ) -> None:
+        first_actor = self.consumers[0].actor
 
-    @abstractmethod
-    def poll_message(self, consumer):
-        raise NotImplementedError
+        logging.debug(
+            'Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r',
+            first_actor.consumer.topic,
+            first_actor.service.address,
+            key,
+            value,
+            headers
+        )
 
-    def consume_loop(self, first_actor, consumer) -> None:
-        while True:
-            if self.stop:  # pragma: no cover
+        matched_consumer = None
+
+        async_handler = None
+        for _consumer in self.consumers:
+            async_handler = AsyncHandler(
+                _consumer.actor.id,
+                _consumer.internal_endpoint_id,
+                _consumer.actor.service.definition.source_dir,
+                _consumer.actor.service.definition.template_engine,
+                _consumer.actor.service.definition.rendering_queue,
+                _consumer.actor.service.definition.logs,
+                _consumer.actor.service.definition.stats,
+                _consumer.actor.service.address,
+                _consumer.topic,
+                False,
+                service_id=_consumer.actor.service.id,
+                value=value,
+                key=key,
+                headers=headers,
+                context=_consumer.actor.context,
+                params=_consumer.actor.params
+            )
+            if _consumer.match(key, value, headers, async_handler):
+                matched_consumer = _consumer
                 break
 
-            msg = self.poll_message(consumer)
-            if not self.is_consumed(msg):
-                continue
-
-            key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
-
+        if matched_consumer is None:
             logging.debug(
-                'Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r',
-                first_actor.consumer.topic,
+                'NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
                 first_actor.service.address,
+                first_actor.consumer.topic,
                 key,
                 value,
                 headers
             )
+            return
 
-            matched_consumer = None
+        logging.info(
+            'Consumed a Kafka message from %r by %r',
+            matched_consumer.actor.consumer.topic,
+            '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
+        )
+        logging.debug(
+            '[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
+            '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
+            matched_consumer.actor.service.address,
+            matched_consumer.actor.consumer.topic,
+            key,
+            '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
+            headers
+        )
 
-            async_handler = None
-            for _consumer in self.consumers:
-                async_handler = AsyncHandler(
-                    _consumer.actor.id,
-                    _consumer.internal_endpoint_id,
-                    _consumer.actor.service.definition.source_dir,
-                    _consumer.actor.service.definition.template_engine,
-                    _consumer.actor.service.definition.rendering_queue,
-                    _consumer.actor.service.definition.logs,
-                    _consumer.actor.service.definition.stats,
-                    _consumer.actor.service.address,
-                    _consumer.topic,
-                    False,
-                    service_id=_consumer.actor.service.id,
-                    value=value,
-                    key=key,
-                    headers=headers,
-                    context=_consumer.actor.context,
-                    params=_consumer.actor.params
-                )
-                if _consumer.match(key, value, headers, async_handler):
-                    matched_consumer = _consumer
-                    break
-
-            if matched_consumer is None:
-                logging.debug(
-                    'NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
-                    first_actor.service.address,
-                    first_actor.consumer.topic,
-                    key,
-                    value,
-                    headers
-                )
-                continue
-
-            logging.info(
-                'Consumed a Kafka message from %r by %r',
-                matched_consumer.actor.consumer.topic,
-                '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
-            )
-            logging.debug(
-                '[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
-                '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
-                matched_consumer.actor.service.address,
-                matched_consumer.actor.consumer.topic,
-                key,
-                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
-                headers
-            )
-
-            self.after_consume_match(
-                matched_consumer,
-                async_handler,
-                value,
-                key,
-                headers
-            )
+        self.after_consume_match(
+            matched_consumer,
+            async_handler,
+            value,
+            key,
+            headers
+        )
 
     @abstractmethod
     def consume(self) -> None:

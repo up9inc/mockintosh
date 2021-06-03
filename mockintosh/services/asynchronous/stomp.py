@@ -10,7 +10,7 @@ from typing import (
     Union
 )
 
-from stomp import Connection
+from stomp import Connection, ConnectionListener
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -24,6 +24,11 @@ from mockintosh.services.asynchronous import (
 )
 
 
+def connect_and_subscribe(conn, topic: str):
+    conn.connect(wait=True)
+    conn.subscribe(destination='/queue/%s' % topic, id=1, ack='auto')
+
+
 class StompConsumerProducerBase(AsyncConsumerProducerBase):
     pass
 
@@ -33,7 +38,35 @@ class StompConsumer(AsyncConsumer):
 
 
 class StompConsumerGroup(AsyncConsumerGroup):
-    pass
+
+    def consume(self) -> None:
+        host, port = self.actor.service.address.split(':')
+        conn = Connection([(host, int(port))], heartbeats=(4000, 4000))
+        conn.set_listener('', StompListener(conn, self))
+        connect_and_subscribe(conn)
+
+
+class StompListener(ConnectionListener):
+
+    def __init__(self, conn, consumer_group: StompConsumerGroup):
+        self.conn = conn
+        self.consumer_group = consumer_group
+
+    def on_error(self, frame):
+        print('received an error "%s"' % frame.body)
+
+    def on_message(self, frame):
+        print('received a message "%s"' % frame.body)
+
+        self.consumer_group.consume_message(
+            key=frame.key,
+            value=frame.value,
+            headers=frame.headers
+        )
+
+    def on_disconnected(self):
+        print('disconnected')
+        connect_and_subscribe(self.conn, self.consumers[0].topic)
 
 
 class StompProducerPayload(AsyncProducerPayload):

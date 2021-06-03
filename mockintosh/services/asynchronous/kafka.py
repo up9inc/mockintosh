@@ -29,6 +29,20 @@ from mockintosh.services.asynchronous import (
 )
 
 
+def _decoder(value):
+    try:
+        return value.decode()
+    except (AttributeError, UnicodeDecodeError):
+        return value
+
+
+def _headers_decode(headers: list):
+    new_headers = {}
+    for el in headers if headers else []:
+        new_headers[el[0]] = _decoder(el[1])
+    return new_headers
+
+
 def _kafka_delivery_report(err, msg):
     if err is not None:  # pragma: no cover
         logging.debug('Message delivery failed: %s', err)
@@ -98,7 +112,24 @@ class KafkaConsumerGroup(AsyncConsumerGroup):
         _wait_for_topic_to_exist(consumer, first_actor.consumer.topic)
         consumer.subscribe([first_actor.consumer.topic])
 
-        self.consume_loop(first_actor, consumer)
+        self.consume_loop(consumer)
+
+    def consume_loop(self, consumer) -> None:
+        while True:
+            if self.stop:  # pragma: no cover
+                break
+
+            msg = self.poll_message(consumer)
+            if not self.is_consumed(msg):
+                continue
+
+            key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
+
+            self.consume_message(
+                key=key,
+                value=value,
+                headers=headers
+            )
 
     def poll_message(self, consumer: Consumer) -> Union[Message, None]:
         return consumer.poll(1.0)
