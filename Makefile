@@ -109,4 +109,4 @@ up-kafka:
 	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
 
 up-rabbitmq:
-	docker run -d -it --rm --name rabbitmq -p 61613:61613 itzg/rabbitmq-stomp
+	docker run -d -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
