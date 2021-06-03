@@ -10,7 +10,7 @@ globals:
     global-hdr1: globalval1
     global-hdr2: globalval2
 services:
-- name: AMQP Mocks
+- name: Asynchronous Mocks
   type: amqp
   address: "{{env 'AMQP_ADDR' 'localhost:5672'}}"
   actors:

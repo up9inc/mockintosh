@@ -26,6 +26,17 @@ from mockintosh.services.asynchronous import (
 )
 
 
+def _create_topic(address: str, topic: str, ssl: bool = False):
+    host, port = address.split(':')
+    connection = BlockingConnection(
+        ConnectionParameters(host=host, port=port)
+    )
+    channel = connection.channel()
+
+    channel.queue_declare(queue=topic)
+    connection.close()
+
+
 class AmqpConsumerProducerBase(AsyncConsumerProducerBase):
     pass
 
@@ -119,5 +130,13 @@ def build_single_payload_producer(
     headers: dict = {},
     tag: Union[str, None] = None,
     enable_topic_creation: bool = False
-):
-    pass
+) -> AmqpProducer:
+    payload_list = AmqpProducerPayloadList()
+    payload = AmqpProducerPayload(
+        value,
+        key=key,
+        headers=headers,
+        tag=tag
+    )
+    payload_list.add_payload(payload)
+    return AmqpProducer(topic, payload_list)

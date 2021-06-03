@@ -46,7 +46,7 @@ from mockintosh.services.http import (
     HttpEndpoint,
     HttpBody
 )
-from mockintosh.services.asynchronous.kafka import (
+from mockintosh.services.asynchronous.kafka import (  # noqa: F401
     KafkaService,
     KafkaActor,
     KafkaConsumer,
@@ -54,7 +54,7 @@ from mockintosh.services.asynchronous.kafka import (
     KafkaProducerPayloadList,
     KafkaProducerPayload
 )
-from mockintosh.services.asynchronous.amqp import (
+from mockintosh.services.asynchronous.amqp import (  # noqa: F401
     AmqpService,
     AmqpActor,
     AmqpConsumer,

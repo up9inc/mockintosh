@@ -258,7 +258,7 @@ services:
       - path: /
         response: no fallback
 
-  - name: Kafka Mocks
+  - name: Asynchronous Mocks
     type: kafka # amqp, redis
     address: localhost:9092 # deployed address
     actors:

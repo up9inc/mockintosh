@@ -9,7 +9,7 @@
   },
   "services": [
     {
-      "hint": "Kafka Mocks",
+      "hint": "Asynchronous Mocks",
       "request_counter": 62,
       "avg_resp_time": 0.0,
       "status_code_distribution": {

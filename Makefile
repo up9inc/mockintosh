@@ -21,12 +21,12 @@ test-integration: build
 	tests_integrated/acceptance.sh && \
 	${MAKE} stop-containers
 
-test-without-coverage: copy-assets up-kafka
+test-without-coverage: copy-assets up-kafka up-rabbitmq
 	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG
 
-test-with-coverage: test-style copy-assets up-kafka test-openapi-transpiler
+test-with-coverage: test-style copy-assets up-kafka up-rabbitmq test-openapi-transpiler
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
