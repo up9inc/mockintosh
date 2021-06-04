@@ -27,7 +27,8 @@ from mockintosh.services.asynchronous import (
     AsyncService
 )
 
-EXCHANGE = 'direct_logs'
+EXCHANGE = 'topic_logs'
+EXCHANGE_TYPE = 'topic'
 
 
 def _decoder(value):
@@ -35,6 +36,7 @@ def _decoder(value):
         return value.decode()
     except (AttributeError, UnicodeDecodeError):
         return value
+
 
 def _create_topic(address: str, topic: str, ssl: bool = False):
     host, port = address.split(':')
@@ -59,7 +61,7 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
     def callback(self, ch, method, properties: BasicProperties, body: bytes):
         self.consume_message(
-            key=method.routing_key,
+            key=None if not method.routing_key else method.routing_key,
             value=_decoder(body),
             headers=properties.headers
         )
@@ -80,19 +82,13 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                 else:
                     channel.queue_declare(queue=queue, passive=True)
 
-                channel.exchange_declare(exchange=EXCHANGE, exchange_type='direct')
+                channel.exchange_declare(exchange=EXCHANGE, exchange_type=EXCHANGE_TYPE)
 
-                keys = []
-                for consumer in self.consumers:
-                    keys.append(consumer.match_key)
-
-                keys = list(set(keys))
-                for key in keys:
-                    channel.queue_bind(
-                        exchange=EXCHANGE,
-                        queue=queue,
-                        routing_key=key
-                    )
+                channel.queue_bind(
+                    exchange=EXCHANGE,
+                    queue=queue,
+                    routing_key='#'
+                )
 
                 channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
                 channel.start_consuming()
@@ -128,11 +124,11 @@ class AmqpProducer(AsyncProducer):
             else:
                 channel.queue_declare(queue=queue, passive=True)
 
-            channel.exchange_declare(exchange=EXCHANGE, exchange_type='direct')
+            channel.exchange_declare(exchange=EXCHANGE, exchange_type=EXCHANGE_TYPE)
 
             channel.basic_publish(
                 exchange=EXCHANGE,
-                routing_key=key,
+                routing_key=key if key is not None else '',
                 body=value,
                 properties=BasicProperties(
                     headers=headers

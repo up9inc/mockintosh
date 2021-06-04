@@ -3527,7 +3527,9 @@ class AsyncBase():
             'templated-producer',
             'topic10',
             'topic11',
-            'binary-topic'
+            'binary-topic',
+            'chain1-step1',
+            'chain1-step2'
         ):
             getattr(sys.modules[__name__], '%s_create_topic' % async_service_type)(ASYNC_ADDR[async_service_type], topic)
 
