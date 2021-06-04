@@ -10,8 +10,8 @@ import sys
 import threading
 
 from mockintosh.services.asynchronous import AsyncService, AsyncConsumerGroup
-from mockintosh.services.asynchronous.kafka import KafkaConsumerGroup
-from mockintosh.services.asynchronous.amqp import AmqpConsumerGroup
+from mockintosh.services.asynchronous.kafka import KafkaConsumerGroup  # noqa: F401
+from mockintosh.services.asynchronous.amqp import AmqpConsumerGroup  # noqa: F401
 
 
 def run_loops():

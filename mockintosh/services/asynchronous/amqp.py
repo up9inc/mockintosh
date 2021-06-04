@@ -13,6 +13,7 @@ from typing import (
 )
 
 from pika import BlockingConnection, ConnectionParameters
+from pika.spec import BasicProperties
 from pika.exceptions import ChannelClosedByBroker
 
 from mockintosh.services.asynchronous import (
@@ -26,6 +27,12 @@ from mockintosh.services.asynchronous import (
     AsyncService
 )
 
+
+def _decoder(value):
+    try:
+        return value.decode()
+    except (AttributeError, UnicodeDecodeError):
+        return value
 
 def _create_topic(address: str, topic: str, ssl: bool = False):
     host, port = address.split(':')
@@ -48,20 +55,20 @@ class AmqpConsumer(AsyncConsumer):
 
 class AmqpConsumerGroup(AsyncConsumerGroup):
 
-    def callback(self, ch, method, properties, body):
+    def callback(self, ch, method, properties: BasicProperties, body: bytes):
         self.consume_message(
             key=None,
-            value=body,
-            headers={}
+            value=_decoder(body),
+            headers=properties.headers
         )
 
     def consume(self) -> None:
         host, port = self.consumers[0].actor.service.address.split(':')
         while True:
+            connection = BlockingConnection(
+                ConnectionParameters(host=host, port=port)
+            )
             try:
-                connection = BlockingConnection(
-                    ConnectionParameters(host=host, port=port)
-                )
                 channel = connection.channel()
 
                 queue = self.consumers[0].topic
@@ -75,6 +82,7 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                 channel.start_consuming()
                 break
             except ChannelClosedByBroker as e:
+                connection.close()
                 logging.info('Queue %s does not exists: %s', queue, e)
                 time.sleep(1)
 
@@ -107,7 +115,10 @@ class AmqpProducer(AsyncProducer):
             channel.basic_publish(
                 exchange='',
                 routing_key=key,
-                body=value
+                body=value,
+                properties=BasicProperties(
+                    headers=headers
+                )
             )
         except ChannelClosedByBroker as e:
             logging.info('Queue %s does not exists: %s', queue, e)
