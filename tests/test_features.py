@@ -35,6 +35,7 @@ from mockintosh.services.asynchronous.kafka import (  # noqa: F401
     KafkaService,
     KafkaActor,
     KafkaConsumer,
+    KafkaConsumerGroup,
     KafkaProducer,
     KafkaProducerPayloadList,
     KafkaProducerPayload,
@@ -45,6 +46,7 @@ from mockintosh.services.asynchronous.amqp import (  # noqa: F401
     AmqpService,
     AmqpActor,
     AmqpConsumer,
+    AmqpConsumerGroup,
     AmqpProducer,
     AmqpProducerPayloadList,
     AmqpProducerPayload,
@@ -102,6 +104,7 @@ ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
+async_service_type = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -3503,15 +3506,15 @@ class TestPerformanceProfile():
             assert str(status_code) in faults or status_code == 201
 
 
-@pytest.mark.parametrize(('service_type'), [
-    'kafka',
-    'amqp'
-])
-class TestAsync():
+class AsyncBase():
 
-    def setup_method(self):
-        service_type = self._item.callspec.getparam('service_type')
-        config = 'configs/yaml/hbs/%s/config.yaml' % service_type
+    mock_server_process = None
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        config = 'configs/yaml/hbs/%s/config.yaml' % async_service_type
 
         # Create the Async topics/queues
         for topic in (
@@ -3526,7 +3529,7 @@ class TestAsync():
             'topic11',
             'binary-topic'
         ):
-            getattr(sys.modules[__name__], '%s_create_topic' % service_type)(ASYNC_ADDR[service_type], topic)
+            getattr(sys.modules[__name__], '%s_create_topic' % async_service_type)(ASYNC_ADDR[async_service_type], topic)
 
         time.sleep(ASYNC_CONSUME_TIMEOUT / 8)
 
@@ -3534,7 +3537,7 @@ class TestAsync():
         if should_cov:
             cmd = 'coverage run --parallel -m %s' % cmd
         this_env = os.environ.copy()
-        self.mock_server_process = subprocess.Popen(
+        AsyncBase.mock_server_process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -3543,13 +3546,14 @@ class TestAsync():
         )
         time.sleep(ASYNC_CONSUME_TIMEOUT / 4)
 
-        getattr(sys.modules[__name__], '%s_create_topic' % service_type)(ASYNC_ADDR[service_type], 'topic2')
+        getattr(sys.modules[__name__], '%s_create_topic' % async_service_type)(ASYNC_ADDR[async_service_type], 'topic2')
 
         resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
         assert 204 == resp.status_code
 
-    def teardown_method(self):
-        self.mock_server_process.kill()
+    @classmethod
+    def teardown_class(cls):
+        AsyncBase.mock_server_process.kill()
         name = PROGRAM
         if should_cov:
             name = 'coverage'
@@ -3587,7 +3591,9 @@ class TestAsync():
                     continue
             break
 
-    def test_get_async(self, service_type):
+    def test_get_async(self):
+        global async_service_type
+
         for _format in ('json', 'yaml'):
             resp = httpx.get(MGMT + '/async?format=%s' % _format, verify=False)
             assert 200 == resp.status_code
@@ -3602,19 +3608,19 @@ class TestAsync():
             assert len(producers) == 23
             assert len(consumers) == 16
 
-            assert producers[0]['type'] == service_type
+            assert producers[0]['type'] == async_service_type
             assert producers[0]['name'] is None
             assert producers[0]['index'] == 0
             assert producers[0]['queue'] == 'topic1'
             assert producers[0]['producedMessages'] == 0
             assert producers[0]['lastProduced'] is None
 
-            assert producers[3]['type'] == service_type
+            assert producers[3]['type'] == async_service_type
             assert producers[3]['name'] == 'actor6'
             assert producers[3]['index'] == 3
             assert producers[3]['queue'] == 'topic6'
 
-            assert consumers[0]['type'] == service_type
+            assert consumers[0]['type'] == async_service_type
             assert consumers[0]['name'] is None
             assert consumers[0]['index'] == 0
             assert consumers[0]['queue'] == 'topic2'
@@ -3622,7 +3628,7 @@ class TestAsync():
             assert consumers[0]['consumedMessages'] == 0
             assert consumers[0]['lastConsumed'] is None
 
-            assert consumers[3]['type'] == service_type
+            assert consumers[3]['type'] == async_service_type
             assert consumers[3]['name'] == 'actor9'
             assert consumers[3]['index'] == 3
             assert consumers[3]['queue'] == 'topic9'
@@ -3635,7 +3641,7 @@ class TestAsync():
 
         self.assert_consumer_log(data, None, '%s-val' % value, headers)
 
-    def test_get_async_chain(self, service_type):
+    def test_get_async_chain(self):
         value = '123456'
         headers = {
             'Captured-Key': '%s-key' % value,
@@ -3671,7 +3677,9 @@ class TestAsync():
         self.assert_consumer_log(data, not_key, not_value, not_headers1, invert=True)
         self.assert_consumer_log(data, not_key, not_value, not_headers2, invert=True)
 
-    def test_get_async_consume(self, service_type):
+    def test_get_async_consume(self):
+        global async_service_type
+
         key = 'key2'
         value = """
         {"somekey": "value"}
@@ -3688,13 +3696,13 @@ class TestAsync():
         value_json_decode_error = 'JSON Decode Error'
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=key,
@@ -3704,7 +3712,7 @@ class TestAsync():
         async_producer.produce()
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=not_key,
@@ -3713,7 +3721,7 @@ class TestAsync():
         async_actor.set_producer(async_producer)
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             not_value,
             key=key,
@@ -3722,7 +3730,7 @@ class TestAsync():
         async_actor.set_producer(async_producer)
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value_json_decode_error,
             key=key,
@@ -3731,7 +3739,7 @@ class TestAsync():
         async_actor.set_producer(async_producer)
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=key,
@@ -3740,7 +3748,7 @@ class TestAsync():
         async_actor.set_producer(async_producer)
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=key,
@@ -3778,7 +3786,7 @@ class TestAsync():
 
         self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_async_produce_consume_loop(self, service_type):
+    def test_get_async_produce_consume_loop(self):
         key = 'key3'
         value = 'value3'
         headers = {
@@ -3802,19 +3810,21 @@ class TestAsync():
 
         self.assert_consumer_log(data, key, value, headers)
 
-    def test_get_async_consume_no_key(self, service_type):
+    def test_get_async_consume_no_key(self):
+        global async_service_type
+
         key = None
         value = 'value10'
         headers = {}
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, JINJA, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic10',
             value,
             key=key,
@@ -3850,7 +3860,9 @@ class TestAsync():
         assert any(entry['response']['content']['text'] == value11_1 for entry in data['log']['entries'])
         assert any(entry['response']['content']['text'] == value11_2 for entry in data['log']['entries'])
 
-    def test_get_async_consume_capture_limit(self, service_type):
+    def test_get_async_consume_capture_limit(self):
+        global async_service_type
+
         topic10 = 'topic10'
         value10_1 = 'value10_1'
         value10_2 = 'value10_2'
@@ -3860,22 +3872,22 @@ class TestAsync():
         value11_2 = 'value11_2'
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
 
         # topic10 START
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic10,
             value10_1
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic10,
             value10_2
         )
@@ -3890,14 +3902,14 @@ class TestAsync():
         # topic10 END
 
         # topic11 START
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic11,
             value11_1
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
 
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic11,
             value11_2
         )
@@ -3930,7 +3942,7 @@ class TestAsync():
 
         job.kill()
 
-    def test_get_async_bad_requests(self, service_type):
+    def test_get_async_bad_requests(self):
         resp = httpx.get(MGMT + '/async/consumers/99', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -3945,7 +3957,9 @@ class TestAsync():
     def assert_post_async_produce(self, async_consumer, key, value, headers):
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
-    def test_post_async_produce(self, service_type):
+    def test_post_async_produce(self):
+        global async_service_type
+
         key = 'key1'
         value = 'value1'
         headers = {
@@ -3955,15 +3969,15 @@ class TestAsync():
         }
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % service_type.capitalize())('topic1', enable_topic_creation=True)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('topic1', enable_topic_creation=True)
         async_actor.set_consumer(async_consumer)
-        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % service_type.capitalize())()
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
         async_consumer_group.add_consumer(async_consumer)
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
@@ -3984,14 +3998,16 @@ class TestAsync():
         t.join()
         job.kill()
 
-    def test_post_async_binary_produce(self, service_type):
+    def test_post_async_binary_produce(self):
         resp = httpx.post(MGMT + '/async/producers/Binary%20Producer', verify=False)
         assert 202 == resp.status_code
 
     def assert_post_async_produce_by_actor_name(self, async_consumer, key, value, headers):
         assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
-    def test_post_async_produce_by_actor_name(self, service_type):
+    def test_post_async_produce_by_actor_name(self):
+        global async_service_type
+
         key = None
         value = 'value6'
         headers = {
@@ -4000,15 +4016,15 @@ class TestAsync():
         }
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, JINJA, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % service_type.capitalize())('topic6')
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('topic6')
         async_actor.set_consumer(async_consumer)
-        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % service_type.capitalize())()
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
         async_consumer_group.add_consumer(async_consumer)
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
@@ -4053,7 +4069,9 @@ class TestAsync():
             for row in async_consumer.log
         )
 
-    def test_post_async_reactive_consumer(self, service_type):
+    def test_post_async_reactive_consumer(self):
+        global async_service_type
+
         producer_topic = 'topic4'
         producer_key = 'key4'
         producer_value = """
@@ -4071,27 +4089,27 @@ class TestAsync():
         }
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % service_type.capitalize())(consumer_topic)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())(consumer_topic)
         async_actor.set_consumer(async_consumer)
-        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % service_type.capitalize())()
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
         async_consumer_group.add_consumer(async_consumer)
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             producer_topic,
             producer_value,
             key=producer_key,
@@ -4115,7 +4133,7 @@ class TestAsync():
         t.join()
         job.kill()
 
-    def test_post_async_bad_requests(self, service_type):
+    def test_post_async_bad_requests(self):
         actor99 = 'actor99'
         resp = httpx.post(MGMT + '/async/producers/%s' % actor99, verify=False)
         assert 400 == resp.status_code
@@ -4146,17 +4164,19 @@ class TestAsync():
                 for row in async_consumer.log
             )
 
-    def test_post_async_producer_templated(self, service_type):
+    def test_post_async_producer_templated(self):
+        global async_service_type
+
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % service_type.capitalize())('templated-producer', capture_limit=2)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('templated-producer', capture_limit=2)
         async_actor.set_consumer(async_consumer)
-        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % service_type.capitalize())()
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
         async_consumer_group.add_consumer(async_consumer)
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
@@ -4175,15 +4195,17 @@ class TestAsync():
         t.join()
         job.kill()
 
-    def test_async_producer_list_has_no_payloads_matching_tags(self, service_type):
+    def test_async_producer_list_has_no_payloads_matching_tags(self):
+        global async_service_type
+
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            'localhost:%s' % ASYNC_ADDR[service_type].split(':')[1],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            'localhost:%s' % ASYNC_ADDR[async_service_type].split(':')[1],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % service_type)(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic12',
             'value12-3',
             key='key12-3',
@@ -4194,7 +4216,7 @@ class TestAsync():
         async_producer.produce()
         job.kill()
 
-    def assert_post_async_multiproducer_part1(self, service_type):
+    def assert_post_async_multiproducer_part1(self):
         resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4208,7 +4230,7 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 3
 
-    def assert_post_async_multiproducer_part2(self, service_type):
+    def assert_post_async_multiproducer_part2(self):
         resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4221,7 +4243,7 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 5
 
-    def assert_post_async_multiproducer_part3(self, service_type):
+    def assert_post_async_multiproducer_part3(self):
         resp = httpx.get(MGMT + '/async/consumers/consumer-for-multiproducer', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4234,7 +4256,7 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 6
 
-    def test_post_async_multiproducer(self, service_type):
+    def test_post_async_multiproducer(self):
         for _ in range(3):
             resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
             assert 202 == resp.status_code
@@ -4263,7 +4285,7 @@ class TestAsync():
         resp = httpx.post(MGMT + '/reset-iterators', verify=False)
         assert 204 == resp.status_code
 
-    def test_post_async_multiproducer_no_payloads_matching_tags(self, service_type):
+    def test_post_async_multiproducer_no_payloads_matching_tags(self):
         resp = httpx.post(MGMT + '/tag', data="", verify=False)
         assert 204 == resp.status_code
 
@@ -4273,7 +4295,7 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/11', verify=False)
         assert 410 == resp.status_code
 
-    def test_post_async_multiproducer_nonlooped(self, service_type):
+    def test_post_async_multiproducer_nonlooped(self):
         for _ in range(2):
             resp = httpx.post(MGMT + '/async/producers/multiproducer-nonlooped', verify=False)
             assert 202 == resp.status_code
@@ -4324,7 +4346,7 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 13
 
-    def test_post_async_dataset(self, service_type):
+    def test_post_async_dataset(self):
         for _ in range(3):
             resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
             assert 202 == resp.status_code
@@ -4364,7 +4386,7 @@ class TestAsync():
 
         assert len(data['log']['entries']) == 3
 
-    def test_post_async_dataset_fromfile(self, service_type):
+    def test_post_async_dataset_fromfile(self):
         for _ in range(3):
             resp = httpx.post(MGMT + '/async/producers/dataset-fromfile', verify=False)
             assert 202 == resp.status_code
@@ -4382,7 +4404,7 @@ class TestAsync():
         ]:
             self.assert_consumer_log(data, key, value, headers)
 
-    def test_post_async_dataset_no_matching_tags(self, service_type):
+    def test_post_async_dataset_no_matching_tags(self):
         resp = httpx.post(MGMT + '/tag', data="", verify=False)
         assert 204 == resp.status_code
 
@@ -4391,7 +4413,7 @@ class TestAsync():
 
         self.assert_async_consume(self.assert_post_async_dataset_no_matching_tags)
 
-    def test_post_async_dataset_nonlooped(self, service_type):
+    def test_post_async_dataset_nonlooped(self):
         for _ in range(2):
             resp = httpx.post(MGMT + '/async/producers/dataset-nonlooped', verify=False)
             assert 202 == resp.status_code
@@ -4399,7 +4421,7 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/dataset-nonlooped', verify=False)
         assert 410 == resp.status_code
 
-    def test_delete_async_consumer_bad_requests(self, service_type):
+    def test_delete_async_consumer_bad_requests(self):
         resp = httpx.delete(MGMT + '/async/consumers/99', verify=False)
         assert 400 == resp.status_code
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
@@ -4411,7 +4433,9 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
-    def test_traffic_log_async(self, service_type):
+    def test_traffic_log_async(self):
+        global async_service_type
+
         resp = httpx.get(MGMT + '/traffic-log', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4423,7 +4447,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic1?key=key1' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic1?key=key1' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4432,7 +4456,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -4445,7 +4469,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -4458,7 +4482,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4467,7 +4491,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic6' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic6' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4476,7 +4500,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic7?key=key7' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic7?key=key7' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4485,7 +4509,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic8?key=key8' % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic8?key=key8' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4494,7 +4518,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-') % (service_type, ASYNC_ADDR[service_type].split(':')[1])
+            entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-') % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['request']['headers'][-2]['value'].isnumeric()
             and  # noqa: W504, W503
@@ -4504,7 +4528,7 @@ class TestAsync():
             for entry in entries
         )
 
-    def test_stats(self, service_type):
+    def test_stats(self):
         resp = httpx.get(MGMT + '/stats', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4591,7 +4615,7 @@ class TestAsync():
         assert data['services'][1]['status_code_distribution'] == {}
         assert len(data['services'][1]['endpoints']) == 0
 
-        assert data['services'][2]['hint'] == '%s://localhost:%s' % (service_type, str(int(ASYNC_ADDR[service_type].split(':')[1]) + 1))
+        assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
         assert data['services'][2]['request_counter'] == 0
         assert data['services'][2]['avg_resp_time'] == 0
         assert data['services'][2]['status_code_distribution'] == {}
@@ -4623,7 +4647,9 @@ class TestAsync():
 
         self.assert_consumer_log(data, key, value, headers)
 
-    def test_management_post_config(self, service_type):
+    def test_management_post_config(self):
+        global async_service_type
+
         resp = httpx.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4642,15 +4668,15 @@ class TestAsync():
         time.sleep(ASYNC_CONSUME_WAIT / 2)
 
         queue, job = start_render_queue()
-        async_service = getattr(sys.modules[__name__], '%sService' % service_type.capitalize())(
-            ASYNC_ADDR[service_type],
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        async_actor = getattr(sys.modules[__name__], '%sActor' % service_type.capitalize())(0)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
         async_service.add_actor(async_actor)
-        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % service_type.capitalize())('topic1', enable_topic_creation=True)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('topic1', enable_topic_creation=True)
         async_actor.set_consumer(async_consumer)
-        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % service_type.capitalize())()
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
         async_consumer_group.add_consumer(async_consumer)
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
@@ -4668,9 +4694,29 @@ class TestAsync():
         t.join()
         job.kill()
 
-    def test_management_get_resources(self, service_type):
+    def test_management_get_resources(self):
         resp = httpx.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}
+
+
+class TestAsyncKafka(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'kafka'
+        super().setup_class()
+
+
+class TestAsyncAMQP(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'amqp'
+        super().setup_class()
