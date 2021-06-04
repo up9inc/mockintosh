@@ -52,7 +52,7 @@ from mockintosh.services.asynchronous import (
     AsyncConsumer,
     AsyncConsumerGroup
 )
-from mockintosh.services.asynchronous.kafka import run_loops as kafka_run_loops
+from mockintosh.services.asynchronous._looping import run_loops as async_run_loops
 from mockintosh.replicas import Request, Response
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -190,7 +190,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
         self.update_globals()
 
-        kafka_run_loops()
+        async_run_loops()
 
         self.set_status(204)
 

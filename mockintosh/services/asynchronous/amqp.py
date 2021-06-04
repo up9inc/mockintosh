@@ -6,6 +6,7 @@
     :synopsis: module that contains AMQP related classes.
 """
 
+import time
 import logging
 from typing import (
     Union
@@ -56,23 +57,26 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
     def consume(self) -> None:
         host, port = self.consumers[0].actor.service.address.split(':')
-        connection = BlockingConnection(
-            ConnectionParameters(host=host, port=port)
-        )
-        channel = connection.channel()
+        while True:
+            try:
+                connection = BlockingConnection(
+                    ConnectionParameters(host=host, port=port)
+                )
+                channel = connection.channel()
 
-        queue = self.consumers[0].topic
+                queue = self.consumers[0].topic
 
-        try:
-            if any(consumer.enable_topic_creation for consumer in self.consumers):
-                channel.queue_declare(queue=queue)
-            else:
-                channel.queue_declare(queue=queue, passive=True)
+                if any(consumer.enable_topic_creation for consumer in self.consumers):
+                    channel.queue_declare(queue=queue)
+                else:
+                    channel.queue_declare(queue=queue, passive=True)
 
-            channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
-            channel.start_consuming()
-        except ChannelClosedByBroker as e:
-            logging.info('Queue %s does not exists: %s', queue, e)
+                channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
+                channel.start_consuming()
+                break
+            except ChannelClosedByBroker as e:
+                logging.info('Queue %s does not exists: %s', queue, e)
+                time.sleep(1)
 
 
 class AmqpProducerPayload(AsyncProducerPayload):
@@ -133,10 +137,6 @@ class AmqpService(AsyncService):
             ssl=ssl
         )
         self.type = 'amqp'
-
-
-def run_loops():
-    pass
 
 
 def build_single_payload_producer(

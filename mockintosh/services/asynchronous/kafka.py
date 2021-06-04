@@ -8,7 +8,6 @@
 
 import time
 import logging
-import threading
 from typing import (
     Union
 )
@@ -197,30 +196,6 @@ class KafkaService(AsyncService):
             ssl=ssl
         )
         self.type = 'kafka'
-
-
-def run_loops():
-    for service_id, service in enumerate(AsyncService.services):
-
-        consumer_groups = {}
-
-        for actor_id, actor in enumerate(service.actors):
-            t = threading.Thread(target=actor.run_produce_loop, args=(), kwargs={})
-            t.daemon = True
-            t.start()
-
-            if actor.consumer is not None:
-                if actor.consumer.topic not in consumer_groups.keys():
-                    consumer_group = KafkaConsumerGroup()
-                    consumer_group.add_consumer(actor.consumer)
-                    consumer_groups[actor.consumer.topic] = consumer_group
-                else:
-                    consumer_groups[actor.consumer.topic].add_consumer(actor.consumer)
-
-        for consumer_group in KafkaConsumerGroup.groups:
-            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
-            t.daemon = True
-            t.start()
 
 
 def build_single_payload_producer(

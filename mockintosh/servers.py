@@ -55,7 +55,7 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
-from mockintosh.services.asynchronous import kafka
+from mockintosh.services.asynchronous._looping import run_loops as async_run_loops
 
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -306,7 +306,7 @@ class HttpServer:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
-        kafka.run_loops()
+        async_run_loops()
         self.impl.serve()
 
     def make_app(
