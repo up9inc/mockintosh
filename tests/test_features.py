@@ -4518,7 +4518,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-') % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
             and  # noqa: W504, W503
             entry['request']['headers'][-2]['value'].isnumeric()
             and  # noqa: W504, W503
