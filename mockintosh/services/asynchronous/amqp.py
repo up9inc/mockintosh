@@ -27,6 +27,8 @@ from mockintosh.services.asynchronous import (
     AsyncService
 )
 
+EXCHANGE = 'direct_logs'
+
 
 def _decoder(value):
     try:
@@ -57,7 +59,7 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
     def callback(self, ch, method, properties: BasicProperties, body: bytes):
         self.consume_message(
-            key=None,
+            key=method.routing_key,
             value=_decoder(body),
             headers=properties.headers
         )
@@ -77,6 +79,20 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                     channel.queue_declare(queue=queue)
                 else:
                     channel.queue_declare(queue=queue, passive=True)
+
+                channel.exchange_declare(exchange=EXCHANGE, exchange_type='direct')
+
+                keys = []
+                for consumer in self.consumers:
+                    keys.append(consumer.match_key)
+
+                keys = list(set(keys))
+                for key in keys:
+                    channel.queue_bind(
+                        exchange=EXCHANGE,
+                        queue=queue,
+                        routing_key=key
+                    )
 
                 channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
                 channel.start_consuming()
@@ -112,8 +128,10 @@ class AmqpProducer(AsyncProducer):
             else:
                 channel.queue_declare(queue=queue, passive=True)
 
+            channel.exchange_declare(exchange=EXCHANGE, exchange_type='direct')
+
             channel.basic_publish(
-                exchange='',
+                exchange=EXCHANGE,
                 routing_key=key,
                 body=value,
                 properties=BasicProperties(
