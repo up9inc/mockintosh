@@ -116,7 +116,23 @@ class AmqpActor(AsyncActor):
 
 
 class AmqpService(AsyncService):
-    pass
+
+    def __init__(
+        self,
+        address: str,
+        name: str = None,
+        definition=None,
+        _id: int = None,
+        ssl: bool = False
+    ):
+        super().__init__(
+            address,
+            name=name,
+            definition=definition,
+            _id=_id,
+            ssl=ssl
+        )
+        self.type = 'amqp'
 
 
 def run_loops():

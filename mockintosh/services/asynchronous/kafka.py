@@ -180,7 +180,23 @@ class KafkaActor(AsyncActor):
 
 
 class KafkaService(AsyncService):
-    pass
+
+    def __init__(
+        self,
+        address: str,
+        name: str = None,
+        definition=None,
+        _id: int = None,
+        ssl: bool = False
+    ):
+        super().__init__(
+            address,
+            name=name,
+            definition=definition,
+            _id=_id,
+            ssl=ssl
+        )
+        self.type = 'kafka'
 
 
 def run_loops():

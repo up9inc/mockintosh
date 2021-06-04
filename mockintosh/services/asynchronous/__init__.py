@@ -62,7 +62,7 @@ class AsyncConsumerProducerBase:
 
     def info(self):
         return {
-            'type': 'kafka',
+            'type': self.actor.service.type,
             'name': self.actor.name,
             'index': self.index,
             'queue': self.topic
@@ -658,10 +658,18 @@ class AsyncService:
 
     services = []
 
-    def __init__(self, address: str, name: str = None, definition=None, _id: int = None, ssl: bool = False):
+    def __init__(
+        self,
+        address: str,
+        name: str = None,
+        definition=None,
+        _id: int = None,
+        ssl: bool = False
+    ):
         self.address = address
         self.name = name
         self.definition = definition
+        self.type = None
         self.actors = []
         self.id = _id
         self.ssl = ssl
