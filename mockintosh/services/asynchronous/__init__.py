@@ -36,12 +36,17 @@ from mockintosh.exceptions import (
     AsyncProducerDatasetLoopEnd
 )
 
+SERVICE_TYPES = {
+    'kafka': 'Kafka',
+    'amqp': 'AMQP'
+}
 
-def _merge_global_headers(_globals: dict, kafka_payload):
+
+def _merge_global_headers(_globals: dict, async_payload):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
-    produce_data_headers = kafka_payload.headers
+    produce_data_headers = async_payload.headers
     headers.update(produce_data_headers)
     return headers
 
@@ -260,7 +265,8 @@ class AsyncConsumerGroup:
         first_actor = self.consumers[0].actor
 
         logging.debug(
-            'Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r',
+            'Analyzing a/an %s message from %r addr=%r key=%r value=%r headers=%r',
+            SERVICE_TYPES[first_actor.service.type],
             first_actor.consumer.topic,
             first_actor.service.address,
             key,
@@ -296,7 +302,8 @@ class AsyncConsumerGroup:
 
         if matched_consumer is None:
             logging.debug(
-                'NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
+                'NOT MATCHED the %s message: addr=%r topic=%r key=%r value=%r headers=%r',
+                SERVICE_TYPES[first_actor.service.type],
                 first_actor.service.address,
                 first_actor.consumer.topic,
                 key,
@@ -306,13 +313,15 @@ class AsyncConsumerGroup:
             return
 
         logging.info(
-            'Consumed a Kafka message from %r by %r',
+            'Consumed a/an %s message from %r by %r',
+            SERVICE_TYPES[matched_consumer.actor.service.type],
             matched_consumer.actor.consumer.topic,
             '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
         )
         logging.debug(
-            '[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
+            '[%s] MATCHED the %s message: addr=%r topic=%r key=%r value=%r headers=%r',
             '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
+            SERVICE_TYPES[matched_consumer.actor.service.type],
             matched_consumer.actor.service.address,
             matched_consumer.actor.consumer.topic,
             key,
@@ -524,7 +533,8 @@ class AsyncProducer(AsyncConsumerProducerBase):
         self._produce(key, value, headers, payload)
 
         logging.info(
-            'Produced a Kafka message into %r from %r',
+            'Produced a/an %s message into %r from %r',
+            SERVICE_TYPES[self.actor.service.type],
             self.topic,
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id)
         )
@@ -627,9 +637,9 @@ class AsyncActor:
             return
 
         if self.limit is None:
-            logging.debug('Running a Kafka loop (%s) indefinitely...', self.get_hint())
+            logging.debug('Running a/an %s loop (%s) indefinitely...', SERVICE_TYPES[self.service.type], self.get_hint())
         else:
-            logging.debug('Running a Kafka loop (%s) for %d iterations...', self.get_hint(), self.limit)
+            logging.debug('Running a/an %s loop (%s) for %d iterations...', SERVICE_TYPES[self.service.type], self.get_hint(), self.limit)
 
         while self.limit is None or self.limit > 0:
             if self.stop:  # pragma: no cover
@@ -651,7 +661,7 @@ class AsyncActor:
             if self.limit is not None and self.limit > 0:
                 self.limit -= 1
 
-        logging.debug('Kafka loop (%s) is finished.', self.get_hint())
+        logging.debug('%s loop (%s) is finished.', SERVICE_TYPES[self.service.type], self.get_hint())
 
 
 class AsyncService:
