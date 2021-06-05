@@ -1,9 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "somekey": {}
-  },
-  "required": [
-    "somekey"
-  ]
-}
