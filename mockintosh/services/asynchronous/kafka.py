@@ -143,6 +143,8 @@ class KafkaConsumerGroup(AsyncConsumerGroup):
 
         return True
 
+    def _stop(self):
+        self.stop = True
 
 class KafkaProducerPayload(AsyncProducerPayload):
     pass

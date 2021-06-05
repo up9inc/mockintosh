@@ -3518,6 +3518,7 @@ class AsyncBase():
 
         # Create the Async topics/queues
         for topic in (
+            'topic1',
             'topic4',
             'topic5',
             'topic6',
@@ -3996,7 +3997,7 @@ class AsyncBase():
             headers
         )
 
-        async_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -4043,7 +4044,7 @@ class AsyncBase():
             headers
         )
 
-        async_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -4131,7 +4132,7 @@ class AsyncBase():
             producer_headers
         )
 
-        async_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -4193,7 +4194,7 @@ class AsyncBase():
             async_consumer
         )
 
-        async_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -4692,7 +4693,7 @@ class AsyncBase():
             async_consumer
         )
 
-        async_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 

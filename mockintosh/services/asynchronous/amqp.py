@@ -14,7 +14,7 @@ from typing import (
 
 from pika import BlockingConnection, ConnectionParameters
 from pika.spec import BasicProperties
-from pika.exceptions import ChannelClosedByBroker
+from pika.exceptions import ChannelClosedByBroker, StreamLostError
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -73,30 +73,40 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                 ConnectionParameters(host=host, port=port)
             )
             try:
-                channel = connection.channel()
+                self.channel = connection.channel()
 
                 queue = self.consumers[0].topic
 
                 if any(consumer.enable_topic_creation for consumer in self.consumers):
-                    channel.queue_declare(queue=queue)
+                    self.channel.queue_declare(queue=queue)
                 else:
-                    channel.queue_declare(queue=queue, passive=True)
+                    self.channel.queue_declare(queue=queue, passive=True)
 
-                channel.exchange_declare(exchange=EXCHANGE, exchange_type=EXCHANGE_TYPE)
+                exchange = '%s_%s' % (EXCHANGE, queue)
 
-                channel.queue_bind(
-                    exchange=EXCHANGE,
+                self.channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
+
+                self.channel.queue_bind(
+                    exchange=exchange,
                     queue=queue,
                     routing_key='#'
                 )
 
-                channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
-                channel.start_consuming()
+                self.channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
+
+                try:
+                    self.channel.start_consuming()
+                except StreamLostError:
+                    pass
+
                 break
             except ChannelClosedByBroker as e:
                 connection.close()
                 logging.info('Queue %s does not exists: %s', queue, e)
                 time.sleep(1)
+
+    def _stop(self):
+        self.channel.stop_consuming()
 
 
 class AmqpProducerPayload(AsyncProducerPayload):
@@ -124,10 +134,12 @@ class AmqpProducer(AsyncProducer):
             else:
                 channel.queue_declare(queue=queue, passive=True)
 
-            channel.exchange_declare(exchange=EXCHANGE, exchange_type=EXCHANGE_TYPE)
+            exchange = '%s_%s' % (EXCHANGE, queue)
+
+            channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
 
             channel.basic_publish(
-                exchange=EXCHANGE,
+                exchange=exchange,
                 routing_key=key if key is not None else '',
                 body=value,
                 properties=BasicProperties(
