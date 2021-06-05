@@ -1,7 +1,9 @@
 # Asynchronous Actors for Message Bus
 
-Mockintosh offers "Mock Actor" approach for using with asynchronous message bus technologies, such as Kafka. "Mock
-Actor" approach requires you to provide deployed message bus instance, and configure valid address for it inside
+Mockintosh offers "Mock Actor" approach for using with asynchronous message bus technologies, such as
+[Apache Kafka](https://kafka.apache.org/), [AMQP](https://www.amqp.org/) etc.
+See [supported backends](#supported-backends)
+"Mock Actor" approach requires you to provide deployed message bus instance, and configure valid address for it inside
 configuration file.
 
 Each Mock Actor is an entity that can be configured for producing or consuming messages or
@@ -372,3 +374,47 @@ produce:
 
 By default a producer loops through the given dataset indefinitely for each trigger. To disable this behavior, set
 `datasetLooped` to `false` similar to `datasetLooped` in HTTP.
+
+## Supported Backends
+
+Mockintosh supports two different asynchronous backends;
+[Apache Kafka](https://kafka.apache.org/) and [AMQP](https://www.amqp.org/).
+
+### Apache Kafka
+
+To be able to work with Apache Kafka, these two fields should be specified in a service:
+
+```yaml
+type: kafka
+address: localhost:9092
+```
+
+The `kafka` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
+to the Apache Kafka instance's hostname/IP and port.
+
+### Advanced Message Queuing Protocol (AMQP)
+
+AMQP as an [OASIS](https://en.wikipedia.org/wiki/OASIS_(organization)) standard is a widely accepted protocol
+accross the asynchronous message queue software such as;
+
+- [RabbitMQ](https://www.rabbitmq.com/)
+- [Apache ActiveMQ](https://activemq.apache.org/)
+- [Apache Qpid](https://qpid.apache.org/)
+- [JORAM](https://joram.ow2.io/)
+
+and cloud services such as;
+
+- [Amazon MQ](https://aws.amazon.com/amazon-mq/?amazon-mq.sort-by=item.additionalFields.postDateTime&amazon-mq.sort-order=desc)
+- [Azure Event Hubs](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-about)
+- [Azure Service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview)
+- [Solace](https://solace.com/)
+
+To be able to work with AMQP, these two fields should be specified in a service:
+
+```yaml
+type: amqp
+address: localhost:5672
+```
+
+The `amqp` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
+to the AMQP target hostname/IP and port.
