@@ -279,6 +279,7 @@ class AsyncConsumerGroup:
         async_handler = None
         for _consumer in self.consumers:
             async_handler = AsyncHandler(
+                _consumer.actor.service.type,
                 _consumer.actor.id,
                 _consumer.internal_endpoint_id,
                 _consumer.actor.service.definition.source_dir,
@@ -502,6 +503,7 @@ class AsyncProducer(AsyncConsumerProducerBase):
         context = copy.deepcopy(context)
 
         async_handler = AsyncHandler(
+            self.actor.service.type,
             self.actor.id,
             self.internal_endpoint_id,
             self.actor.service.definition.source_dir,

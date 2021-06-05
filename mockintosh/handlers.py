@@ -1239,6 +1239,7 @@ class AsyncHandler(BaseHandler):
 
     def __init__(
         self,
+        service_type: str,
         actor_id: int,
         internal_endpoint_id: [int, None],
         config_dir: [str, None],
@@ -1257,6 +1258,7 @@ class AsyncHandler(BaseHandler):
         params: dict = {}
     ):
         super().__init__()
+        self.service_type = service_type
         self.actor_id = actor_id
         self.internal_endpoint_id = internal_endpoint_id
         self.config_dir = config_dir
@@ -1386,7 +1388,7 @@ class AsyncHandler(BaseHandler):
         # Details
         request.version = None
         request.remoteIp = None
-        request.protocol = 'kafka'
+        request.protocol = self.service_type
         request.host = self.address
         request.hostName = hostname
         request.port = port

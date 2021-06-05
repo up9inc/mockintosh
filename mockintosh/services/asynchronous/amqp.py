@@ -106,7 +106,10 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                 time.sleep(1)
 
     def _stop(self):
-        self.channel.stop_consuming()
+        try:
+            self.channel.stop_consuming()
+        except StreamLostError:
+            pass
 
 
 class AmqpProducerPayload(AsyncProducerPayload):
