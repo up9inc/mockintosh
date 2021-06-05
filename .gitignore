@@ -131,7 +131,6 @@ tests/configs/yaml/hbs/kafka/key.pem
 
 # Copied Images
 tests/configs/yaml/hbs/kafka/image.png
-tests/configs/yaml/hbs/rabbitmq/image.png
 tests/configs/json/hbs/core/imagex
 
 # Copied JSON schemas
