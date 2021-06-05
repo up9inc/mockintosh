@@ -107,7 +107,7 @@ copy-data-dir-override:
 
 copy-amqp:
 	cp -r tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amqp/ && \
-	./tests/asset_copy_kafka_to_amqp.py
+	python3 ./tests/assets_copy_kafka_to_amqp.py
 
 up-kafka:
 	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
