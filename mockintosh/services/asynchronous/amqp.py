@@ -14,7 +14,7 @@ from typing import (
 
 from pika import BlockingConnection, ConnectionParameters
 from pika.spec import BasicProperties
-from pika.exceptions import ChannelClosedByBroker, StreamLostError
+from pika.exceptions import ChannelClosedByBroker, StreamLostError, AMQPConnectionError
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -69,41 +69,47 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
     def consume(self) -> None:
         host, port = self.consumers[0].actor.service.address.split(':')
         while True:
-            connection = BlockingConnection(
-                ConnectionParameters(host=host, port=port)
-            )
             try:
-                self.channel = connection.channel()
-
-                queue = self.consumers[0].topic
-
-                if any(consumer.enable_topic_creation for consumer in self.consumers):
-                    self.channel.queue_declare(queue=queue)
-                else:
-                    self.channel.queue_declare(queue=queue, passive=True)
-
-                exchange = '%s_%s' % (EXCHANGE, queue)
-
-                self.channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
-
-                self.channel.queue_bind(
-                    exchange=exchange,
-                    queue=queue,
-                    routing_key='#'
+                connection = BlockingConnection(
+                    ConnectionParameters(host=host, port=port)
                 )
-
-                self.channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
-
                 try:
-                    self.channel.start_consuming()
-                except StreamLostError:
-                    pass
+                    self.channel = connection.channel()
 
-                break
-            except ChannelClosedByBroker as e:
-                connection.close()
-                logging.info('Queue %s does not exists: %s', queue, e)
+                    queue = self.consumers[0].topic
+
+                    if any(consumer.enable_topic_creation for consumer in self.consumers):
+                        self.channel.queue_declare(queue=queue)
+                    else:
+                        self.channel.queue_declare(queue=queue, passive=True)
+
+                    exchange = '%s_%s' % (EXCHANGE, queue)
+
+                    self.channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
+
+                    self.channel.queue_bind(
+                        exchange=exchange,
+                        queue=queue,
+                        routing_key='#'
+                    )
+
+                    self.channel.basic_consume(queue=queue, on_message_callback=self.callback, auto_ack=True)
+
+                    try:
+                        self.channel.start_consuming()
+                    except StreamLostError:
+                        pass
+                    except AttributeError:
+                        pass
+
+                    break
+                except ChannelClosedByBroker as e:
+                    connection.close()
+                    logging.info('Queue %s does not exists: %s', queue, e)
+                    time.sleep(1)
+            except AMQPConnectionError:
                 time.sleep(1)
+                continue
 
     def _stop(self):
         try:
