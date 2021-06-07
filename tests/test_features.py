@@ -6,6 +6,7 @@
     :synopsis: Contains classes that tests mock server's features.
 """
 
+import sys
 import os
 import random
 import re
@@ -30,12 +31,33 @@ from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
 from mockintosh import start_render_queue
-from mockintosh.services import kafka
+from mockintosh.services.asynchronous.kafka import (  # noqa: F401
+    KafkaService,
+    KafkaActor,
+    KafkaConsumer,
+    KafkaConsumerGroup,
+    KafkaProducer,
+    KafkaProducerPayloadList,
+    KafkaProducerPayload,
+    _create_topic as kafka_create_topic,
+    build_single_payload_producer as kafka_build_single_payload_producer
+)
+from mockintosh.services.asynchronous.amqp import (  # noqa: F401
+    AmqpService,
+    AmqpActor,
+    AmqpConsumer,
+    AmqpConsumerGroup,
+    AmqpProducer,
+    AmqpProducerPayloadList,
+    AmqpProducerPayload,
+    _create_topic as amqp_create_topic,
+    build_single_payload_producer as amqp_build_single_payload_producer
+)
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
 from utilities import (
-    DefinitionMockForKafka,
+    DefinitionMockForAsync,
     tcping,
     run_mock_server,
     get_config_path,
@@ -71,12 +93,18 @@ SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
 
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
-KAFKA_CONSUME_TIMEOUT = os.environ.get('KAFKA_CONSUME_TIMEOUT', 120)
-KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 0.5)
+AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
+ASYNC_ADDR = {
+    'kafka': KAFKA_ADDR,
+    'amqp': AMQP_ADDR
+}
+ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
+ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
+async_service_type = None
 
 
 @pytest.mark.parametrize(('config'), configs)
@@ -1828,18 +1856,19 @@ class TestManagement():
                 data = json.loads(text)
                 assert data == resp.json()
 
-        with open(get_config_path('configs/yaml/hbs/kafka/config.yaml'), 'r') as file:
-            data = yaml.safe_load(file.read())
-            kafka_service = data['services'][0]
-            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(kafka_service), verify=False)
-            assert 400 == resp.status_code
-            assert resp.text == '\'port\' field is restricted!'
+        for service_type in ASYNC_ADDR.keys():
+            with open(get_config_path('configs/yaml/hbs/%s/config.yaml' % service_type), 'r') as file:
+                data = yaml.safe_load(file.read())
+                async_service = data['services'][0]
+                resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(async_service), verify=False)
+                assert 400 == resp.status_code
+                assert resp.text == '\'port\' field is restricted!'
 
-            kafka_service['port'] = 8001
-            kafka_service['hostname'] = 'service1.example.com'
-            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(kafka_service), verify=False)
-            assert 400 == resp.status_code
-            assert resp.text.startswith('JSON schema validation error:')
+                async_service['port'] = 8001
+                async_service['hostname'] = 'service1.example.com'
+                resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(async_service), verify=False)
+                assert 400 == resp.status_code
+                assert resp.text.startswith('JSON schema validation error:')
 
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
@@ -3477,15 +3506,19 @@ class TestPerformanceProfile():
             assert str(status_code) in faults or status_code == 201
 
 
-class TestAsync():
+class AsyncBase():
 
     mock_server_process = None
-    config = 'configs/yaml/hbs/kafka/config.yaml'
 
     @classmethod
     def setup_class(cls):
+        global async_service_type
+
+        config = 'configs/yaml/hbs/%s/config.yaml' % async_service_type
+
         # Create the Async topics/queues
         for topic in (
+            'topic1',
             'topic4',
             'topic5',
             'topic6',
@@ -3495,33 +3528,44 @@ class TestAsync():
             'templated-producer',
             'topic10',
             'topic11',
-            'binary-topic'
+            'topic12',
+            'topic13',
+            'topic14',
+            'topic15',
+            'topic16',
+            'topic17',
+            'topic18',
+            'topic19',
+            'topic20',
+            'binary-topic',
+            'chain1-step1',
+            'chain1-step2'
         ):
-            kafka._create_topic(KAFKA_ADDR, topic)
+            getattr(sys.modules[__name__], '%s_create_topic' % async_service_type)(ASYNC_ADDR[async_service_type], topic)
 
-        time.sleep(KAFKA_CONSUME_TIMEOUT / 8)
+        time.sleep(ASYNC_CONSUME_TIMEOUT / 16)
 
-        cmd = '%s %s' % (PROGRAM, get_config_path(TestAsync.config))
+        cmd = '%s %s' % (PROGRAM, get_config_path(config))
         if should_cov:
             cmd = 'coverage run --parallel -m %s' % cmd
         this_env = os.environ.copy()
-        TestAsync.mock_server_process = subprocess.Popen(
+        AsyncBase.mock_server_process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             shell=True,
             env=this_env
         )
-        time.sleep(KAFKA_CONSUME_TIMEOUT / 4)
+        time.sleep(ASYNC_CONSUME_TIMEOUT / 8)
 
-        kafka._create_topic(KAFKA_ADDR, 'topic2')
+        getattr(sys.modules[__name__], '%s_create_topic' % async_service_type)(ASYNC_ADDR[async_service_type], 'topic2')
 
         resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
         assert 204 == resp.status_code
 
     @classmethod
     def teardown_class(cls):
-        TestAsync.mock_server_process.kill()
+        AsyncBase.mock_server_process.kill()
         name = PROGRAM
         if should_cov:
             name = 'coverage'
@@ -3546,20 +3590,22 @@ class TestAsync():
             else:
                 assert criteria
 
-    def assert_kafka_consume(self, callback, *args):
+    def assert_async_consume(self, callback, *args):
         start = time.time()
         while True:
             try:
                 callback(*args)
             except AssertionError:
-                time.sleep(KAFKA_CONSUME_WAIT)
-                if time.time() - start > KAFKA_CONSUME_TIMEOUT:
+                time.sleep(ASYNC_CONSUME_WAIT)
+                if time.time() - start > ASYNC_CONSUME_TIMEOUT:
                     raise
                 else:
                     continue
             break
 
     def test_get_async(self):
+        global async_service_type
+
         for _format in ('json', 'yaml'):
             resp = httpx.get(MGMT + '/async?format=%s' % _format, verify=False)
             assert 200 == resp.status_code
@@ -3574,19 +3620,19 @@ class TestAsync():
             assert len(producers) == 23
             assert len(consumers) == 16
 
-            assert producers[0]['type'] == 'kafka'
+            assert producers[0]['type'] == async_service_type
             assert producers[0]['name'] is None
             assert producers[0]['index'] == 0
             assert producers[0]['queue'] == 'topic1'
             assert producers[0]['producedMessages'] == 0
             assert producers[0]['lastProduced'] is None
 
-            assert producers[3]['type'] == 'kafka'
+            assert producers[3]['type'] == async_service_type
             assert producers[3]['name'] == 'actor6'
             assert producers[3]['index'] == 3
             assert producers[3]['queue'] == 'topic6'
 
-            assert consumers[0]['type'] == 'kafka'
+            assert consumers[0]['type'] == async_service_type
             assert consumers[0]['name'] is None
             assert consumers[0]['index'] == 0
             assert consumers[0]['queue'] == 'topic2'
@@ -3594,7 +3640,7 @@ class TestAsync():
             assert consumers[0]['consumedMessages'] == 0
             assert consumers[0]['lastConsumed'] is None
 
-            assert consumers[3]['type'] == 'kafka'
+            assert consumers[3]['type'] == async_service_type
             assert consumers[3]['name'] == 'actor9'
             assert consumers[3]['index'] == 3
             assert consumers[3]['queue'] == 'topic9'
@@ -3618,7 +3664,7 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
         assert 202 == resp.status_code
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_get_async_chain,
             value,
             headers
@@ -3644,6 +3690,8 @@ class TestAsync():
         self.assert_consumer_log(data, not_key, not_value, not_headers2, invert=True)
 
     def test_get_async_consume(self):
+        global async_service_type
+
         key = 'key2'
         value = """
         {"somekey": "value"}
@@ -3660,68 +3708,68 @@ class TestAsync():
         value_json_decode_error = 'JSON Decode Error'
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.build_single_payload_producer(
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=key,
             headers=headers
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=not_key,
             headers=headers
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             not_value,
             key=key,
             headers=headers
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value_json_decode_error,
             key=key,
             headers=headers
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=key,
             headers=not_headers1
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
             value,
             key=key,
             headers=not_headers2
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_get_async_consume,
             key,
             value,
@@ -3759,7 +3807,7 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_get_async_produce_consume_loop,
             key,
             value,
@@ -3775,27 +3823,29 @@ class TestAsync():
         self.assert_consumer_log(data, key, value, headers)
 
     def test_get_async_consume_no_key(self):
+        global async_service_type
+
         key = None
         value = 'value10'
         headers = {}
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, JINJA, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, JINJA, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.build_single_payload_producer(
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic10',
             value,
             key=key,
             headers=headers
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_get_async_consume_no_key,
             key,
             value,
@@ -3823,6 +3873,8 @@ class TestAsync():
         assert any(entry['response']['content']['text'] == value11_2 for entry in data['log']['entries'])
 
     def test_get_async_consume_capture_limit(self):
+        global async_service_type
+
         topic10 = 'topic10'
         value10_1 = 'value10_1'
         value10_2 = 'value10_2'
@@ -3832,29 +3884,29 @@ class TestAsync():
         value11_2 = 'value11_2'
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
 
         # topic10 START
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic10,
             value10_1
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic10,
             value10_2
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_get_async_consume_capture_limit_part1,
             value10_1,
             value10_2
@@ -3862,21 +3914,21 @@ class TestAsync():
         # topic10 END
 
         # topic11 START
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic11,
             value11_1
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        kafka_producer = kafka.build_single_payload_producer(
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             topic11,
             value11_2
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_get_async_consume_capture_limit_part2,
             value11_1,
             value11_2
@@ -3914,10 +3966,12 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
-    def assert_post_async_produce(self, kafka_consumer, key, value, headers):
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
+    def assert_post_async_produce(self, async_consumer, key, value, headers):
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
     def test_post_async_produce(self):
+        global async_service_type
+
         key = 'key1'
         value = 'value1'
         headers = {
@@ -3927,32 +3981,32 @@ class TestAsync():
         }
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('topic1', enable_topic_creation=True)
-        kafka_actor.set_consumer(kafka_consumer)
-        kafka_consumer_group = kafka.KafkaConsumerGroup()
-        kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('topic1', enable_topic_creation=True)
+        async_actor.set_consumer(async_consumer)
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
+        async_consumer_group.add_consumer(async_consumer)
+        t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         assert 202 == resp.status_code
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_post_async_produce,
-            kafka_consumer,
+            async_consumer,
             key,
             value,
             headers
         )
 
-        kafka_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -3960,10 +4014,12 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/Binary%20Producer', verify=False)
         assert 202 == resp.status_code
 
-    def assert_post_async_produce_by_actor_name(self, kafka_consumer, key, value, headers):
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
+    def assert_post_async_produce_by_actor_name(self, async_consumer, key, value, headers):
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
     def test_post_async_produce_by_actor_name(self):
+        global async_service_type
+
         key = None
         value = 'value6'
         headers = {
@@ -3972,38 +4028,38 @@ class TestAsync():
         }
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, JINJA, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, JINJA, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('topic6')
-        kafka_actor.set_consumer(kafka_consumer)
-        kafka_consumer_group = kafka.KafkaConsumerGroup()
-        kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('topic6')
+        async_actor.set_consumer(async_consumer)
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
+        async_consumer_group.add_consumer(async_consumer)
+        t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
         resp = httpx.post(MGMT + '/async/producers/actor6', verify=False)
         assert 202 == resp.status_code
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_post_async_produce_by_actor_name,
-            kafka_consumer,
+            async_consumer,
             key,
             value,
             headers
         )
 
-        kafka_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
     def assert_post_async_reactive_consumer(
         self,
-        kafka_consumer,
+        async_consumer,
         consumer_key,
         consumer_value,
         consumer_headers,
@@ -4022,10 +4078,12 @@ class TestAsync():
             ))
             and  # noqa: W504, W503
             (row[2] == consumer_headers)
-            for row in kafka_consumer.log
+            for row in async_consumer.log
         )
 
     def test_post_async_reactive_consumer(self):
+        global async_service_type
+
         producer_topic = 'topic4'
         producer_key = 'key4'
         producer_value = """
@@ -4043,38 +4101,38 @@ class TestAsync():
         }
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer(consumer_topic)
-        kafka_actor.set_consumer(kafka_consumer)
-        kafka_consumer_group = kafka.KafkaConsumerGroup()
-        kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())(consumer_topic)
+        async_actor.set_consumer(async_consumer)
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
+        async_consumer_group.add_consumer(async_consumer)
+        t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.build_single_payload_producer(
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             producer_topic,
             producer_value,
             key=producer_key,
             headers=producer_headers
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_post_async_reactive_consumer,
-            kafka_consumer,
+            async_consumer,
             consumer_key,
             consumer_value,
             consumer_headers,
@@ -4083,7 +4141,7 @@ class TestAsync():
             producer_headers
         )
 
-        kafka_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -4099,7 +4157,7 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'Invalid producer index!'
 
-    def assert_post_async_producer_templated(self, kafka_consumer):
+    def assert_post_async_producer_templated(self, async_consumer):
         for i in range(2):
             assert any(
                 (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
@@ -4115,22 +4173,24 @@ class TestAsync():
                 (int(row[2]['counter']) == i + 1)
                 and  # noqa: W504, W503
                 (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
-                for row in kafka_consumer.log
+                for row in async_consumer.log
             )
 
     def test_post_async_producer_templated(self):
+        global async_service_type
+
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('templated-producer', capture_limit=2)
-        kafka_actor.set_consumer(kafka_consumer)
-        kafka_consumer_group = kafka.KafkaConsumerGroup()
-        kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('templated-producer', capture_limit=2)
+        async_actor.set_consumer(async_consumer)
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
+        async_consumer_group.add_consumer(async_consumer)
+        t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4138,32 +4198,34 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_post_async_producer_templated,
-            kafka_consumer
+            async_consumer
         )
 
-        kafka_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
     def test_async_producer_list_has_no_payloads_matching_tags(self):
+        global async_service_type
+
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            'localhost:9092',
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            'localhost:%s' % ASYNC_ADDR[async_service_type].split(':')[1],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_producer = kafka.build_single_payload_producer(
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic12',
             'value12-3',
             key='key12-3',
             headers={'hdr12-3': 'val12-3'},
             tag='async-tag12-3'
         )
-        kafka_actor.set_producer(kafka_producer)
-        kafka_producer.produce()
+        async_actor.set_producer(async_producer)
+        async_producer.produce()
         job.kill()
 
     def assert_post_async_multiproducer_part1(self):
@@ -4211,7 +4273,7 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_multiproducer_part1)
+        self.assert_async_consume(self.assert_post_async_multiproducer_part1)
 
         resp = httpx.post(MGMT + '/tag', data="async-tag12-3", verify=False)
         assert 204 == resp.status_code
@@ -4220,12 +4282,12 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_multiproducer_part2)
+        self.assert_async_consume(self.assert_post_async_multiproducer_part2)
 
         resp = httpx.post(MGMT + '/async/producers/multiproducer', verify=False)
         assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_multiproducer_part3)
+        self.assert_async_consume(self.assert_post_async_multiproducer_part3)
 
         resp = httpx.get(MGMT + '/tag', verify=False)
         assert 200 == resp.status_code
@@ -4301,7 +4363,7 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_dataset_part1)
+        self.assert_async_consume(self.assert_post_async_dataset_part1)
 
         resp = httpx.post(MGMT + '/tag', data="first", verify=False)
         assert 204 == resp.status_code
@@ -4310,7 +4372,7 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_dataset_part2)
+        self.assert_async_consume(self.assert_post_async_dataset_part2)
 
         resp = httpx.post(MGMT + '/tag', data="second", verify=False)
         assert 204 == resp.status_code
@@ -4319,7 +4381,7 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/dataset', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_dataset_part3)
+        self.assert_async_consume(self.assert_post_async_dataset_part3)
 
     def assert_post_async_dataset_fromfile(self):
         resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset-fromfile', verify=False)
@@ -4341,7 +4403,7 @@ class TestAsync():
             resp = httpx.post(MGMT + '/async/producers/dataset-fromfile', verify=False)
             assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_dataset_fromfile)
+        self.assert_async_consume(self.assert_post_async_dataset_fromfile)
 
     def assert_post_async_dataset_no_matching_tags(self):
         resp = httpx.get(MGMT + '/async/consumers/consumer-for-dataset-no-matching-tags', verify=False)
@@ -4361,7 +4423,7 @@ class TestAsync():
         resp = httpx.post(MGMT + '/async/producers/dataset-no-matching-tags', verify=False)
         assert 202 == resp.status_code
 
-        self.assert_kafka_consume(self.assert_post_async_dataset_no_matching_tags)
+        self.assert_async_consume(self.assert_post_async_dataset_no_matching_tags)
 
     def test_post_async_dataset_nonlooped(self):
         for _ in range(2):
@@ -4383,7 +4445,9 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
-    def test_traffic_log_kafka(self):
+    def test_traffic_log_async(self):
+        global async_service_type
+
         resp = httpx.get(MGMT + '/traffic-log', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4395,7 +4459,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic1?key=key1'
+            entry['request']['url'] == '%s://localhost:%s/topic1?key=key1' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4404,7 +4468,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic2?key=key2'
+            entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -4417,7 +4481,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'GET'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
+            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 200
             and  # noqa: W504, W503
@@ -4430,7 +4494,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic3?key=key3'
+            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4439,7 +4503,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic6'
+            entry['request']['url'] == '%s://localhost:%s/topic6' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4448,7 +4512,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic7?key=key7'
+            entry['request']['url'] == '%s://localhost:%s/topic7?key=key7' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4457,7 +4521,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == 'kafka://localhost:9092/topic8?key=key8'
+            entry['request']['url'] == '%s://localhost:%s/topic8?key=key8' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4466,7 +4530,7 @@ class TestAsync():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'].startswith('kafka://localhost:9092/templated-producer?key=prefix-')
+            entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
             and  # noqa: W504, W503
             entry['request']['headers'][-2]['value'].isnumeric()
             and  # noqa: W504, W503
@@ -4487,7 +4551,7 @@ class TestAsync():
         assert data['global']['status_code_distribution']['200'] > 8
         assert data['global']['status_code_distribution']['202'] > 8
 
-        assert data['services'][0]['hint'] == 'Kafka Mocks'
+        assert data['services'][0]['hint'] == 'Asynchronous Mocks'
         assert data['services'][0]['request_counter'] > 20
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
@@ -4505,15 +4569,15 @@ class TestAsync():
         assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 2}
 
         assert data['services'][0]['endpoints'][2]['hint'] == 'PUT topic3 - 2'
-        assert data['services'][0]['endpoints'][2]['request_counter'] > 2
+        assert data['services'][0]['endpoints'][2]['request_counter'] > 1
         assert data['services'][0]['endpoints'][2]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][2]['status_code_distribution']['202'] > 5
+        assert data['services'][0]['endpoints'][2]['status_code_distribution']['202'] > 1
         assert data['services'][0]['endpoints'][2]['status_code_distribution']['202'] == data['services'][0]['endpoints'][2]['request_counter']
 
         assert data['services'][0]['endpoints'][3]['hint'] == 'GET topic3 - 3'
-        assert data['services'][0]['endpoints'][3]['request_counter'] > 2
+        assert data['services'][0]['endpoints'][3]['request_counter'] > 0
         assert data['services'][0]['endpoints'][3]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][3]['status_code_distribution']['200'] > 5
+        assert data['services'][0]['endpoints'][3]['status_code_distribution']['200'] > 0
         assert data['services'][0]['endpoints'][3]['status_code_distribution']['200'] == data['services'][0]['endpoints'][3]['request_counter']
 
         assert data['services'][0]['endpoints'][4]['hint'] == 'GET topic4 - 4'
@@ -4538,9 +4602,9 @@ class TestAsync():
         assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] == data['services'][0]['endpoints'][7]['request_counter']
 
         assert data['services'][0]['endpoints'][8]['hint'] == 'PUT topic8 - 7 (actor: short-loop)'
-        assert data['services'][0]['endpoints'][8]['request_counter'] == 10
+        assert data['services'][0]['endpoints'][8]['request_counter'] > 5
         assert data['services'][0]['endpoints'][8]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][8]['status_code_distribution'] == {'202': 10}
+        assert data['services'][0]['endpoints'][8]['status_code_distribution']['202'] > 5
 
         assert data['services'][0]['endpoints'][9]['hint'] == 'GET topic9 - 8 (actor: actor9)'
         assert data['services'][0]['endpoints'][9]['request_counter'] == 0
@@ -4563,13 +4627,13 @@ class TestAsync():
         assert data['services'][1]['status_code_distribution'] == {}
         assert len(data['services'][1]['endpoints']) == 0
 
-        assert data['services'][2]['hint'] == 'kafka://localhost:9093'
+        assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
         assert data['services'][2]['request_counter'] == 0
         assert data['services'][2]['avg_resp_time'] == 0
         assert data['services'][2]['status_code_distribution'] == {}
         assert len(data['services'][2]['endpoints']) == 2
 
-    def assert_management_post_config(self, kafka_consumer):
+    def assert_management_post_config(self, async_consumer):
         key = 'key1'
         value = 'value101'
         headers = {
@@ -4578,7 +4642,7 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in kafka_consumer.log)
+        assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
         key = 'key301'
         value = 'value3'
@@ -4596,6 +4660,8 @@ class TestAsync():
         self.assert_consumer_log(data, key, value, headers)
 
     def test_management_post_config(self):
+        global async_service_type
+
         resp = httpx.get(MGMT + '/config', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4611,32 +4677,32 @@ class TestAsync():
         resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
         assert 204 == resp.status_code
 
-        time.sleep(KAFKA_CONSUME_WAIT / 2)
+        time.sleep(ASYNC_CONSUME_WAIT / 2)
 
         queue, job = start_render_queue()
-        kafka_service = kafka.KafkaService(
-            KAFKA_ADDR,
-            definition=DefinitionMockForKafka(None, PYBARS, queue)
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
-        kafka_actor = kafka.KafkaActor(0)
-        kafka_service.add_actor(kafka_actor)
-        kafka_consumer = kafka.KafkaConsumer('topic1', enable_topic_creation=True)
-        kafka_actor.set_consumer(kafka_consumer)
-        kafka_consumer_group = kafka.KafkaConsumerGroup()
-        kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())('topic1', enable_topic_creation=True)
+        async_actor.set_consumer(async_consumer)
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
+        async_consumer_group.add_consumer(async_consumer)
+        t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         assert 202 == resp.status_code
 
-        self.assert_kafka_consume(
+        self.assert_async_consume(
             self.assert_management_post_config,
-            kafka_consumer
+            async_consumer
         )
 
-        kafka_consumer_group.stop = True
+        async_consumer_group._stop()
         t.join()
         job.kill()
 
@@ -4646,3 +4712,23 @@ class TestAsync():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
         assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}
+
+
+class TestAsyncKafka(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'kafka'
+        super().setup_class()
+
+
+class TestAsyncAMQP(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'amqp'
+        super().setup_class()

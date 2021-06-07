@@ -1234,11 +1234,12 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         return (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS
 
 
-class KafkaHandler(BaseHandler):
-    """Class to handle mocked Kafka data."""
+class AsyncHandler(BaseHandler):
+    """Class to handle mocked async data."""
 
     def __init__(
         self,
+        service_type: str,
         actor_id: int,
         internal_endpoint_id: [int, None],
         config_dir: [str, None],
@@ -1252,11 +1253,16 @@ class KafkaHandler(BaseHandler):
         service_id: int = None,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {},
-        context: dict = {},
-        params: dict = {}
+        headers: Union[dict, None] = None,
+        context: Union[dict, None] = None,
+        params: Union[dict, None] = None
     ):
         super().__init__()
+        headers = {} if headers is None else headers
+        context = {} if context is None else context
+        params = {} if params is None else params
+
+        self.service_type = service_type
         self.actor_id = actor_id
         self.internal_endpoint_id = internal_endpoint_id
         self.config_dir = config_dir
@@ -1346,8 +1352,9 @@ class KafkaHandler(BaseHandler):
         self,
         key: Union[str, None] = None,
         value: Union[str, None] = None,
-        headers: dict = {}
+        headers: Union[dict, None] = None
     ):
+        headers = {} if headers is None else headers
         self.response_body = value
         self.response_headers = copy.deepcopy(headers)
         if key is not None:
@@ -1386,7 +1393,7 @@ class KafkaHandler(BaseHandler):
         # Details
         request.version = None
         request.remoteIp = None
-        request.protocol = 'kafka'
+        request.protocol = self.service_type
         request.host = self.address
         request.hostName = hostname
         request.port = port

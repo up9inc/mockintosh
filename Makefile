@@ -21,12 +21,12 @@ test-integration: build
 	tests_integrated/acceptance.sh && \
 	${MAKE} stop-containers
 
-test-without-coverage: copy-assets up-kafka
+test-without-coverage: copy-assets up-kafka up-rabbitmq
 	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG
 
-test-with-coverage: test-style copy-assets up-kafka test-openapi-transpiler
+test-with-coverage: test-style copy-assets up-kafka up-rabbitmq test-openapi-transpiler
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -49,7 +49,7 @@ test-openapi-transpiler:
 	./tests/test-openapi-transpiler.sh
 
 stop-containers:
-	docker stop $$(docker ps -a -q)
+	docker stop $$(docker ps -a -q) || exit 0
 
 test-style:
 	flake8
@@ -85,7 +85,7 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images copy-data-dir-override
+copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -105,5 +105,12 @@ copy-data-dir-override:
 	cp tests/configs/yaml/hbs/body/body_schema.json tests/configs/yaml/hbs/data_dir_override/
 	cp tests/configs/yaml/hbs/body/body_schema_error.json tests/configs/yaml/hbs/data_dir_override/
 
+copy-amqp:
+	cp -r tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amqp/ && \
+	python3 ./tests/assets_copy_kafka_to_amqp.py
+
 up-kafka:
-	docker run -d -it --net=host up9inc/mockintosh:self-contained-kafka
+	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
+
+up-rabbitmq:
+	docker run -d -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management

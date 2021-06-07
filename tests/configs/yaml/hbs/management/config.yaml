@@ -44,7 +44,7 @@ services:
     response:
       status: "FIN"
       body: "service2-fin"
-- name: Kafka Mocks
+- name: Asynchronous Mocks
   type: kafka
   address: localhost:9092
   actors: []
