@@ -981,14 +981,14 @@ class IntegrationTests(unittest.TestCase):
 
     def test_rabbitmq_chained(self):
         # clean the log
-        resp = httpx.delete(MGMT + '/async/consumers/chain1-validating', verify=False)
+        resp = httpx.delete(MGMT + '/async/consumers/chain2-validating', verify=False)
         resp.raise_for_status()
 
-        resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
+        resp = httpx.post(MGMT + '/async/producers/chain2-on-demand', verify=False)
         resp.raise_for_status()
 
         for _ in range(5):
-            resp = httpx.get(MGMT + '/async/consumers/chain1-validating', verify=False)
+            resp = httpx.get(MGMT + '/async/consumers/chain2-validating', verify=False)
             resp.raise_for_status()
             msgs = resp.json()['log']['entries']
             if not msgs:
