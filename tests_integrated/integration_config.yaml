@@ -350,3 +350,29 @@ services:
             captured: "1234.567" # nasty one
         delay: 1
         limit: 1000
+
+  - name: RabbitMQ
+    type: amqp
+    address: localhost:5672
+    actors:
+      - name: chain2-on-demand
+        produce:
+          create: true
+          queue: chain2-step1
+          value: "{{date.timestamp}}"
+      - name: chain2-reactive
+        consume:
+          queue: chain2-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          create: true
+          queue: chain2-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain2-validating
+        consume:
+          queue: chain2-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"

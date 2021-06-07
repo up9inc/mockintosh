@@ -893,8 +893,9 @@ class IntegrationTests(unittest.TestCase):
         desired = [x for x in resp.json()["producers"] if x['name'] == 'on-demand-1']
         desired[0].pop('producedMessages')
         desired[0].pop('lastProduced')
+        desired[0].pop('type')
         self.assertEqual({
-            "type": "kafka",
+            # "type": "kafka",
             "name": "on-demand-1",
             "queue": "on-demand1",
             "index": 0,  # TODO
@@ -959,6 +960,26 @@ class IntegrationTests(unittest.TestCase):
 
     @pytest.mark.kafka
     def test_kafka_producer_chained(self):
+        # clean the log
+        resp = httpx.delete(MGMT + '/async/consumers/chain1-validating', verify=False)
+        resp.raise_for_status()
+
+        resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
+        resp.raise_for_status()
+
+        for _ in range(5):
+            resp = httpx.get(MGMT + '/async/consumers/chain1-validating', verify=False)
+            resp.raise_for_status()
+            msgs = resp.json()['log']['entries']
+            if not msgs:
+                time.sleep(1)
+                continue
+            self.assertEqual(1, len(msgs))
+            break
+        else:
+            self.fail("Did not capture the message")
+
+    def test_rabbitmq_chained(self):
         # clean the log
         resp = httpx.delete(MGMT + '/async/consumers/chain1-validating', verify=False)
         resp.raise_for_status()
