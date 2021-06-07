@@ -15,11 +15,11 @@ from mockintosh.services.asynchronous.amqp import AmqpConsumerGroup  # noqa: F40
 
 
 def run_loops():
-    for service_id, service in enumerate(AsyncService.services):
+    for service in AsyncService.services:
         class_name_prefix = service.type.capitalize()
         consumer_groups = {}
 
-        for actor_id, actor in enumerate(service.actors):
+        for actor in service.actors:
             t = threading.Thread(target=actor.run_produce_loop, args=(), kwargs={})
             t.daemon = True
             t.start()

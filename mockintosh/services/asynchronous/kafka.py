@@ -205,7 +205,7 @@ def build_single_payload_producer(
     topic: str,
     value: str,
     key: Union[str, None] = None,
-    headers: dict = {},
+    headers: Union[dict, None] = None,
     tag: Union[str, None] = None,
     enable_topic_creation: bool = False
 ) -> KafkaProducer:
@@ -213,7 +213,7 @@ def build_single_payload_producer(
     payload = KafkaProducerPayload(
         value,
         key=key,
-        headers=headers,
+        headers={} if headers is None else headers,
         tag=tag
     )
     payload_list.add_payload(payload)

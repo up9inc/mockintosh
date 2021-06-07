@@ -1253,11 +1253,15 @@ class AsyncHandler(BaseHandler):
         service_id: int = None,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {},
-        context: dict = {},
-        params: dict = {}
+        headers: Union[dict, None] = None,
+        context: Union[dict, None] = None,
+        params: Union[dict, None] = None
     ):
         super().__init__()
+        headers = {} if headers is None else headers
+        context = {} if context is None else context
+        params = {} if params is None else params
+
         self.service_type = service_type
         self.actor_id = actor_id
         self.internal_endpoint_id = internal_endpoint_id
@@ -1348,8 +1352,9 @@ class AsyncHandler(BaseHandler):
         self,
         key: Union[str, None] = None,
         value: Union[str, None] = None,
-        headers: dict = {}
+        headers: Union[dict, None] = None
     ):
+        headers = {} if headers is None else headers
         self.response_body = value
         self.response_headers = copy.deepcopy(headers)
         if key is not None:

@@ -1050,7 +1050,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
         else:
             producer = None
             actor_name = unquote(value)
-            for service_id, service in enumerate(AsyncService.services):
+            for service in AsyncService.services:
                 for actor_id, actor in enumerate(service.actors):
                     if actor.name == actor_name:
                         if actor.producer is None:  # pragma: no cover
