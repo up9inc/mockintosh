@@ -980,6 +980,15 @@ class IntegrationTests(unittest.TestCase):
             self.fail("Did not capture the message")
 
     def test_rabbitmq_chained(self):
+        # trigger queue create
+        resp = httpx.post(MGMT + '/async/producers/chain2-on-demand', verify=False)
+        resp.raise_for_status()
+
+        resp = httpx.post(MGMT + '/async/producers/chain2-reactive', verify=False)
+        resp.raise_for_status()
+
+        time.sleep(2)  # wait for consumers to subscribe
+
         # clean the log
         resp = httpx.delete(MGMT + '/async/consumers/chain2-validating', verify=False)
         resp.raise_for_status()
