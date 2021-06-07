@@ -418,3 +418,5 @@ address: localhost:5672
 
 The `amqp` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
 to the AMQP target hostname/IP and port.
+
+*Note: `rabbitmq` as a value for the `type` field instead of `amqp` is also accepted.*

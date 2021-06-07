@@ -13,7 +13,7 @@ data['services'][0]['actors'][9]['produce']['headers']['counter'] = "{{counter '
 data['services'][2]['type'] = 'amqp'
 data['services'][2]['address'] = 'localhost:5673'
 
-data['services'][3]['type'] = 'amqp'
+data['services'][3]['type'] = 'rabbitmq'
 data['services'][3]['address'] = 'localhost:5674'
 
 yaml.dump(data, open('tests/configs/yaml/hbs/amqp/config.yaml', 'w'), sort_keys=False)
