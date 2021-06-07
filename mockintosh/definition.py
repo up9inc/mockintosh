@@ -161,10 +161,11 @@ class Definition:
         service: ConfigHttpService,
         template_engine: str,
         rendering_queue: RenderingQueue,
-        performance_profiles: dict = {},
+        performance_profiles: Union[dict, None] = None,
         global_performance_profile: Union[ConfigGlobals, None] = None,
         internal_http_service_id: Union[int, None] = None
     ):
+        performance_profiles = {} if performance_profiles is None else performance_profiles
         http_service = HttpService(
             service.port,
             service.name,

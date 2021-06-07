@@ -91,7 +91,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         schema: Union[str, dict] = None,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {},
+        headers: Union[dict, None] = None,
         capture_limit: int = 1,
         enable_topic_creation: bool = False
     ):
@@ -99,7 +99,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         self.schema = schema
         self.match_value = value
         self.match_key = key
-        self.match_headers = headers
+        self.match_headers = {} if headers is None else headers
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
@@ -214,8 +214,10 @@ class AsyncConsumerGroup:
         async_handler: AsyncHandler,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {}
+        headers: Union[dict, None] = None
     ) -> None:
+        headers = {} if headers is None else headers
+
         matched_consumer.log.append(
             (key, value, headers)
         )
@@ -260,8 +262,9 @@ class AsyncConsumerGroup:
         self,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {}
+        headers: Union[dict, None] = None
     ) -> None:
+        headers = {} if headers is None else headers
         first_actor = self.consumers[0].actor
 
         logging.debug(
@@ -349,13 +352,13 @@ class AsyncProducerPayload:
         self,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {},
+        headers: Union[dict, None] = None,
         tag: Union[str, None] = None,
         enable_topic_creation: bool = False
     ):
         self.value = value
         self.key = key
-        self.headers = headers
+        self.headers = {} if headers is None else headers
         self.tag = tag
         self.enable_topic_creation = enable_topic_creation
 
@@ -495,7 +498,13 @@ class AsyncProducer(AsyncConsumerProducerBase):
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
         raise NotImplementedError
 
-    def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
+    def produce(
+        self,
+        consumed: Consumed = None,
+        context: Union[dict, None] = None,
+        ignore_delay: bool = False
+    ) -> None:
+        context = {} if context is None else context
         payload = self.get_payload()
         if payload is None:
             return
