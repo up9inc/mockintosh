@@ -130,7 +130,7 @@ class ConfigRootBuilder:
 
     def build_config_async_service(self, data: dict, internal_service_id: Union[int, None] = None) -> ConfigAsyncService:
         config_service = ConfigAsyncService(
-            'amqp' if data['type'] == 'rabbitmq' else data['type'],
+            'amqp' if data['type'] in ('rabbitmq', 'activemq') else data['type'],
             data['address'],
             actors=[],
             name=data.get('name', None),

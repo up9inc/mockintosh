@@ -397,17 +397,17 @@ to the Apache Kafka instance's hostname/IP and port.
 AMQP as an [OASIS](https://en.wikipedia.org/wiki/OASIS_(organization)) standard is a widely accepted protocol
 accross the asynchronous message queue software such as;
 
-  - [RabbitMQ](https://www.rabbitmq.com/)
-  - [Apache ActiveMQ](https://activemq.apache.org/)
-  - [Apache Qpid](https://qpid.apache.org/)
-  - [JORAM](https://joram.ow2.io/)
+-   [RabbitMQ](https://www.rabbitmq.com/)
+-   [Apache ActiveMQ](https://activemq.apache.org/)
+-   [Apache Qpid](https://qpid.apache.org/)
+-   [JORAM](https://joram.ow2.io/)
 
 and cloud services such as;
 
-  - [Amazon MQ](https://aws.amazon.com/amazon-mq/?amazon-mq.sort-by=item.additionalFields.postDateTime&amazon-mq.sort-order=desc)
-  - [Azure Event Hubs](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-about)
-  - [Azure Service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview)
-  - [Solace](https://solace.com/)
+-   [Amazon MQ](https://aws.amazon.com/amazon-mq/?amazon-mq.sort-by=item.additionalFields.postDateTime&amazon-mq.sort-order=desc)
+-   [Azure Event Hubs](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-about)
+-   [Azure Service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview)
+-   [Solace](https://solace.com/)
 
 To be able to work with AMQP, these two fields should be specified in a service:
 
@@ -419,4 +419,4 @@ address: localhost:5672
 The `amqp` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
 to the AMQP target hostname/IP and port.
 
-*Note: `rabbitmq` as a value for the `type` field instead of `amqp` is also accepted.*
+*Note: `rabbitmq` and `activemq` as a value for the `type` field instead of `amqp` is also accepted.*

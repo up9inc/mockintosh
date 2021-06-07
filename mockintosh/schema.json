@@ -19,6 +19,7 @@
             "kafka",
             "amqp",
             "rabbitmq",
+            "activemq",
             "redis"
           ]
         },
