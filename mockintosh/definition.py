@@ -62,6 +62,14 @@ from mockintosh.services.asynchronous.amqp import (  # noqa: F401
     AmqpProducerPayloadList,
     AmqpProducerPayload
 )
+from mockintosh.services.asynchronous.redis import (  # noqa: F401
+    RedisService,
+    RedisActor,
+    RedisConsumer,
+    RedisProducer,
+    RedisProducerPayloadList,
+    RedisProducerPayload
+)
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     AsyncProducerListQueueMismatch

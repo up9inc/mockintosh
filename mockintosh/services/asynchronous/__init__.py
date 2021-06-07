@@ -39,7 +39,8 @@ from mockintosh.exceptions import (
 
 SERVICE_TYPES = {
     'kafka': 'Kafka',
-    'amqp': 'AMQP'
+    'amqp': 'AMQP',
+    'redis': 'Redis'
 }
 
 

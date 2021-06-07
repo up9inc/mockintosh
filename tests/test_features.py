@@ -53,6 +53,17 @@ from mockintosh.services.asynchronous.amqp import (  # noqa: F401
     _create_topic as amqp_create_topic,
     build_single_payload_producer as amqp_build_single_payload_producer
 )
+from mockintosh.services.asynchronous.redis import (  # noqa: F401
+    RedisService,
+    RedisActor,
+    RedisConsumer,
+    RedisConsumerGroup,
+    RedisProducer,
+    RedisProducerPayloadList,
+    RedisProducerPayload,
+    _create_topic as redis_create_topic,
+    build_single_payload_producer as redis_build_single_payload_producer
+)
 from mockintosh.constants import PROGRAM, BASE64, PYBARS, JINJA
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
@@ -4731,4 +4742,13 @@ class TestAsyncAMQP(AsyncBase):
         global async_service_type
 
         async_service_type = 'amqp'
+        super().setup_class()
+
+class TestAsyncRedis(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'redis'
         super().setup_class()

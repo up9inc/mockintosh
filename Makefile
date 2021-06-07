@@ -85,7 +85,7 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp
+copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -109,8 +109,15 @@ copy-amqp:
 	cp -r tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amqp/ && \
 	python3 ./tests/assets_copy_kafka_to_amqp.py
 
+copy-redis:
+	cp -r tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/redis/ && \
+	python3 ./tests/assets_copy_kafka_to_redis.py
+
 up-kafka:
 	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
 
 up-rabbitmq:
-	docker run -d -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+	docker run -d -it --rm --name rabbitmq --net=host rabbitmq:latest
+
+up-redis:
+	docker run -d -it --rm --name redis --net=host redis:latest

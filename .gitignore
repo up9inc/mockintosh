@@ -140,3 +140,7 @@ tests/configs/yaml/hbs/data_dir_override/body_schema_error.json
 # AMQP
 tests/configs/yaml/hbs/amqp
 tests/configs/yaml/hbs/amqp/*
+
+# Redis
+tests/configs/yaml/hbs/redis
+tests/configs/yaml/hbs/redis/*
