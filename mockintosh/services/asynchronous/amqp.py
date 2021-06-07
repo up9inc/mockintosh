@@ -81,6 +81,7 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
                     if any(consumer.enable_topic_creation for consumer in self.consumers):
                         self.channel.queue_declare(queue=queue)
+                        logging.info('Queue %s created', topic)
                     else:
                         self.channel.queue_declare(queue=queue, passive=True)
 
@@ -141,6 +142,7 @@ class AmqpProducer(AsyncProducer):
         try:
             if payload.enable_topic_creation:
                 channel.queue_declare(queue=queue)
+                logging.info('Queue %s created', topic)
             else:
                 channel.queue_declare(queue=queue, passive=True)
 
