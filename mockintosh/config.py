@@ -388,11 +388,11 @@ class ConfigPerformanceProfile:
         self,
         ratio: Union[int, float],
         delay: Union[int, float] = 0.0,
-        faults: dict = {}
+        faults: Union[dict, None] = None
     ):
         self.ratio = ratio
         self.delay = delay
-        self.faults = faults
+        self.faults = {} if faults is None else faults
         self.actuator = PerformanceProfile(
             self.ratio,
             delay=self.delay,

@@ -21,7 +21,7 @@ from mockintosh import initiate
 __location__ = path.abspath(path.dirname(__file__))
 
 
-class DefinitionMockForKafka:
+class DefinitionMockForAsync:
     def __init__(self, source_dir, template_engine, rendering_queue):
         self.source_dir = source_dir
         self.template_engine = template_engine

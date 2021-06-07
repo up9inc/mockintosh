@@ -10,7 +10,7 @@ globals:
     global-hdr1: globalval1
     global-hdr2: globalval2
 services:
-- name: Kafka Mocks
+- name: Asynchronous Mocks
   type: kafka
   address: "{{env 'KAFKA_ADDR' 'localhost:9092'}}"
   actors:

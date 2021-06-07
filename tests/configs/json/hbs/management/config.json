@@ -83,7 +83,7 @@
       ]
     },
     {
-      "name": "Kafka Mocks",
+      "name": "Asynchronous Mocks",
       "type": "kafka",
       "address": "localhost:9092",
       "actors": []

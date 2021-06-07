@@ -19,11 +19,11 @@ class PerformanceProfile():
         self,
         ratio: Union[float, int],
         delay: Union[float, int] = 0.0,
-        faults: dict = {}
+        faults: Union[dict, None] = None
     ):
         self.ratio = ratio
         self.delay = delay
-        self.faults = faults
+        self.faults = {} if faults is None else faults
 
     def trigger(self, status_code: int) -> Union[int, str]:
         if random.uniform(0, 1) <= self.ratio:

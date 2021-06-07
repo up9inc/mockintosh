@@ -227,5 +227,5 @@ Handlebars usage: `{% raw %}{{ replace ( fake.address ) old='\n' new='\\n' }}{% 
 
 #### env(name, default)
 
-Returns the value of environment variable given by `name` parameter. If the environment variable does not exists
+Returns the value of environment variable given by `name` parameter. If the environment variable does not exist
 in the current shell then the value in `default` parameter is returned.

@@ -17,7 +17,9 @@
           "type": "string",
           "enum": [
             "kafka",
+            "amqp",
             "rabbitmq",
+            "activemq",
             "redis"
           ]
         },

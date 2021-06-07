@@ -3,7 +3,7 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains Kafka related classes.
+    :synopsis: module that contains asynchronous services related classes.
 """
 
 import re
@@ -12,6 +12,7 @@ import json
 import copy
 import logging
 import threading
+from abc import abstractmethod
 from collections import OrderedDict
 from datetime import datetime
 from typing import (
@@ -20,16 +21,14 @@ from typing import (
 )
 
 import jsonschema
-from confluent_kafka import Producer, Consumer, Message
-from confluent_kafka.admin import AdminClient, NewTopic
-from confluent_kafka.cimpl import KafkaException
+from pika.exceptions import AMQPConnectionError
 
 from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.config import (
     ConfigExternalFilePath
 )
 from mockintosh.helpers import _delay
-from mockintosh.handlers import KafkaHandler
+from mockintosh.handlers import AsyncHandler
 from mockintosh.replicas import Consumed
 from mockintosh.logs import Logs
 from mockintosh.exceptions import (
@@ -38,68 +37,22 @@ from mockintosh.exceptions import (
     AsyncProducerDatasetLoopEnd
 )
 
-
-def _kafka_delivery_report(err, msg):
-    if err is not None:  # pragma: no cover
-        logging.debug('Message delivery failed: %s', err)
-    else:
-        logging.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
+SERVICE_TYPES = {
+    'kafka': 'Kafka',
+    'amqp': 'AMQP'
+}
 
 
-def _create_topic(address: str, topic: str, ssl: bool = False):
-    config = {'bootstrap.servers': address}
-    if ssl:  # pragma: no cover
-        config['security.protocol'] = 'SSL'
-    admin_client = AdminClient(config)
-    new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1)]
-    futures = admin_client.create_topics(new_topics)
-
-    for topic, future in futures.items():
-        try:
-            future.result()
-            logging.info('Topic %s created', topic)
-        except KafkaException as e:
-            logging.info('Failed to create topic %s: %s', topic, e)
-
-
-def _decoder(value):
-    try:
-        return value.decode()
-    except (AttributeError, UnicodeDecodeError):
-        return value
-
-
-def _headers_decode(headers: list):
-    new_headers = {}
-    for el in headers if headers else []:
-        new_headers[el[0]] = _decoder(el[1])
-    return new_headers
-
-
-def _merge_global_headers(_globals: dict, kafka_payload):
+def _merge_global_headers(_globals: dict, async_payload):
     headers = {}
     global_headers = _globals['headers'] if 'headers' in _globals else {}
     headers.update(global_headers)
-    produce_data_headers = kafka_payload.headers
+    produce_data_headers = async_payload.headers
     headers.update(produce_data_headers)
     return headers
 
 
-def _wait_for_topic_to_exist(obj, topic: str):
-    is_logged = False
-    while True:
-        topics = obj.list_topics(topic)  # promises to create topic
-        logging.debug("Topic state: %s", topics.topics)
-        if topics.topics[topic].error is None:
-            break
-        else:
-            if not is_logged:
-                logging.warning("Topic '%s' is not available: %s", topic, topics.topics[topic].error)
-                is_logged = True
-            time.sleep(1)
-
-
-class KafkaConsumerProducerBase:
+class AsyncConsumerProducerBase:
 
     def __init__(
         self,
@@ -115,7 +68,7 @@ class KafkaConsumerProducerBase:
 
     def info(self):
         return {
-            'type': 'kafka',
+            'type': self.actor.service.type,
             'name': self.actor.name,
             'index': self.index,
             'queue': self.topic
@@ -129,7 +82,7 @@ class KafkaConsumerProducerBase:
         self.last_timestamp = datetime.timestamp(request_start_datetime)
 
 
-class KafkaConsumer(KafkaConsumerProducerBase):
+class AsyncConsumer(AsyncConsumerProducerBase):
 
     consumers = []
 
@@ -139,21 +92,21 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         schema: Union[str, dict] = None,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {},
+        headers: Union[dict, None] = None,
         capture_limit: int = 1,
         enable_topic_creation: bool = False
     ):
-        super().__init__(len(KafkaConsumer.consumers), topic)
+        super().__init__(len(AsyncConsumer.consumers), topic)
         self.schema = schema
         self.match_value = value
         self.match_key = key
-        self.match_headers = headers
+        self.match_headers = {} if headers is None else headers
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
         self.enable_topic_creation = enable_topic_creation
-        self._index = len(KafkaConsumer.consumers)
-        KafkaConsumer.consumers.append(self)
+        self._index = len(AsyncConsumer.consumers)
+        AsyncConsumer.consumers.append(self)
 
     def _match_str(self, x: str, y: Union[str, None]):
         if y is None:
@@ -180,10 +133,10 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         elif isinstance(x, str):
             return self._match_str(x, y)
 
-    def match_schema(self, value: str, kafka_handler: KafkaHandler) -> bool:
+    def match_schema(self, value: str, async_handler: AsyncHandler) -> bool:
         json_schema = self.schema.payload
         if isinstance(json_schema, ConfigExternalFilePath):
-            json_schema_path, _ = kafka_handler.resolve_relative_path(json_schema.path)
+            json_schema_path, _ = async_handler.resolve_relative_path(json_schema.path)
             with open(json_schema_path, 'r') as file:
                 logging.info('Reading JSON schema file from path: %s', json_schema_path)
                 try:
@@ -210,7 +163,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             )
             return False
 
-    def match(self, key: str, value: str, headers: dict, kafka_handler: KafkaHandler) -> bool:
+    def match(self, key: str, value: str, headers: dict, async_handler: AsyncHandler) -> bool:
         if (
             (not self.match_attr(self.match_value, value))
             or  # noqa: W504, W503
@@ -221,7 +174,7 @@ class KafkaConsumer(KafkaConsumerProducerBase):
             return False
         else:
             if self.schema is not None:
-                return self.match_schema(value, kafka_handler)
+                return self.match_schema(value, async_handler)
             else:
                 return True
 
@@ -243,36 +196,38 @@ class KafkaConsumer(KafkaConsumerProducerBase):
         self.single_log_service.enabled = True
 
 
-class KafkaConsumerGroup:
+class AsyncConsumerGroup:
 
     groups = []
 
     def __init__(self):
         self.consumers = []
         self.stop = False
-        self._index = len(KafkaConsumerGroup.groups)
-        KafkaConsumerGroup.groups.append(self)
+        self._index = len(AsyncConsumerGroup.groups)
+        AsyncConsumerGroup.groups.append(self)
 
-    def add_consumer(self, consumer: KafkaConsumer) -> None:
+    def add_consumer(self, consumer: AsyncConsumer) -> None:
         self.consumers.append(consumer)
 
     def after_consume_match(
         self,
-        matched_consumer: KafkaConsumer,
-        kafka_handler: KafkaHandler,
+        matched_consumer: AsyncConsumer,
+        async_handler: AsyncHandler,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: dict = {},
+        headers: Union[dict, None] = None
     ) -> None:
+        headers = {} if headers is None else headers
+
         matched_consumer.log.append(
             (key, value, headers)
         )
 
-        kafka_handler.set_response(
+        async_handler.set_response(
             key=key, value=value, headers=headers
         )
 
-        log_record = kafka_handler.finish()
+        log_record = async_handler.finish()
         matched_consumer.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
         if matched_consumer.single_log_service is not None:
             matched_consumer.single_log_service.add_record(log_record)
@@ -294,7 +249,7 @@ class KafkaConsumerGroup:
                 matched_consumer.actor.producer.check_dataset_lock()
                 t = threading.Thread(target=matched_consumer.actor.producer.produce, args=(), kwargs={
                     'consumed': consumed,
-                    'context': kafka_handler.custom_context
+                    'context': async_handler.custom_context
                 })
                 t.daemon = True
                 t.start()
@@ -304,164 +259,137 @@ class KafkaConsumerGroup:
             ) as e:  # pragma: no cover
                 logging.error(str(e))
 
-    def is_consumed(self, msg: Message) -> bool:
-        if msg is None:
-            return False
-
-        if msg.error():  # pragma: no cover
-            logging.warning("Consumer error: %s", msg.error())
-            return False
-
-        return True
-
-    def consume_loop(self, first_actor, consumer: Consumer) -> None:
-        while True:
-            if self.stop:  # pragma: no cover
-                break
-
-            msg = consumer.poll(1.0)
-            if not self.is_consumed(msg):
-                continue
-
-            key, value, headers = _decoder(msg.key()), _decoder(msg.value()), _headers_decode(msg.headers())
-
-            logging.debug(
-                'Analyzing a Kafka message from %r addr=%r key=%r value=%r headers=%r',
-                first_actor.consumer.topic,
-                first_actor.service.address,
-                key,
-                value,
-                headers
-            )
-
-            matched_consumer = None
-
-            kafka_handler = None
-            for _consumer in self.consumers:
-                kafka_handler = KafkaHandler(
-                    _consumer.actor.id,
-                    _consumer.internal_endpoint_id,
-                    _consumer.actor.service.definition.source_dir,
-                    _consumer.actor.service.definition.template_engine,
-                    _consumer.actor.service.definition.rendering_queue,
-                    _consumer.actor.service.definition.logs,
-                    _consumer.actor.service.definition.stats,
-                    _consumer.actor.service.address,
-                    _consumer.topic,
-                    False,
-                    service_id=_consumer.actor.service.id,
-                    value=value,
-                    key=key,
-                    headers=headers,
-                    context=_consumer.actor.context,
-                    params=_consumer.actor.params
-                )
-                if _consumer.match(key, value, headers, kafka_handler):
-                    matched_consumer = _consumer
-                    break
-
-            if matched_consumer is None:
-                logging.debug(
-                    'NOT MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
-                    first_actor.service.address,
-                    first_actor.consumer.topic,
-                    key,
-                    value,
-                    headers
-                )
-                continue
-
-            logging.info(
-                'Consumed a Kafka message from %r by %r',
-                matched_consumer.actor.consumer.topic,
-                '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
-            )
-            logging.debug(
-                '[%s] MATCHED the Kafka message: addr=%r topic=%r key=%r value=%r headers=%r',
-                '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
-                matched_consumer.actor.service.address,
-                matched_consumer.actor.consumer.topic,
-                key,
-                '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
-                headers
-            )
-
-            self.after_consume_match(
-                matched_consumer,
-                kafka_handler,
-                value,
-                key,
-                headers
-            )
-
-    def consume(self) -> None:
+    def consume_message(
+        self,
+        value: Union[str, None] = None,
+        key: Union[str, None] = None,
+        headers: Union[dict, None] = None
+    ) -> None:
+        headers = {} if headers is None else headers
         first_actor = self.consumers[0].actor
 
-        if any(consumer.enable_topic_creation for consumer in self.consumers):
-            _create_topic(
+        logging.debug(
+            'Analyzing a %s message from %r addr=%r key=%r value=%r headers=%r',
+            SERVICE_TYPES[first_actor.service.type],
+            first_actor.consumer.topic,
+            first_actor.service.address,
+            key,
+            value,
+            headers
+        )
+
+        matched_consumer = None
+
+        async_handler = None
+        for _consumer in self.consumers:
+            async_handler = AsyncHandler(
+                _consumer.actor.service.type,
+                _consumer.actor.id,
+                _consumer.internal_endpoint_id,
+                _consumer.actor.service.definition.source_dir,
+                _consumer.actor.service.definition.template_engine,
+                _consumer.actor.service.definition.rendering_queue,
+                _consumer.actor.service.definition.logs,
+                _consumer.actor.service.definition.stats,
+                _consumer.actor.service.address,
+                _consumer.topic,
+                False,
+                service_id=_consumer.actor.service.id,
+                value=value,
+                key=key,
+                headers=headers,
+                context=_consumer.actor.context,
+                params=_consumer.actor.params
+            )
+            if _consumer.match(key, value, headers, async_handler):
+                matched_consumer = _consumer
+                break
+
+        if matched_consumer is None:
+            logging.debug(
+                'NOT MATCHED the %s message: addr=%r topic=%r key=%r value=%r headers=%r',
+                SERVICE_TYPES[first_actor.service.type],
                 first_actor.service.address,
                 first_actor.consumer.topic,
-                ssl=first_actor.service.ssl
+                key,
+                value,
+                headers
             )
+            return
 
-        config = {
-            'bootstrap.servers': first_actor.service.address,
-            'group.id': '0',
-            'auto.offset.reset': 'earliest'
-        }
-        if first_actor.service.ssl:
-            config['security.protocol'] = 'SSL'
+        logging.info(
+            'Consumed a %s message from %r by %r',
+            SERVICE_TYPES[matched_consumer.actor.service.type],
+            matched_consumer.actor.consumer.topic,
+            '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
+        )
+        logging.debug(
+            '[%s] MATCHED the %s message: addr=%r topic=%r key=%r value=%r headers=%r',
+            '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
+            SERVICE_TYPES[matched_consumer.actor.service.type],
+            matched_consumer.actor.service.address,
+            matched_consumer.actor.consumer.topic,
+            key,
+            '%s...' % value[:LOGGING_LENGTH_LIMIT] if len(value) > LOGGING_LENGTH_LIMIT else value,
+            headers
+        )
 
-        consumer = Consumer(config)
-        _wait_for_topic_to_exist(consumer, first_actor.consumer.topic)
-        consumer.subscribe([first_actor.consumer.topic])
+        self.after_consume_match(
+            matched_consumer,
+            async_handler,
+            value,
+            key,
+            headers
+        )
 
-        self.consume_loop(first_actor, consumer)
+    @abstractmethod
+    def consume(self) -> None:
+        raise NotImplementedError
 
 
-class KafkaProducerPayload:
+class AsyncProducerPayload:
 
     def __init__(
         self,
         value: str,
         key: Union[str, None] = None,
-        headers: dict = {},
+        headers: Union[dict, None] = None,
         tag: Union[str, None] = None,
         enable_topic_creation: bool = False
     ):
         self.value = value
         self.key = key
-        self.headers = headers
+        self.headers = {} if headers is None else headers
         self.tag = tag
         self.enable_topic_creation = enable_topic_creation
 
 
-class KafkaProducerPayloadList:
+class AsyncProducerPayloadList:
 
     def __init__(self):
         self.list = []
 
-    def add_payload(self, payload: KafkaProducerPayload) -> None:
+    def add_payload(self, payload: AsyncProducerPayload) -> None:
         self.list.append(payload)
 
 
-class KafkaProducer(KafkaConsumerProducerBase):
+class AsyncProducer(AsyncConsumerProducerBase):
 
     producers = []
 
     def __init__(
         self,
         topic: str,
-        payload_list: KafkaProducerPayloadList
+        payload_list: AsyncProducerPayloadList
     ):
-        self._index = len(KafkaProducer.producers)
+        self._index = len(AsyncProducer.producers)
         super().__init__(self._index, topic)
         self.payload_list = payload_list
         self.payload_iteration = 0
         self.dataset_iteration = 0
         self.lock_payload = False
         self.lock_dataset = False
-        KafkaProducer.producers.append(self)
+        AsyncProducer.producers.append(self)
 
     def check_tags(self) -> None:
         if all(_payload.tag is not None and _payload.tag not in self.actor.service.tags for _payload in self.payload_list.list):
@@ -478,7 +406,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
                 self.lock_payload = True
             self.payload_iteration = 0
 
-    def get_current_payload(self) -> KafkaProducerPayload:
+    def get_current_payload(self) -> AsyncProducerPayload:
         return self.payload_list.list[self.payload_iteration]
 
     def is_payload_locked(self) -> bool:
@@ -508,7 +436,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
             return False
         return self.lock_dataset
 
-    def get_payload(self) -> Union[KafkaProducerPayload, None]:
+    def get_payload(self) -> Union[AsyncProducerPayload, None]:
         payload = self.get_current_payload()
         self.increment_payload_iteration()
         if payload.tag is not None and payload.tag not in self.actor.service.tags:
@@ -526,11 +454,11 @@ class KafkaProducer(KafkaConsumerProducerBase):
         if not ignore_delay and self.actor.delay is not None:
             _delay(self.actor.delay)
 
-    def get_dataset_row(self, kafka_handler: KafkaHandler) -> Tuple[dict, bool]:
+    def get_dataset_row(self, async_handler: AsyncHandler) -> Tuple[dict, bool]:
         row = None
         set_row = False
         if self.actor.dataset is not None:
-            self.actor._dataset = kafka_handler.load_dataset(self.actor.dataset)
+            self.actor._dataset = async_handler.load_dataset(self.actor.dataset)
             row = self.get_current_dataset_row()
             self.increment_dataset_iteration()
             if 'tag' in row and row['tag'] not in self.actor.service.tags:
@@ -543,38 +471,49 @@ class KafkaProducer(KafkaConsumerProducerBase):
                 set_row = True
         return row, set_row
 
-    def interract_with_kafka_handler(
+    def interract_with_async_handler(
         self,
         consumed: Union[Consumed, None],
-        payload: KafkaProducerPayload,
-        kafka_handler: KafkaHandler
+        payload: AsyncProducerPayload,
+        async_handler: AsyncHandler
     ) -> None:
         definition = self.actor.service.definition
         if definition is not None:
-            kafka_handler.headers = _merge_global_headers(
+            async_handler.headers = _merge_global_headers(
                 definition.data['globals'] if 'globals' in definition.data else {},
                 payload
             )
 
         if consumed is not None:
-            kafka_handler.custom_context.update({
+            async_handler.custom_context.update({
                 'consumed': consumed
             })
 
-        row, set_row = self.get_dataset_row(kafka_handler)
+        row, set_row = self.get_dataset_row(async_handler)
 
         if set_row:
             for key, value in row.items():
-                kafka_handler.custom_context[key] = value
+                async_handler.custom_context[key] = value
 
-    def produce(self, consumed: Consumed = None, context: dict = {}, ignore_delay: bool = False) -> None:
+    @abstractmethod
+    def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
+        raise NotImplementedError
+
+    def produce(
+        self,
+        consumed: Consumed = None,
+        context: Union[dict, None] = None,
+        ignore_delay: bool = False
+    ) -> None:
+        context = {} if context is None else context
         payload = self.get_payload()
         if payload is None:
             return
 
         context = copy.deepcopy(context)
 
-        kafka_handler = KafkaHandler(
+        async_handler = AsyncHandler(
+            self.actor.service.type,
             self.actor.id,
             self.internal_endpoint_id,
             self.actor.service.definition.source_dir,
@@ -594,36 +533,23 @@ class KafkaProducer(KafkaConsumerProducerBase):
         )
 
         self.delay(ignore_delay)
-        self.interract_with_kafka_handler(
+        self.interract_with_async_handler(
             consumed,
             payload,
-            kafka_handler
+            async_handler
         )
 
         # Templating
-        key, value, headers = kafka_handler.render_attributes()
+        key, value, headers = async_handler.render_attributes()
 
-        # Producing
-        config = {'bootstrap.servers': self.actor.service.address}
-        if self.actor.service.ssl:
-            config['security.protocol'] = 'SSL'
-        producer = Producer(config)
-
-        if payload.enable_topic_creation:
-            topics = producer.list_topics(self.topic)
-            if topics.topics[self.topic].error is not None:
-                _create_topic(
-                    self.actor.service.address,
-                    self.topic,
-                    ssl=self.actor.service.ssl
-                )
-
-        producer.poll(0)
-        producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)
-        producer.flush()
+        try:
+            self._produce(key, value, headers, payload)
+        except AMQPConnectionError:
+            return
 
         logging.info(
-            'Produced a Kafka message into %r from %r',
+            'Produced a %s message into %r from %r',
+            SERVICE_TYPES[self.actor.service.type],
             self.topic,
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id)
         )
@@ -636,7 +562,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
             headers
         )
 
-        log_record = kafka_handler.finish()
+        log_record = async_handler.finish()
         self.set_last_timestamp_and_inc_counter(None if log_record is None else log_record.request_start_datetime)
 
     def info(self):
@@ -650,7 +576,7 @@ class KafkaProducer(KafkaConsumerProducerBase):
         return data
 
 
-class KafkaActor:
+class AsyncActor:
 
     actors = []
 
@@ -670,13 +596,13 @@ class KafkaActor:
         self.multi_payloads_looped = True
         self.dataset_looped = True
         self.stop = False
-        self._index = len(KafkaActor.actors)
-        KafkaActor.actors.append(self)
+        self._index = len(AsyncActor.actors)
+        AsyncActor.actors.append(self)
 
     def get_hint(self) -> str:
         return self.name if self.name is not None else '#%d' % self.id
 
-    def set_consumer(self, consumer: KafkaConsumer) -> None:
+    def set_consumer(self, consumer: AsyncConsumer) -> None:
         self.consumer = consumer
         self.consumer.actor = self
         self.consumer.init_single_log_service()
@@ -693,7 +619,7 @@ class KafkaActor:
         self.service.definition.stats.services[self.service.id].add_endpoint(hint)
         self.consumer.internal_endpoint_id = len(self.service.definition.stats.services[self.service.id].endpoints) - 1
 
-    def set_producer(self, producer: KafkaProducer) -> None:
+    def set_producer(self, producer: AsyncProducer) -> None:
         self.producer = producer
         self.producer.actor = self
         if self.service.definition.stats is None:
@@ -726,9 +652,9 @@ class KafkaActor:
             return
 
         if self.limit is None:
-            logging.debug('Running a Kafka loop (%s) indefinitely...', self.get_hint())
+            logging.debug('Running a %s loop (%s) indefinitely...', SERVICE_TYPES[self.service.type], self.get_hint())
         else:
-            logging.debug('Running a Kafka loop (%s) for %d iterations...', self.get_hint(), self.limit)
+            logging.debug('Running a %s loop (%s) for %d iterations...', SERVICE_TYPES[self.service.type], self.get_hint(), self.limit)
 
         while self.limit is None or self.limit > 0:
             if self.stop:  # pragma: no cover
@@ -750,67 +676,32 @@ class KafkaActor:
             if self.limit is not None and self.limit > 0:
                 self.limit -= 1
 
-        logging.debug('Kafka loop (%s) is finished.', self.get_hint())
+        logging.debug('%s loop (%s) is finished.', SERVICE_TYPES[self.service.type], self.get_hint())
 
 
-class KafkaService:
+class AsyncService:
 
     services = []
 
-    def __init__(self, address: str, name: str = None, definition=None, _id: int = None, ssl: bool = False):
+    def __init__(
+        self,
+        address: str,
+        name: str = None,
+        definition=None,
+        _id: int = None,
+        ssl: bool = False
+    ):
         self.address = address
         self.name = name
         self.definition = definition
+        self.type = None
         self.actors = []
         self.id = _id
         self.ssl = ssl
         self.tags = []
-        self._index = len(KafkaService.services)
-        KafkaService.services.append(self)
+        self._index = len(AsyncService.services)
+        AsyncService.services.append(self)
 
-    def add_actor(self, actor: KafkaActor) -> None:
+    def add_actor(self, actor: AsyncActor) -> None:
         actor.service = self
         self.actors.append(actor)
-
-
-def run_loops():
-    for service_id, service in enumerate(KafkaService.services):
-
-        consumer_groups = {}
-
-        for actor_id, actor in enumerate(service.actors):
-            t = threading.Thread(target=actor.run_produce_loop, args=(), kwargs={})
-            t.daemon = True
-            t.start()
-
-            if actor.consumer is not None:
-                if actor.consumer.topic not in consumer_groups.keys():
-                    consumer_group = KafkaConsumerGroup()
-                    consumer_group.add_consumer(actor.consumer)
-                    consumer_groups[actor.consumer.topic] = consumer_group
-                else:
-                    consumer_groups[actor.consumer.topic].add_consumer(actor.consumer)
-
-        for consumer_group in KafkaConsumerGroup.groups:
-            t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
-            t.daemon = True
-            t.start()
-
-
-def build_single_payload_producer(
-    topic: str,
-    value: str,
-    key: Union[str, None] = None,
-    headers: dict = {},
-    tag: Union[str, None] = None,
-    enable_topic_creation: bool = False
-):
-    payload_list = KafkaProducerPayloadList()
-    payload = KafkaProducerPayload(
-        value,
-        key=key,
-        headers=headers,
-        tag=tag
-    )
-    payload_list.add_payload(payload)
-    return KafkaProducer(topic, payload_list)
