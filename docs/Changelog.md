@@ -128,6 +128,8 @@
 # Next Version
 
 - fix the bug with traffic log not working after certain mgmt requests
+- AMQP protocol support (RedisMQ, ActiveMQ and others)
+- Serve mocks from OpenAPI and Postman collections, also allow converting into config
 
 ---
 
@@ -136,13 +138,10 @@
 - Nicer logging of requests, with special option to enable it.
 - Nicer formatted error pages for known errors, explaining the problem
 
-- Import from OpenAPI and Postman collections `cat OpenAPI.json | mockintosh > mockintosh-config.yml`
-
 - Tornado has auto-multicpu startup mode, use it optionally with CLI arg/env var
 - test the performance of ourself and optimize it
 
 - trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
-- https://github.com/jasonrbriggs/stomp.py - promises rabbitmq+activemq
 - mqtt for async servers
 - SQS as one more async tech
 
@@ -154,9 +153,6 @@
 - what to do with binary headers in Kafka? data-url prefix?
 - interceptors to access kafka comms
 - allow overriding on-demand producer fields via mgmt API
-
-- rabbitmq for async servers
-- activemq for async servers
 
 ## Management API/UI
 
@@ -172,8 +168,7 @@
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
-
-
+  
 - mocks for gRPC servers?
 
 - gatsby-style approach to telemetry
