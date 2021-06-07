@@ -46,6 +46,7 @@ def _create_topic(address: str, topic: str, ssl: bool = False):
     channel = connection.channel()
 
     channel.queue_declare(queue=topic)
+    logging.info('Queue %s created', topic)
     connection.close()
 
 
