@@ -21,6 +21,7 @@ from typing import (
 )
 
 import jsonschema
+from pika.exceptions import AMQPConnectionError
 
 from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.config import (
@@ -541,7 +542,10 @@ class AsyncProducer(AsyncConsumerProducerBase):
         # Templating
         key, value, headers = async_handler.render_attributes()
 
-        self._produce(key, value, headers, payload)
+        try:
+            self._produce(key, value, headers, payload)
+        except AMQPConnectionError:
+            return
 
         logging.info(
             'Produced a/an %s message into %r from %r',

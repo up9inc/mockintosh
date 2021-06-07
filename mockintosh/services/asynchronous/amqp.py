@@ -69,6 +69,8 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
     def consume(self) -> None:
         host, port = self.consumers[0].actor.service.address.split(':')
+        connection_error_logged = False
+        queue_error_logged = False
         while True:
             try:
                 connection = BlockingConnection(
@@ -81,7 +83,7 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
 
                     if any(consumer.enable_topic_creation for consumer in self.consumers):
                         self.channel.queue_declare(queue=queue)
-                        logging.info('Queue %s created', topic)
+                        logging.info('Queue %s created', queue)
                     else:
                         self.channel.queue_declare(queue=queue, passive=True)
 
@@ -107,9 +109,14 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                     break
                 except ChannelClosedByBroker as e:
                     connection.close()
-                    logging.info('Queue %s does not exists: %s', queue, e)
+                    if not queue_error_logged:
+                        logging.info('Queue %s does not exists: %s', queue, e)
+                        queue_error_logged = True
                     time.sleep(1)
             except AMQPConnectionError:
+                if not connection_error_logged:
+                    logging.warning('Couldn\'t establish a connection to AMQP instance at %s:%s', host, port)
+                    connection_error_logged = True
                 time.sleep(1)
                 continue
 
@@ -140,26 +147,30 @@ class AmqpProducer(AsyncProducer):
         queue = self.topic
 
         try:
-            if payload.enable_topic_creation:
-                channel.queue_declare(queue=queue)
-                logging.info('Queue %s created', topic)
-            else:
-                channel.queue_declare(queue=queue, passive=True)
+            try:
+                if payload.enable_topic_creation:
+                    channel.queue_declare(queue=queue)
+                    logging.info('Queue %s created', queue)
+                else:
+                    channel.queue_declare(queue=queue, passive=True)
 
-            exchange = '%s_%s' % (EXCHANGE, queue)
+                exchange = '%s_%s' % (EXCHANGE, queue)
 
-            channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
+                channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
 
-            channel.basic_publish(
-                exchange=exchange,
-                routing_key=key if key is not None else '',
-                body=value,
-                properties=BasicProperties(
-                    headers=headers
+                channel.basic_publish(
+                    exchange=exchange,
+                    routing_key=key if key is not None else '',
+                    body=value,
+                    properties=BasicProperties(
+                        headers=headers
+                    )
                 )
-            )
-        except ChannelClosedByBroker as e:
-            logging.info('Queue %s does not exists: %s', queue, e)
+            except ChannelClosedByBroker as e:
+                logging.info('Queue %s does not exists: %s', queue, e)
+        except AMQPConnectionError:
+            logging.warning('Couldn\'t establish a connection to AMQP instance at %s:%s', host, port)
+            raise
 
         connection.close()
 
