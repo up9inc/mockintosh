@@ -269,7 +269,7 @@ class AsyncConsumerGroup:
         first_actor = self.consumers[0].actor
 
         logging.debug(
-            'Analyzing a/an %s message from %r addr=%r key=%r value=%r headers=%r',
+            'Analyzing a %s message from %r addr=%r key=%r value=%r headers=%r',
             SERVICE_TYPES[first_actor.service.type],
             first_actor.consumer.topic,
             first_actor.service.address,
@@ -318,7 +318,7 @@ class AsyncConsumerGroup:
             return
 
         logging.info(
-            'Consumed a/an %s message from %r by %r',
+            'Consumed a %s message from %r by %r',
             SERVICE_TYPES[matched_consumer.actor.service.type],
             matched_consumer.actor.consumer.topic,
             '%s' % (matched_consumer.actor.name if matched_consumer.actor.name is not None else '#%s' % matched_consumer.actor.id),
@@ -548,7 +548,7 @@ class AsyncProducer(AsyncConsumerProducerBase):
             return
 
         logging.info(
-            'Produced a/an %s message into %r from %r',
+            'Produced a %s message into %r from %r',
             SERVICE_TYPES[self.actor.service.type],
             self.topic,
             '%s' % (self.actor.name if self.actor.name is not None else '#%s' % self.actor.id)
@@ -652,9 +652,9 @@ class AsyncActor:
             return
 
         if self.limit is None:
-            logging.debug('Running a/an %s loop (%s) indefinitely...', SERVICE_TYPES[self.service.type], self.get_hint())
+            logging.debug('Running a %s loop (%s) indefinitely...', SERVICE_TYPES[self.service.type], self.get_hint())
         else:
-            logging.debug('Running a/an %s loop (%s) for %d iterations...', SERVICE_TYPES[self.service.type], self.get_hint(), self.limit)
+            logging.debug('Running a %s loop (%s) for %d iterations...', SERVICE_TYPES[self.service.type], self.get_hint(), self.limit)
 
         while self.limit is None or self.limit > 0:
             if self.stop:  # pragma: no cover
