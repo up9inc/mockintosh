@@ -110,7 +110,7 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
                 except ChannelClosedByBroker as e:
                     connection.close()
                     if not queue_error_logged:
-                        logging.info('Queue %s does not exists: %s', queue, e)
+                        logging.info('Queue %s does not exist: %s', queue, e)
                         queue_error_logged = True
                     time.sleep(1)
             except AMQPConnectionError:
@@ -167,7 +167,7 @@ class AmqpProducer(AsyncProducer):
                     )
                 )
             except ChannelClosedByBroker as e:
-                logging.info('Queue %s does not exists: %s', queue, e)
+                logging.info('Queue %s does not exist: %s', queue, e)
         except AMQPConnectionError:
             logging.warning('Couldn\'t establish a connection to AMQP instance at %s:%s', host, port)
             raise
