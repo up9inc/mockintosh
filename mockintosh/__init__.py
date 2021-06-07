@@ -15,7 +15,9 @@ import sys
 from os import path, environ
 from gettext import gettext
 from typing import (
-    Tuple
+    Union,
+    Tuple,
+    List
 )
 
 from mockintosh.constants import PROGRAM
@@ -24,6 +26,10 @@ from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _nostderr, _import_from
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.templating import RenderingQueue, RenderingJob
+from mockintosh.transpilers import OASToConfigTranspiler
+
+from prance import ValidationError
+from prance.util.url import ResolutionError
 
 __version__ = "0.9"
 __location__ = path.abspath(path.dirname(__file__))
@@ -77,7 +83,8 @@ def run(
     interceptors: tuple = (),
     address: str = '',
     services_list: list = [],
-    tags: list = []
+    tags: list = [],
+    load_override: Union[dict, None] = None
 ):
     queue, _ = start_render_queue()
 
@@ -86,7 +93,7 @@ def run(
     schema = get_schema()
 
     try:
-        definition = Definition(source, schema, queue, is_file=is_file)
+        definition = Definition(source, schema, queue, is_file=is_file, load_override=load_override)
         http_server = HttpServer(
             definition,
             TornadoImpl(),
@@ -150,6 +157,11 @@ def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
     return interceptors, address, tags
 
 
+def _handle_oas_input(source: str, convert_args: List[str], direct: bool = False) -> Union[str, dict]:
+    oas_transpiler = OASToConfigTranspiler(source, convert_args)
+    return oas_transpiler.transpile(direct=direct)
+
+
 def initiate():
     if should_cov:  # pragma: no cover
         signal.signal(signal.SIGTERM, _gracefully_exit)
@@ -187,12 +199,18 @@ def initiate():
     )
     ap.add_argument('-l', '--logfile', help='Also write log into a file', action='store')
     ap.add_argument('-b', '--bind', help='Address to specify the network interface', action='store')
+    ap.add_argument(
+        '-c',
+        '--convert',
+        help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config. Example: `$ mockintosh petstore.json -c dev.json json`' % PROGRAM.capitalize(),
+        action='store',
+        nargs='+',
+        metavar=('filename', 'format')
+    )
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     args = vars(ap.parse_args())
 
     interceptors, address, tags = _handle_cli_args(args)
-
-    logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
@@ -200,13 +218,42 @@ def initiate():
 
     source = args['source'][0]
     services_list = args['source'][1:]
+    convert_args = args['convert']
 
-    if not cov_no_run:  # pragma: no cover
-        run(
+    load_override = None
+
+    if convert_args:
+        if len(convert_args) < 2:
+            convert_args.append('yaml')
+        elif convert_args[1] != 'json':
+            convert_args[1] = 'yaml'
+
+        logging.info(
+            "Converting OpenAPI Specification %s to ./%s in %s format...",
             source,
-            debug=debug_mode,
-            interceptors=interceptors,
-            address=address,
-            services_list=services_list,
-            tags=tags
+            convert_args[0],
+            convert_args[1].upper()
         )
+        target_path = _handle_oas_input(source, convert_args)
+        logging.info("The transpiled config %s is ready at %s", convert_args[1].upper(), target_path)
+    else:
+        try:
+            load_override = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
+            logging.info("Automatically transpiled the config YAML from OpenAPI Specification.")
+        except ValidationError:
+            logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
+        except ResolutionError:  # pragma: no cover
+            pass
+
+        logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
+
+        if not cov_no_run:  # pragma: no cover
+            run(
+                source,
+                debug=debug_mode,
+                interceptors=interceptors,
+                address=address,
+                services_list=services_list,
+                tags=tags,
+                load_override=load_override
+            )

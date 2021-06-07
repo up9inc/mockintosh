@@ -61,6 +61,40 @@ Using `--bind` option the bind address for the mock server can be specified, e.g
 Using `--enable-tags` option the tags in the configuration file can be
 enabled in startup time, e.g. `mockintosh --enable-tags first,second`
 
+### OpenAPI Specification to Mockintosh Config Conversion
+
+It could be a good kickstart if you have already an OpenAPI Specification for your API.
+Mockintosh is able to transpile an OpenAPI Specification to its own config format in two different ways:
+
+#### CLI Option `--convert`
+
+Using the `--convert` one can convert an OpenAPI Specification to Mockintosh config.
+
+JSON output example:
+
+```shell
+$ wget https://petstore.swagger.io/v2/swagger.json
+$ mockintosh swagger.json -c new_config.json json
+```
+
+YAML example:
+
+```shell
+$ mockintosh swagger.json -c new_config.yaml yaml
+```
+
+#### Automatic Conversion
+
+If you start Mockintosh with a valid OpenAPI Specification file then it automatically detects that the input
+is an OpenAPI Specification file:
+
+```shell
+$ mockintosh swagger.json
+```
+
+and automatically starts itself from that file. Without producing any new files. So you can start to edit this file
+through the management UI without even restarting Mockintosh.
+
 ## Interceptors
 
 One can also specify a list of interceptors to be called in `<package>.<module>.<function>` format using

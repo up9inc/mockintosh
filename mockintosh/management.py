@@ -30,8 +30,7 @@ from tornado.escape import utf8
 import mockintosh
 from mockintosh.config import (
     ConfigService,
-    ConfigExternalFilePath,
-    ConfigHttpService
+    ConfigExternalFilePath
 )
 from mockintosh.services.http import (
     HttpService
@@ -48,8 +47,10 @@ from mockintosh.exceptions import (
 )
 from mockintosh.services.kafka import (
     KafkaService,
+    KafkaActor,
     KafkaProducer,
     KafkaConsumer,
+    KafkaConsumerGroup,
     run_loops as kafka_run_loops
 )
 from mockintosh.replicas import Request, Response
@@ -164,10 +165,18 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.check_restricted_fields(service, i):
                 return
 
+        for actor in KafkaActor.actors:
+            actor.stop = True
+
+        for consumer_group in KafkaConsumerGroup.groups:
+            consumer_group.stop = True
+
         definition.stats.services = []
         KafkaService.services = []
+        KafkaActor.actors = []
         KafkaProducer.producers = []
         KafkaConsumer.consumers = []
+        KafkaConsumerGroup.groups = []
         HttpService.services = []
         ConfigService.services = []
         ConfigExternalFilePath.files = []
@@ -181,10 +190,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
 
         self.update_globals()
 
-        definition.trigger_stoppers()
-        stop = {'val': False}
-        definition.add_stopper(stop)
-        kafka_run_loops(definition, stop)
+        kafka_run_loops()
 
         self.set_status(204)
 
@@ -215,7 +221,7 @@ class ManagementConfigHandler(ManagementBaseHandler):
             self._check_restricted_fields(service, service_index)
             return True
         except RestrictedFieldError as e:
-            self.set_status(500)
+            self.set_status(400)
             self.write(str(e))
             return False
 
@@ -609,7 +615,7 @@ class ManagementResourcesHandler(ManagementBaseHandler):
 
     def initialize(self, http_server):
         self.http_server = http_server
-        files = ConfigExternalFilePath.files
+        files = (obj.path[1:] for obj in ConfigExternalFilePath.files)
         cwd = self.http_server.definition.source_dir
         files = list(set(files))
         files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
@@ -793,6 +799,7 @@ class ManagementServiceRootRedirectHandler(ManagementBaseHandler):
 
 
 class ManagementServiceConfigHandler(ManagementConfigHandler):
+    """This handler is only valid for HTTP services and should always operate on `ConfigHttpService`."""
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
@@ -812,38 +819,30 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         imaginary_config = copy.deepcopy(definition.data)
         imaginary_config['services'][self.service_id] = data
 
+        # This check fails for asynchronous services
         if not self.validate(imaginary_config) or not self.check_restricted_fields(data, self.service_id):
             return
 
-        internal_service_id = self.service_id
-        internal_http_service_id = self.http_server.definition.services[self.service_id].internal_http_service_id
+        internal_http_service_id = definition.services[self.service_id].internal_http_service_id
 
         config_root_builder = ConfigRootBuilder()
-        service = config_root_builder.build_config_service(data, internal_service_id=internal_service_id)
-        definition.config_root.services = service
+        # `service` should always be an instance of `ConfigHttpService`
+        service = config_root_builder.build_config_service(data, internal_service_id=self.service_id)
 
-        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
-        # if isinstance(service, ConfigAsyncService):
-        #     service.address_template_renderer(
-        #         definition.template_engine,
-        #         definition.rendering_queue
-        #     )
+        definition.config_root.services[self.service_id].destroy()
+        definition.config_root.services[self.service_id] = service
 
         definition.logs.update_service(self.service_id, service.get_name())
         definition.stats.update_service(self.service_id, service.get_hint())
 
-        # TODO: Service-level `POST /config` for Kafka services is not fully implemented
-        # if isinstance(service, ConfigAsyncService):
-        #     definition.services[self.service_id] = definition.analyze_async_service(service)
-        if isinstance(service, ConfigHttpService):
-            definition.services[self.service_id] = definition.analyze_http_service(
-                service,
-                definition.template_engine,
-                definition.rendering_queue,
-                performance_profiles=definition.config_root.performance_profiles,
-                global_performance_profile=None if definition.config_root.globals is None else definition.config_root.globals.performance_profile,
-                internal_http_service_id=internal_http_service_id
-            )
+        definition.services[self.service_id] = definition.analyze_http_service(
+            service,
+            definition.template_engine,
+            definition.rendering_queue,
+            performance_profiles=definition.config_root.performance_profiles,
+            global_performance_profile=None if definition.config_root.globals is None else definition.config_root.globals.performance_profile,
+            internal_http_service_id=internal_http_service_id
+        )
 
         definition.data['services'][self.service_id] = data
 
@@ -887,6 +886,7 @@ class ManagementServiceLogsHandler(ManagementBaseHandler):
 
 
 class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
+    """This handler is only valid for HTTP services and should always operate on `HttpService`."""
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
@@ -894,13 +894,10 @@ class ManagementServiceResetIteratorsHandler(ManagementBaseHandler):
 
     async def post(self):
         app = None
+        # `service` should always be an instance of `HttpService`
         service = self.http_server.definition.services[self.service_id]
 
-        if isinstance(service, HttpService):
-            app = self.http_server._apps.apps[service.internal_http_service_id]
-        # TODO: There are not tests for KafkaService
-        # elif isinstance(service, KafkaService):
-        #     app = service
+        app = self.http_server._apps.apps[service.internal_http_service_id]
 
         _reset_iterators(app)
         self.set_status(204)
@@ -946,22 +943,20 @@ class ManagementServiceOasHandler(ManagementOasHandler):
 
 
 class ManagementServiceTagHandler(ManagementBaseHandler):
+    """This handler is only valid for HTTP services and should always operate on `HttpService`."""
 
     def initialize(self, http_server, service_id):
         self.http_server = http_server
         self.service_id = service_id
 
     async def get(self):
+        # `service` should always be an instance of `HttpService`
         service = self.http_server.definition.services[self.service_id]
 
         tags = None
-        if isinstance(service, HttpService):
-            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
-                if rule.target == GenericHandler:
-                    tags = rule.target_kwargs['tags']
-        # TODO: There are not tests for KafkaService
-        # elif isinstance(service, KafkaService):
-        #     tags = service.tags
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                tags = rule.target_kwargs['tags']
 
         if not tags:
             self.set_status(204)
@@ -977,14 +972,11 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
             data = self.request.body.decode()
         data = data.split(',')
 
+        # `service` should always be an instance of `HttpService`
         service = self.http_server.definition.services[self.service_id]
-        if isinstance(service, HttpService):
-            for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
-                if rule.target == GenericHandler:
-                    rule.target_kwargs['tags'] = data
-        # TODO: There are not tests for KafkaService
-        # elif isinstance(service, KafkaService):
-        #     service.tags = data
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 

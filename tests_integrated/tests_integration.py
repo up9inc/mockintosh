@@ -808,12 +808,12 @@ class IntegrationTests(unittest.TestCase):
         json = self._valid_har(resp)
         self.assertTrue(json['log']['entries'])
 
-        # clear
-        resp = httpx.delete(root + '/traffic-log', verify=False)
-        resp.raise_for_status()
-
         # disable log
         resp = httpx.post(root + '/traffic-log', data={"enable": "false"}, verify=False)
+        resp.raise_for_status()
+
+        # clear
+        resp = httpx.delete(root + '/traffic-log', verify=False)
         resp.raise_for_status()
 
         self.test_urlencoded()  # ensure httpx are made

@@ -72,7 +72,8 @@ class Definition:
         source: str,
         schema: dict,
         rendering_queue: RenderingQueue,
-        is_file: bool = True
+        is_file: bool = True,
+        load_override: Union[dict, None] = None
     ):
         self.source = source
         self.source_text = None if is_file else source
@@ -84,16 +85,18 @@ class Definition:
         self.data = None
         self.schema = schema
         self.rendering_queue = rendering_queue
-        self.load()
-        self.validate()
+        if load_override is not None:
+            self.data = load_override
+        else:
+            self.load()
+            self.validate()
         self.template_engine = _detect_engine(self.data, 'config')
         self.stats = stats
         self.logs = logs
         self.services, self.config_root = self.analyze(self.data)
         self.globals = self.config_root.globals
-        self.stoppers = []
 
-    def load(self):
+    def load(self) -> None:
         if self.source_text is None:
             with open(self.source, 'r') as file:
                 logging.info('Reading configuration file from path: %s', self.source)
@@ -144,14 +147,6 @@ class Definition:
 
         return new_services, config_root
 
-    def add_stopper(self, stop: dict):
-        self.stoppers.append(stop)
-
-    def trigger_stoppers(self):
-        while len(self.stoppers) > 0:
-            stop = self.stoppers.pop()
-            stop['val'] = True
-
     def analyze_http_service(
         self,
         service: ConfigHttpService,
@@ -175,6 +170,7 @@ class Definition:
             service.internal_service_id,
             internal_http_service_id=internal_http_service_id
         )
+        service._impl = http_service
 
         service_perfomance_profile = service.performance_profile if service.performance_profile is not None else global_performance_profile
         for endpoint in service.endpoints:
@@ -291,6 +287,7 @@ class Definition:
             _id=service.internal_service_id,
             ssl=service.ssl
         )
+        service._impl = kafka_service
 
         for i, actor in enumerate(service.actors):
             kafka_actor = KafkaActor(i, actor.name)

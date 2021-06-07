@@ -71,7 +71,7 @@ SRV_8002_SSL = SRV_8002[:4] + 's' + SRV_8002[4:]
 SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
 
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
-KAFKA_CONSUME_TIMEOUT = os.environ.get('KAFKA_CONSUME_TIMEOUT', 20)
+KAFKA_CONSUME_TIMEOUT = os.environ.get('KAFKA_CONSUME_TIMEOUT', 120)
 KAFKA_CONSUME_WAIT = os.environ.get('KAFKA_CONSUME_WAIT', 0.5)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
@@ -1828,6 +1828,19 @@ class TestManagement():
                 data = json.loads(text)
                 assert data == resp.json()
 
+        with open(get_config_path('configs/yaml/hbs/kafka/config.yaml'), 'r') as file:
+            data = yaml.safe_load(file.read())
+            kafka_service = data['services'][0]
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(kafka_service), verify=False)
+            assert 400 == resp.status_code
+            assert resp.text == '\'port\' field is restricted!'
+
+            kafka_service['port'] = 8001
+            kafka_service['hostname'] = 'service1.example.com'
+            resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(kafka_service), verify=False)
+            assert 400 == resp.status_code
+            assert resp.text.startswith('JSON schema validation error:')
+
         resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST}, verify=False)
         assert 200 == resp.status_code
         assert 'Content-Type' not in resp.headers
@@ -1895,7 +1908,7 @@ class TestManagement():
             data = yaml.safe_load(file.read())
             data['services'][0]['port'] = 42
             resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
-            assert 500 == resp.status_code
+            assert 400 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
 
@@ -1903,7 +1916,7 @@ class TestManagement():
             data = yaml.safe_load(file.read())
             data['port'] = 42
             resp = httpx.post(SRV_8001 + '/__admin/config', headers={'Host': SRV_8001_HOST}, data=json.dumps(data), verify=False)
-            assert 500 == resp.status_code
+            assert 400 == resp.status_code
             assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
             assert resp.text == "'port' field is restricted!"
 
@@ -3013,7 +3026,7 @@ class TestManagement():
                 assert entry['timings']['ssl'] == 0
 
                 addr = socket.gethostbyname(url_parsed1.hostname)
-                assert entry['serverIPAddress'] == addr
+                assert entry['serverIPAddress'] in (addr, '::1')
                 assert int(entry['connection']) == url_parsed1.port
 
             if not admin_headers:
@@ -3913,7 +3926,6 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -3925,9 +3937,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -3942,7 +3952,7 @@ class TestAsync():
             headers
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -3961,7 +3971,6 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -3973,9 +3982,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -3990,7 +3997,7 @@ class TestAsync():
             headers
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -4035,7 +4042,6 @@ class TestAsync():
             'global-hdr2': 'globalval2'
         }
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -4047,9 +4053,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4079,7 +4083,7 @@ class TestAsync():
             producer_headers
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -4115,7 +4119,6 @@ class TestAsync():
             )
 
     def test_post_async_producer_templated(self):
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -4127,9 +4130,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4142,7 +4143,7 @@ class TestAsync():
             kafka_consumer
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 
@@ -4612,7 +4613,6 @@ class TestAsync():
 
         time.sleep(KAFKA_CONSUME_WAIT / 2)
 
-        stop = {'val': False}
         queue, job = start_render_queue()
         kafka_service = kafka.KafkaService(
             KAFKA_ADDR,
@@ -4624,9 +4624,7 @@ class TestAsync():
         kafka_actor.set_consumer(kafka_consumer)
         kafka_consumer_group = kafka.KafkaConsumerGroup()
         kafka_consumer_group.add_consumer(kafka_consumer)
-        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={
-            'stop': stop
-        })
+        t = threading.Thread(target=kafka_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
 
@@ -4638,7 +4636,7 @@ class TestAsync():
             kafka_consumer
         )
 
-        stop['val'] = True
+        kafka_consumer_group.stop = True
         t.join()
         job.kill()
 

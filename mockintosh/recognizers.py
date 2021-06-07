@@ -26,7 +26,7 @@ from mockintosh.params import (
 from mockintosh.helpers import _safe_path_split
 
 
-class RecognizerBase():
+class RecognizerBase:
 
     def __init__(
         self,
