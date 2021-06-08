@@ -1,7 +1,8 @@
 # Asynchronous Actors for Message Bus
 
 Mockintosh offers "Mock Actor" approach for using with asynchronous message bus technologies, such as
-[Apache Kafka](https://kafka.apache.org/), [AMQP](https://www.amqp.org/) etc.
+[Apache Kafka](https://kafka.apache.org/), [RabbitMQ](https://www.rabbitmq.com/),
+[Apache ActiveMQ](https://activemq.apache.org/), [Redis](https://redis.io/) etc.
 See [supported backends](#supported-backends)
 "Mock Actor" approach requires you to provide deployed message bus instance, and configure valid address for it inside
 configuration file.
@@ -377,8 +378,8 @@ By default a producer loops through the given dataset indefinitely for each trig
 
 ## Supported Backends
 
-Mockintosh supports two different asynchronous backends;
-[Apache Kafka](https://kafka.apache.org/) and [AMQP](https://www.amqp.org/).
+Mockintosh supports three different asynchronous backends;
+[Apache Kafka](https://kafka.apache.org/), [AMQP](https://www.amqp.org/) and [Redis](https://redis.io/).
 
 ### Apache Kafka
 
@@ -420,3 +421,20 @@ The `amqp` value for the `type` field is a keyword and `<HOST>:<PORT>` configura
 to the AMQP target hostname/IP and port.
 
 *Note: `rabbitmq` and `activemq` as a value for the `type` field instead of `amqp` is also accepted.*
+
+### Redis
+
+[Redis](https://redis.io/) as an in-memory database, can also be used as a message queue. But note that;
+`key` and `headers` fields are ignored for Redis type asynchronous services since Redis does not have
+such concepts. Message queue functionality through Redis
+is achived by [PyRSMQ](https://mlasevich.github.io/PyRSMQ/) package.
+
+To be able to work with Redis, these two fields should be specified in a service:
+
+```yaml
+type: redis
+address: localhost:6379
+```
+
+The `redis` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
+to the Redis instance's hostname/IP and port.
