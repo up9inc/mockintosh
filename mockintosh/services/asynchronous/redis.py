@@ -15,6 +15,7 @@ from typing import (
 
 from rsmq import RedisSMQ
 from rsmq.cmd.exceptions import QueueAlreadyExists
+from redis.exceptions import ConnectionError
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -58,27 +59,32 @@ class RedisConsumerGroup(AsyncConsumerGroup):
             if self.stop:
                 break
 
-            queue = RedisSMQ(host=host, port=port, qname=self.consumers[0].topic)
+            try:
+                queue = RedisSMQ(host=host, port=port, qname=self.consumers[0].topic)
 
-            if any(consumer.enable_topic_creation for consumer in self.consumers):
+                if any(consumer.enable_topic_creation for consumer in self.consumers):
+                    try:
+                        queue.createQueue(delay=0).vt(INFINITE_QUEUE_VISIBILITY).execute()
+                    except QueueAlreadyExists:
+                        pass
+
                 try:
-                    queue.createQueue(delay=0).vt(INFINITE_QUEUE_VISIBILITY).execute()
-                except QueueAlreadyExists:
+                    msg = queue.receiveMessage().exceptions(False).execute()
+
+                    if msg:
+                        self.consume_message(
+                            key=None,
+                            value=msg['message'],
+                            headers={}
+                        )
+                except AttributeError:
                     pass
 
-            try:
-                msg = queue.receiveMessage().exceptions(False).execute()
-
-                if msg:
-                    self.consume_message(
-                        key=None,
-                        value=msg,
-                        headers={}
-                    )
-            except AttributeError:
+                queue.quit()
+            except ConnectionError:
+                logging.warning('Couldn\'t establish a connection to Redis instance at %s:%s', host, port)
                 pass
 
-            queue.quit()
             time.sleep(1)
 
     def _stop(self):
@@ -97,17 +103,24 @@ class RedisProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
         host, port = self.actor.service.address.split(':')
-        queue = RedisSMQ(host=host, port=port, qname=self.topic)
+        try:
+            queue = RedisSMQ(host=host, port=port, qname=self.topic)
 
-        if payload.enable_topic_creation:
+            if payload.enable_topic_creation:
+                try:
+                    queue.createQueue(delay=0).vt(INFINITE_QUEUE_VISIBILITY).execute()
+                except QueueAlreadyExists:
+                    pass
+
             try:
-                queue.createQueue(delay=0).vt(INFINITE_QUEUE_VISIBILITY).execute()
-            except QueueAlreadyExists:
+                queue.sendMessage(delay=0).message(value).execute()
+            except AttributeError:
                 pass
 
-        queue.sendMessage(delay=0).message(value).execute()
-
-        queue.quit()
+            queue.quit()
+        except ConnectionError:
+            logging.warning('Couldn\'t establish a connection to Redis instance at %s:%s', host, port)
+            pass
 
 
 class RedisActor(AsyncActor):
