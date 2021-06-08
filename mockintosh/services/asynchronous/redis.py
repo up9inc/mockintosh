@@ -141,7 +141,7 @@ class RedisProducer(AsyncProducer):
             queue.quit()
         except ConnectionError:
             logging.warning('Couldn\'t establish a connection to Redis instance at %s:%s', host, port)
-            pass
+            raise
 
 
 class RedisActor(AsyncActor):

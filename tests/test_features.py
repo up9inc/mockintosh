@@ -4094,19 +4094,30 @@ class AsyncBase():
         producer_value,
         producer_headers
     ):
-        assert any(
-            (row[0] == consumer_key)
-            and  # noqa: W504, W503
-            (row[1] == '%s and %s %s %s' % (
-                consumer_value,
-                producer_key,
-                producer_value,
-                producer_headers['hdr4']
-            ))
-            and  # noqa: W504, W503
-            (row[2] == consumer_headers)
-            for row in async_consumer.log
-        )
+        global async_service_type
+
+        if async_service_type == 'redis':
+            assert any(
+                (row[1] == '%s and %s' % (
+                    consumer_value,
+                    producer_value
+                ))
+                for row in async_consumer.log
+            )
+        else:
+            assert any(
+                (row[0] == consumer_key)
+                and  # noqa: W504, W503
+                (row[1] == '%s and %s %s %s' % (
+                    consumer_value,
+                    producer_key,
+                    producer_value,
+                    producer_headers['hdr4']
+                ))
+                and  # noqa: W504, W503
+                (row[2] == consumer_headers)
+                for row in async_consumer.log
+            )
 
     def test_post_async_reactive_consumer(self):
         global async_service_type
@@ -4185,23 +4196,31 @@ class AsyncBase():
         assert resp.text == 'Invalid producer index!'
 
     def assert_post_async_producer_templated(self, async_consumer):
+        global async_service_type
+
         for i in range(2):
-            assert any(
-                (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
-                and  # noqa: W504, W503
-                (row[1][0].isupper())
-                and  # noqa: W504, W503
-                (row[2]['name'] == 'templated')
-                and  # noqa: W504, W503
-                (row[2]['constant'] == 'constant-value')
-                and  # noqa: W504, W503
-                (len(row[2]['timestamp']) == 10 and row[2]['timestamp'].isnumeric())
-                and  # noqa: W504, W503
-                (int(row[2]['counter']) == i + 1)
-                and  # noqa: W504, W503
-                (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
-                for row in async_consumer.log
-            )
+            if async_service_type == 'redis':
+                assert any(
+                    (row[1][0].isupper())
+                    for row in async_consumer.log
+                )
+            else:
+                assert any(
+                    (row[0].startswith('prefix-') and is_valid_uuid(row[0][7:]))
+                    and  # noqa: W504, W503
+                    (row[1][0].isupper())
+                    and  # noqa: W504, W503
+                    (row[2]['name'] == 'templated')
+                    and  # noqa: W504, W503
+                    (row[2]['constant'] == 'constant-value')
+                    and  # noqa: W504, W503
+                    (len(row[2]['timestamp']) == 10 and row[2]['timestamp'].isnumeric())
+                    and  # noqa: W504, W503
+                    (int(row[2]['counter']) == i + 1)
+                    and  # noqa: W504, W503
+                    (int(row[2]['fromFile'][10:11]) < 10 and int(row[2]['fromFile'][28:30]) < 100)
+                    for row in async_consumer.log
+                )
 
     def test_post_async_producer_templated(self):
         global async_service_type
@@ -4486,42 +4505,62 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic1?key=key1' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic1%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key1' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
         )
 
-        assert any(
-            entry['request']['method'] == 'GET'
-            and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
-            and  # noqa: W504, W503
-            entry['response']['status'] == 200
-            and  # noqa: W504, W503
-            entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
-            and  # noqa: W504, W503
-            entry['response']['headers'][-1]['value'] == 'key2'
-            for entry in entries
-        )
+        if async_service_type == 'redis':
+            assert any(
+                entry['request']['method'] == 'GET'
+                and  # noqa: W504, W503
+                entry['request']['url'] == '%s://localhost:%s/topic2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                and  # noqa: W504, W503
+                entry['response']['status'] == 200
+                for entry in entries
+            )
+        else:
+            assert any(
+                entry['request']['method'] == 'GET'
+                and  # noqa: W504, W503
+                entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                and  # noqa: W504, W503
+                entry['response']['status'] == 200
+                and  # noqa: W504, W503
+                entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+                and  # noqa: W504, W503
+                entry['response']['headers'][-1]['value'] == 'key2'
+                for entry in entries
+            )
 
-        assert any(
-            entry['request']['method'] == 'GET'
-            and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
-            and  # noqa: W504, W503
-            entry['response']['status'] == 200
-            and  # noqa: W504, W503
-            entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
-            and  # noqa: W504, W503
-            entry['response']['headers'][-1]['value'] == 'key3'
-            for entry in entries
-        )
+        if async_service_type == 'redis':
+            assert any(
+                entry['request']['method'] == 'GET'
+                and  # noqa: W504, W503
+                entry['request']['url'] == '%s://localhost:%s/topic3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                and  # noqa: W504, W503
+                entry['response']['status'] == 200
+                for entry in entries
+            )
+        else:
+            assert any(
+                entry['request']['method'] == 'GET'
+                and  # noqa: W504, W503
+                entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                and  # noqa: W504, W503
+                entry['response']['status'] == 200
+                and  # noqa: W504, W503
+                entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+                and  # noqa: W504, W503
+                entry['response']['headers'][-1]['value'] == 'key3'
+                for entry in entries
+            )
 
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic3%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key3' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4539,7 +4578,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic7?key=key7' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic7%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key7' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -4548,26 +4587,38 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic8?key=key8' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic8%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key8' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
         )
 
-        assert any(
-            entry['request']['method'] == 'PUT'
-            and  # noqa: W504, W503
-            entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
-            and  # noqa: W504, W503
-            entry['request']['headers'][-2]['value'].isnumeric()
-            and  # noqa: W504, W503
-            entry['request']['headers'][-1]['value'].startswith('Some text')
-            and  # noqa: W504, W503
-            entry['response']['status'] == 202
-            for entry in entries
-        )
+        if async_service_type == 'redis':
+            assert any(
+                entry['request']['method'] == 'PUT'
+                and  # noqa: W504, W503
+                entry['request']['url'].startswith('%s://localhost:%s/templated-producer' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
+                and  # noqa: W504, W503
+                entry['response']['status'] == 202
+                for entry in entries
+            )
+        else:
+            assert any(
+                entry['request']['method'] == 'PUT'
+                and  # noqa: W504, W503
+                entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
+                and  # noqa: W504, W503
+                entry['request']['headers'][-2]['value'].isnumeric()
+                and  # noqa: W504, W503
+                entry['request']['headers'][-1]['value'].startswith('Some text')
+                and  # noqa: W504, W503
+                entry['response']['status'] == 202
+                for entry in entries
+            )
 
     def test_stats(self):
+        global async_service_type
+
         resp = httpx.get(MGMT + '/stats', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -4591,9 +4642,9 @@ class AsyncBase():
         assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {'202': 1}
 
         assert data['services'][0]['endpoints'][1]['hint'] == 'GET topic2 - 1'
-        assert data['services'][0]['endpoints'][1]['request_counter'] == 2
+        assert data['services'][0]['endpoints'][1]['request_counter'] == 5 if async_service_type == 'redis' else 2
         assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 2}
+        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 5} if async_service_type == 'redis' else {'200': 2}
 
         assert data['services'][0]['endpoints'][2]['hint'] == 'PUT topic3 - 2'
         assert data['services'][0]['endpoints'][2]['request_counter'] > 1
@@ -4661,6 +4712,8 @@ class AsyncBase():
         assert len(data['services'][2]['endpoints']) == 2
 
     def assert_management_post_config(self, async_consumer):
+        global async_service_type
+
         key = 'key1'
         value = 'value101'
         headers = {
@@ -4669,7 +4722,10 @@ class AsyncBase():
             'global-hdr2': 'globalval2'
         }
 
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
+        if async_service_type == 'redis':
+            assert any(row[1] == value for row in async_consumer.log)
+        else:
+            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
         key = 'key301'
         value = 'value3'
@@ -4694,12 +4750,14 @@ class AsyncBase():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        del data['globals']['headers']['global-hdr1']
+        if async_service_type != 'redis':
+            del data['globals']['headers']['global-hdr1']
+            data['globals']['headers']['global-hdrX'] = 'globalvalY'
+            data['services'][0]['actors'][2]['produce']['key'] = 'key301'
+            data['services'][0]['actors'][2]['produce']['headers']['hdr3'] = 'val301'
+
         data['services'][0]['actors'][0]['produce']['value'] = 'value101'
-        data['globals']['headers']['global-hdrX'] = 'globalvalY'
         data['services'][0]['actors'][2]['delay'] = 2
-        data['services'][0]['actors'][2]['produce']['key'] = 'key301'
-        data['services'][0]['actors'][2]['produce']['headers']['hdr3'] = 'val301'
 
         resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
         assert 204 == resp.status_code
@@ -4734,11 +4792,16 @@ class AsyncBase():
         job.kill()
 
     def test_management_get_resources(self):
+        global async_service_type
+
         resp = httpx.get(MGMT + '/resources', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
-        assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}
+        if async_service_type == 'redis':
+            assert data == {'files': ['dataset.json', 'image.png', 'value_schema.json', 'value_schema_error.json']}
+        else:
+            assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}
 
 
 class TestAsyncKafka(AsyncBase):
