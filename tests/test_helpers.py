@@ -8,7 +8,10 @@
 
 import pytest
 
-from mockintosh.methods import _urlsplit
+from mockintosh import Definition, start_render_queue
+from mockintosh.helpers import _urlsplit
+from mockintosh.j2.methods import env
+from mockintosh.constants import JINJA
 
 
 class TestHelpers():
@@ -24,3 +27,22 @@ class TestHelpers():
     def test_invalid_ipv6(self):
         with pytest.raises(ValueError, match=r"Invalid IPv6 URL"):
             _urlsplit('https://[::1/path/resource.txt?a=b&c=d#fragment')
+
+    def test_jinja_env_helper(self):
+        assert env('TESTING_ENV', 'someothervalue') == 'somevalue'
+        assert env('TESTING_NOT_ENV', 'someothervalue') == 'someothervalue'
+
+        queue, job = start_render_queue()
+        result, _ = Definition.async_address_template_renderer(
+            JINJA,
+            queue,
+            "{{env('TESTING_ENV', 'someothervalue')}}"
+        )
+        assert result == 'somevalue'
+        result, _ = Definition.async_address_template_renderer(
+            JINJA,
+            queue,
+            "{{env('TESTING_NOT_ENV', 'someothervalue')}}"
+        )
+        assert result == 'someothervalue'
+        job.kill()

@@ -1,6 +1,152 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "async_ref": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "ssl": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "kafka",
+            "rabbitmq",
+            "redis"
+          ]
+        },
+        "actors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/actor_ref"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "address",
+        "actors"
+      ],
+      "additionalProperties": false
+    },
+    "actor_ref": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "dataset": {
+          "$ref": "#/definitions/dataset_ref"
+        },
+        "produce": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/produce_ref"
+              },
+              "minItems": 1
+            },
+            {
+              "$ref": "#/definitions/produce_ref"
+            }
+          ]
+        },
+        "consume": {
+          "$ref": "#/definitions/consume_ref"
+        },
+        "delay": {
+          "type": "number"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "multiPayloadsLooped": {
+          "type": "boolean"
+        },
+        "datasetLooped": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "produce_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queue",
+        "value"
+      ],
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "queue": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "headers": {
+          "$ref": "#/definitions/headers_ref"
+        }
+      }
+    },
+    "consume_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queue"
+      ],
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "queue": {
+          "type": "string"
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "$ref": "http://json-schema.org/draft-07/schema#"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "headers": {
+          "$ref": "#/definitions/headers_ref"
+        },
+        "capture": {
+          "type": "integer"
+        }
+      }
+    },
     "service_ref": {
       "type": "object",
       "properties": {
@@ -109,17 +255,7 @@
           "additionalProperties": false
         },
         "dataset": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "object"
-              }
-            },
-            {
-              "type": "string"
-            }
-          ]
+          "$ref": "#/definitions/dataset_ref"
         },
         "response": {
           "oneOf": [
@@ -180,6 +316,19 @@
             }
           },
           "additionalProperties": false
+        }
+      ]
+    },
+    "dataset_ref": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "type": "string"
         }
       ]
     },
@@ -271,7 +420,14 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/definitions/service_ref"
+        "anyOf": [
+          {
+            "$ref": "#/definitions/service_ref"
+          },
+          {
+            "$ref": "#/definitions/async_ref"
+          }
+        ]
       }
     },
     "performanceProfiles": {

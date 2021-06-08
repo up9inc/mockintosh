@@ -12,13 +12,15 @@ import json
 import copy
 import shutil
 import logging
+import threading
 from typing import (
     Union
 )
 from collections import OrderedDict
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
 import yaml
+from yaml.representer import Representer
 import jsonschema
 import tornado.web
 from tornado.util import unicode_type
@@ -26,8 +28,14 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.handlers import GenericHandler
-from mockintosh.methods import _safe_path_split, _b64encode, _urlsplit
-from mockintosh.exceptions import RestrictedFieldError
+from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
+from mockintosh.exceptions import (
+    RestrictedFieldError,
+    AsyncProducerListHasNoPayloadsMatchingTags,
+    AsyncProducerPayloadLoopEnd,
+    AsyncProducerDatasetLoopEnd
+)
+from mockintosh.kafka import KafkaService, run_loops as kafka_run_loops
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
 UNHANDLED_SERVICE_KEYS = ('name', 'port', 'hostname')
@@ -52,7 +60,24 @@ UNHANDLED_IGNORED_HEADERS = (
 __location__ = os.path.abspath(os.path.dirname(__file__))
 
 
+def str_representer(dumper, data):
+    if "\n" in data.strip():  # pragma: no cover
+        # Check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+yaml.add_representer(str, str_representer)
+yaml.add_representer(OrderedDict, Representer.represent_dict)
+
+
 def _reset_iterators(app):
+    if isinstance(app, KafkaService):
+        for actor in app.actors:
+            if actor.producer is not None:
+                actor.producer.iteration = 0
+        return
+
     for rule in app.default_router.rules[0].target.rules:
         if rule.target == GenericHandler:
             endpoints = rule.target_kwargs['endpoints']
@@ -115,27 +140,49 @@ class ManagementConfigHandler(ManagementBaseHandler):
         if not self.validate(data):
             return
 
-        data = mockintosh.Definition.analyze(data, self.http_server.definition.template_engine)
-        self.http_server.stats.services = []
+        self.http_server.definition.stats.services = []
+        data = self.http_server.definition.analyze(data)
         for service in data['services']:
-            hint = '%s:%s%s' % (
-                service['hostname'] if 'hostname' in service else (
-                    self.http_server.address if self.http_server.address else 'localhost'
-                ),
-                service['port'],
-                ' - %s' % service['name'] if 'name' in service else ''
-            )
-            self.http_server.stats.add_service(hint)
+            hint = None
+            if 'type' in service and service['type'] != 'http':
+                service['address'], _ = mockintosh.Definition.async_address_template_renderer(
+                    self.http_server.definition.template_engine,
+                    self.http_server.definition.rendering_queue,
+                    service['address']
+                )
+                hint = 'kafka://%s' % service['address'] if 'name' not in service else service['name']
+            else:
+                hint = '%s://%s:%s%s' % (
+                    'https' if service.get('ssl', False) else 'http',
+                    service['hostname'] if 'hostname' in service else (
+                        self.http_server.address if self.http_server.address else 'localhost'
+                    ),
+                    service['port'],
+                    ' - %s' % service['name'] if 'name' in service else ''
+                )
+            self.http_server.definition.stats.add_service(hint)
+
+        for kafka_service in data['kafka_services']:
+            self.http_server._apps.apps[kafka_service.id] = kafka_service
+
         for i, service in enumerate(data['services']):
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             service['internalServiceId'] = i
             if not self.update_service(service, i):
                 return
 
-        self.http_server.stats.reset()
+        self.http_server.definition.stats.reset()
         self.http_server.definition.orig_data = orig_data
         self.http_server.definition.data = data
 
         self.update_globals()
+
+        self.http_server.definition.trigger_stoppers()
+        stop = {'val': False}
+        self.http_server.definition.add_stopper(stop)
+        kafka_run_loops(self.http_server.definition, stop)
 
         self.set_status(204)
 
@@ -151,14 +198,13 @@ class ManagementConfigHandler(ManagementBaseHandler):
     def _update_service(self, service, service_index):
         self.check_restricted_fields(service, service_index)
         endpoints = []
-        self.http_server.stats.services[service_index].endpoints = []
-        self.http_server.logs.services[service_index].name = service['name'] if 'name' in service else ''
+        self.http_server.definition.stats.services[service_index].endpoints = []
+        self.http_server.definition.logs.services[service_index].name = service['name'] if 'name' in service else ''
 
         if 'endpoints' in service:
             endpoints = mockintosh.servers.HttpServer.merge_alternatives(
                 service,
-                self.http_server.stats,
-                self.http_server.logs
+                self.http_server.definition.stats
             )
         merged_endpoints = []
         for endpoint in endpoints:
@@ -185,7 +231,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
                 raise RestrictedFieldError(field)
 
     def update_globals(self):
-        for i, _ in enumerate(self.http_server.definition.data['services']):
+        for i, service in enumerate(self.http_server.definition.data['services']):
+            if 'type' in service and service['type'] != 'http':  # pragma: no cover
+                continue
+
             self.http_server.globals = self.http_server.definition.data['globals'] if (
                 'globals' in self.http_server.definition.data
             ) else {}
@@ -275,6 +324,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
         services = self.http_server.definition.orig_data['services']
         for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             endpoints = self.build_unhandled_requests(i)
             if not endpoints:
                 continue
@@ -302,6 +354,7 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
 
             request = requests[-1][0]
             response = requests[-1][1]
+
             config_template = {}
 
             # Path
@@ -337,6 +390,8 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
             if response is None:
                 config_template['response'] = ''
             else:
+                response.headers.pop('Content-Length', None)
+
                 config_template['response'] = {
                     'status': response.status,
                     'headers': {},
@@ -385,7 +440,10 @@ class ManagementOasHandler(ManagementBaseHandler):
         }
 
         services = self.http_server.definition.orig_data['services']
-        for i in range(len(services)):
+        for i, service in enumerate(services):
+            if 'type' in service and service['type'] != 'http':
+                continue
+
             data['documents'].append(self.build_oas(i))
 
         self.write(data)
@@ -594,7 +652,7 @@ class ManagementOasHandler(ManagementBaseHandler):
         relative_path = None
         orig_relative_path = source_text[1:]
 
-        error_msg = 'External OAS document \'%s\' couldn\'t be accessed or found!' % orig_relative_path
+        error_msg = 'External OAS document %r couldn\'t be accessed or found!' % orig_relative_path
         if orig_relative_path[0] == '/':
             orig_relative_path = orig_relative_path[1:]
         relative_path = os.path.join(config_dir, orig_relative_path)
@@ -620,9 +678,15 @@ class ManagementTagHandler(ManagementBaseHandler):
         }
 
         for app in self.http_server._apps.apps:
+            if isinstance(app, KafkaService):
+                data['tags'] += app.tags
+                continue
+
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
-                    data['tags'].append(rule.target_kwargs['tag'])
+                    data['tags'] += rule.target_kwargs['tags']
+
+        data['tags'] = list(set(data['tags']))
 
         self.write(data)
 
@@ -630,10 +694,15 @@ class ManagementTagHandler(ManagementBaseHandler):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
+        data = data.split(',')
         for app in self.http_server._apps.apps:
+            if isinstance(app, KafkaService):
+                app.tags = data
+                continue
+
             for rule in app.default_router.rules[0].target.rules:
                 if rule.target == GenericHandler:
-                    rule.target_kwargs['tag'] = data
+                    rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 
@@ -645,37 +714,57 @@ class ManagementResourcesHandler(ManagementBaseHandler):
         files = []
         cwd = self.http_server.definition.source_dir
         for service in self.http_server.definition.orig_data['services']:
-            if 'oas' in service:
-                if service['oas'].startswith('@'):
-                    files.append(service['oas'][1:])
-            if 'endpoints' not in service:
-                continue
-            for endpoint in service['endpoints']:
-                if 'body' in endpoint and 'schema' in endpoint['body'] and (
-                    isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
-                ):
-                    files.append(endpoint['body']['schema'][1:])
-                if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
-                    endpoint['dataset'].startswith('@')
-                ):
-                    files.append(endpoint['dataset'][1:])
-                if 'response' not in endpoint:
+            if 'type' in service and service['type'] == 'kafka':
+                for actor in service['actors']:
+                    if 'consume' in actor and 'schema' in actor['consume'] and (
+                        isinstance(actor['consume']['schema'], str) and actor['consume']['schema'].startswith('@')
+                    ):
+                        files.append(actor['consume']['schema'][1:])
+                    if 'produce' in actor:
+                        if 'headers' in actor['produce']:
+                            for key, value in actor['produce']['headers'].items():
+                                if value.startswith('@'):
+                                    files.append(value[1:])
+                        if 'value' in actor['produce'] and (
+                            isinstance(actor['produce']['value'], str) and actor['produce']['value'].startswith('@')
+                        ):
+                            files.append(actor['produce']['value'][1:])
+                    if 'dataset' in actor and (
+                        isinstance(actor['dataset'], str) and actor['dataset'].startswith('@')
+                    ):
+                        files.append(actor['dataset'][1:])
+            else:
+                if 'oas' in service:
+                    if service['oas'].startswith('@'):
+                        files.append(service['oas'][1:])
+                if 'endpoints' not in service:
                     continue
-                response = endpoint['response']
-                if isinstance(response, str):
-                    if response.startswith('@'):
-                        files.append(response[1:])
-                elif isinstance(response, dict) and 'body' in response:
-                    if response['body'].startswith('@'):
-                        files.append(response['body'][1:])
-                elif isinstance(response, list):
-                    for el in response:
-                        if isinstance(el, str):
-                            if el.startswith('@'):
-                                files.append(el[1:])
-                        elif isinstance(el, dict) and 'body' in el:
-                            if el['body'].startswith('@'):
-                                files.append(el['body'][1:])
+                for endpoint in service['endpoints']:
+                    if 'body' in endpoint and 'schema' in endpoint['body'] and (
+                        isinstance(endpoint['body']['schema'], str) and endpoint['body']['schema'].startswith('@')
+                    ):
+                        files.append(endpoint['body']['schema'][1:])
+                    if 'dataset' in endpoint and isinstance(endpoint['dataset'], str) and (
+                        endpoint['dataset'].startswith('@')
+                    ):
+                        files.append(endpoint['dataset'][1:])
+                    if 'response' not in endpoint:
+                        continue
+                    response = endpoint['response']
+                    if isinstance(response, str):
+                        if response.startswith('@'):
+                            files.append(response[1:])
+                    elif isinstance(response, dict) and 'body' in response:
+                        if response['body'].startswith('@'):
+                            files.append(response['body'][1:])
+                    elif isinstance(response, list):
+                        for el in response:
+                            if isinstance(el, str):
+                                if el.startswith('@'):
+                                    files.append(el[1:])
+                            elif isinstance(el, dict) and 'body' in el:
+                                if el['body'].startswith('@'):
+                                    files.append(el['body'][1:])
         files = list(set(files))
         files = list(filter(lambda x: (os.path.abspath(os.path.join(cwd, x)).startswith(cwd)), files))
         new_files = []
@@ -898,6 +987,7 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         data = mockintosh.Definition.analyze_service(
             data,
             self.http_server.definition.template_engine,
+            self.http_server.definition.rendering_queue,
             performance_profiles=self.http_server.definition.data['performanceProfiles'],
             global_performance_profile=global_performance_profile
         )
@@ -905,7 +995,9 @@ class ManagementServiceConfigHandler(ManagementConfigHandler):
         if not self.update_service(data, self.service_id):
             return
 
-        self.http_server.stats.reset()
+        self.http_server.definition.stats.reset()
+        self.http_server.definition.orig_data['services'][self.service_id] = orig_data
+        self.http_server.definition.data['services'][self.service_id] = data
 
         self.set_status(204)
 
@@ -1004,19 +1096,23 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
     async def get(self):
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
-                tag = rule.target_kwargs['tag']
-                if tag is None:
+                tags = rule.target_kwargs['tags']
+                if not tags:
                     self.set_status(204)
                 else:
-                    self.write(tag)
+                    data = {
+                        'tags': tags
+                    }
+                    self.write(data)
 
     async def post(self):
         data = self.get_query_argument('current', default=None)
         if data is None:
             data = self.request.body.decode()
+        data = data.split(',')
         for rule in self.http_server._apps.apps[self.service_id].default_router.rules[0].target.rules:
             if rule.target == GenericHandler:
-                rule.target_kwargs['tag'] = data
+                rule.target_kwargs['tags'] = data
 
         self.set_status(204)
 
@@ -1024,3 +1120,165 @@ class ManagementServiceTagHandler(ManagementBaseHandler):
 class UnhandledData:
     def __init__(self):
         self.requests = []
+
+
+class ManagementAsyncHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self):
+        data = {
+            'producers': [],
+            'consumers': []
+        }
+
+        for producer in self.http_server.definition.data['async_producers']:
+            data['producers'].append(producer.info())
+
+        for consumer in self.http_server.definition.data['async_consumers']:
+            data['consumers'].append(consumer.info())
+
+        self.dump(data)
+
+    def dump(self, data) -> None:
+        _format = self.get_query_argument('format', default='json')
+        if _format == 'yaml':
+            self.set_header('Content-Type', 'application/x-yaml')
+            self.write(yaml.dump(data, sort_keys=False))
+        else:
+            self.write(data)
+
+
+class ManagementAsyncProducersHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def post(self, value):
+        if value.isnumeric():
+            try:
+                index = int(value)
+                producer = self.http_server.definition.data['async_producers'][index]
+                try:
+                    producer.check_tags()
+                    producer.check_payload_lock()
+                    producer.check_dataset_lock()
+                    t = threading.Thread(target=producer.produce, args=(), kwargs={
+                        'ignore_delay': True
+                    })
+                    t.daemon = True
+                    t.start()
+                    self.set_status(202)
+                    self.write(producer.info())
+                except (
+                    AsyncProducerListHasNoPayloadsMatchingTags,
+                    AsyncProducerPayloadLoopEnd,
+                    AsyncProducerDatasetLoopEnd
+                ) as e:
+                    self.set_status(410)
+                    self.write(str(e))
+                    return
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid producer index!')
+                return
+        else:
+            producer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.producer is None:  # pragma: no cover
+                            continue
+                        producer = actor.producer
+                        try:
+                            producer.check_tags()
+                            producer.check_payload_lock()
+                            producer.check_dataset_lock()
+                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
+                                'ignore_delay': True
+                            })
+                            t.daemon = True
+                            t.start()
+                        except (
+                            AsyncProducerListHasNoPayloadsMatchingTags,
+                            AsyncProducerPayloadLoopEnd,
+                            AsyncProducerDatasetLoopEnd
+                        ) as e:
+                            self.set_status(410)
+                            self.write(str(e))
+                            return
+
+            if producer is None:
+                self.set_status(400)
+                self.write('No producer actor is found for: %r' % actor_name)
+                return
+            else:
+                self.set_status(202)
+                self.write(producer.info())
+
+
+class ManagementAsyncConsumersHandler(ManagementBaseHandler):
+
+    def initialize(self, http_server):
+        self.http_server = http_server
+
+    async def get(self, value):
+        if value.isnumeric():
+            try:
+                index = int(value)
+                consumer = self.http_server.definition.data['async_consumers'][index]
+                self.write(consumer.single_log_service.json())
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid consumer index!')
+                return
+        else:
+            consumer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.consumer is None:  # pragma: no cover
+                            continue
+                        consumer = actor.consumer
+
+            if consumer is None:
+                self.set_status(400)
+                self.write('No consumer actor is found for: %r' % actor_name)
+                return
+            else:
+                self.write(consumer.single_log_service.json())
+
+    async def delete(self, value):
+        if value.isnumeric():
+            try:
+                index = int(value)
+                consumer = self.http_server.definition.data['async_consumers'][index]
+                consumer.single_log_service.reset()
+                self.set_status(204)
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid consumer index!')
+                return
+        else:
+            consumer = None
+            actor_name = unquote(value)
+            services = self.http_server.definition.data['kafka_services']
+            for service_id, service in enumerate(services):
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.consumer is None:  # pragma: no cover
+                            continue
+                        consumer = actor.consumer
+
+            if consumer is None:
+                self.set_status(400)
+                self.write('No consumer actor is found for: %r' % actor_name)
+                return
+            else:
+                consumer.single_log_service.reset()
+                self.set_status(204)

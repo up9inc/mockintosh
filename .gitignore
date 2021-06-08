@@ -120,3 +120,16 @@ tests/configs/json/hbs/management/cert.pem
 tests/configs/json/hbs/management/key.pem
 tests/configs/yaml/hbs/management/cert.pem
 tests/configs/yaml/hbs/management/key.pem
+tests/configs/json/hbs/kafka/cert.pem
+tests/configs/json/hbs/kafka/key.pem
+tests/configs/yaml/hbs/kafka/cert.pem
+tests/configs/yaml/hbs/kafka/key.pem
+tests/configs/yaml/hbs/core/cert.pem
+tests/configs/yaml/hbs/core/key.pem
+
+# Copied Images
+tests/configs/yaml/hbs/kafka/image.png
+
+# Copied JSON schemas
+tests/configs/yaml/hbs/data_dir_override/body_schema.json
+tests/configs/yaml/hbs/data_dir_override/body_schema_error.json

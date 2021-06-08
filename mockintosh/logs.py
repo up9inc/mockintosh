@@ -6,6 +6,11 @@
     :synopsis: module that contains logging related classes.
 """
 
+from datetime import datetime
+from typing import (
+    Union
+)
+
 from tornado.http1connection import HTTP1ServerConnection
 
 import mockintosh
@@ -31,24 +36,30 @@ class LogRecord:
     def __init__(
         self,
         service_name: str,
-        request_start_time: int,
+        request_start_datetime: datetime,
         elapsed_time_in_milliseconds: int,
         request: Request,
         response: Response,
-        server_connection: HTTP1ServerConnection
+        server_connection: Union[HTTP1ServerConnection, None]
     ):
         self.service_name = service_name
-        self.request_start_time = request_start_time
+        self.request_start_datetime = request_start_datetime
         self.elapsed_time_in_milliseconds = elapsed_time_in_milliseconds
         self.request = request
         self.response = response
-        self.server_ip_address = server_connection.stream.socket.getsockname()[0]
-        self.connection = str(server_connection.stream.socket.getsockname()[1])
+        if server_connection is not None and server_connection.stream.socket is not None:
+            self.server_ip_address = server_connection.stream.socket.getsockname()[0]
+            self.connection = str(server_connection.stream.socket.getsockname()[1])
+        else:
+            # It branches to here only if there is a proxy in front of Mockintosh
+            # and socket connection is not used or the log comes from a non-HTTP service.
+            self.server_ip_address = ''
+            self.connection = ''
 
     def json(self):
         data = {
             '_serviceName': self.service_name,
-            'startedDateTime': self.request_start_time.astimezone().isoformat(),
+            'startedDateTime': self.request_start_datetime.astimezone().isoformat(),
             'time': self.elapsed_time_in_milliseconds,
             'request': self.request._har(),
             'response': self.response._har(),
@@ -63,6 +74,10 @@ class LogRecord:
             'serverIPAddress': self.server_ip_address,
             'connection': self.connection
         }
+
+        data['serverIPAddress'] = self.server_ip_address
+        data['connection'] = self.connection
+
         return data
 
 

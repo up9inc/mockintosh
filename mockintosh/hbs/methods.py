@@ -21,7 +21,7 @@ from jsonpath_ng import parse as jsonpath_parse
 from pybars import PybarsError
 from faker import Faker
 
-from mockintosh.methods import _handlebars_add_to_context
+from mockintosh.helpers import _handlebars_add_to_context
 
 
 def fake():
@@ -77,6 +77,10 @@ def counter(this, name):
 
 def escape_html(this, text):
     return html.escape(text)
+
+
+def env(this, name, default):
+    return os.environ.get(name, default)
 
 
 def tojson(this, text):

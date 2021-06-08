@@ -3,12 +3,13 @@
 
 """
 .. module:: __init__
-    :synopsis: module that contains common methods.
+    :synopsis: module that contains helper methods.
 """
 
 import sys
 import io
 import re
+import time
 import logging
 from contextlib import contextmanager
 from base64 import b64encode
@@ -32,7 +33,7 @@ def _detect_engine(data, context='config', default=PYBARS):
         data['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
     ):
         template_engine = JINJA
-    logging.debug('Templating engine (%s) is: %s' % (context, template_engine))
+    logging.debug('Templating engine (%s) is: %s', context, template_engine)
     return template_engine
 
 
@@ -114,3 +115,8 @@ def _urlsplit(url, scheme='', allow_fragments=True):
             query = result[1]
     v = SplitResult(scheme, netloc, url, query, fragment)
     return _coerce_result(v)
+
+
+def _delay(seconds):
+    logging.debug('Sleeping for %d seconds.', seconds)
+    time.sleep(seconds)

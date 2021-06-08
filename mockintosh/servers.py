@@ -20,7 +20,6 @@ from tornado.routing import Rule, RuleRouter, HostMatches
 
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
-from mockintosh.logs import Logs
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -30,6 +29,9 @@ from mockintosh.management import (
     ManagementUnhandledHandler,
     ManagementOasHandler,
     ManagementTagHandler,
+    ManagementAsyncHandler,
+    ManagementAsyncProducersHandler,
+    ManagementAsyncConsumersHandler,
     ManagementResourcesHandler,
     ManagementServiceRootHandler,
     ManagementServiceRootRedirectHandler,
@@ -43,9 +45,8 @@ from mockintosh.management import (
     UnhandledData
 )
 from mockintosh.stats import Stats
+from mockintosh import kafka
 
-stats = Stats()
-logs = Logs()
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -91,7 +92,16 @@ class _Apps:
 
 class HttpServer:
 
-    def __init__(self, definition, impl: Impl, debug=False, interceptors=(), address='', services_list=()):
+    def __init__(
+        self,
+        definition,
+        impl: Impl,
+        debug=False,
+        interceptors=(),
+        address='',
+        services_list=(),
+        tags=[]
+    ):
         self.definition = definition
         self.impl = impl
         self.address = address
@@ -101,33 +111,28 @@ class HttpServer:
         self.services_list = services_list
         self.services_log = []
         self._apps = _Apps()
-        self.stats = stats
-        self.logs = logs
         self.unhandled_data = UnhandledData()
+        self.tags = tags
         self.load()
 
     def load(self):
         port_override = environ.get('MOCKINTOSH_FORCE_PORT', None)
 
         services = self.definition.data['services']
-        service_id_counter = 0
+        self._apps.apps = len(services) * [None]
+        self._apps.listeners = len(services) * [None]
         for service in services:
-            service['internalServiceId'] = service_id_counter
-            service_id_counter += 1
-
             self.unhandled_data.requests.append({})
-            hint = '%s:%s%s' % (
-                service['hostname'] if 'hostname' in service else (
-                    self.address if self.address else 'localhost'
-                ),
-                service['port'],
-                ' - %s' % service['name'] if 'name' in service else ''
-            )
-            self.stats.add_service(hint)
-            self.logs.add_service(service['name'] if 'name' in service else '')
 
         port_mapping = OrderedDict()
         for service in self.definition.data['services']:
+            if 'type' in service and service['type'] != 'http':
+                self._apps.apps[service['internalServiceId']] = service['internalRef']
+                continue
+
+            if port_override is not None:
+                service['port'] = int(port_override)
+
             port = str(service['port'])
             if port not in port_mapping:
                 port_mapping[port] = []
@@ -155,8 +160,6 @@ class HttpServer:
 
             for service in services:
                 if self.services_list:
-                    if port_override is not None:
-                        service['port'] = int(port_override)
 
                     if 'name' in service:
                         if service['name'] not in self.services_list:
@@ -166,26 +169,24 @@ class HttpServer:
 
                 endpoints = []
                 if 'endpoints' in service:
-                    endpoints = HttpServer.merge_alternatives(service, self.stats, self.logs)
+                    endpoints = HttpServer.merge_alternatives(service, self.definition.stats)
 
                 management_root = None
                 if 'managementRoot' in service:
                     management_root = service['managementRoot']
 
                 app = self.make_app(service, endpoints, self.globals, debug=self.debug, management_root=management_root)
-                self._apps.apps.append(app)
-                self._apps.listeners.append(
-                    _Listener(
-                        service['hostname'] if 'hostname' in service else None,
-                        service['port'],
-                        self.address if self.address else 'localhost'
-                    )
+                self._apps.apps[service['internalServiceId']] = app
+                self._apps.listeners[service['internalServiceId']] = _Listener(
+                    service['hostname'] if 'hostname' in service else None,
+                    service['port'],
+                    self.address if self.address else 'localhost'
                 )
 
                 if 'hostname' not in service:
                     server = self.impl.get_server(app, ssl, ssl_options)
                     server.listen(service['port'], address=self.address)
-                    logging.debug('Will listen port number: %d' % service['port'])
+                    logging.debug('Will listen port number: %d', service['port'])
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
                         self.address if self.address else 'localhost',
@@ -197,11 +198,12 @@ class HttpServer:
                         Rule(HostMatches(service['hostname']), app)
                     )
 
-                    logging.debug('Registered hostname and port: %s://%s:%d' % (
+                    logging.debug(
+                        'Registered hostname and port: %s://%s:%d',
                         protocol,
                         service['hostname'],
                         service['port']
-                    ))
+                    )
                     self.services_log.append('Serving at %s://%s:%s%s' % (
                         protocol,
                         service['hostname'],
@@ -210,18 +212,18 @@ class HttpServer:
                     ))
 
                 if 'name' in service:
-                    logging.debug('Finished registering: %s' % service['name'])
+                    logging.debug('Finished registering: %s', service['name'])
 
             if rules:
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
                 server.listen(services[0]['port'], address=self.address)
-                logging.debug('Will listen port number: %d' % service['port'])
+                logging.debug('Will listen port number: %d', service['port'])
 
         self.load_management_api()
 
     @staticmethod
-    def merge_alternatives(service: dict, stats: Stats, logs: Logs):
+    def merge_alternatives(service: dict, stats: Stats):
         new_endpoints = {}
         i = 0
         for endpoint in service['endpoints']:
@@ -269,6 +271,9 @@ class HttpServer:
             logging.info(service_log)
 
         logging.info('Mock server is ready!')
+        stop = {'val': False}
+        self.definition.add_stopper(stop)
+        kafka.run_loops(self.definition, stop)
         self.impl.serve()
 
     def make_app(self, service, endpoints, _globals, debug=False, management_root=None):
@@ -293,12 +298,11 @@ class HttpServer:
                     endpoints=merged_endpoints,
                     _globals=_globals,
                     definition_engine=self.definition.template_engine,
+                    rendering_queue=self.definition.rendering_queue,
                     interceptors=self.interceptors,
-                    stats=self.stats,
-                    logs=self.logs,
                     unhandled_data=self.unhandled_data if unhandled_enabled else None,
                     fallback_to=service['fallbackTo'] if 'fallbackTo' in service else None,
-                    tag=None
+                    tags=self.tags
                 )
             )
         )
@@ -333,7 +337,7 @@ class HttpServer:
                     '/%s/stats' % management_root,
                     ManagementServiceStatsHandler,
                     dict(
-                        stats=stats,
+                        stats=self.definition.stats,
                         service_id=service['internalServiceId']
                     )
                 ),
@@ -341,7 +345,7 @@ class HttpServer:
                     '/%s/traffic-log' % management_root,
                     ManagementServiceLogsHandler,
                     dict(
-                        logs=logs,
+                        logs=self.definition.logs,
                         service_id=service['internalServiceId']
                     )
                 ),
@@ -392,8 +396,8 @@ class HttpServer:
     def log_merged_endpoints(merged_endpoints):
         for _path, methods in merged_endpoints:
             for method, alternatives in methods.items():
-                logging.debug('Registered endpoint: %s %s' % (method.upper(), _path))
-                logging.debug('with alternatives:\n%s' % alternatives)
+                logging.debug('Registered endpoint: %s %s', method.upper(), _path)
+                logging.debug('with alternatives:\n%s', alternatives)
 
     def resolve_cert_path(self, cert_path):
         relative_path = path.join(self.definition.source_dir, cert_path)
@@ -444,14 +448,14 @@ class HttpServer:
                     '/stats',
                     ManagementStatsHandler,
                     dict(
-                        stats=stats
+                        stats=self.definition.stats
                     )
                 ),
                 (
                     '/traffic-log',
                     ManagementLogsHandler,
                     dict(
-                        logs=logs
+                        logs=self.definition.logs
                     )
                 ),
                 (
@@ -485,6 +489,27 @@ class HttpServer:
                 (
                     '/resources',
                     ManagementResourcesHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async',
+                    ManagementAsyncHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async/producers/(.+)',
+                    ManagementAsyncProducersHandler,
+                    dict(
+                        http_server=self
+                    )
+                ),
+                (
+                    '/async/consumers/(.+)',
+                    ManagementAsyncConsumersHandler,
                     dict(
                         http_server=self
                     )

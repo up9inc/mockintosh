@@ -84,7 +84,9 @@ setup(
             'coverage',
             'codecov',
             'openapi-spec-validator',
-            'backports-datetime-fromisoformat'
+            'backports-datetime-fromisoformat',
+            'pytest-travis-fold',
+            'pytest-order'
         ]
     },
 

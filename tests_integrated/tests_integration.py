@@ -7,7 +7,9 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 import httpx
+import pytest
 import yaml
+from confluent_kafka.cimpl import Consumer, Producer
 from jsonschema.validators import validate
 
 import mockintosh
@@ -20,13 +22,14 @@ SRV4 = os.environ.get('SRV4', 'http://localhost:8004')
 SRV5 = os.environ.get('SRV5', 'https://localhost:8005')
 SRV6 = os.environ.get('SRV6', 'http://localhost:8006')
 SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
+KAFK = os.environ.get('KAFK', 'localhost:9092')
 
 
 class IntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format='[%(relativeCreated)d %(name)s %(levelname)s] %(message)s')
         # test for release version consistency
         ttag = os.getenv("TRAVIS_TAG")
         ver = mockintosh.__version__
@@ -448,10 +451,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("also {{random.intt 10 20}} can happen", resp.headers.get('X-header'))
 
     def test_conn_status(self):
-        with self.assertRaises(httpx.RemoteProtocolError):
+        with self.assertRaises((httpx.RemoteProtocolError, httpx.ReadError)):
             httpx.get(SRV1 + '/conn-rst')
 
-        with self.assertRaises(httpx.RemoteProtocolError):
+        with self.assertRaises((httpx.RemoteProtocolError, httpx.ReadError)):
             httpx.get(SRV1 + '/conn-close')
 
     def test_management_global(self):
@@ -679,7 +682,8 @@ class IntegrationTests(unittest.TestCase):
 
         resp = httpx.get(SRV1 + '/__admin/tag')
         resp.raise_for_status()
-        self.assertEqual("first", resp.text)
+        data = resp.json()
+        self.assertIn("first", data['tags'])
 
         resp = httpx.get(SRV1 + '/tagged')
         self.assertEqual("3.1", resp.text)
@@ -697,7 +701,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual("3.3", resp.text)
 
         # first tag set - "second" + untagged responses
-        resp = httpx.post(SRV1 + '/__admin/tag', data="second")
+        resp = httpx.post(MGMT + '/tag', data="second", verify=False)
         resp.raise_for_status()
 
         resp = httpx.get(SRV1 + '/tagged')
@@ -851,9 +855,6 @@ class IntegrationTests(unittest.TestCase):
              'path': '/Changelog.html',
              'response': {'status': 200}},
             {'method': 'GET',
-             'path': '/img/logo.png',
-             'response': {'status': 200}},
-            {'method': 'GET',
              'path': '/not-exists',
              'response': {'status': 404}}],
             'name': 'Service with fallback',
@@ -862,10 +863,8 @@ class IntegrationTests(unittest.TestCase):
         endps = rdata['services'][0]['endpoints']
         self.assertIn('<html', endps[0]['response'].pop('body'))
         endps[1]['response'].pop('body')
-        endps[2]['response'].pop('body')
         endps[0]['response'].pop('headers')
         endps[1]['response'].pop('headers')
-        endps[2]['response'].pop('headers')
         self.assertEqual(exp, rdata)
 
     def test_qstr_multiparam(self):
@@ -884,3 +883,146 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.get(SRV1 + '/qstr-multiparam3?prefix-somedata-suffix')
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
+
+    @pytest.mark.kafka
+    def test_kafka_producer_ondemand(self):
+        resp = httpx.get(MGMT + '/async', verify=False)  # gets the list of available actors
+        resp.raise_for_status()
+        self.assertEqual(8, len(resp.json()["producers"]))
+        self.assertEqual(4, len(resp.json()["consumers"]))
+        desired = [x for x in resp.json()["producers"] if x['name'] == 'on-demand-1']
+        desired[0].pop('producedMessages')
+        desired[0].pop('lastProduced')
+        self.assertEqual({
+            "type": "kafka",
+            "name": "on-demand-1",
+            "queue": "on-demand1",
+            "index": 0,  # TODO
+            # "lastProduced": 12355.345  # TODO
+        }, desired[0])
+
+        topic = "on-demand1"
+        produce(topic, None, None)
+        resp = httpx.post(MGMT + '/async/producers/on-demand-1', verify=False)
+        resp.raise_for_status()
+        kafka_consume_expected(topic)  # to clear queue from any preceding messages
+
+        resp = httpx.post(MGMT + '/async/producers/0', verify=False)
+        resp.raise_for_status()
+        self.assertGreater(resp.json()['lastProduced'], 0)
+        self.assertGreater(resp.json()['producedMessages'], 0)
+        msgs = kafka_consume_expected(topic)
+        # produce('queue-or-topic1', "somekey or null", "thevalue %s" % time.time())
+
+        self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertEqual("json ( protobuf / avro )", msgs[0].value().decode())
+
+    @pytest.mark.kafka
+    def test_kafka_producer_scheduled(self):
+        topic = 'scheduled-queue1'
+
+        # consume whatever is there
+        msgs = kafka_consume_expected(topic)
+        logging.info("Ate: %s", msgs)
+        time.sleep(9)
+        msgs = kafka_consume_expected(topic, timeout=1)
+
+        self.assertGreater(len(msgs), 0)
+        self.assertTrue(msgs[0].key().decode().startswith("somekeyprefix-"))
+        self.assertNotIn("{{", msgs[0].key().decode())
+        val = msgs[0].value().decode()
+        self.assertTrue(val.startswith("scheduled-value "), val)
+        self.assertNotIn("{{", val)
+        headers = dict(msgs[0].headers() if msgs[0].headers() else [])
+        self.assertEqual("justvalue", headers['constant'].decode())
+        self.assertEqual("globalval1", headers['global-hdr1'].decode())
+        self.assertTrue(headers['timestamp'].decode().isdigit())
+
+    @pytest.mark.kafka
+    def test_kafka_producer_reactive(self):
+        trigger = 'consume-trigger1'
+        reaction = 'produce-reaction1'
+
+        produce(reaction, None, None)
+        kafka_consume_expected(reaction, timeout=1)
+
+        produce(trigger, "trigger-key", "trigger-val", {"hdr-name": "justvalue"})
+        time.sleep(5)
+        msgs = kafka_consume_expected(reaction, timeout=5)
+
+        self.assertEqual(1, len(msgs))
+        self.assertEqual("somekey or null", msgs[0].key().decode())
+        self.assertEqual("reaction value\ntrigger-key\ntrigger-val\n", msgs[0].value().decode())
+        headers = dict(msgs[0].headers() if msgs[0].headers() else [])
+        self.assertEqual("justvalue", headers['name'].decode())
+
+    @pytest.mark.kafka
+    def test_kafka_producer_chained(self):
+        # clean the log
+        resp = httpx.delete(MGMT + '/async/consumers/chain1-validating', verify=False)
+        resp.raise_for_status()
+
+        resp = httpx.post(MGMT + '/async/producers/chain1-on-demand', verify=False)
+        resp.raise_for_status()
+
+        for _ in range(5):
+            resp = httpx.get(MGMT + '/async/consumers/chain1-validating', verify=False)
+            resp.raise_for_status()
+            msgs = resp.json()['log']['entries']
+            if not msgs:
+                time.sleep(1)
+                continue
+            self.assertEqual(1, len(msgs))
+            break
+        else:
+            self.fail("Did not capture the message")
+
+
+def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
+                           after_subscribe=lambda: None):
+    consumer = Consumer({
+        'bootstrap.servers': KAFK,
+        'group.id': group,
+        'auto.offset.reset': 'earliest'  # earliest _committed_ offset
+    })
+    msgs = []
+    topics = consumer.list_topics(topic)  # promises to create topic
+    logging.debug("Topic state: %s", topics.topics)
+    if topics.topics[topic].error is not None:
+        logging.warning("Error subscribing to topic: %s", topics.topics)
+        return msgs
+    consumer.subscribe([topic])
+    time.sleep(5)  # for kafka to rebalance consumer groups
+
+    after_subscribe()
+
+    logging.debug("Waiting for messages...")
+    while True:
+        msg = consumer.poll(timeout)
+
+        if msg is None:
+            break
+
+        logging.info("Seen message: %r %r", msg.key(), msg.value())
+
+        if msg.error():
+            logging.warning("Consumer error: {}".format(msg.error()))
+            continue
+
+        if mfilter(msg):
+            validator(msg)
+            msgs.append(msg)
+
+    consumer.commit()
+    consumer.close()
+
+    return msgs
+
+
+def produce(queue, key, val, headers=None):
+    logging.info("Producing into %s: %s %s", queue, key, val)
+    producer = Producer({'bootstrap.servers': KAFK, "message.send.max.retries": 2})
+    producer.poll(0)
+    producer.produce(queue, key=key, value=val, headers=headers)
+    producer.flush()

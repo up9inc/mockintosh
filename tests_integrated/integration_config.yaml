@@ -92,7 +92,7 @@ services:
           schema:
             type: object
             properties:
-              somekey: {}
+              somekey: { }
             required:
               - somekey
         response: body json schema matched
@@ -217,6 +217,7 @@ services:
         path: /
         method: get
         response: Yo, I'm specified.host
+
   - name: Service with specified another.host
     port: 8002
     hostname: another.host
@@ -225,6 +226,7 @@ services:
         path: /
         method: get
         response: Hey, I'm another.host
+
   - name: Service with no endpoints, for bare interceptors
     port: 8003
     ssl: true
@@ -233,6 +235,7 @@ services:
     endpoints:
       - path: /cors2
         response: '@cors.html'
+
   - name: SSL with certfile
     port: 8005
     ssl: true
@@ -240,10 +243,12 @@ services:
     sslKeyFile: subdir/key.pem
     endpoints:
       - path: /
+
   - name: Service for management API / Dynamic configs
     port: 8006
     managementRoot: /sub/__admin
     oas: '@subdir/oas.json'
+
   - name: Service with fallback
     port: 8007
     managementRoot: /sub/__admin
@@ -251,3 +256,97 @@ services:
     endpoints:
       - path: /
         response: no fallback
+
+  - name: Kafka Mocks
+    type: kafka # rabbitmq, redis
+    address: localhost:9092 # deployed address
+    actors:
+      # on-demand producer
+      - name: on-demand-1
+        produce:
+          queue: on-demand1
+          key: somekey or null
+          value: json ( protobuf / avro )
+          headers:
+            name: ondemand
+
+      # scheduled producer
+      - name: scheduled1
+        produce:
+          queue: scheduled-queue1
+          key: somekeyprefix-{{random.uuid4}}
+          value: scheduled-value {{counter 'insideScheduledKafka'}}
+          headers:
+            constant: justvalue
+            timestamp: '{{date.timestamp}}'
+        delay: 5 # seconds between producing
+        limit: 100 # produce up to N messages
+
+      # reactive producer
+      - name: trigger for reactive case testing
+        produce:
+          queue: consume-trigger1
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
+      - consume:
+          queue: consume-trigger1
+          group: optional consumer group
+        delay: 10 # seconds after consume
+        produce:
+          queue: produce-reaction1
+          key: somekey or null
+          value: "@subdir/kafka_payload1.txt"
+          headers:
+            name: '{{consumed.headers.hdr-name}}'
+
+      # validating consumer
+      - name: validating-consumer1
+        consume:
+          capture: 10  # limit len of messages to store for validation
+          queue: another-queue-name
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
+
+  - name: Kafka Mocks Pt. 2 # making sure we can handle multiple
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: chain1-on-demand
+        produce:
+          queue: chain1-step1
+          value: "{{date.timestamp}}"
+      - name: chain1-reactive
+        consume:
+          queue: chain1-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          queue: chain1-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain1-validating
+        consume:
+          queue: chain1-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"
+
+      # couple of irrelevant message sources
+      - name: chain1-scheduled-noise1  # should be ignored by chain
+        produce:
+          queue: chain1-step1
+          value: "I'm a noise #1"
+        delay: 1
+        limit: 1000
+      - name: chain1-scheduled-noise2  # should be ignored by chain
+        produce:
+          queue: chain1-step2
+          value: "I'm a noise #2"
+          headers:
+            captured: "1234.567" # nasty one
+        delay: 1
+        limit: 1000

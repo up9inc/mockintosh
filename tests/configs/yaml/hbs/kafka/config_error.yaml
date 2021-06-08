@@ -1,0 +1,28 @@
+---
+templatingEngine: Handlebars
+management:
+  port: 8000
+  ssl: true
+  sslCertFile: cert.pem
+  sslKeyFile: key.pem
+globals:
+  headers:
+    global-hdr1: globalval1
+    global-hdr2: globalval2
+services:
+- name: Kafka Mocks
+  type: kafka
+  address: "{{env 'KAFKA_ADDR' 'localhost:9092'}}"
+  actors:
+  - name: multiproducer
+    produce:
+      - queue: topic12
+        key: key12-1
+        value: value12-1
+        headers:
+          hdr12-1: val12-1
+      - queue: topic13
+        key: key12-2
+        value: value12-2
+        headers:
+          hdr12-2: val12-2

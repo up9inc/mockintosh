@@ -18,7 +18,7 @@ management:
   # sslKeyFile: "subdir/key.pem",
 ```
 
-Uncommenting SSL settings will enable SSL on that port, just like with [service's SSL settings](#ssl-support).
+Uncommenting SSL settings will enable SSL on that port, just like with [service's SSL settings](Configuring.md#ssl-support).
 
 You can access global API of above settings via url like `http://localhost:8000`.
 
@@ -62,7 +62,7 @@ You can reset these stats by issuing `DELETE` call on same path.
 
 ## Resetting Iterators
 
-- You can reset positions of [dataset](#datasets) and [multi-response](#multiple-responses) endpoints, by
+- You can reset positions of [dataset](Configuring.md#datasets) and [multi-response](Configuring.md#multiple-responses) endpoints, by
   issuing `POST /reset-iterators` request.
 
 ## Unhandled Requests
@@ -94,6 +94,12 @@ endpoint. This endpoint accepts `GET`, `POST` and `DELETE` requests and operates
 configuration file's parent directory otherwise it return a `4xx`. Also the files referenced in the such requests are
 required to be defined with `@` prefix in the configuration file before hand. The directories are automatically
 created or deleted for the given paths.
+
+### Overriding The Relative Directory Path
+
+It's possible to override the default directory path (which is the parent directory of the configuration file)
+using the `MOCKINTOSH_DATA_DIR` environment variable. Such that you can place your resource files and reference them
+from the configuration file according to the directory path that you've specfied with this environment variable.
 
 ### Reading
 
@@ -130,7 +136,7 @@ is disabled by default. To enable it; send the request `POST /traffic-log -F 'en
 or global-level management endpoint.
 
 To access the logs one can send a `GET` request to `/traffic-log` management endpoint. This endpoint returns the logs
-in **HTTP Archive 1.2 (HAR)** format. The logs can be retrieved separately based on service-level or as a whole on
+in [HAR](http://www.softwareishard.com/blog/har-12-spec/) format. The logs can be retrieved separately based on service-level or as a whole on
 global-level based on the management endpoint that you're requesting to.
 
 To clean up the logs; simply send a `DELETE` request to `/traffic-log` management endpoint. Similar to `GET` request,
@@ -143,3 +149,6 @@ For the [tagged responses](Configuring.md#tagged-responses), you can get current
 report currently active tag, doing `POST /tag` will set one. For `POST`, just place desired name of the
 tag into raw request body. Empty tag set means "no active tag". Alternatively you can use the `current` query parameter
 instead of the raw request body like: `POST /tag?current=tagname` to set the active tag.
+
+The payload for `POST /tag` management endpoint can be a list of tags that's
+comma-separated like: `POST /tag?current=tagname1,tagname2`

@@ -106,7 +106,7 @@
         .traffic-items .list-group-item .small {
             position: absolute;
             top: 0;
-            left: 0;
+            left: 0.25rem;
         }
 
         .traffic-items .list-group-item .pull-left {
@@ -120,7 +120,7 @@
         }
 
         .traffic-items .list-group-item {
-            padding: 0.9rem 0.25rem 0.25rem 0.25rem;
+            padding: 1rem 0.25rem 0.25rem 0.25rem;
             cursor: pointer;
         }
 
@@ -187,6 +187,28 @@
             height: 2rem;
             width: 2rem
         }
+
+        #unhandled pre {
+            height: 100%;
+        }
+
+        #async .card {
+            margin-bottom: 1rem;
+        }
+
+        #async .row {
+            height: 100%;
+            overflow: auto;
+        }
+
+        #asyncModal .btn-toolbar {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 0.5rem;
+        }
+
+        #asyncModal .modal-body {
+            padding-top: 0;
+        }
     </style>
 </head>
 
@@ -209,7 +231,12 @@
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link active" id="contact-tab" data-toggle="tab" href="#trynow" role="tab"
-               aria-controls="contact" aria-selected="false">Query APIs</a>
+               aria-controls="contact" aria-selected="false">HTTP Endpoints</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="async-tab" data-toggle="tab" href="#async" role="tab"
+               aria-controls="async"
+               aria-selected="false">Async Actors</a>
         </li>
         <li class="nav-item" role="presentation">
             <a class="nav-link" id="reqlog-tab" data-toggle="tab" href="#reqlog" role="tab"
@@ -280,7 +307,7 @@
 
                 <div class="tab-data-horizontal">
                     <div class="full-width">
-                        <pre class="" style=""><code></code></pre>
+                        <pre><code></code></pre>
                     </div>
                 </div>
             </div>
@@ -338,7 +365,7 @@
                             </div>
                             <br/>
                             <div class="response">
-                                <span>Response: <span class="badge badge-success">200</span></span>
+                                <span class="status">Response: <span class="badge badge-success">200</span></span>
 
                                 <ul class="list-group small headers" style="margin-top: 1rem">
                                     <li class="list-group-item header">
@@ -362,6 +389,62 @@
                 </div>
             </div>
         </div>
+        <div class="tab-pane fade" id="async" role="tabpanel" aria-labelledby="async-tab">
+            <div class="tab-data">
+                <div class="controls">
+                    <span class="small text-muted">Async actors appear if config contains services of type kafka/rabbitmq/redis.</span>
+                    <button class="btn btn-sm btn-secondary pull-right">Refresh</button>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-5" id="producers">
+                        <h3>Producers</h3>
+
+                        <div class="card border-primary" style="display: none">
+                            <div class="card-header">
+                                <span class="pull-left text-primary">Actor #<span class="index">0</span>:
+                                    <span class="name">The name of it</span></span>
+                                <span class="pull-right small"><span class="text-success"
+                                                                     style="display: none; margin-right: 0.25rem">Produced!</span>
+                                    <button class="btn btn-sm btn-primary">Trigger</button></span>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Queue Name: <span class="queue-name">somequeue1</span></p>
+                                <p class="card-text">Last Produced: <span class="date">2021-01-01T12:00:00</span></p>
+                                <p class="card-text">Message Count: <span class="count">1</span></p>
+                            </div>
+                        </div>
+
+                        <div class="card-list">
+                        </div>
+                    </div>
+                    <div class="col-md-1"></div>
+                    <div class="col-md-5" id="consumers">
+                        <h3>Consumers</h3>
+
+                        <div class="card border-info" style="display: none">
+                            <div class="card-header">
+                                <span class="pull-left text-info">Actor #<span class="index">0</span>: <span
+                                        class="name">The name of it</span></span>
+                                <span class="pull-right small">
+                                <button class="btn btn-sm btn-info">View Captured Messages [<span
+                                        class="captured">0</span>]</button>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Queue Name: <span class="queue-name">somequeue1</span></p>
+                                <p class="card-text">Last Consumed: <span class="date">2021-01-01T12:00:00</span></p>
+                                <p class="card-text">Message Count: <span class="count">0</span></p>
+                            </div>
+                        </div>
+
+                        <div class="card-list">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>
@@ -384,6 +467,10 @@
 <script type="module">
     import {CodeJar} from 'https://medv.io/codejar/codejar.js';
     import {withLineNumbers} from 'https://medv.io/codejar/linenumbers.js';
+
+    var language = navigator.languages && navigator.languages[0] || // Chrome / Firefox
+        navigator.language ||   // All browsers
+        navigator.userLanguage; // IE <= 10
 
     function addOAS(config, parent) {
         const el = document.createElement('div');
@@ -466,7 +553,7 @@
      */
     function clearEditorData(jqNode) {
         // This resolves #38 issue in Codejar
-        if(!!jqNode) jqNode.html('<code></code>');
+        if (!!jqNode) jqNode.html('<code></code>');
     }
 
     function useCodeHighlight(jqNode, text, type) {
@@ -475,25 +562,25 @@
         jqNode.addClass('hljs');
         jqNode.html(highlightedText);
     }
-    function details(item) {
-        $(".traffic-items .selected").removeClass('selected');
-        item.addClass('selected');
-        const entry = item.data("obj");
-        $(".traffic-details>span").hide();
-        $(".traffic-details>div").show();
-        $(".traffic-details .ts").text(entry.startedDateTime);
-        $(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
-        $(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
-        let method = $(".traffic-details .method");
+
+    function details(entry, container) {
+        container.find(".traffic-details>span").hide();
+        container.find(".traffic-details>div").show();
+        container.find(".traffic-details .ts").text(new Date(entry.startedDateTime).toLocaleString(language));
+        container.find(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        container.find(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
+        let method = container.find(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
 
-        const label = $(".traffic-details .request .headers .header");
-        $(".traffic-details .request .headers").empty().append(label);
+        const label = container.find(".traffic-details .request .headers .header");
+        const req_hdr_block = container.find(".traffic-details .request .headers");
+        if (entry.request.headers.length) req_hdr_block.show(); else req_hdr_block.hide();
+        req_hdr_block.empty().append(label);
         let req_ctype = null;
         for (let n = 0; n < entry.request.headers.length; n++) {
             const hdr = entry.request.headers[n];
-            $(".traffic-details .request .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
-            if (hdr.name.toLowerCase() == 'content-type') {
+            req_hdr_block.append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            if (hdr.name.toLowerCase() === 'content-type') {
                 req_ctype = hdr.value;
             }
         }
@@ -513,28 +600,37 @@
                 useCodeHighlight(body, body.text(), 'txt');
             }
 
-            $(".traffic-details .request .body").show();
+            container.find(".traffic-details .request .body").show();
         } else {
-            $(".traffic-details .request .body").hide();
+            container.find(".traffic-details .request .body").hide();
         }
 
         // Response
-        $(".traffic-details .response > span >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
+        const url = new URL(entry.request.url);
+        if (url.protocol === 'kafka:') {
+            container.find(".traffic-details .response > span.status").hide();
+        } else {
+            container.find(".traffic-details .response > span.status").show();
+        }
+
+        container.find(".traffic-details .response > span.status >.badge").removeClass().addClass('badge badge-' + status_color(entry.response.status))
             .text(entry.response.status + " " + entry.response.statusText);
-        const rlabel = $(".traffic-details .response .headers .header");
-        $(".traffic-details .response .headers").empty().append(rlabel);
+        const rlabel = container.find(".traffic-details .response .headers .header");
+        const resp_hdr_block = container.find(".traffic-details .response .headers");
+        if (entry.response.headers.length) resp_hdr_block.show(); else resp_hdr_block.hide();
+        resp_hdr_block.empty().append(rlabel);
         let resp_ctype = null;
         for (let n = 0; n < entry.response.headers.length; n++) {
             const hdr = entry.response.headers[n];
-            $(".traffic-details .response .headers").append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
-            if (hdr.name.toLowerCase() == 'content-type') {
+            resp_hdr_block.append('<li class="list-group-item">' + hdr.name + ': ' + hdr.value + '</li>');
+            if (hdr.name.toLowerCase() === 'content-type') {
                 resp_ctype = hdr.value;
             }
         }
 
         if (entry.response.content && entry.response.content.text) {
             const img = is_img(entry.response);
-            let body = $(".traffic-details .response .actual-body");
+            let body = container.find(".traffic-details .response .actual-body");
             if (img) {
                 body.empty().append("<img src='" + img + "' alt='Response Image'/>");
             } else {
@@ -554,9 +650,9 @@
                 }
             }
 
-            $(".traffic-details .response .body").show();
+            container.find(".traffic-details .response .body").show();
         } else {
-            $(".traffic-details .response .body").hide();
+            container.find(".traffic-details .response .body").hide();
         }
     }
 
@@ -568,25 +664,38 @@
             type: 'GET',
             success: function (result) {
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
-                let prev = 0;
                 for (; traffic_offset < result.log.entries.length; traffic_offset++) {
                     const entry = result.log.entries[traffic_offset];
-                    const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
-                    const ts = new Date(entry.startedDateTime);
-                    li.append('<span class="small text-muted">+' + timediff(prev ? (ts - prev) : 0) + '</span>');
-                    li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
-                    li.append($('<span class="badge">' + entry.response.status + '</span>').addClass("badge-" + status_color(entry.response.status)));
                     const url = new URL(entry.request.url);
-                    li.append($('<span class="url"></span>').text(url.pathname + url.search));
+                    const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
+                    li.append('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
+                    li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
+
+                    const sbadge = $('<span class="badge"></span>').addClass("badge-" + status_color(entry.response.status));
+                    if (url.protocol === 'kafka:') {
+                        sbadge.append('K');
+                    } else {
+                        sbadge.append(entry.response.status);
+                    }
+
+                    li.append(sbadge);
+                    const parts = entry.request.url.split('/');
+                    parts.shift();
+                    parts.shift();
+                    parts.shift();
+                    parts.unshift("");
+                    li.append($('<span class="url"></span>').text(parts.join("/")));
 
                     li.click(function () {
-                        details($(this));
+                        $(".traffic-items .selected").removeClass('selected');
+                        const item = $(this);
+                        item.addClass('selected');
+                        details(item.data("obj"), $("#reqlog"));
                     });
                     $("#reqlog .traffic-items").append(li);
                     if (!$(".traffic-items .selected").length) {
                         document.querySelector("#reqlog .traffic-items li:last-child").scrollIntoView();
                     }
-                    prev = ts;
                 }
             },
             complete: function () {
@@ -638,20 +747,32 @@
         //debugger;
         for (let s = 0; s < config['services'].length; s++) {
             const service = config['services'][s];
-            if (!service.endpoints) continue;
+            if (service.endpoints) {
+                for (let e = 0; e < service.endpoints.length; e++) {
+                    const endpoint = service.endpoints[e];
+                    if (!endpoint.response) continue;
 
-            for (let e = 0; e < service.endpoints.length; e++) {
-                const endpoint = service.endpoints[e];
-                if (!endpoint.response) continue;
-
-                const resps = Array.isArray(endpoint.response) ? endpoint.response : [endpoint.response];
-                for (let n = 0; n < resps.length; n++) {
-                    if (resps[n].tag) {
-                        result.push(resps[n].tag);
+                    const resps = Array.isArray(endpoint.response) ? endpoint.response : [endpoint.response];
+                    for (let n = 0; n < resps.length; n++) {
+                        if (resps[n].tag) {
+                            result.push(resps[n].tag);
+                        }
                     }
                 }
             }
+            else if (service.actors) {
+                for (let e = 0; e < service.actors.length; e++) {
+                    const actor = service.actors[e];
+                    if (!actor.produce) continue;
 
+                    const resps = Array.isArray(actor.produce) ? actor.produce : [actor.produce];
+                    for (let n = 0; n < resps.length; n++) {
+                        if (resps[n].tag) {
+                            result.push(resps[n].tag);
+                        }
+                    }
+                }
+            }
         }
         return [...new Set(result)].sort();
     }
@@ -831,8 +952,129 @@
                 $(obj).click();
             }
         });
+
+        function fill_producer(newItem, producer) {
+            newItem.find(".index").text(producer.index);
+            newItem.find(".name").text(producer.name ? producer.name : "<Name not set>");
+            newItem.find(".queue-name").text(producer.queue);
+            newItem.find(".date").text(producer.lastProduced ? (new Date(producer.lastProduced * 1000).toLocaleString(language)) : 'N/A');
+            newItem.find(".count").text(producer.producedMessages);
+        }
+
+        $("#async .controls .btn-secondary").click(function () {
+            $.getJSON('./async').done(function (data) {
+                const producers_list = $("#producers .card-list");
+                producers_list.empty();
+                if (!data.producers.length) {
+                    producers_list.text("No consumers defined")
+                }
+                for (let p = 0; p < data.producers.length; p++) {
+                    const producer = data.producers[p];
+                    const newItem = $("#producers > .card").clone();
+                    newItem.find("button").data("id", producer.name ? producer.name : producer.index);
+                    fill_producer(newItem, producer);
+                    producers_list.append(newItem);
+                }
+                producers_list.find(".card").show();
+                producers_list.find("button").click(function () {
+                    const btn = $(this);
+                    $.post("./async/producers/" + btn.data('id')).done(function (data) {
+                        btn.parent().find("span").show().fadeOut(500);
+                        fill_producer(btn.parent().parent().parent(), data);
+                    }).fail(function () {
+                        alert("failed");
+                    });
+                });
+
+                const consumers_list = $("#consumers .card-list");
+                consumers_list.empty();
+                if (!data.consumers.length) {
+                    consumers_list.text("No consumers defined")
+                }
+
+                for (let p = 0; p < data.consumers.length; p++) {
+                    const consumer = data.consumers[p];
+                    const newItem = $("#consumers > .card").clone();
+                    newItem.find(".index").text(consumer.index);
+                    newItem.find(".name").text(consumer.name ? consumer.name : "<Name not set>");
+                    newItem.find(".queue-name").text(consumer.queue);
+                    newItem.find(".date").text(consumer.lastConsumed ? (new Date(consumer.lastConsumed * 1000).toLocaleString(language)) : 'N/A');
+                    newItem.find(".count").text(consumer.consumedMessages);
+                    newItem.find(".captured").text(consumer.captured);
+                    newItem.find("button").data("id", consumer.name ? consumer.name : consumer.index).text();
+                    consumers_list.append(newItem);
+                }
+                consumers_list.find(".card").show();
+                consumers_list.find("button").click(function () {
+                    const btn = $(this);
+                    $.getJSON("./async/consumers/" + btn.data('id')).done(function (data) {
+                        const asyncModal = $('#asyncModal');
+                        asyncModal.find(".modal-title").text("Captured Messages for Actor '" + btn.data('id') + "'");
+                        const btns = asyncModal.find(".btn-group");
+                        btns.empty();
+                        for (let n = 0; n < data.log.entries.length; n++) {
+                            const entry = data.log.entries[n];
+                            const btn = $('<button type="button" class="btn"></button>').text("#" + (n + 1)).data("entry", entry);
+                            btns.append(btn);
+                        }
+                        btns.find("button").click(function () {
+                            btns.find("button").removeClass("btn-info");
+                            const btn = $(this);
+                            btn.addClass("btn-info");
+
+                            if (!asyncModal.find('.modal-body > .content > ').length) {
+                                const details = $("#reqlog .traffic-details").clone().removeClass("right");
+                                details.find(".fa-times").hide();
+                                asyncModal.find('.modal-body > .content').append(details);
+                            }
+
+                            details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
+                        });
+
+                        if (data.log.entries.length) {
+                            asyncModal.find(".traffic-details").show();
+                            btns.find("button")[0].click();
+                        } else {
+                            btns.text("No messages captured");
+                            asyncModal.find(".traffic-details").hide();
+                        }
+
+                        asyncModal.modal();
+                    }).fail(function () {
+                        alert("failed");
+                    });
+                });
+            });
+        }).click();
     });
 </script>
 
+<!-- Async Log Modal -->
+<div class="modal fade" id="asyncModal" tabindex="-1" role="dialog" aria-labelledby="asyncModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modal title</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                    <div class="btn-group mr-2" role="group">
+                    </div>
+                </div>
+                <div class="content"></div>
+            </div>
+            <!--
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+            </div>
+            -->
+        </div>
+    </div>
+</div>
 </body>
 </html>

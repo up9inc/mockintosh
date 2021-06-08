@@ -67,6 +67,12 @@
           }
         }
       ]
+    },
+    {
+      "name": "Kafka Mocks",
+      "type": "kafka",
+      "address": "localhost:9092",
+      "actors": []
     }
   ]
 }

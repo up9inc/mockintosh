@@ -148,7 +148,6 @@ services:
           body: '@subdir/response.json'
           headers:
             Content-Type: application/json
-
 ```
 
 _Note: Apart from numeric HTTP status codes, `RST` and `FIN` special values can be set in the `status` field to simulate
@@ -168,17 +167,19 @@ response:
   - just some text
 ```
 
-- For request #1: `index.html` file is returned with `Content-Type: text/html` header.
-- For request #2: `subdir/image.png` image is returned with `Content-Type: image/png` header.
-- For request #3: `just some text` is returned with `Content-Type: text/html` header.
-- For request #4: `index.html` again and so on...
+1. request: `index.html` file is returned with `Content-Type: text/html` header.
+2. request: `subdir/image.png` image is returned with `Content-Type: image/png` header.
+3. request: `just some text` is returned with `Content-Type: text/html` header.
+4. request: `index.html` again and so on...
 
 The looping can be disabled with setting `multiResponsesLooped` to `false`, in this case you will start getting HTTP 410
 response after all items in response list are exhausted.
 
 ### Tagged Responses
 
-As part of advanced usage of Mockintosh, you can specify "tag" on each of multi-response items. If tag is specified, the response is only considered if corresponding tag is set as "current" via [current tag](Management.md#setting-current-tag). Responses without `tag` attribute are always selected.
+As part of advanced usage of Mockintosh, you can specify `tag` field on each of multi-response items.
+If tag is specified, the response is only considered if corresponding tag is set as
+"current" via [current tag](Management.md#setting-current-tag). Responses without `tag` attribute are always selected.
 
 Here's the example:
 ```yaml
@@ -197,19 +198,17 @@ services:
 
 ### Datasets
 
-One can specify a `dataset` field under `endpoint` to specify list of key-value combinations to inject into response
+One can put a `dataset` field under `endpoint` to specify a list of key-value combinations to inject into response
 templating.
 
 This field can be a string that starts with `@` to indicate a path to an external JSON file like `@subdir/dataset.json`
 or an array:
 
 ```yaml
-{% raw %}
-dataset:
+{% raw %}dataset:
   - var1: val1
   - var1: val2
-response: 'dataset: {{var1}}'
-{% endraw %}
+response: 'dataset: {{var1}}'{% endraw %}
 ```
 
 This `dataset` is looped just like how [Multiple responses](#multiple-responses) are looped:
@@ -249,8 +248,7 @@ You can specifiy the templating engine on top of the file like `templatingEngine
 A response example that leverages Jinja2 templating and Faker is shown below:
 
 ```j2
-{% raw %}
-{
+{% raw %}{
   "users": [{% for n in range(request.queryString.total) %}
     {
       "id": {{ random.int(10000, 100000) }},
@@ -264,8 +262,7 @@ A response example that leverages Jinja2 templating and Faker is shown below:
     }{% if not loop.last %},{% endif %}
   {% endfor %}],
   "total": {{ request.queryString.total }}
-}
-{% endraw %}
+}{% endraw %}
 ```
 
 

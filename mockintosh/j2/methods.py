@@ -20,7 +20,7 @@ from jsonpath_ng import parse as jsonpath_parse
 from jinja2.utils import contextfunction
 from jinja2.exceptions import TemplateSyntaxError
 
-from mockintosh.methods import _jinja_add_varname, _jinja_add_to_context
+from mockintosh.helpers import _jinja_add_varname, _jinja_add_to_context
 
 
 def fake():
@@ -78,6 +78,10 @@ def counter(context, name):
 
 def escape_html(text):
     return html.escape(text)
+
+
+def env(name, default):
+    return os.environ.get(name, default)
 
 
 class Random():

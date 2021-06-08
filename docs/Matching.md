@@ -15,20 +15,16 @@ You can use `{% raw %}{{varname}}{% endraw %}` syntax to specify a path paramete
 for using in the response template:
 
 ```yaml
-{% raw %}
-endpoints:
+{% raw %}endpoints:
   - path: "/parameterized/{{myVar}}/someval"
-    response: 'Here is: {{myVar}}'
-{% endraw %}
+    response: 'Here is: {{myVar}}'{% endraw %}
 ```
 
 With Mockintosh it's possible to use regular expressions in path segments:
 
 ```yaml
-{% raw %}
-- path: "/match/{{regEx 'prefix-.*'}}/someval"
-  response: 'regex match: {{request.path}}'
-{% endraw %}
+{% raw %}- path: "/match/{{regEx 'prefix-.*'}}/someval"
+  response: 'regex match: {{request.path}}'{% endraw %}
 ```
 
 so that a request like `curl http://localhost:8001/match/prefix-hello_world/someval` would
@@ -37,10 +33,8 @@ return `regex match: /match/prefix-hello_world/someval`
 It's also possible to use regular expression capture groups in path segments, as templating items:
 
 ```yaml
-{% raw %}
-- path: "/match/{{regEx 'prefix-(.*)' 'myVar'}}/someval"
-  response: 'regex capture group: {{myVar}}'
-{% endraw %}
+{% raw %}- path: "/match/{{regEx 'prefix-(.*)' 'myVar'}}/someval"
+  response: 'regex capture group: {{myVar}}'{% endraw %}
 ```
 
 so that a request like `curl http://localhost:8001/match/prefix-hello_world/someval` would
@@ -49,10 +43,8 @@ return `regex capture group: hello_world`
 You can use as many path parameters and regex capture groups you want:
 
 ```yaml
-{% raw %}
-- path: "/parameterized5/text/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
-  response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'
-{% endraw %}
+{% raw %}- path: "/parameterized5/text/{{var1}}/{{regEx 'prefix-(.*)-(.*)-suffix' 'var2' 'var3'}}/{{var4}}/{{regEx 'prefix2-(.*)' 'var5'}}"
+  response: 'var1: {{var1}}, var2: {{var2}}, var3: {{var3}}, var4: {{var4}}, var5: {{var5}}'{% endraw %}
 ```
 
 ### Automatic `regEx` Conversion
@@ -63,19 +55,15 @@ converted to a regex function behind the scenes.
 E.g.:
 
 ```yaml
-{% raw %}
-- path: "/hello-{{somevar}}/another"
-  response: 'result: {{somevar}}'
-{% endraw %}
+{% raw %}- path: "/hello-{{somevar}}/another"
+  response: 'result: {{somevar}}'{% endraw %}
 ```
 
 is automatically converted to:
 
 ```yaml
-{% raw %}
-- path: "/{{regEx 'hello\-(.*)' 'somevar'}}/another"
-  response: 'result: {{somevar}}'
-{% endraw %}
+{% raw %}- path: "/{{regEx 'hello\-(.*)' 'somevar'}}/another"
+  response: 'result: {{somevar}}'{% endraw %}
 ```
 
 _Note: "Automatic `regEx` Conversion" is not specific to `path` attribute but rather applies to places where templating is possible._
@@ -91,22 +79,18 @@ for practical reasons.
 E.g.:
 
 ```yaml
-{% raw %}
-- path: "/search?q={{keyword1}}&s={{keyword2}}"
-  response: 'result: {{keyword1}} {{keyword2}}'
-{% endraw %}
+{% raw %}- path: "/search?q={{keyword1}}&s={{keyword2}}"
+  response: 'result: {{keyword1}} {{keyword2}}'{% endraw %}
 ```
 
 is automatically converted to:
 
 ```yaml
-{% raw %}
-- path: "/search"
+{% raw %}- path: "/search"
   queryString:
     q: "{{keyword1}}"
     s: "{{keyword1}}"
-  response: 'result: {{keyword1}} {{keyword2}}'
-{% endraw %}
+  response: 'result: {{keyword1}} {{keyword2}}'{% endraw %}
 ```
 
 _Note: "Automatic Query String Conversion" is specific to `path` attribute._
@@ -117,13 +101,11 @@ Even if you specified a path parameter for a certain path segment, static values
 parameters and `regEx`:
 
 ```yaml
-{% raw %}
-endpoints:
+{% raw %}endpoints:
   - path: "/parameterized/{{myVar}}/someval"
     response: 'Here is: {{myVar}}'
   - path: "/parameterized/staticval/someval"
-    response: static path segments have a high priority
-{% endraw %}
+    response: static path segments have a high priority{% endraw %}
 ```
 
 so that a request like `curl http://localhost:8001/parameterized/staticval/someval` would
@@ -152,8 +134,7 @@ matching.
 Below is an example configuration which demonstrates the how endpoint alternatives recognized in terms of headers:
 
 ```yaml
-{% raw %}
-services:
+{% raw %}services:
   - port: 8001
     endpoints:
       - path: "/alternative"
@@ -175,8 +156,7 @@ services:
         response:
           body: 'hdr4 request header: {{request.headers.hdr4}}'
           headers:
-            hdr4: 'hdr4 request header: {{request.headers.hdr4}}'
-{% endraw %}
+            hdr4: 'hdr4 request header: {{request.headers.hdr4}}'{% endraw %}
 ```
 
 For the above configuration example here are some example requests and their responses:
@@ -195,8 +175,7 @@ The matching logic for query strings is quite similar to [headers](#headers). He
 of the query strings:
 
 ```yaml
-{% raw %}
-services:
+{% raw %}services:
   - name: Service1
     port: 8001
     endpoints:
@@ -213,8 +192,7 @@ services:
           queryString:
             param4: another query string
           response:
-            body: 'param4 request query string: {{request.queryString.param4}}'
-{% endraw %}
+            body: 'param4 request query string: {{request.queryString.param4}}'{% endraw %}
 ```
 
 and these are the example requests and corresponding responses for such a mock server configuration:
@@ -238,8 +216,7 @@ for urlencoded and multipart request bodies.
 To match request by urlencoded or multipart form POST, use `urlencoded` or `multipart` section under `body`. The content of that section is very much like [query string](#query-string) or headers matching by parameter name:
 
 ```yaml
-{% raw %}
-services:
+{% raw %}services:
   - port: 8001
     endpoints:
       - path: "/body-urlencoded"
@@ -255,24 +232,21 @@ services:
           multipart:
             param1: myValue
             param2: "{{myVar}}"
-            param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"
-{% endraw %}
+            param3: "{{regEx 'prefix-(.+)-suffix' 'myCapturedVar'}}"{% endraw %}
 ```
 
 ### RegEx
 To match request body text using `regEx`, just do it like this:
 
 ```yaml
-{% raw %}
-services:
+{% raw %}services:
   - name: Mock for Service1
     port: 8001
     endpoints:
       - path: "/endpoint1"
         method: POST
         body:
-          text: {{regEx '"jsonkey": "expectedval-(.+)"' 'namedValue'}}
-{% endraw %}
+          text: {{regEx '"jsonkey": "expectedval-(.+)"' 'namedValue'}}{% endraw %}
 ```
 
 _Note: you can use familiar `regEx` named value capturing for body, as usual._
@@ -319,7 +293,7 @@ curl -X POST http://localhost:8001/endpoint1?param1=wrongValue \
 
 Response: `400`
 
-If you want to reference JSONSchema from external file, use it like this:
+If you want to reference JSONSchema from an external file, use it like this:
 
 ```yaml
 services:

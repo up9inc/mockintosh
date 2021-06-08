@@ -5,8 +5,7 @@
 In response template, one can specify `status`, `headers` and `body` of HTTP message. Here's quick example:
 
 ```yaml
-{% raw %}
-services:
+{% raw %}services:
   - port: 8080
     endpoints:
       - path: /api-call
@@ -15,15 +14,13 @@ services:
           headers:
             content-type: application/json
             x-custom-id: 12345
-          body: '{"result": "created"}'
-{% endraw %}
+          body: '{"result": "created"}'{% endraw %}
 ```
 
 Any of those fields allows using dynamic template that will be evaluated for each request. Like this:
 
 ```yaml
-{% raw %}
-services:
+{% raw %}services:
   - port: 8080
     endpoints:
       - path: /api-call
@@ -32,8 +29,7 @@ services:
           headers:
             content-type: '{{request.headers.accept}}'
             x-custom-id: '{{random.int 0 1000}}'
-          body: '{"result": "created", "name": "{{fake.lastname}}" }'
-{% endraw %}
+          body: '{"result": "created", "name": "{{fake.lastname}}" }'{% endraw %}
 ```
 
 _Note: for `headers`, only the value part is subject for templating. Mind
@@ -89,8 +85,7 @@ For random names, addresses etc, please refer to [Faker's](#faker) functionality
 Here is a list of date shifting examples as a Handlebars response template:
 
 ```text
-{% raw %}
-{
+{% raw %}{
   "now": "{{ date.date '%Y-%m-%d %H:%M %f' }}",
   "1_week_back": "{{ date.date '%Y-%m-%d %H:%M %f' -604800 }}",
   "1_week_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 604800 }}",
@@ -100,8 +95,7 @@ Here is a list of date shifting examples as a Handlebars response template:
   "1_hour_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 3600 }}",
   "1_minute_back": "{{ date.date '%Y-%m-%d %H:%M %f' -60 }}",
   "1_minute_forward": "{{ date.date '%Y-%m-%d %H:%M %f' 60 }}"
-}
-{% endraw %}
+}{% endraw %}
 ```
 
 ### Faker
@@ -111,8 +105,7 @@ It is available as `fake` object. Refer to the [official docs](https://faker.rea
 for all capabilities. Below are some examples (Handlebars):
 
 ```text
-{% raw %}
-{
+{% raw %}{
   "first_name": "{{ fake.first_name }}",
   "first_name_female": "{{ fake.first_name_female }}",
   "first_name_male": "{{ fake.first_name_male }}",
@@ -138,8 +131,7 @@ for all capabilities. Below are some examples (Handlebars):
   "random_lowercase_letter": "{{ fake.random_lowercase_letter }}",
   "random_sample": {{ tojson ( fake.random_sample elements=( array 'a' 'b' 'c' 'd' 'e' ) ) }},
   "random_uppercase_letter": "{{ fake.random_uppercase_letter }}"
-}
-{% endraw %}
+}{% endraw %}
 ```
 
 Rendered:
@@ -232,3 +224,8 @@ The equivalent of [`replace`](https://jinja.palletsprojects.com/en/2.11.x/templa
 Jinja2 usage: `{% raw %}{{ fake.address() | replace('\n','\\n') }}{% endraw %}`
 
 Handlebars usage: `{% raw %}{{ replace ( fake.address ) old='\n' new='\\n' }}{% endraw %}`
+
+#### env(name, default)
+
+Returns the value of environment variable given by `name` parameter. If the environment variable does not exists
+in the current shell then the value in `default` parameter is returned.

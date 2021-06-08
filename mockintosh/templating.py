@@ -8,6 +8,7 @@
 
 import copy
 import logging
+import threading
 from os import environ
 
 from jinja2 import Environment, StrictUndefined
@@ -16,9 +17,13 @@ from pybars import Compiler, PybarsError
 from faker import Faker
 
 from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
-from mockintosh.methods import _to_camel_case
+from mockintosh.helpers import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
 from mockintosh.j2.meta import find_undeclared_variables_in_order
+
+cov_no_import = environ.get('COVERAGE_NO_IMPORT', False)
+if not cov_no_import:
+    import queue
 
 compiler = Compiler()
 faker = Faker()
@@ -27,7 +32,7 @@ hbs_faker = HbsFaker()
 debug_mode = environ.get('MOCKINTOSH_DEBUG', False)
 
 
-class TemplateRenderer():
+class RenderingTask:
 
     def __init__(
         self,
@@ -37,22 +42,33 @@ class TemplateRenderer():
         inject_methods=[],
         add_params_callback=None,
         fill_undefineds_with=None,
+        counters=None
     ):
         self.engine = engine
         self.text = text
         self.inject_objects = inject_objects
         self.inject_methods = inject_methods
-        self.inject_methods_name_list = tuple([method.__name__ for method in inject_methods])
         self.add_params_callback = add_params_callback
         self.fill_undefineds_with = fill_undefineds_with
+        self.counters = counters
         self.keys_to_delete = []
         self.one_and_only_var = None
+        self.result_queue = queue.Queue()
 
     def render(self):
+        self.update_counters()
+
         if self.engine == PYBARS:
-            return self.render_handlebars()
+            self.result_queue.put(self.render_handlebars())
         elif self.engine == JINJA:
-            return self.render_jinja()
+            self.result_queue.put(self.render_jinja())
+
+    def update_counters(self) -> None:
+        if self.counters is None:
+            return
+
+        for key, value in self.counters.data.items():
+            self.inject_objects[key] = value
 
     def render_handlebars(self):
         context, helpers = self.add_globals(compiler._compiler, helpers={})
@@ -71,7 +87,7 @@ class TemplateRenderer():
                 if debug_mode:
                     raise NotImplementedError
                 else:
-                    logging.warning('Handlebars: %s' % e)
+                    logging.warning('Handlebars: %s', e)
                 compiled = self.text
         return compiled, context
 
@@ -92,7 +108,7 @@ class TemplateRenderer():
                         self.one_and_only_var = var
             else:
                 for var in find_undeclared_variables_in_order(ast):
-                    logging.warning('Jinja2: Could not find variable `%s`' % var)
+                    logging.warning('Jinja2: Could not find variable `%s`', var)
                     env.globals[var] = '{{%s}}' % var
 
             template = env.from_string(self.text)
@@ -101,7 +117,7 @@ class TemplateRenderer():
             if debug_mode:
                 raise NotImplementedError
             else:
-                logging.warning('Jinja2: %s' % e)
+                logging.warning('Jinja2: %s', e)
             compiled = self.text
 
         if SPECIAL_CONTEXT in env.globals:
@@ -146,3 +162,77 @@ class TemplateRenderer():
             context = self.add_params_callback(context)
 
         return context, helpers
+
+
+class RenderingQueue:
+
+    def __init__(self):
+        if cov_no_import:
+            self._in = None
+        else:
+            self._in = queue.Queue()
+
+    def push(self, task: RenderingTask) -> None:
+        self._in.put(task)
+
+    def pop(self) -> RenderingTask:
+        return self._in.get(block=True)
+
+
+class RenderingJob(threading.Thread):
+
+    def __init__(self, _queue: RenderingQueue):
+        threading.Thread.__init__(self)
+        self.queue = _queue
+        self.stop = False
+
+    def run(self):
+        while True:
+            if self.stop:
+                break
+
+            task = self.queue.pop()
+
+            task.render()
+
+    def kill(self):
+        self.stop = True
+        # To pass `task = self.queue.pop()` line, send a dummy task
+        self.queue.push(RenderingTask(PYBARS, 'dummy'))
+
+
+class TemplateRenderer:
+
+    def __init__(self,):
+        self.keys_to_delete = []
+        self.one_and_only_var = None
+
+    def render(
+        self,
+        engine,
+        text,
+        _queue,
+        inject_objects={},
+        inject_methods=[],
+        add_params_callback=None,
+        fill_undefineds_with=None,
+        counters=None
+    ):
+        task = RenderingTask(
+            engine,
+            text,
+            inject_objects=inject_objects,
+            inject_methods=inject_methods,
+            add_params_callback=add_params_callback,
+            fill_undefineds_with=fill_undefineds_with,
+            counters=counters
+        )
+        _queue.push(task)
+
+        while True:
+            result = task.result_queue.get(block=True)
+
+            self.keys_to_delete = task.keys_to_delete
+            self.one_and_only_var = task.one_and_only_var
+
+            return result

@@ -1,0 +1,4 @@
+Some text
+{{ fake.random_digit }}
+Some other text
+{{ fake.random_int min=10 max=90 step=5 }}

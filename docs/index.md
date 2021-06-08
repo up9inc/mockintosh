@@ -58,6 +58,9 @@ Using `--quiet` and `--verbose` options the logging level can be changed.
 
 Using `--bind` option the bind address for the mock server can be specified, e.g. `mockintosh --bind 0.0.0.0`
 
+Using `--enable-tags` option the tags in the configuration file can be
+enabled in startup time, e.g. `mockintosh --enable-tags first,second`
+
 ## Interceptors
 
 One can also specify a list of interceptors to be called in `<package>.<module>.<function>` format using
