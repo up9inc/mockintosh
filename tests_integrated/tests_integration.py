@@ -1008,6 +1008,26 @@ class IntegrationTests(unittest.TestCase):
         else:
             self.fail("Did not capture the message")
 
+    def test_redis_chained(self):
+        # clean the log
+        resp = httpx.delete(MGMT + '/async/consumers/chain3-validating', verify=False)
+        resp.raise_for_status()
+
+        resp = httpx.post(MGMT + '/async/producers/chain3-on-demand', verify=False)
+        resp.raise_for_status()
+
+        for _ in range(5):
+            resp = httpx.get(MGMT + '/async/consumers/chain3-validating', verify=False)
+            resp.raise_for_status()
+            msgs = resp.json()['log']['entries']
+            if not msgs:
+                time.sleep(1)
+                continue
+            self.assertEqual(1, len(msgs))
+            break
+        else:
+            self.fail("Did not capture the message")
+
 
 def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
                            after_subscribe=lambda: None):
