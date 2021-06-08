@@ -48,7 +48,28 @@ class RedisConsumerProducerBase(AsyncConsumerProducerBase):
 
 
 class RedisConsumer(AsyncConsumer):
-    pass
+
+    def __init__(
+        self,
+        topic: str,
+        schema: Union[str, dict] = None,
+        value: Union[str, None] = None,
+        key: Union[str, None] = None,
+        headers: Union[dict, None] = None,
+        capture_limit: int = 1,
+        enable_topic_creation: bool = False
+    ):
+        super().__init__(
+            topic,
+            schema=schema,
+            value=value,
+            key=key,
+            headers=headers,
+            capture_limit=capture_limit,
+            enable_topic_creation=enable_topic_creation
+        )
+        self.match_key = None
+        self.match_headers = {}
 
 
 class RedisConsumerGroup(AsyncConsumerGroup):
