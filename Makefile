@@ -21,12 +21,12 @@ test-integration: build
 	tests_integrated/acceptance.sh && \
 	${MAKE} stop-containers
 
-test-without-coverage: copy-assets up-kafka up-rabbitmq
+test-without-coverage: copy-assets up-asyncs
 	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG
 
-test-with-coverage: test-style copy-assets up-kafka up-rabbitmq test-openapi-transpiler
+test-with-coverage: test-style copy-assets up-asyncs test-openapi-transpiler
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -106,12 +106,14 @@ copy-data-dir-override:
 	cp tests/configs/yaml/hbs/body/body_schema_error.json tests/configs/yaml/hbs/data_dir_override/
 
 copy-amqp:
-	cp -r tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amqp/ && \
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amqp/ && \
 	python3 ./tests/assets_copy_kafka_to_amqp.py
 
 copy-redis:
-	cp -r tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/redis/ && \
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/redis/ && \
 	python3 ./tests/assets_copy_kafka_to_redis.py
+
+up-asyncs: up-kafka up-rabbitmq up-redis
 
 up-kafka:
 	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
