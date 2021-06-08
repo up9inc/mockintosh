@@ -15,7 +15,7 @@ from typing import (
 
 from rsmq import RedisSMQ
 from rsmq.cmd.exceptions import QueueAlreadyExists
-from redis.exceptions import ConnectionError
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -102,9 +102,8 @@ class RedisConsumerGroup(AsyncConsumerGroup):
                     pass
 
                 queue.quit()
-            except ConnectionError:
+            except RedisConnectionError:
                 logging.warning('Couldn\'t establish a connection to Redis instance at %s:%s', host, port)
-                pass
 
             time.sleep(1)
 
@@ -139,7 +138,7 @@ class RedisProducer(AsyncProducer):
                 pass
 
             queue.quit()
-        except ConnectionError:
+        except RedisConnectionError:
             logging.warning('Couldn\'t establish a connection to Redis instance at %s:%s', host, port)
             raise
 
