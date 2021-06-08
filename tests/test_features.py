@@ -105,11 +105,13 @@ SRV_8003_SSL = SRV_8003[:4] + 's' + SRV_8003[4:]
 
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
+REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
-    'amqp': AMQP_ADDR
+    'amqp': AMQP_ADDR,
+    'redis': REDIS_ADDR
 }
-ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
+ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 20)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
@@ -3583,7 +3585,9 @@ class AsyncBase():
         os.system('killall -2 %s' % name)
 
     def assert_consumer_log(self, data: dict, key: Union[str, None], value: str, headers: dict, invert: bool = False):
-        if key is not None:
+        global async_service_type
+
+        if async_service_type != 'redis' and key is not None:
             criteria = any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
             if invert:
                 assert not criteria
@@ -3594,12 +3598,14 @@ class AsyncBase():
             assert not criteria
         else:
             assert criteria
-        for n, v in headers.items():
-            criteria = any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
-            if invert:
-                assert not criteria
-            else:
-                assert criteria
+
+        if async_service_type != 'redis':
+            for n, v in headers.items():
+                criteria = any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
+                if invert:
+                    assert not criteria
+                else:
+                    assert criteria
 
     def assert_async_consume(self, callback, *args):
         start = time.time()
@@ -3797,7 +3803,7 @@ class AsyncBase():
         data = resp.json()
         consumers = data['consumers']
         assert consumers[0]['captured'] == 1
-        assert consumers[0]['consumedMessages'] == 2
+        assert consumers[0]['consumedMessages'] == 2 if async_service_type != 'redis' else 3
 
         job.kill()
 
@@ -3978,7 +3984,12 @@ class AsyncBase():
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
     def assert_post_async_produce(self, async_consumer, key, value, headers):
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
+        global async_service_type
+
+        if async_service_type == 'redis':
+            assert any(row[1] == value for row in async_consumer.log)
+        else:
+            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
     def test_post_async_produce(self):
         global async_service_type
@@ -4026,7 +4037,12 @@ class AsyncBase():
         assert 202 == resp.status_code
 
     def assert_post_async_produce_by_actor_name(self, async_consumer, key, value, headers):
-        assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
+        global async_service_type
+
+        if async_service_type == 'redis':
+            assert any(row[1] == value for row in async_consumer.log)
+        else:
+            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
     def test_post_async_produce_by_actor_name(self):
         global async_service_type
@@ -4743,6 +4759,7 @@ class TestAsyncAMQP(AsyncBase):
 
         async_service_type = 'amqp'
         super().setup_class()
+
 
 class TestAsyncRedis(AsyncBase):
 
