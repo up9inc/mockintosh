@@ -157,7 +157,7 @@ up-kafka:
 
 up-rabbitmq:
 	docker run -d -it --rm --name rabbitmq --net=host rabbitmq:latest && \
-	sleep 5
+	sleep 10
 
 up-redis:
 	docker run -d -it --rm --name redis --net=host redis:latest && \
