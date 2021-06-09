@@ -300,7 +300,9 @@ class AsyncBase():
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
+        time.sleep(1)
         async_producer.produce()
+        time.sleep(1)
 
         async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
@@ -310,6 +312,7 @@ class AsyncBase():
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
+        time.sleep(1)
 
         async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
@@ -319,6 +322,7 @@ class AsyncBase():
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
+        time.sleep(1)
 
         async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
@@ -328,6 +332,7 @@ class AsyncBase():
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
+        time.sleep(1)
 
         async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
@@ -337,6 +342,7 @@ class AsyncBase():
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
+        time.sleep(1)
 
         async_producer = getattr(sys.modules[__name__], '%s_build_single_payload_producer' % async_service_type)(
             'topic2',
@@ -346,6 +352,7 @@ class AsyncBase():
         )
         async_actor.set_producer(async_producer)
         async_producer.produce()
+        time.sleep(1)
 
         self.assert_async_consume(
             self.assert_get_async_consume,
