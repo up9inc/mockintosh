@@ -10,10 +10,8 @@ install-dev:
 	pip3 install -e .[dev]
 
 test: test-style test-integration test-without-coverage
-	${MAKE} stop-containers
 
 test-fast: test-style test-without-coverage
-	${MAKE} stop-containers
 
 coverage: test-with-coverage coverage-after
 
@@ -21,12 +19,13 @@ test-integration: build
 	tests_integrated/acceptance.sh && \
 	${MAKE} stop-containers
 
-test-without-coverage: copy-assets up-asyncs
+test-without-coverage: copy-assets
 	TESTING_ENV=somevalue pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
-	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG
+	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG && \
+	${MAKE} test-asyncs
 
-test-with-coverage: test-style copy-assets up-asyncs test-openapi-transpiler
+test-with-coverage: test-style copy-assets test-openapi-transpiler
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
@@ -43,6 +42,43 @@ test-with-coverage: test-style copy-assets up-asyncs test-openapi-transpiler
 	coverage run --parallel -m mockintosh tests/configs/yaml/hbs/kafka/config_error.yaml || \
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features.py -s -vv --log-level=DEBUG && \
+	${MAKE} test-asyncs-with-coverage
+
+test-asyncs: test-kafka test-amqp test-redis
+
+test-asyncs-with-coverage: test-kafka-with-coverage test-amqp-with-coverage test-redis-with-coverage
+
+test-kafka: test-kafka-without-coverage
+
+test-kafka-without-coverage: up-kafka
+	pytest tests/test_features_async.py::TestAsyncKafka -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-kafka-with-coverage: up-kafka
+	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
+		tests/test_features_async.py::TestAsyncKafka -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-amqp: test-amqp-without-coverage
+
+test-amqp-without-coverage: up-rabbitmq
+	pytest tests/test_features_async.py::TestAsyncAMQP -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-amqp-with-coverage: up-rabbitmq
+	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
+		tests/test_features_async.py::TestAsyncAMQP -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-redis: test-redis-without-coverage
+
+test-redis-without-coverage: up-redis
+	pytest tests/test_features_async.py::TestAsyncRedis -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-redis-with-coverage: up-redis
+	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
+		tests/test_features_async.py::TestAsyncRedis -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
 test-openapi-transpiler:
@@ -116,10 +152,13 @@ copy-redis:
 up-asyncs: up-kafka up-rabbitmq up-redis
 
 up-kafka:
-	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka
+	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka && \
+	sleep 2
 
 up-rabbitmq:
-	docker run -d -it --rm --name rabbitmq --net=host rabbitmq:latest
+	docker run -d -it --rm --name rabbitmq --net=host rabbitmq:latest && \
+	sleep 5
 
 up-redis:
-	docker run -d -it --rm --name redis --net=host redis:latest
+	docker run -d -it --rm --name redis --net=host redis:latest && \
+	sleep 2
