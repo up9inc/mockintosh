@@ -71,7 +71,7 @@ ASYNC_ADDR = {
     'amqp': AMQP_ADDR,
     'redis': REDIS_ADDR
 }
-ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 180)
+ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
@@ -1323,7 +1323,7 @@ class AsyncBase():
         resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
         assert 204 == resp.status_code
 
-        time.sleep(ASYNC_CONSUME_WAIT / 2)
+        time.sleep(ASYNC_CONSUME_WAIT / 10)
 
         queue, job = start_render_queue()
         async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
