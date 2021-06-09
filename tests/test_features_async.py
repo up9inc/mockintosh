@@ -1210,9 +1210,10 @@ class AsyncBase():
         assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {'202': 1}
 
         assert data['services'][0]['endpoints'][1]['hint'] == 'GET topic2 - 1'
-        assert data['services'][0]['endpoints'][1]['request_counter'] == 6 if async_service_type == 'redis' else 2
+        if async_service_type != 'redis':
+            assert data['services'][0]['endpoints'][1]['request_counter'] == 2
+            assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 2}
         assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 6} if async_service_type == 'redis' else {'200': 2}
 
         assert data['services'][0]['endpoints'][2]['hint'] == 'PUT topic3 - 2'
         assert data['services'][0]['endpoints'][2]['request_counter'] > 1
