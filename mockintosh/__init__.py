@@ -127,11 +127,13 @@ def _handle_cli_args_logging(args: list, fmt: str) -> None:
     if args['quiet']:
         logging.basicConfig(level=logging.WARNING, format=fmt)
         logging.getLogger('pika').setLevel(logging.CRITICAL)
+        logging.getLogger('rsmq').setLevel(logging.CRITICAL)
     elif args['verbose']:
         logging.basicConfig(level=logging.DEBUG, format=fmt)
     else:
         logging.basicConfig(level=logging.INFO, format=fmt)
         logging.getLogger('pika').setLevel(logging.CRITICAL)
+        logging.getLogger('rsmq').setLevel(logging.CRITICAL)
 
 
 def _handle_cli_args_logfile(args: list, fmt: str) -> None:

@@ -116,6 +116,7 @@ class KafkaConsumerGroup(AsyncConsumerGroup):
     def consume_loop(self, consumer) -> None:
         while True:
             if self.stop:  # pragma: no cover
+                consumer.close()
                 break
 
             msg = self.poll_message(consumer)

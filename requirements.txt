@@ -10,3 +10,4 @@ httpx==0.17.1
 confluent-kafka>=1.6.1
 prance[osv]>=0.21.2
 pika>=1.2.0
+PyRSMQ>=0.4.5

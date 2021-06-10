@@ -888,8 +888,8 @@ class IntegrationTests(unittest.TestCase):
     def test_kafka_producer_ondemand(self):
         resp = httpx.get(MGMT + '/async', verify=False)  # gets the list of available actors
         resp.raise_for_status()
-        self.assertEqual(10, len(resp.json()["producers"]))
-        self.assertEqual(6, len(resp.json()["consumers"]))
+        self.assertEqual(12, len(resp.json()["producers"]))
+        self.assertEqual(8, len(resp.json()["consumers"]))
         desired = [x for x in resp.json()["producers"] if x['name'] == 'on-demand-1']
         desired[0].pop('producedMessages')
         desired[0].pop('lastProduced')
@@ -998,6 +998,26 @@ class IntegrationTests(unittest.TestCase):
 
         for _ in range(5):
             resp = httpx.get(MGMT + '/async/consumers/chain2-validating', verify=False)
+            resp.raise_for_status()
+            msgs = resp.json()['log']['entries']
+            if not msgs:
+                time.sleep(1)
+                continue
+            self.assertEqual(1, len(msgs))
+            break
+        else:
+            self.fail("Did not capture the message")
+
+    def test_redis_chained(self):
+        # clean the log
+        resp = httpx.delete(MGMT + '/async/consumers/chain3-validating', verify=False)
+        resp.raise_for_status()
+
+        resp = httpx.post(MGMT + '/async/producers/chain3-on-demand', verify=False)
+        resp.raise_for_status()
+
+        for _ in range(5):
+            resp = httpx.get(MGMT + '/async/consumers/chain3-validating', verify=False)
             resp.raise_for_status()
             msgs = resp.json()['log']['entries']
             if not msgs:

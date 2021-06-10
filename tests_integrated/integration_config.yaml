@@ -376,3 +376,29 @@ services:
           queue: chain2-step2
           headers:
             captured-val: "{{regEx '\\d+'}}"
+
+  - name: Redis
+    type: redis
+    address: localhost:6379
+    actors:
+      - name: chain3-on-demand
+        produce:
+          create: true
+          queue: chain3-step1
+          value: "{{date.timestamp}}"
+      - name: chain3-reactive
+        consume:
+          queue: chain3-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          create: true
+          queue: chain3-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain3-validating
+        consume:
+          queue: chain3-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"
