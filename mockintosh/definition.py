@@ -299,18 +299,18 @@ class Definition:
         service: ConfigAsyncService
     ):
         class_name_prefix = service.type.capitalize()
-        kafka_service = getattr(sys.modules[__name__], '%sService' % class_name_prefix)(
+        async_service = getattr(sys.modules[__name__], '%sService' % class_name_prefix)(
             service.address,
             name=service.name,
             definition=self,
             _id=service.internal_service_id,
             ssl=service.ssl
         )
-        service._impl = kafka_service
+        service._impl = async_service
 
         for i, actor in enumerate(service.actors):
-            kafka_actor = getattr(sys.modules[__name__], '%sActor' % class_name_prefix)(i, actor.name)
-            kafka_service.add_actor(kafka_actor)
+            async_actor = getattr(sys.modules[__name__], '%sActor' % class_name_prefix)(i, actor.name)
+            async_service.add_actor(async_actor)
 
             if actor.consume is not None:
                 capture_limit = actor.consume.capture
@@ -319,8 +319,8 @@ class Definition:
                 key = actor.consume.key
                 headers = actor.consume.headers
 
-                params = kafka_actor.params
-                context = kafka_actor.context
+                params = async_actor.params
+                context = async_actor.context
 
                 async_producer_value_recognizer = AsyncProducerValueRecognizer(
                     value,
@@ -349,7 +349,7 @@ class Definition:
                 )
                 headers = async_producer_headers_recognizer.recognize()
 
-                kafka_consumer = getattr(sys.modules[__name__], '%sConsumer' % class_name_prefix)(
+                async_consumer = getattr(sys.modules[__name__], '%sConsumer' % class_name_prefix)(
                     actor.consume.queue,
                     schema=actor.consume.schema,
                     value=value,
@@ -357,9 +357,9 @@ class Definition:
                     headers=headers,
                     capture_limit=capture_limit
                 )
-                kafka_actor.set_consumer(kafka_consumer)
+                async_actor.set_consumer(async_consumer)
 
-            kafka_actor.set_delay(actor.delay)
+            async_actor.set_delay(actor.delay)
 
             if actor.produce is not None:
                 queue = None
@@ -370,7 +370,7 @@ class Definition:
                     queue = actor.produce.produce_list[0].queue
                     for _produce in actor.produce.produce_list:
                         if queue != _produce.queue:
-                            raise AsyncProducerListQueueMismatch(kafka_actor.get_hint())
+                            raise AsyncProducerListQueueMismatch(async_actor.get_hint())
                     produce_list += actor.produce.produce_list
                 else:
                     queue = actor.produce.queue
@@ -386,14 +386,14 @@ class Definition:
                     )
                     payload_list.add_payload(payload)
 
-                kafka_producer = getattr(sys.modules[__name__], '%sProducer' % class_name_prefix)(queue, payload_list)
-                kafka_actor.set_producer(kafka_producer)
+                async_producer = getattr(sys.modules[__name__], '%sProducer' % class_name_prefix)(queue, payload_list)
+                async_actor.set_producer(async_producer)
 
-            kafka_actor.set_limit(actor.limit)
+            async_actor.set_limit(actor.limit)
 
-            kafka_actor.set_dataset(actor.dataset)
+            async_actor.set_dataset(actor.dataset)
 
-            kafka_actor.multi_payloads_looped = actor.multi_payloads_looped
-            kafka_actor.dataset_looped = actor.dataset_looped
+            async_actor.multi_payloads_looped = actor.multi_payloads_looped
+            async_actor.dataset_looped = actor.dataset_looped
 
-        return kafka_service
+        return async_service
