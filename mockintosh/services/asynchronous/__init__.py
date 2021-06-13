@@ -40,7 +40,8 @@ from mockintosh.exceptions import (
 SERVICE_TYPES = {
     'kafka': 'Kafka',
     'amqp': 'AMQP',
-    'redis': 'Redis'
+    'redis': 'Redis',
+    'pubsub': 'Google Cloud Pub/Sub'
 }
 
 
@@ -687,10 +688,12 @@ class AsyncService:
     def __init__(
         self,
         address: str,
-        name: str = None,
+        name: Union[str, None] = None,
         definition=None,
-        _id: int = None,
-        ssl: bool = False
+        _id: Union[int, None] = None,
+        ssl: bool = False,
+        project_id: Union[str, None] = None,
+        service_account_json: Union[str, None] = None
     ):
         self.address = address
         self.name = name
@@ -699,6 +702,8 @@ class AsyncService:
         self.actors = []
         self.id = _id
         self.ssl = ssl
+        self.project_id = project_id
+        self.service_account_json = service_account_json
         self.tags = []
         self._index = len(AsyncService.services)
         AsyncService.services.append(self)

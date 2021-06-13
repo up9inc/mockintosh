@@ -187,17 +187,21 @@ class KafkaService(AsyncService):
     def __init__(
         self,
         address: str,
-        name: str = None,
+        name: Union[str, None] = None,
         definition=None,
-        _id: int = None,
-        ssl: bool = False
+        _id: Union[int, None] = None,
+        ssl: bool = False,
+        project_id: Union[str, None] = None,
+        service_account_json: Union[str, None] = None
     ):
         super().__init__(
             address,
             name=name,
             definition=definition,
             _id=_id,
-            ssl=ssl
+            ssl=ssl,
+            project_id=project_id,
+            service_account_json=service_account_json
         )
         self.type = 'kafka'
 

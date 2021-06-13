@@ -121,7 +121,7 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis
+copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis copy-pubsub
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -148,6 +148,10 @@ copy-amqp:
 copy-redis:
 	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/redis/ && \
 	python3 ./tests/assets_copy_kafka_to_redis.py
+
+copy-pubsub:
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/pubsub/ && \
+	python3 ./tests/assets_copy_kafka_to_pubsub.py
 
 up-asyncs: up-kafka up-rabbitmq up-redis
 

@@ -13,6 +13,7 @@ from mockintosh.services.asynchronous import AsyncService, AsyncConsumerGroup
 from mockintosh.services.asynchronous.kafka import KafkaConsumerGroup  # noqa: F401
 from mockintosh.services.asynchronous.amqp import AmqpConsumerGroup  # noqa: F401
 from mockintosh.services.asynchronous.redis import RedisConsumerGroup  # noqa: F401
+from mockintosh.services.asynchronous.pubsub import PubsubConsumerGroup  # noqa: F401
 
 
 def run_loops():

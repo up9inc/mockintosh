@@ -20,7 +20,8 @@
             "amqp",
             "rabbitmq",
             "activemq",
-            "redis"
+            "redis",
+            "pubsub"
           ]
         },
         "actors": {
@@ -32,7 +33,6 @@
       },
       "required": [
         "type",
-        "address",
         "actors"
       ],
       "additionalProperties": false
@@ -186,6 +186,12 @@
           "type": "string"
         },
         "fallbackTo": {
+          "type": "string"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "serviceAccountJson": {
           "type": "string"
         }
       },

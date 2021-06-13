@@ -131,10 +131,12 @@ class ConfigRootBuilder:
     def build_config_async_service(self, data: dict, internal_service_id: Union[int, None] = None) -> ConfigAsyncService:
         config_service = ConfigAsyncService(
             'amqp' if data['type'] in ('rabbitmq', 'activemq') else data['type'],
-            data['address'],
+            address=data.get('address', None),
             actors=[],
             name=data.get('name', None),
             ssl=data.get('ssl', False),
+            project_id=data.get('projectId', False),
+            service_account_json=data.get('serviceAccountJson', False),
             internal_service_id=internal_service_id
         )
 

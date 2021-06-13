@@ -144,3 +144,7 @@ tests/configs/yaml/hbs/amqp/*
 # Redis
 tests/configs/yaml/hbs/redis
 tests/configs/yaml/hbs/redis/*
+
+# Google Cloud Pub/Sub
+tests/configs/yaml/hbs/pubsub
+tests/configs/yaml/hbs/pubsub/*
