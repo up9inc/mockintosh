@@ -17,6 +17,7 @@ from typing import (
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.auth.jwt import Credentials
 from google.api_core.exceptions import NotFound
+from grpc._channel import _InactiveRpcError
 
 from mockintosh.constants import PROGRAM
 from mockintosh.services.asynchronous import (
@@ -31,9 +32,14 @@ from mockintosh.services.asynchronous import (
 )
 
 
-def _credentials(service_account_json: Union[str, None]) -> Credentials:
-    service_account_info = json.load(open(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', service_account_json)))
-    audience = "https://pubsub.googleapis.com/google.pubsub.v1.Subscriber"
+def _credentials(service_account_json: Union[str, None], _type: str) -> Credentials:
+    service_account_info = None
+    service_acount_json_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', service_account_json)
+    if service_acount_json_path is None:
+        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
+        return
+    service_account_info = json.load(open(service_acount_json_path))
+    audience = 'https://pubsub.googleapis.com/google.pubsub.v1.%s' % _type
 
     return Credentials.from_service_account_info(
         service_account_info, audience=audience
@@ -41,11 +47,11 @@ def _credentials(service_account_json: Union[str, None]) -> Credentials:
 
 
 def _publisher(service_account_json: Union[str, None]) -> PublisherClient:
-    return PublisherClient(credentials=_credentials(service_account_json))
+    return PublisherClient(credentials=_credentials(service_account_json, 'Publisher'))
 
 
 def _subscriber(service_account_json: Union[str, None]) -> SubscriberClient:
-    return SubscriberClient(credentials=_credentials(service_account_json))
+    return SubscriberClient(credentials=_credentials(service_account_json, 'Subscriber'))
 
 
 def _get_topic_path(project_id: Union[str, None], topic: str) -> str:
@@ -93,7 +99,7 @@ class PubsubConsumerGroup(AsyncConsumerGroup):
                 self.future.result()
             except KeyboardInterrupt:
                 self.future.cancel()
-        except NotFound as e:
+        except (NotFound, _InactiveRpcError) as e:
             logging.info('Topic %s does not exist: %s', self.consumers[0].topic, e)
 
     def _stop(self):
@@ -117,8 +123,11 @@ class PubsubProducer(AsyncProducer):
         if payload.enable_topic_creation:
             publisher.create_topic(name=topic_path)
 
-        future = publisher.publish(topic_path, value.encode(), spam='eggs')  # TODO: What's `spam`?
-        future.result()
+        try:
+            future = publisher.publish(topic_path, value.encode(), spam='eggs')  # TODO: What's `spam`?
+            future.result()
+        except (NotFound, _InactiveRpcError) as e:
+            logging.info('Topic %s does not exist: %s', self.topic, e)
 
 
 class PubsubActor(AsyncActor):
