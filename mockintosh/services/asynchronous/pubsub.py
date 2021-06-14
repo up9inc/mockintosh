@@ -15,8 +15,9 @@ from typing import (
 )
 
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
+from google.cloud.pubsub_v1.types import PublisherOptions
 from google.auth.jwt import Credentials
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, AlreadyExists
 from grpc._channel import _InactiveRpcError
 
 from mockintosh.constants import PROGRAM
@@ -30,6 +31,13 @@ from mockintosh.services.asynchronous import (
     AsyncActor,
     AsyncService
 )
+
+
+def _decoder(value):
+    try:
+        return value.decode()
+    except (AttributeError, UnicodeDecodeError):
+        return value
 
 
 def _credentials(service_account_json: Union[str, None], _type: str) -> Credentials:
@@ -47,7 +55,10 @@ def _credentials(service_account_json: Union[str, None], _type: str) -> Credenti
 
 
 def _publisher(service_account_json: Union[str, None]) -> PublisherClient:
-    return PublisherClient(credentials=_credentials(service_account_json, 'Publisher'))
+    return PublisherClient(
+        credentials=_credentials(service_account_json, 'Publisher'),
+        publisher_options = PublisherOptions(enable_message_ordering=True)
+    )
 
 
 def _subscriber(service_account_json: Union[str, None]) -> SubscriberClient:
@@ -65,7 +76,10 @@ def _create_topic(service_account_json: str, project_id: str, topic: str) -> Non
     publisher = _publisher(service_account_json)
     topic_path = _get_topic_path(project_id, topic)
 
-    publisher.create_topic(name=topic_path)
+    try:
+        publisher.create_topic(name=topic_path)
+    except AlreadyExists:
+        pass
 
 
 class PubsubConsumerProducerBase(AsyncConsumerProducerBase):
@@ -79,7 +93,11 @@ class PubsubConsumer(AsyncConsumer):
 class PubsubConsumerGroup(AsyncConsumerGroup):
 
     def callback(self, message):
-        print(message.data)
+        self.consume_message(
+            key=message.ordering_key,
+            value=_decoder(message.data),
+            headers=dict(message.attributes)
+        )
         message.ack()
 
     def consume(self) -> None:
@@ -121,13 +139,17 @@ class PubsubProducer(AsyncProducer):
         topic_path = _get_topic_path(self.actor.service.project_id, self.topic)
 
         if payload.enable_topic_creation:
-            publisher.create_topic(name=topic_path)
+            try:
+                publisher.create_topic(name=topic_path)
+            except AlreadyExists:
+                pass
 
         try:
-            future = publisher.publish(topic_path, value.encode(), spam='eggs')  # TODO: What's `spam`?
+            future = publisher.publish(topic_path, value.encode(), ordering_key=key, **headers)
             future.result()
         except (NotFound, _InactiveRpcError) as e:
             logging.info('Topic %s does not exist: %s', self.topic, e)
+            raise
 
 
 class PubsubActor(AsyncActor):
