@@ -18,6 +18,7 @@ from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import PublisherOptions
 from google.auth.jwt import Credentials
 from google.api_core.exceptions import NotFound, AlreadyExists
+from google.auth.exceptions import DefaultCredentialsError
 from grpc._channel import _InactiveRpcError
 
 from mockintosh.constants import PROGRAM
@@ -55,14 +56,20 @@ def _credentials(service_account_json: Union[str, None], _type: str) -> Credenti
 
 
 def _publisher(service_account_json: Union[str, None]) -> PublisherClient:
-    return PublisherClient(
-        credentials=_credentials(service_account_json, 'Publisher'),
-        publisher_options = PublisherOptions(enable_message_ordering=True)
-    )
+    try:
+        return PublisherClient(
+            credentials=_credentials(service_account_json, 'Publisher'),
+            publisher_options = PublisherOptions(enable_message_ordering=True)
+        )
+    except DefaultCredentialsError:
+        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
 
 
 def _subscriber(service_account_json: Union[str, None]) -> SubscriberClient:
-    return SubscriberClient(credentials=_credentials(service_account_json, 'Subscriber'))
+    try:
+        return SubscriberClient(credentials=_credentials(service_account_json, 'Subscriber'))
+    except DefaultCredentialsError:
+        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
 
 
 def _get_topic_path(project_id: Union[str, None], topic: str) -> str:
@@ -74,12 +81,17 @@ def _get_topic_path(project_id: Union[str, None], topic: str) -> str:
 
 def _create_topic(service_account_json: str, project_id: str, topic: str) -> None:
     publisher = _publisher(service_account_json)
+    if publisher is None:
+        return
     topic_path = _get_topic_path(project_id, topic)
 
     try:
         publisher.create_topic(name=topic_path)
     except AlreadyExists:
         pass
+    except NotFound:
+        logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
+        return
 
 
 class PubsubConsumerProducerBase(AsyncConsumerProducerBase):
@@ -102,6 +114,8 @@ class PubsubConsumerGroup(AsyncConsumerGroup):
 
     def consume(self) -> None:
         subscriber = _subscriber(self.consumers[0].actor.service.service_account_json)
+        if subscriber is None:
+            return
         topic_path = _get_topic_path(self.consumers[0].actor.service.project_id, self.consumers[0].topic)
 
         subscription_path = 'projects/{project_id}/subscriptions/{sub}'.format(
@@ -136,6 +150,8 @@ class PubsubProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
         publisher = _publisher(self.actor.service.service_account_json)
+        if publisher is None:
+            return
         topic_path = _get_topic_path(self.actor.service.project_id, self.topic)
 
         if payload.enable_topic_creation:
@@ -143,6 +159,9 @@ class PubsubProducer(AsyncProducer):
                 publisher.create_topic(name=topic_path)
             except AlreadyExists:
                 pass
+            except NotFound:
+                logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
+                return
 
         try:
             future = publisher.publish(topic_path, value.encode(), ordering_key=key, **headers)
