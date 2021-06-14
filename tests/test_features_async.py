@@ -64,6 +64,7 @@ from mockintosh.services.asynchronous.pubsub import (  # noqa: F401
     PubsubProducerPayloadList,
     PubsubProducerPayload,
     _create_topic as pubsub_create_topic,
+    # _delete_topic as pubsub_delete_topic,
     build_single_payload_producer as pubsub_build_single_payload_producer
 )
 from utilities import (
@@ -128,6 +129,8 @@ class AsyncBase():
             'chain1-step1',
             'chain1-step2'
         ):
+            # if async_service_type == 'pubsub':
+            #     pubsub_delete_topic(ASYNC_ADDR[async_service_type], topic)
             getattr(sys.modules[__name__], '%s_create_topic' % async_service_type)(ASYNC_ADDR[async_service_type], topic)
 
         time.sleep(ASYNC_CONSUME_TIMEOUT / 20)

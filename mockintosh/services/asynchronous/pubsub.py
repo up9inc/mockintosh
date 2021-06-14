@@ -8,8 +8,8 @@
 
 import os
 import json
-import time
 import logging
+from uuid import uuid4
 from typing import (
     Union
 )
@@ -59,7 +59,7 @@ def _publisher(service_account_json: Union[str, None]) -> PublisherClient:
     try:
         return PublisherClient(
             credentials=_credentials(service_account_json, 'Publisher'),
-            publisher_options = PublisherOptions(enable_message_ordering=True)
+            publisher_options=PublisherOptions(enable_message_ordering=True)
         )
     except DefaultCredentialsError:
         logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
@@ -89,11 +89,30 @@ def _create_topic(service_account_json: str, topic: str) -> None:
 
     try:
         publisher.create_topic(name=topic_path)
+        logging.info('Topic %s created', topic)
     except AlreadyExists:
         pass
     except NotFound:
         logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
         return
+
+
+# def _delete_topic(service_account_json: str, topic: str) -> None:
+#     service_account_json = None
+#     project_id = None
+#     publisher = _publisher(service_account_json)
+#     if publisher is None:
+#         return
+#     topic_path = _get_topic_path(project_id, topic)
+
+#     try:
+#         publisher.delete_topic(request={"topic": topic_path})
+#         logging.info('Topic %s deleted', topic)
+#     except AlreadyExists:
+#         pass
+#     except NotFound:
+#         logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
+#         return
 
 
 class PubsubConsumerProducerBase(AsyncConsumerProducerBase):
@@ -122,8 +141,11 @@ class PubsubConsumerGroup(AsyncConsumerGroup):
 
         subscription_path = 'projects/{project_id}/subscriptions/{sub}'.format(
             project_id=os.environ.get('GOOGLE_CLOUD_PROJECT', self.consumers[0].actor.service.project_id),
-            sub='%s_%s' % (PROGRAM, str(int(time.time())))
+            sub='%s_%s' % (PROGRAM, str(uuid4()).replace('-', '0'))
         )
+
+        if any(consumer.enable_topic_creation for consumer in self.consumers):
+            _create_topic(self.consumers[0].actor.service.service_account_json, self.consumers[0].topic)
 
         try:
             subscriber.create_subscription(name=subscription_path, topic=topic_path)
@@ -159,6 +181,7 @@ class PubsubProducer(AsyncProducer):
         if payload.enable_topic_creation:
             try:
                 publisher.create_topic(name=topic_path)
+                logging.info('Topic %s created', self.topic)
             except AlreadyExists:
                 pass
             except NotFound:
