@@ -55,6 +55,17 @@ from mockintosh.services.asynchronous.redis import (  # noqa: F401
     _create_topic as redis_create_topic,
     build_single_payload_producer as redis_build_single_payload_producer
 )
+from mockintosh.services.asynchronous.pubsub import (  # noqa: F401
+    PubsubService,
+    PubsubActor,
+    PubsubConsumer,
+    PubsubConsumerGroup,
+    PubsubProducer,
+    PubsubProducerPayloadList,
+    PubsubProducerPayload,
+    _create_topic as pubsub_create_topic,
+    build_single_payload_producer as pubsub_build_single_payload_producer
+)
 from utilities import (
     DefinitionMockForAsync,
     get_config_path,
@@ -66,10 +77,12 @@ MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
+PUBSUB_ADDR = os.environ.get('PUBSUB_ADDR', 'localhost:9092')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
-    'redis': REDIS_ADDR
+    'redis': REDIS_ADDR,
+    'pubsub': PUBSUB_ADDR
 }
 ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
@@ -1400,4 +1413,14 @@ class TestAsyncRedis(AsyncBase):
         global async_service_type
 
         async_service_type = 'redis'
+        super().setup_class()
+
+
+class TestAsyncPubsub(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'pubsub'
         super().setup_class()

@@ -79,7 +79,9 @@ def _get_topic_path(project_id: Union[str, None], topic: str) -> str:
     )
 
 
-def _create_topic(service_account_json: str, project_id: str, topic: str) -> None:
+def _create_topic(service_account_json: str, topic: str) -> None:
+    service_account_json = None
+    project_id = None
     publisher = _publisher(service_account_json)
     if publisher is None:
         return
