@@ -97,24 +97,6 @@ def _create_topic(service_account_json: str, topic: str) -> None:
         return
 
 
-# def _delete_topic(service_account_json: str, topic: str) -> None:
-#     service_account_json = None
-#     project_id = None
-#     publisher = _publisher(service_account_json)
-#     if publisher is None:
-#         return
-#     topic_path = _get_topic_path(project_id, topic)
-
-#     try:
-#         publisher.delete_topic(request={"topic": topic_path})
-#         logging.info('Topic %s deleted', topic)
-#     except AlreadyExists:
-#         pass
-#     except NotFound:
-#         logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
-#         return
-
-
 class PubsubConsumerProducerBase(AsyncConsumerProducerBase):
     pass
 
@@ -127,7 +109,7 @@ class PubsubConsumerGroup(AsyncConsumerGroup):
 
     def callback(self, message):
         if self.consume_message(
-            key=message.ordering_key,
+            key=None if not message.ordering_key else message.ordering_key,
             value=_decoder(message.data),
             headers=dict(message.attributes)
         ):
@@ -148,7 +130,10 @@ class PubsubConsumerGroup(AsyncConsumerGroup):
             _create_topic(self.consumers[0].actor.service.service_account_json, self.consumers[0].topic)
 
         try:
-            subscriber.create_subscription(name=subscription_path, topic=topic_path)
+            subscriber.create_subscription(
+                name=subscription_path,
+                topic=topic_path
+            )
             self.future = subscriber.subscribe(subscription_path, self.callback)
 
             try:
@@ -212,7 +197,7 @@ class PubsubService(AsyncService):
         project_id: Union[str, None] = None,
         service_account_json: Union[str, None] = None
     ):
-        address = 'gcp:pubsub'
+        address = 'cloud:grpc'
         super().__init__(
             address,
             name=name,

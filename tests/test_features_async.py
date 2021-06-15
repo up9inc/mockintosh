@@ -78,7 +78,7 @@ MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
-PUBSUB_ADDR = os.environ.get('PUBSUB_ADDR', 'localhost:9092')
+PUBSUB_ADDR = os.environ.get('PUBSUB_ADDR', 'cloud:grpc')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
@@ -211,8 +211,8 @@ class AsyncBase():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 23
-            assert len(consumers) == 16
+            assert len(producers) == 22 if async_service_type == 'pubsub' else 23
+            assert len(consumers) == 15 if async_service_type == 'pubsub' else 16
 
             assert producers[0]['type'] == async_service_type
             assert producers[0]['name'] is None
@@ -601,6 +601,9 @@ class AsyncBase():
         t.daemon = True
         t.start()
 
+        if async_service_type == 'pubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
+
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         assert 202 == resp.status_code
 
@@ -652,6 +655,9 @@ class AsyncBase():
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
+
+        if async_service_type == 'pubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
 
         resp = httpx.post(MGMT + '/async/producers/actor6', verify=False)
         assert 202 == resp.status_code
@@ -823,6 +829,9 @@ class AsyncBase():
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
+
+        if async_service_type == 'pubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
 
         for _ in range(2):
             resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
@@ -1089,7 +1098,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic1%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key1' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s:%s/topic1%s' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key1' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1099,7 +1108,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://localhost:%s/topic2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://%s:%s/topic2' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 for entry in entries
@@ -1108,7 +1117,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://%s:%s/topic2?key=key2' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 and  # noqa: W504, W503
@@ -1122,7 +1131,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://localhost:%s/topic3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://%s:%s/topic3' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 for entry in entries
@@ -1131,7 +1140,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://%s:%s/topic3?key=key3' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 and  # noqa: W504, W503
@@ -1144,7 +1153,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic3%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key3' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s:%s/topic3%s' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key3' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1153,7 +1162,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic6' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'] == '%s://%s:%s/topic6' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1162,7 +1171,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic7%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key7' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s:%s/topic7%s' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key7' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1171,7 +1180,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://localhost:%s/topic8%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key8' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s:%s/topic8%s' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key8' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1181,7 +1190,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'PUT'
                 and  # noqa: W504, W503
-                entry['request']['url'].startswith('%s://localhost:%s/templated-producer' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
+                entry['request']['url'].startswith('%s://%s:%s/templated-producer' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1]))
                 and  # noqa: W504, W503
                 entry['response']['status'] == 202
                 for entry in entries
@@ -1190,7 +1199,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'PUT'
                 and  # noqa: W504, W503
-                entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
+                entry['request']['url'].startswith('%s://%s:%s/templated-producer?key=prefix-' % (async_service_type, 'cloud' if async_service_type == 'pubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1]))
                 and  # noqa: W504, W503
                 entry['request']['headers'][-2]['value'].isnumeric()
                 and  # noqa: W504, W503
@@ -1290,11 +1299,12 @@ class AsyncBase():
         assert data['services'][1]['status_code_distribution'] == {}
         assert len(data['services'][1]['endpoints']) == 0
 
-        assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
-        assert data['services'][2]['request_counter'] == 0
-        assert data['services'][2]['avg_resp_time'] == 0
-        assert data['services'][2]['status_code_distribution'] == {}
-        assert len(data['services'][2]['endpoints']) == 2
+        if async_service_type != 'pubsub':
+            assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
+            assert data['services'][2]['request_counter'] == 0
+            assert data['services'][2]['avg_resp_time'] == 0
+            assert data['services'][2]['status_code_distribution'] == {}
+            assert len(data['services'][2]['endpoints']) == 2
 
     def assert_management_post_config(self, async_consumer):
         global async_service_type
@@ -1363,6 +1373,9 @@ class AsyncBase():
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
+
+        if async_service_type == 'pubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
 
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         assert 202 == resp.status_code
