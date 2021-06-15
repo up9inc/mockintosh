@@ -126,12 +126,12 @@ class PubsubConsumer(AsyncConsumer):
 class PubsubConsumerGroup(AsyncConsumerGroup):
 
     def callback(self, message):
-        self.consume_message(
+        if self.consume_message(
             key=message.ordering_key,
             value=_decoder(message.data),
             headers=dict(message.attributes)
-        )
-        message.ack()
+        ):
+            message.ack()
 
     def consume(self) -> None:
         subscriber = _subscriber(self.consumers[0].actor.service.service_account_json)
