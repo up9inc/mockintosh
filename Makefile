@@ -86,15 +86,15 @@ test-redis-with-coverage: up-redis
 
 test-pubsub: test-pubsub-without-coverage
 
-test-pubsub-env:
-	export PUBSUB_EMULATOR_HOST=localhost:8681 && \
-	export PUBSUB_PROJECT_ID=test-pubsub
-
-test-pubsub-without-coverage: up-pubsub test-pubsub-env
+test-pubsub-without-coverage: up-pubsub
+	PUBSUB_EMULATOR_HOST=localhost:8681 \
+	PUBSUB_PROJECT_ID=test-pubsub \
 	pytest tests/test_features_async.py::TestAsyncPubsub -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
-test-pubsub-with-coverage: up-pubsub test-pubsub-env
+test-pubsub-with-coverage: up-pubsub
+	PUBSUB_EMULATOR_HOST=localhost:8681 \
+	PUBSUB_PROJECT_ID=test-pubsub \
 	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features_async.py::TestAsyncPubsub -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers

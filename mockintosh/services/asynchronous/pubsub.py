@@ -41,7 +41,7 @@ def _decoder(value):
         return value
 
 
-def _credentials(service_account_json: Union[str, None], _type: str) -> Credentials:
+def _credentials(service_account_json: Union[str, None], _type: str) -> Union[Credentials, None]:
     service_account_info = None
     service_acount_json_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', service_account_json)
     if service_acount_json_path is None:
