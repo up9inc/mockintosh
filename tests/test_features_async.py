@@ -1276,7 +1276,7 @@ class AsyncBase():
         assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] == data['services'][0]['endpoints'][7]['request_counter']
 
         assert data['services'][0]['endpoints'][8]['hint'] == 'PUT topic8 - 7 (actor: short-loop)'
-        assert data['services'][0]['endpoints'][8]['request_counter'] > 5
+        assert data['services'][0]['endpoints'][8]['request_counter'] > 4
         assert data['services'][0]['endpoints'][8]['avg_resp_time'] == 0
         assert data['services'][0]['endpoints'][8]['status_code_distribution']['202'] > 5
 
