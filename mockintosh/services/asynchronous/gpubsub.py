@@ -97,15 +97,15 @@ def _create_topic(service_account_json: str, topic: str) -> None:
         return
 
 
-class PubsubConsumerProducerBase(AsyncConsumerProducerBase):
+class GpubsubConsumerProducerBase(AsyncConsumerProducerBase):
     pass
 
 
-class PubsubConsumer(AsyncConsumer):
+class GpubsubConsumer(AsyncConsumer):
     pass
 
 
-class PubsubConsumerGroup(AsyncConsumerGroup):
+class GpubsubConsumerGroup(AsyncConsumerGroup):
 
     def callback(self, message):
         if self.consume_message(
@@ -147,15 +147,15 @@ class PubsubConsumerGroup(AsyncConsumerGroup):
         self.future.cancel()
 
 
-class PubsubProducerPayload(AsyncProducerPayload):
+class GpubsubProducerPayload(AsyncProducerPayload):
     pass
 
 
-class PubsubProducerPayloadList(AsyncProducerPayloadList):
+class GpubsubProducerPayloadList(AsyncProducerPayloadList):
     pass
 
 
-class PubsubProducer(AsyncProducer):
+class GpubsubProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
         publisher = _publisher(self.actor.service.service_account_json)
@@ -181,11 +181,11 @@ class PubsubProducer(AsyncProducer):
             raise
 
 
-class PubsubActor(AsyncActor):
+class GpubsubActor(AsyncActor):
     pass
 
 
-class PubsubService(AsyncService):
+class GpubsubService(AsyncService):
 
     def __init__(
         self,
@@ -207,7 +207,7 @@ class PubsubService(AsyncService):
             project_id=project_id,
             service_account_json=service_account_json
         )
-        self.type = 'pubsub'
+        self.type = 'gpubsub'
 
 
 def build_single_payload_producer(
@@ -217,13 +217,13 @@ def build_single_payload_producer(
     headers: Union[dict, None] = None,
     tag: Union[str, None] = None,
     enable_topic_creation: bool = False
-) -> PubsubProducer:
-    payload_list = PubsubProducerPayloadList()
-    payload = PubsubProducerPayload(
+) -> GpubsubProducer:
+    payload_list = GpubsubProducerPayloadList()
+    payload = GpubsubProducerPayload(
         value,
         key=key,
         headers={} if headers is None else headers,
         tag=tag
     )
     payload_list.add_payload(payload)
-    return PubsubProducer(topic, payload_list)
+    return GpubsubProducer(topic, payload_list)

@@ -49,7 +49,7 @@ test-asyncs: test-kafka test-amqp test-redis
 test-asyncs-with-coverage: test-kafka-with-coverage \
 	test-amqp-with-coverage \
 	test-redis-with-coverage \
-	test-pubsub-with-coverage
+	test-gpubsub-with-coverage
 
 test-kafka: test-kafka-without-coverage
 
@@ -84,19 +84,19 @@ test-redis-with-coverage: up-redis
 		tests/test_features_async.py::TestAsyncRedis -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
-test-pubsub: test-pubsub-without-coverage
+test-gpubsub: test-gpubsub-without-coverage
 
-test-pubsub-without-coverage: up-pubsub
+test-gpubsub-without-coverage: up-gpubsub
 	PUBSUB_EMULATOR_HOST=localhost:8681 \
-	PUBSUB_PROJECT_ID=test-pubsub \
-	pytest tests/test_features_async.py::TestAsyncPubsub -s -vv --log-level=DEBUG && \
+	PUBSUB_PROJECT_ID=test-gpubsub \
+	pytest tests/test_features_async.py::TestAsyncGpubsub -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
-test-pubsub-with-coverage: up-pubsub
+test-gpubsub-with-coverage: up-gpubsub
 	PUBSUB_EMULATOR_HOST=localhost:8681 \
-	PUBSUB_PROJECT_ID=test-pubsub \
+	PUBSUB_PROJECT_ID=test-gpubsub \
 	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
-		tests/test_features_async.py::TestAsyncPubsub -s -vv --log-level=DEBUG && \
+		tests/test_features_async.py::TestAsyncGpubsub -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
 test-openapi-transpiler:
@@ -139,7 +139,7 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis copy-pubsub
+copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis copy-gpubsub
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -167,11 +167,11 @@ copy-redis:
 	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/redis/ && \
 	python3 ./tests/assets_copy_kafka_to_redis.py
 
-copy-pubsub:
-	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/pubsub/ && \
-	python3 ./tests/assets_copy_kafka_to_pubsub.py
+copy-gpubsub:
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/gpubsub/ && \
+	python3 ./tests/assets_copy_kafka_to_gpubsub.py
 
-up-asyncs: up-kafka up-rabbitmq up-redis up-pubsub
+up-asyncs: up-kafka up-rabbitmq up-redis up-gpubsub
 
 up-kafka:
 	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka && \
@@ -185,7 +185,7 @@ up-redis:
 	docker run -d -it --rm --name redis --net=host redis:latest && \
 	sleep 2
 
-up-pubsub:
-	docker run -d -it --rm --name pubsub --net=host -e PUBSUB_PROJECT1=test-pubsub,test:test \
+up-gpubsub:
+	docker run -d -it --rm --name gpubsub --net=host -e PUBSUB_PROJECT1=test-gpubsub,test:test \
 		messagebird/gcloud-pubsub-emulator:latest && \
 	sleep 2

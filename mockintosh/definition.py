@@ -70,13 +70,13 @@ from mockintosh.services.asynchronous.redis import (  # noqa: F401
     RedisProducerPayloadList,
     RedisProducerPayload
 )
-from mockintosh.services.asynchronous.pubsub import (  # noqa: F401
-    PubsubService,
-    PubsubActor,
-    PubsubConsumer,
-    PubsubProducer,
-    PubsubProducerPayloadList,
-    PubsubProducerPayload
+from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
+    GpubsubService,
+    GpubsubActor,
+    GpubsubConsumer,
+    GpubsubProducer,
+    GpubsubProducerPayloadList,
+    GpubsubProducerPayload
 )
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,

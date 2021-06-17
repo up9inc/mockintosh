@@ -449,13 +449,13 @@ ways to work with Pub/Sub;
 One is specifying the path to the service account JSON file and project ID in your Mockintosh config:
 
 ```yaml
-type: pubsub
+type: gpubsub
 serviceAccountJson: /path/to/project-id-111111.json
 projectId: project-id-111111
 ```
 
 The other way is setting the environment variables `GOOGLE_APPLICATION_CREDENTIALS` and `GOOGLE_CLOUD_PROJECT`
-while setting service type to `pubsub`:
+while setting service type to `gpubsub`:
 
 ```bash
 $ GOOGLE_APPLICATION_CREDENTIALS="/path/to/project-id-111111.json" \
@@ -472,7 +472,7 @@ like [messagebird/gcloud-pubsub-emulator](https://hub.docker.com/r/messagebird/g
 can be used instead of installing the emulator locally.
 
 Once the Pub/Sub emulator is up and running, you can start Mockintosh
-by setting `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` environment variables while setting service type to `pubsub`:
+by setting `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` environment variables while setting service type to `gpubsub`:
 
 ```bash
 $ PUBSUB_EMULATOR_HOST="localhost:8681" \

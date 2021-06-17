@@ -41,7 +41,7 @@ SERVICE_TYPES = {
     'kafka': 'Kafka',
     'amqp': 'AMQP',
     'redis': 'Redis',
-    'pubsub': 'Google Cloud Pub/Sub'
+    'gpubsub': 'Google Cloud Pub/Sub'
 }
 
 
