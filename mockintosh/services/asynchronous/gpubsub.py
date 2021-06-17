@@ -8,6 +8,7 @@
 
 import os
 import json
+import time
 import logging
 from uuid import uuid4
 from typing import (
@@ -89,6 +90,7 @@ def _create_topic(service_account_json: str, topic: str) -> None:
 
     try:
         publisher.create_topic(name=topic_path)
+        time.sleep(3)
         logging.info('Topic %s created', topic)
     except AlreadyExists:
         pass
@@ -129,19 +131,25 @@ class GpubsubConsumerGroup(AsyncConsumerGroup):
         if any(consumer.enable_topic_creation for consumer in self.consumers):
             _create_topic(self.consumers[0].actor.service.service_account_json, self.consumers[0].topic)
 
-        try:
-            subscriber.create_subscription(
-                name=subscription_path,
-                topic=topic_path
-            )
-            self.future = subscriber.subscribe(subscription_path, self.callback)
-
+        queue_error_logged = False
+        while True:
             try:
-                self.future.result()
-            except KeyboardInterrupt:
-                self.future.cancel()
-        except (NotFound, _InactiveRpcError) as e:
-            logging.info('Topic %s does not exist: %s', self.consumers[0].topic, e)
+                subscriber.create_subscription(
+                    name=subscription_path,
+                    topic=topic_path
+                )
+                self.future = subscriber.subscribe(subscription_path, self.callback)
+
+                try:
+                    self.future.result()
+                except KeyboardInterrupt:
+                    self.future.cancel()
+                break
+            except (NotFound, _InactiveRpcError) as e:
+                if not queue_error_logged:
+                    logging.info('Topic %s does not exist: %s', self.consumers[0].topic, e)
+                    queue_error_logged = True
+                time.sleep(1)
 
     def _stop(self):
         self.future.cancel()
@@ -166,6 +174,7 @@ class GpubsubProducer(AsyncProducer):
         if payload.enable_topic_creation:
             try:
                 publisher.create_topic(name=topic_path)
+                time.sleep(3)
                 logging.info('Topic %s created', self.topic)
             except AlreadyExists:
                 pass
