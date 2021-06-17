@@ -693,9 +693,7 @@ class AsyncService:
         name: Union[str, None] = None,
         definition=None,
         _id: Union[int, None] = None,
-        ssl: bool = False,
-        project_id: Union[str, None] = None,
-        service_account_json: Union[str, None] = None
+        ssl: bool = False
     ):
         self.address = address
         self.name = name
@@ -704,8 +702,6 @@ class AsyncService:
         self.actors = []
         self.id = _id
         self.ssl = ssl
-        self.project_id = project_id
-        self.service_account_json = service_account_json
         self.tags = []
         self._index = len(AsyncService.services)
         AsyncService.services.append(self)

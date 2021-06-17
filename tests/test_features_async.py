@@ -78,7 +78,7 @@ MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
-GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'cloud:grpc')
+GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
@@ -851,7 +851,7 @@ class AsyncBase():
 
         queue, job = start_render_queue()
         async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
-            'localhost:%s' % ASYNC_ADDR[async_service_type].split(':')[1],
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
@@ -1098,7 +1098,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s:%s/topic1%s' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key1' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://localhost:%s/topic1%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key1' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1108,7 +1108,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://%s:%s/topic2' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://localhost:%s/topic2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 for entry in entries
@@ -1117,7 +1117,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://%s:%s/topic2?key=key2' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://localhost:%s/topic2?key=key2' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 and  # noqa: W504, W503
@@ -1131,7 +1131,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://%s:%s/topic3' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://localhost:%s/topic3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 for entry in entries
@@ -1140,7 +1140,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
-                entry['request']['url'] == '%s://%s:%s/topic3?key=key3' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
+                entry['request']['url'] == '%s://localhost:%s/topic3?key=key3' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
                 and  # noqa: W504, W503
                 entry['response']['status'] == 200
                 and  # noqa: W504, W503
@@ -1153,7 +1153,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s:%s/topic3%s' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key3' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://localhost:%s/topic3%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key3' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1162,7 +1162,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s:%s/topic6' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1])
+            entry['request']['url'] == '%s://localhost:%s/topic6' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1])
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1171,7 +1171,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s:%s/topic7%s' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key7' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://localhost:%s/topic7%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key7' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1180,7 +1180,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s:%s/topic8%s' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1], '?key=key8' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://localhost:%s/topic8%s' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1], '?key=key8' if async_service_type != 'redis' else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1190,7 +1190,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'PUT'
                 and  # noqa: W504, W503
-                entry['request']['url'].startswith('%s://%s:%s/templated-producer' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1]))
+                entry['request']['url'].startswith('%s://localhost:%s/templated-producer' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
                 and  # noqa: W504, W503
                 entry['response']['status'] == 202
                 for entry in entries
@@ -1199,7 +1199,7 @@ class AsyncBase():
             assert any(
                 entry['request']['method'] == 'PUT'
                 and  # noqa: W504, W503
-                entry['request']['url'].startswith('%s://%s:%s/templated-producer?key=prefix-' % (async_service_type, 'cloud' if async_service_type == 'gpubsub' else 'localhost', ASYNC_ADDR[async_service_type].split(':')[1]))
+                entry['request']['url'].startswith('%s://localhost:%s/templated-producer?key=prefix-' % (async_service_type, ASYNC_ADDR[async_service_type].split(':')[1]))
                 and  # noqa: W504, W503
                 entry['request']['headers'][-2]['value'].isnumeric()
                 and  # noqa: W504, W503

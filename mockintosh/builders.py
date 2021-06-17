@@ -135,8 +135,6 @@ class ConfigRootBuilder:
             actors=[],
             name=data.get('name', None),
             ssl=data.get('ssl', False),
-            project_id=data.get('projectId', False),
-            service_account_json=data.get('serviceAccountJson', False),
             internal_service_id=internal_service_id
         )
 

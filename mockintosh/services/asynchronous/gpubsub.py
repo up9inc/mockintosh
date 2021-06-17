@@ -48,7 +48,13 @@ def _credentials(service_account_json: Union[str, None], _type: str) -> Union[Cr
     if service_acount_json_path is None:
         logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
         return
-    service_account_info = json.load(open(service_acount_json_path))
+
+    try:
+        service_account_info = json.load(open(service_acount_json_path))
+    except FileNotFoundError as e:
+        logging.error(str(e))
+        return
+
     audience = 'https://pubsub.googleapis.com/google.pubsub.v1.%s' % _type
 
     return Credentials.from_service_account_info(
@@ -75,7 +81,10 @@ def _subscriber(service_account_json: Union[str, None]) -> SubscriberClient:
 
 def _get_topic_path(project_id: Union[str, None], topic: str) -> str:
     return 'projects/{project_id}/topics/{topic}'.format(
-        project_id=os.environ.get('GOOGLE_CLOUD_PROJECT', project_id),
+        project_id=os.environ.get(
+            'GOOGLE_CLOUD_PROJECT',
+            os.environ.get('PUBSUB_PROJECT_ID', project_id)
+        ),
         topic=topic
     )
 
@@ -90,7 +99,6 @@ def _create_topic(service_account_json: str, topic: str) -> None:
 
     try:
         publisher.create_topic(name=topic_path)
-        time.sleep(3)
         logging.info('Topic %s created', topic)
     except AlreadyExists:
         pass
@@ -124,7 +132,10 @@ class GpubsubConsumerGroup(AsyncConsumerGroup):
         topic_path = _get_topic_path(self.consumers[0].actor.service.project_id, self.consumers[0].topic)
 
         subscription_path = 'projects/{project_id}/subscriptions/{sub}'.format(
-            project_id=os.environ.get('GOOGLE_CLOUD_PROJECT', self.consumers[0].actor.service.project_id),
+            project_id=os.environ.get(
+                'GOOGLE_CLOUD_PROJECT',
+                os.environ.get('PUBSUB_PROJECT_ID', self.consumers[0].actor.service.project_id)
+            ),
             sub='%s_%s' % (PROGRAM, str(uuid4()).replace('-', '0'))
         )
 
@@ -202,20 +213,19 @@ class GpubsubService(AsyncService):
         name: Union[str, None] = None,
         definition=None,
         _id: Union[int, None] = None,
-        ssl: bool = False,
-        project_id: Union[str, None] = None,
-        service_account_json: Union[str, None] = None
+        ssl: bool = False
     ):
-        address = 'cloud:grpc'
         super().__init__(
             address,
             name=name,
             definition=definition,
             _id=_id,
-            ssl=ssl,
-            project_id=project_id,
-            service_account_json=service_account_json
+            ssl=ssl
         )
+        self.project_id, self.service_account_json = self.address.split('@')
+        self.address = self.service_account_json
+        if ':' not in self.address:
+            self.address += ':8681'
         self.type = 'gpubsub'
 
 

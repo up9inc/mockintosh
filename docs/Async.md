@@ -446,12 +446,11 @@ ways to work with Pub/Sub;
 
 #### Testing against Google Cloud Platform
 
-One is specifying the path to the service account JSON file and project ID in your Mockintosh config:
+One is specifying the project ID and the path to the service account JSON file in your Mockintosh config:
 
 ```yaml
 type: gpubsub
-serviceAccountJson: /path/to/project-id-111111.json
-projectId: project-id-111111
+address: project-id-111111@/path/to/project-id-111111.json
 ```
 
 The other way is setting the environment variables `GOOGLE_APPLICATION_CREDENTIALS` and `GOOGLE_CLOUD_PROJECT`

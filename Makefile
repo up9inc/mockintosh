@@ -44,7 +44,10 @@ test-with-coverage: test-style copy-assets test-openapi-transpiler
 		tests/test_features.py -s -vv --log-level=DEBUG && \
 	${MAKE} test-asyncs-with-coverage
 
-test-asyncs: test-kafka test-amqp test-redis
+test-asyncs: test-kafka \
+	test-amqp \
+	test-redis \
+	test-gpubsub
 
 test-asyncs-with-coverage: test-kafka-with-coverage \
 	test-amqp-with-coverage \
