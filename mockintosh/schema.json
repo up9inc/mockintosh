@@ -20,7 +20,8 @@
             "amqp",
             "rabbitmq",
             "activemq",
-            "redis"
+            "redis",
+            "gpubsub"
           ]
         },
         "actors": {

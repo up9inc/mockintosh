@@ -40,7 +40,8 @@ from mockintosh.exceptions import (
 SERVICE_TYPES = {
     'kafka': 'Kafka',
     'amqp': 'AMQP',
-    'redis': 'Redis'
+    'redis': 'Redis',
+    'gpubsub': 'Google Cloud Pub/Sub'
 }
 
 
@@ -265,7 +266,7 @@ class AsyncConsumerGroup:
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None
-    ) -> None:
+    ) -> bool:
         headers = {} if headers is None else headers
         first_actor = self.consumers[0].actor
 
@@ -316,7 +317,7 @@ class AsyncConsumerGroup:
                 value,
                 headers
             )
-            return
+            return False
 
         logging.info(
             'Consumed a %s message from %r by %r',
@@ -342,6 +343,8 @@ class AsyncConsumerGroup:
             key,
             headers
         )
+
+        return True
 
     @abstractmethod
     def consume(self) -> None:
@@ -687,9 +690,9 @@ class AsyncService:
     def __init__(
         self,
         address: str,
-        name: str = None,
+        name: Union[str, None] = None,
         definition=None,
-        _id: int = None,
+        _id: Union[int, None] = None,
         ssl: bool = False
     ):
         self.address = address

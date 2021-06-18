@@ -184,9 +184,9 @@ class AmqpService(AsyncService):
     def __init__(
         self,
         address: str,
-        name: str = None,
+        name: Union[str, None] = None,
         definition=None,
-        _id: int = None,
+        _id: Union[int, None] = None,
         ssl: bool = False
     ):
         super().__init__(

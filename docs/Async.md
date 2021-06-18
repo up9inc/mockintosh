@@ -438,3 +438,43 @@ address: localhost:6379
 
 The `redis` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
 to the Redis instance's hostname/IP and port.
+
+### Google Cloud Pub/Sub
+
+[Google Cloud Pub/Sub](https://cloud.google.com/pubsub) is a message queue cloud service of Google. There are several
+ways to work with Pub/Sub;
+
+#### Testing against Google Cloud Platform
+
+One is specifying the project ID and the path to the service account JSON file in your Mockintosh config:
+
+```yaml
+type: gpubsub
+address: project-id-111111@/path/to/project-id-111111.json
+```
+
+The other way is setting the environment variables `GOOGLE_APPLICATION_CREDENTIALS` and `GOOGLE_CLOUD_PROJECT`
+while setting service type to `gpubsub`:
+
+```bash
+$ GOOGLE_APPLICATION_CREDENTIALS="/path/to/project-id-111111.json" \
+    GOOGLE_CLOUD_PROJECT="project-id-111111" \
+    mockintosh config.yaml
+```
+
+#### Testing against Pub/Sub emulator
+
+Google provides an emulator for Pub/Sub and can be installed
+by following [this official tutorial](https://cloud.google.com/pubsub/docs/emulator).
+Alternatively, there are community Docker images
+like [messagebird/gcloud-pubsub-emulator](https://hub.docker.com/r/messagebird/gcloud-pubsub-emulator) which
+can be used instead of installing the emulator locally.
+
+Once the Pub/Sub emulator is up and running, you can start Mockintosh
+by setting `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` environment variables while setting service type to `gpubsub`:
+
+```bash
+$ PUBSUB_EMULATOR_HOST="localhost:8681" \
+    PUBSUB_PROJECT_ID="project-id" \
+    mockintosh config.yaml
+```

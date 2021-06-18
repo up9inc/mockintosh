@@ -55,6 +55,18 @@ from mockintosh.services.asynchronous.redis import (  # noqa: F401
     _create_topic as redis_create_topic,
     build_single_payload_producer as redis_build_single_payload_producer
 )
+from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
+    GpubsubService,
+    GpubsubActor,
+    GpubsubConsumer,
+    GpubsubConsumerGroup,
+    GpubsubProducer,
+    GpubsubProducerPayloadList,
+    GpubsubProducerPayload,
+    _create_topic as gpubsub_create_topic,
+    # _delete_topic as gpubsub_delete_topic,
+    build_single_payload_producer as gpubsub_build_single_payload_producer
+)
 from utilities import (
     DefinitionMockForAsync,
     get_config_path,
@@ -66,10 +78,12 @@ MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
+GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
-    'redis': REDIS_ADDR
+    'redis': REDIS_ADDR,
+    'gpubsub': GPUBSUB_ADDR
 }
 ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
@@ -93,6 +107,8 @@ class AsyncBase():
         # Create the Async topics/queues
         for topic in (
             'topic1',
+            'topic2',
+            'topic3',
             'topic4',
             'topic5',
             'topic6',
@@ -195,8 +211,8 @@ class AsyncBase():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 23
-            assert len(consumers) == 16
+            assert len(producers) == 22 if async_service_type == 'gpubsub' else 23
+            assert len(consumers) == 15 if async_service_type == 'gpubsub' else 16
 
             assert producers[0]['type'] == async_service_type
             assert producers[0]['name'] is None
@@ -585,6 +601,9 @@ class AsyncBase():
         t.daemon = True
         t.start()
 
+        if async_service_type == 'gpubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
+
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         assert 202 == resp.status_code
 
@@ -636,6 +655,9 @@ class AsyncBase():
         t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
         t.daemon = True
         t.start()
+
+        if async_service_type == 'gpubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
 
         resp = httpx.post(MGMT + '/async/producers/actor6', verify=False)
         assert 202 == resp.status_code
@@ -808,6 +830,9 @@ class AsyncBase():
         t.daemon = True
         t.start()
 
+        if async_service_type == 'gpubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
+
         for _ in range(2):
             resp = httpx.post(MGMT + '/async/producers/templated-producer', verify=False)
             assert 202 == resp.status_code
@@ -826,7 +851,7 @@ class AsyncBase():
 
         queue, job = start_render_queue()
         async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
-            'localhost:%s' % ASYNC_ADDR[async_service_type].split(':')[1],
+            ASYNC_ADDR[async_service_type],
             definition=DefinitionMockForAsync(None, PYBARS, queue)
         )
         async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
@@ -1249,9 +1274,9 @@ class AsyncBase():
         assert data['services'][0]['endpoints'][7]['status_code_distribution']['202'] == data['services'][0]['endpoints'][7]['request_counter']
 
         assert data['services'][0]['endpoints'][8]['hint'] == 'PUT topic8 - 7 (actor: short-loop)'
-        assert data['services'][0]['endpoints'][8]['request_counter'] > 5
+        assert data['services'][0]['endpoints'][8]['request_counter'] > 4
         assert data['services'][0]['endpoints'][8]['avg_resp_time'] == 0
-        assert data['services'][0]['endpoints'][8]['status_code_distribution']['202'] > 5
+        assert data['services'][0]['endpoints'][8]['status_code_distribution']['202'] > 4
 
         assert data['services'][0]['endpoints'][9]['hint'] == 'GET topic9 - 8 (actor: actor9)'
         assert data['services'][0]['endpoints'][9]['request_counter'] == 0
@@ -1274,11 +1299,12 @@ class AsyncBase():
         assert data['services'][1]['status_code_distribution'] == {}
         assert len(data['services'][1]['endpoints']) == 0
 
-        assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
-        assert data['services'][2]['request_counter'] == 0
-        assert data['services'][2]['avg_resp_time'] == 0
-        assert data['services'][2]['status_code_distribution'] == {}
-        assert len(data['services'][2]['endpoints']) == 2
+        if async_service_type != 'gpubsub':
+            assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
+            assert data['services'][2]['request_counter'] == 0
+            assert data['services'][2]['avg_resp_time'] == 0
+            assert data['services'][2]['status_code_distribution'] == {}
+            assert len(data['services'][2]['endpoints']) == 2
 
     def assert_management_post_config(self, async_consumer):
         global async_service_type
@@ -1348,6 +1374,9 @@ class AsyncBase():
         t.daemon = True
         t.start()
 
+        if async_service_type == 'gpubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
+
         resp = httpx.post(MGMT + '/async/producers/0', verify=False)
         assert 202 == resp.status_code
 
@@ -1400,4 +1429,14 @@ class TestAsyncRedis(AsyncBase):
         global async_service_type
 
         async_service_type = 'redis'
+        super().setup_class()
+
+
+class TestAsyncGpubsub(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'gpubsub'
         super().setup_class()

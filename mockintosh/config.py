@@ -188,7 +188,7 @@ class ConfigAsyncService(ConfigService):
     def __init__(
         self,
         _type: str,
-        address: str,
+        address: Union[str, None] = None,
         actors: List[ConfigActor] = [],
         name: Union[str, None] = None,
         ssl: bool = False,
