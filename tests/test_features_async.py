@@ -64,8 +64,18 @@ from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
     GpubsubProducerPayloadList,
     GpubsubProducerPayload,
     _create_topic as gpubsub_create_topic,
-    # _delete_topic as gpubsub_delete_topic,
     build_single_payload_producer as gpubsub_build_single_payload_producer
+)
+from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
+    AmazonsqsService,
+    AmazonsqsActor,
+    AmazonsqsConsumer,
+    AmazonsqsConsumerGroup,
+    AmazonsqsProducer,
+    AmazonsqsProducerPayloadList,
+    AmazonsqsProducerPayload,
+    _create_topic as amazonsqs_create_topic,
+    build_single_payload_producer as amazonsqs_build_single_payload_producer
 )
 from utilities import (
     DefinitionMockForAsync,
@@ -79,11 +89,13 @@ KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
 GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
+AMAZONSQS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:9324')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
     'redis': REDIS_ADDR,
-    'gpubsub': GPUBSUB_ADDR
+    'gpubsub': GPUBSUB_ADDR,
+    'amazonsqs': AMAZONSQS_ADDR
 }
 ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
@@ -1439,4 +1451,14 @@ class TestAsyncGpubsub(AsyncBase):
         global async_service_type
 
         async_service_type = 'gpubsub'
+        super().setup_class()
+
+
+class TestAsyncAmazonSQS(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'amazonsqs'
         super().setup_class()
