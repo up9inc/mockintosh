@@ -46,7 +46,7 @@ def _credentials(service_account_json: Union[str, None], _type: str) -> Union[Cr
     service_account_info = None
     service_acount_json_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', service_account_json)
     if service_acount_json_path is None:
-        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
+        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or service account in `address` field are not set!')
         return
 
     try:
@@ -69,14 +69,14 @@ def _publisher(service_account_json: Union[str, None]) -> PublisherClient:
             publisher_options=PublisherOptions(enable_message_ordering=True)
         )
     except DefaultCredentialsError:
-        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
+        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or service account in `address` field are not set!')
 
 
 def _subscriber(service_account_json: Union[str, None]) -> SubscriberClient:
     try:
         return SubscriberClient(credentials=_credentials(service_account_json, 'Subscriber'))
     except DefaultCredentialsError:
-        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or `serviceAccountJson` field are not set!')
+        logging.error('`GOOGLE_APPLICATION_CREDENTIALS` environment variable or service account in `address` field are not set!')
 
 
 def _get_topic_path(project_id: Union[str, None], topic: str) -> str:
@@ -103,7 +103,7 @@ def _create_topic(service_account_json: str, topic: str) -> None:
     except AlreadyExists:
         pass
     except NotFound:
-        logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
+        logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or project ID in `address` field are not set!')
         return
 
 
@@ -190,7 +190,7 @@ class GpubsubProducer(AsyncProducer):
             except AlreadyExists:
                 pass
             except NotFound:
-                logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or `projectId` field are not set!')
+                logging.error('`GOOGLE_CLOUD_PROJECT` environment variable or project ID in `address` field are not set!')
                 return
 
         try:
