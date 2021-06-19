@@ -28,7 +28,7 @@ from mockintosh.services.asynchronous import (
 )
 
 
-def _create_topic_base(sqs: ServiceResource, topic: str):
+def _create_topic_base(sqs: ServiceResource, topic: str) -> None:
     try:
         sqs.create_queue(
             QueueName=topic,
@@ -42,7 +42,7 @@ def _create_topic_base(sqs: ServiceResource, topic: str):
         pass
 
 
-def _create_topic(address: str, topic: str, ssl: bool = False):
+def _create_topic(address: str, topic: str, ssl: bool = False) -> None:
     sqs = boto3.resource(
         'sqs',
         endpoint_url='http://localhost:9324',
@@ -53,6 +53,21 @@ def _create_topic(address: str, topic: str, ssl: bool = False):
     )
 
     _create_topic_base(sqs, topic)
+
+
+def _map_attr(headers: dict) -> dict:
+    data = {}
+    for key, value in headers.items():
+        data[key] = {}
+        if isinstance(value, (int, float)):
+            data[key]['DataType'] = 'Number'
+        elif isinstance(value, (int, str)):
+            data[key]['DataType'] = 'String'
+        else:
+            raise Exception
+        data[key]['StringValue'] = str(value)
+
+    return data
 
 
 class AmazonsqsConsumerProducerBase(AsyncConsumerProducerBase):
@@ -66,33 +81,46 @@ class AmazonsqsConsumer(AsyncConsumer):
 class AmazonsqsConsumerGroup(AsyncConsumerGroup):
 
     def consume(self) -> None:
-        sqs = boto3.resource(
-            'sqs',
-            endpoint_url='http://localhost:9324',
-            region_name='elasticmq',
-            aws_secret_access_key='x',
-            aws_access_key_id='x',
-            use_ssl=False
-        )
-
-        if any(consumer.enable_topic_creation for consumer in self.consumers):
-            _create_topic_base(sqs, self.consumers[0].topic)
-
+        connection_error_logged = False
         while True:
-            if self.stop:
-                break
+            try:
+                sqs = boto3.resource(
+                    'sqs',
+                    endpoint_url='http://localhost:9324',
+                    region_name='elasticmq',
+                    aws_secret_access_key='x',
+                    aws_access_key_id='x',
+                    use_ssl=False
+                )
 
-            queue = sqs.get_queue_by_name(QueueName=self.consumers[0].topic)
+                if any(consumer.enable_topic_creation for consumer in self.consumers):
+                    _create_topic_base(sqs, self.consumers[0].topic)
 
-            for message in queue.receive_messages():
-                if self.consume_message(
-                    key=None,
-                    value=message.body,
-                    headers={} if message.message_attributes is None else message.message_attributes
-                ):
-                    message.delete()
+                queue_error_logged = False
+                while True:
+                    if self.stop:
+                        break
 
-            time.sleep(1)
+                    try:
+                        queue = sqs.get_queue_by_name(QueueName=self.consumers[0].topic)
+
+                        for message in queue.receive_messages():
+                            if self.consume_message(
+                                key=None,
+                                value=message.body,
+                                headers={} if message.message_attributes is None else message.message_attributes
+                            ):
+                                message.delete()
+                    except sqs.meta.client.exceptions.QueueDoesNotExist as e:
+                        if not queue_error_logged:
+                            logging.info('Queue %s does not exist: %s', self.consumers[0].topic, e)
+                            queue_error_logged = True
+
+                    time.sleep(1)
+            except KeyError:
+                if not connection_error_logged:
+                    logging.warning('Couldn\'t establish a connection to SQS')
+                    connection_error_logged = True
 
     def _stop(self):
         self.stop = True
@@ -121,9 +149,12 @@ class AmazonsqsProducer(AsyncProducer):
         if payload.enable_topic_creation:
             _create_topic_base(sqs, self.topic)
 
-        queue = sqs.get_queue_by_name(QueueName=self.queue)
+        try:
+            queue = sqs.get_queue_by_name(QueueName=self.topic)
 
-        response = queue.send_message(MessageBody=value, MessageAttributes=headers)
+            response = queue.send_message(MessageBody=value, MessageAttributes=_map_attr(headers))
+        except sqs.meta.client.exceptions.QueueDoesNotExist as e:
+            logging.info('Queue %s does not exist: %s', self.topic, e)
 
 
 class AmazonsqsActor(AsyncActor):
