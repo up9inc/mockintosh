@@ -212,5 +212,5 @@ up-gpubsub:
 
 
 up-elasticmq:
-	docker run -d -it --rm --name amazonsqs --net=host softwaremill/elasticmq-native && \
+	docker run -d -it --rm --name elasticmq --net=host softwaremill/elasticmq:latest && \
 	sleep 2

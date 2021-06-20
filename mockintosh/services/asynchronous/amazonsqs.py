@@ -8,12 +8,13 @@
 
 import time
 import logging
+from uuid import uuid4
 from typing import (
     Union
 )
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError
 from boto3.resources.base import ServiceResource
 
 from mockintosh.services.asynchronous import (
@@ -30,14 +31,18 @@ from mockintosh.services.asynchronous import (
 
 def _create_topic_base(sqs: ServiceResource, topic: str) -> None:
     try:
-        sqs.create_queue(
-            QueueName=topic,
-            Attributes={
-                'DelaySeconds': '60',
-                'MessageRetentionPeriod': '86400'
-            }
-        )
-        logging.info('Queue %s created', topic)
+        try:
+            sqs.get_queue_by_name(QueueName='%s.fifo' % topic)
+        except sqs.meta.client.exceptions.QueueDoesNotExist:
+            sqs.create_queue(
+                QueueName='%s.fifo' % topic,
+                Attributes={
+                    'DelaySeconds': '0',
+                    'MessageRetentionPeriod': '86400',
+                    'FifoQueue': 'true'
+                }
+            )
+            logging.info('Queue %s created', topic)
     except ClientError:
         pass
 
@@ -66,6 +71,17 @@ def _map_attr(headers: dict) -> dict:
         else:
             raise Exception
         data[key]['StringValue'] = str(value)
+
+    return data
+
+
+def _map_attr_inverse(headers: dict) -> dict:
+    data = {}
+    for key, value in headers.items():
+        val = value['StringValue']
+        if value['DataType'] == 'Number':
+            val = int(val)  # TODO: What about float?
+        data[key] = val
 
     return data
 
@@ -102,13 +118,16 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
                         break
 
                     try:
-                        queue = sqs.get_queue_by_name(QueueName=self.consumers[0].topic)
+                        queue = sqs.get_queue_by_name(QueueName='%s.fifo' % self.consumers[0].topic)
 
-                        for message in queue.receive_messages():
+                        for message in queue.receive_messages(
+                            AttributeNames=['MessageGroupId'],
+                            MessageAttributeNames=['All']
+                        ):
                             if self.consume_message(
-                                key=None,
+                                key=message.attributes['MessageGroupId'],
                                 value=message.body,
-                                headers={} if message.message_attributes is None else message.message_attributes
+                                headers={} if message.message_attributes is None else _map_attr_inverse(message.message_attributes)
                             ):
                                 message.delete()
                     except sqs.meta.client.exceptions.QueueDoesNotExist as e:
@@ -117,7 +136,7 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
                             queue_error_logged = True
 
                     time.sleep(1)
-            except KeyError:
+            except (KeyError, EndpointConnectionError):
                 if not connection_error_logged:
                     logging.warning('Couldn\'t establish a connection to SQS')
                     connection_error_logged = True
@@ -150,9 +169,16 @@ class AmazonsqsProducer(AsyncProducer):
             _create_topic_base(sqs, self.topic)
 
         try:
-            queue = sqs.get_queue_by_name(QueueName=self.topic)
+            queue = sqs.get_queue_by_name(QueueName='%s.fifo' % self.topic)
 
-            response = queue.send_message(MessageBody=value, MessageAttributes=_map_attr(headers))
+            # `ContentBasedDeduplication` requires different `MessageBody` each time
+            # so instead we set a unique `MessageDeduplicationId`.
+            queue.send_message(
+                MessageGroupId=key,
+                MessageBody=value,
+                MessageAttributes=_map_attr(headers),
+                MessageDeduplicationId=str(uuid4())
+            )
         except sqs.meta.client.exceptions.QueueDoesNotExist as e:
             logging.info('Queue %s does not exist: %s', self.topic, e)
 
