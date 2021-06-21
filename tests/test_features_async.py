@@ -1311,7 +1311,7 @@ class AsyncBase():
         assert data['services'][1]['status_code_distribution'] == {}
         assert len(data['services'][1]['endpoints']) == 0
 
-        if async_service_type != 'gpubsub':
+        if async_service_type not in ('gpubsub', 'amazonsqs'):
             assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
             assert data['services'][2]['request_counter'] == 0
             assert data['services'][2]['avg_resp_time'] == 0

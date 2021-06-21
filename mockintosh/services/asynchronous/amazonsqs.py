@@ -127,12 +127,12 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
                         ):
                             key = message.attributes['MessageGroupId']
                             key = None if key == '%s_special_none' % PROGRAM else key
-                            if self.consume_message(
+                            self.consume_message(
                                 key=key,
                                 value=message.body,
                                 headers={} if message.message_attributes is None else _map_attr_inverse(message.message_attributes)
-                            ):
-                                message.delete()
+                            )
+                            message.delete()
                     except sqs.meta.client.exceptions.QueueDoesNotExist as e:
                         if not queue_error_logged:
                             logging.info('Queue %s does not exist: %s', self.consumers[0].topic, e)
