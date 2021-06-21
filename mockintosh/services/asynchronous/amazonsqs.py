@@ -32,10 +32,13 @@ from mockintosh.services.asynchronous import (
 )
 
 
-def _netloc_to_host(netloc: str, username: str, password: str, port: str) -> str:
-    first = len(username) + len(password) + 2
+def _netloc_to_host(netloc: str, username: Union[str, None], password: Union[str, None], port: str) -> str:
     last = len(str(port)) + 1
-    return netloc[first:-last]
+    if username is None or password is None:
+        return netloc[:-last]
+    else:
+        first = len(username) + len(password) + 2
+        return netloc[first:-last]
 
 
 def _create_topic_base(sqs: ServiceResource, topic: str) -> None:
@@ -61,8 +64,8 @@ def _get_resouce(host, parsed):
         'sqs',
         endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
         region_name=parsed.fragment,
-        aws_secret_access_key=environ.get('AWS_SECRET_ACCESS_KEY', parsed.password),
-        aws_access_key_id=environ.get('AWS_ACCESS_KEY_ID', parsed.username),
+        aws_secret_access_key=environ.get('AWS_SECRET_ACCESS_KEY', '' if parsed.password is None else parsed.password),
+        aws_access_key_id=environ.get('AWS_ACCESS_KEY_ID', '' if parsed.username is None else parsed.username),
         use_ssl=True if parsed.scheme == 'https' else False
     )
 
@@ -174,24 +177,28 @@ class AmazonsqsProducer(AsyncProducer):
         parsed = urlparse(self.actor.service.address)
         host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
 
-        sqs = _get_resouce(host, parsed)
-
-        if payload.enable_topic_creation:
-            _create_topic_base(sqs, self.topic)
-
         try:
-            queue = sqs.get_queue_by_name(QueueName='%s.fifo' % self.topic)
+            sqs = _get_resouce(host, parsed)
 
-            # `ContentBasedDeduplication` requires different `MessageBody` each time
-            # so instead we set a unique `MessageDeduplicationId`.
-            queue.send_message(
-                MessageGroupId=key,
-                MessageBody=value,
-                MessageAttributes=_map_attr(headers),
-                MessageDeduplicationId=str(uuid4())
-            )
-        except sqs.meta.client.exceptions.QueueDoesNotExist as e:
-            logging.info('Queue %s does not exist: %s', self.topic, e)
+            if payload.enable_topic_creation:
+                _create_topic_base(sqs, self.topic)
+
+            try:
+                queue = sqs.get_queue_by_name(QueueName='%s.fifo' % self.topic)
+
+                # `ContentBasedDeduplication` requires different `MessageBody` each time
+                # so instead we set a unique `MessageDeduplicationId`.
+                queue.send_message(
+                    MessageGroupId=key,
+                    MessageBody=value,
+                    MessageAttributes=_map_attr(headers),
+                    MessageDeduplicationId=str(uuid4())
+                )
+            except sqs.meta.client.exceptions.QueueDoesNotExist as e:
+                logging.info('Queue %s does not exist: %s', self.topic, e)
+        except (KeyError, EndpointConnectionError):
+            logging.warning('Couldn\'t establish a connection to SQS')
+            raise
 
 
 class AmazonsqsActor(AsyncActor):
