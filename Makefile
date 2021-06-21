@@ -155,7 +155,13 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis copy-gpubsub
+copy-assets: copy-certs \
+	copy-images \
+	copy-data-dir-override \
+	copy-amqp \
+	copy-redis \
+	copy-gpubsub \
+	copy-amazonsqs
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
