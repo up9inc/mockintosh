@@ -17,6 +17,7 @@ import boto3
 from botocore.exceptions import ClientError, EndpointConnectionError
 from boto3.resources.base import ServiceResource
 
+from mockintosh.constants import PROGRAM
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
     AsyncConsumer,
@@ -124,8 +125,10 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
                             AttributeNames=['MessageGroupId'],
                             MessageAttributeNames=['All']
                         ):
+                            key = message.attributes['MessageGroupId']
+                            key = None if key == '%s_special_none' % PROGRAM else key
                             if self.consume_message(
-                                key=message.attributes['MessageGroupId'],
+                                key=key,
                                 value=message.body,
                                 headers={} if message.message_attributes is None else _map_attr_inverse(message.message_attributes)
                             ):
@@ -136,6 +139,7 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
                             queue_error_logged = True
 
                     time.sleep(1)
+                break
             except (KeyError, EndpointConnectionError):
                 if not connection_error_logged:
                     logging.warning('Couldn\'t establish a connection to SQS')
@@ -156,6 +160,8 @@ class AmazonsqsProducerPayloadList(AsyncProducerPayloadList):
 class AmazonsqsProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
+        key = '%s_special_none' % PROGRAM if key is None else key
+
         sqs = boto3.resource(
             'sqs',
             endpoint_url='http://localhost:9324',
