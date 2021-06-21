@@ -8,6 +8,7 @@
 
 import time
 import logging
+from os import environ
 from urllib.parse import urlparse
 from uuid import uuid4
 from typing import (
@@ -55,18 +56,22 @@ def _create_topic_base(sqs: ServiceResource, topic: str) -> None:
         pass
 
 
+def _get_resouce(host, parsed):
+    return boto3.resource(
+        'sqs',
+        endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
+        region_name=parsed.fragment,
+        aws_secret_access_key=environ.get('AWS_SECRET_ACCESS_KEY', parsed.password),
+        aws_access_key_id=environ.get('AWS_ACCESS_KEY_ID', parsed.username),
+        use_ssl=True if parsed.scheme == 'https' else False
+    )
+
+
 def _create_topic(address: str, topic: str, ssl: bool = False) -> None:
     parsed = urlparse(address)
     host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
 
-    sqs = boto3.resource(
-        'sqs',
-        endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
-        region_name=parsed.fragment,
-        aws_secret_access_key=parsed.username,
-        aws_access_key_id=parsed.password,
-        use_ssl=True if parsed.scheme == 'https' else False
-    )
+    sqs = _get_resouce(host, parsed)
 
     _create_topic_base(sqs, topic)
 
@@ -113,14 +118,7 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
         host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
         while True:
             try:
-                sqs = boto3.resource(
-                    'sqs',
-                    endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
-                    region_name=parsed.fragment,
-                    aws_secret_access_key=parsed.username,
-                    aws_access_key_id=parsed.password,
-                    use_ssl=True if parsed.scheme == 'https' else False
-                )
+                sqs = _get_resouce(host, parsed)
 
                 if any(consumer.enable_topic_creation for consumer in self.consumers):
                     _create_topic_base(sqs, self.consumers[0].topic)
@@ -176,14 +174,7 @@ class AmazonsqsProducer(AsyncProducer):
         parsed = urlparse(self.actor.service.address)
         host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
 
-        sqs = boto3.resource(
-            'sqs',
-            endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
-            region_name=parsed.fragment,
-            aws_secret_access_key=parsed.username,
-            aws_access_key_id=parsed.password,
-            use_ssl=True if parsed.scheme == 'https' else False
-        )
+        sqs = _get_resouce(host, parsed)
 
         if payload.enable_topic_creation:
             _create_topic_base(sqs, self.topic)
