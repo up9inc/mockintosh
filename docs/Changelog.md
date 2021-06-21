@@ -129,6 +129,8 @@
 
 - fix the bug with traffic log not working after certain mgmt requests
 - AMQP protocol support (RedisMQ, ActiveMQ and others)
+- Google PubSub support  
+- Amazon SQS support  
 - Serve mocks from OpenAPI and Postman collections, also allow converting into config
 
 ---
@@ -153,6 +155,7 @@
 - what to do with binary headers in Kafka? data-url prefix?
 - interceptors to access kafka comms
 - allow overriding on-demand producer fields via mgmt API
+- support dead letter topic for Google PubSub
 
 ## Management API/UI
 
