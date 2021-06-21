@@ -5,7 +5,7 @@ Mockintosh offers "Mock Actor" approach for using with asynchronous message bus 
 [Apache ActiveMQ](https://activemq.apache.org/), [Redis](https://redis.io/) etc.
 or cloud services such as [Google Cloud Pub/Sub](https://cloud.google.com/pubsub),
 [Amazon SQS](https://aws.amazon.com/sqs/) etc.
-See [supported backends](#supported-backends)
+See [supported backends](#supported-backends).
 "Mock Actor" approach requires you to provide deployed message bus instance, and configure valid address for it inside
 configuration file.
 
