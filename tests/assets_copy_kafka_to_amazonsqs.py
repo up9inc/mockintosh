@@ -7,7 +7,7 @@ import yaml
 data = yaml.safe_load(open('tests/configs/yaml/hbs/amazonsqs/config.yaml', 'r'))
 
 data['services'][0]['type'] = 'amazonsqs'
-data['services'][0]['address'] = "{{env 'AMAZONSQS_ADDR' 'localhost:9324'}}"
+data['services'][0]['address'] = "{{env 'AMAZONSQS_ADDR' 'http://x:x@localhost:9324#elasticmq'}}"
 data['services'][0]['actors'][9]['produce']['headers']['counter'] = "{{counter 'amazonsqsCounter'}}"
 
 data['services'][2]['type'] = 'rabbitmq'
@@ -23,6 +23,6 @@ yaml.dump(data, open('tests/configs/yaml/hbs/amazonsqs/config.yaml', 'w'), sort_
 data = yaml.safe_load(open('tests/configs/yaml/hbs/amazonsqs/config_error.yaml', 'r'))
 
 data['services'][0]['type'] = 'amazonsqs'
-data['services'][0]['address'] = "{{env 'AMAZONSQS_ADDR' 'localhost:9324'}}"
+data['services'][0]['address'] = "{{env 'AMAZONSQS_ADDR' 'http://x:x@localhost:9324#elasticmq'}}"
 
 yaml.dump(data, open('tests/configs/yaml/hbs/amazonsqs/config_error.yaml', 'w'), sort_keys=False)

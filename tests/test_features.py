@@ -67,7 +67,7 @@ KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
 GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
-AMAZONSQS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:9324')
+AMAZONSQS_ADDR = os.environ.get('AMAZONSQS_ADDR', 'http://x:x@localhost:9324#elasticmq')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,

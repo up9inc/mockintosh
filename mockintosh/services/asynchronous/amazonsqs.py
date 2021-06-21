@@ -8,6 +8,7 @@
 
 import time
 import logging
+from urllib.parse import urlparse
 from uuid import uuid4
 from typing import (
     Union
@@ -30,6 +31,12 @@ from mockintosh.services.asynchronous import (
 )
 
 
+def _netloc_to_host(netloc: str, username: str, password: str, port: str) -> str:
+    first = len(username) + len(password) + 2
+    last = len(str(port)) + 1
+    return netloc[first:-last]
+
+
 def _create_topic_base(sqs: ServiceResource, topic: str) -> None:
     try:
         try:
@@ -49,13 +56,16 @@ def _create_topic_base(sqs: ServiceResource, topic: str) -> None:
 
 
 def _create_topic(address: str, topic: str, ssl: bool = False) -> None:
+    parsed = urlparse(address)
+    host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
+
     sqs = boto3.resource(
         'sqs',
-        endpoint_url='http://localhost:9324',
-        region_name='elasticmq',
-        aws_secret_access_key='x',
-        aws_access_key_id='x',
-        use_ssl=False
+        endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
+        region_name=parsed.fragment,
+        aws_secret_access_key=parsed.username,
+        aws_access_key_id=parsed.password,
+        use_ssl=True if parsed.scheme == 'https' else False
     )
 
     _create_topic_base(sqs, topic)
@@ -99,15 +109,17 @@ class AmazonsqsConsumerGroup(AsyncConsumerGroup):
 
     def consume(self) -> None:
         connection_error_logged = False
+        parsed = urlparse(self.consumers[0].actor.service.address)
+        host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
         while True:
             try:
                 sqs = boto3.resource(
                     'sqs',
-                    endpoint_url='http://localhost:9324',
-                    region_name='elasticmq',
-                    aws_secret_access_key='x',
-                    aws_access_key_id='x',
-                    use_ssl=False
+                    endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
+                    region_name=parsed.fragment,
+                    aws_secret_access_key=parsed.username,
+                    aws_access_key_id=parsed.password,
+                    use_ssl=True if parsed.scheme == 'https' else False
                 )
 
                 if any(consumer.enable_topic_creation for consumer in self.consumers):
@@ -161,14 +173,16 @@ class AmazonsqsProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
         key = '%s_special_none' % PROGRAM if key is None else key
+        parsed = urlparse(self.actor.service.address)
+        host = _netloc_to_host(parsed.netloc, parsed.username, parsed.password, parsed.port)
 
         sqs = boto3.resource(
             'sqs',
-            endpoint_url='http://localhost:9324',
-            region_name='elasticmq',
-            aws_secret_access_key='x',
-            aws_access_key_id='x',
-            use_ssl=False
+            endpoint_url='%s://%s:%s' % (parsed.scheme, host, parsed.port),
+            region_name=parsed.fragment,
+            aws_secret_access_key=parsed.username,
+            aws_access_key_id=parsed.password,
+            use_ssl=True if parsed.scheme == 'https' else False
         )
 
         if payload.enable_topic_creation:
