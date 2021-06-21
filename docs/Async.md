@@ -494,10 +494,10 @@ and the region as a URI format `<SCHEME>://<AWS_ACCESS_KEY_ID>:<AWS_SECRET_ACCES
 
 The `<SCHEME>`/`<PORT>` combination can be one of these:
 
-| SCHEME      | PORT        | Description          |
+| `<SCHEME>`  | `<PORT>`    | Description          |
 | ----------- | ----------- | -------------------- |
-| http        | 80          | `use_ssl` is `false` |
-| https       | 443         | `use_ssl` is `true`  |
+| `http`      | `80`        | `use_ssl` is `false` |
+| `https`     | `443`       | `use_ssl` is `true`  |
 
 ```yaml
 type: amazonsqs
