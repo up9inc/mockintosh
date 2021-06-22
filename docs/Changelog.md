@@ -3,7 +3,7 @@
 ## v0.10 - 2021-06-22
 
 - Serve mocks from OpenAPI and Postman collections, also allow converting into config
-- AMQP protocol support (RedisMQ, ActiveMQ and others)
+- AMQP protocol support (RabbitMQ, ActiveMQ and others)
 - Google PubSub support
 - Amazon SQS support
 - fix the bug with traffic log not working after certain mgmt requests
