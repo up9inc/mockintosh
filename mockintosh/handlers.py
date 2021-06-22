@@ -15,7 +15,7 @@ import socket
 import struct
 import traceback
 import copy
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 from datetime import datetime, timezone
 from typing import (
     Union,
@@ -1388,7 +1388,9 @@ class AsyncHandler(BaseHandler):
         """Method that builds the replica `Request` object."""
         request = Request()
 
-        hostname, port = self.address.split(':')
+        parsed = urlparse(self.address if self.address.startswith('http') else 'http://%s' % self.address)
+        port = str(parsed.port)
+        hostname = parsed.netloc[:-(len(port) + 1)]
 
         # Details
         request.version = None

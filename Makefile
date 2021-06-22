@@ -47,12 +47,14 @@ test-with-coverage: test-style copy-assets test-openapi-transpiler
 test-asyncs: test-kafka \
 	test-amqp \
 	test-redis \
-	test-gpubsub
+	test-gpubsub \
+	test-amazonsqs
 
 test-asyncs-with-coverage: test-kafka-with-coverage \
 	test-amqp-with-coverage \
 	test-redis-with-coverage \
-	test-gpubsub-with-coverage
+	test-gpubsub-with-coverage \
+	test-amazonsqs-with-coverage
 
 test-kafka: test-kafka-without-coverage
 
@@ -102,6 +104,17 @@ test-gpubsub-with-coverage: up-gpubsub
 		tests/test_features_async.py::TestAsyncGpubsub -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
+test-amazonsqs: test-amazonsqs-without-coverage
+
+test-amazonsqs-without-coverage: up-elasticmq
+	pytest tests/test_features_async.py::TestAsyncAmazonSQS -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-amazonsqs-with-coverage: up-elasticmq
+	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
+		tests/test_features_async.py::TestAsyncAmazonSQS -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
 test-openapi-transpiler:
 	./tests/test-openapi-transpiler.sh
 
@@ -142,7 +155,13 @@ cert:
 		-keyout mockintosh/ssl/key.pem \
 		-out mockintosh/ssl/cert.pem
 
-copy-assets: copy-certs copy-images copy-data-dir-override copy-amqp copy-redis copy-gpubsub
+copy-assets: copy-certs \
+	copy-images \
+	copy-data-dir-override \
+	copy-amqp \
+	copy-redis \
+	copy-gpubsub \
+	copy-amazonsqs
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -174,7 +193,11 @@ copy-gpubsub:
 	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/gpubsub/ && \
 	python3 ./tests/assets_copy_kafka_to_gpubsub.py
 
-up-asyncs: up-kafka up-rabbitmq up-redis up-gpubsub
+copy-amazonsqs:
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amazonsqs/ && \
+	python3 ./tests/assets_copy_kafka_to_amazonsqs.py
+
+up-asyncs: up-kafka up-rabbitmq up-redis up-gpubsub up-elasticmq
 
 up-kafka:
 	docker run -d -it --rm --name kafka --net=host up9inc/mockintosh:self-contained-kafka && \
@@ -191,4 +214,9 @@ up-redis:
 up-gpubsub:
 	docker run -d -it --rm --name gpubsub --net=host -e PUBSUB_PROJECT1=test-gpubsub,test:test \
 		messagebird/gcloud-pubsub-emulator:latest && \
+	sleep 2
+
+
+up-elasticmq:
+	docker run -d -it --rm --name elasticmq --net=host softwaremill/elasticmq:latest && \
 	sleep 2

@@ -3,7 +3,9 @@
 Mockintosh offers "Mock Actor" approach for using with asynchronous message bus technologies, such as
 [Apache Kafka](https://kafka.apache.org/), [RabbitMQ](https://www.rabbitmq.com/),
 [Apache ActiveMQ](https://activemq.apache.org/), [Redis](https://redis.io/) etc.
-See [supported backends](#supported-backends)
+or cloud services such as [Google Cloud Pub/Sub](https://cloud.google.com/pubsub),
+[Amazon SQS](https://aws.amazon.com/sqs/) etc.
+See [supported backends](#supported-backends).
 "Mock Actor" approach requires you to provide deployed message bus instance, and configure valid address for it inside
 configuration file.
 
@@ -477,4 +479,51 @@ by setting `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` environment variables 
 $ PUBSUB_EMULATOR_HOST="localhost:8681" \
     PUBSUB_PROJECT_ID="project-id" \
     mockintosh config.yaml
+```
+
+### Amazon Simple Queue Service
+
+#### Testing against AWS
+
+[Amazon Simple Queue Service](https://aws.amazon.com/sqs/) is a message queue cloud service of Amazon. There are several
+ways to work with Amazon SQS;
+
+One is specifying the AWS credentials,
+a [legacy endpoint](https://docs.aws.amazon.com/general/latest/gr/sqs-service.html)
+and the region as a URI format `<SCHEME>://<AWS_ACCESS_KEY_ID>:<AWS_SECRET_ACCESS_KEY>@<ENDPOINT>:<PORT>#<REGION>` in the `address` field:
+
+The `<SCHEME>`/`<PORT>` combination can be one of these:
+
+| `<SCHEME>`  | `<PORT>`    | Description          |
+| ----------- | ----------- | -------------------- |
+| `http`      | `80`        | `use_ssl` is `false` |
+| `https`     | `443`       | `use_ssl` is `true`  |
+
+```yaml
+type: amazonsqs
+address: https://<AWS_ACCESS_KEY_ID>:<AWS_SECRET_ACCESS_KEY>@us-east-2.queue.amazonaws.com:443#us-east-2
+```
+
+The `<AWS_ACCESS_KEY_ID>` and `<AWS_SECRET_ACCESS_KEY>` parts of the address are omitted if the
+`AWS_ACCESS_KEY_ID` and ``AWS_SECRET_ACCESS_KEY` environment variables are set.
+
+```bash
+$ AWS_ACCESS_KEY_ID="<AWS_ACCESS_KEY_ID>" \
+    AWS_SECRET_ACCESS_KEY="<AWS_SECRET_ACCESS_KEY>" \
+    mockintosh config.yaml
+```
+
+#### Testing against ElasticMQ
+
+[ElasticMQ](https://github.com/softwaremill/elasticmq) is an in-memory message queue with an Amazon SQS-compatible
+interface. Such that it provides a way to test Amazon SQS integration behavior locally.
+
+You can directly run ElasticMQ using Java `java -jar elasticmq-server-X.Y.Z.jar` or you can use
+the [softwaremill/elasticmq](https://hub.docker.com/r/softwaremill/elasticmq) Docker image.
+
+Use the `address` below to establish a connection to local ElasticMQ instance:
+
+```yaml
+type: amazonsqs
+address: http://localhost:9324#elasticmq
 ```

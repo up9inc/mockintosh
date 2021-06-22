@@ -148,3 +148,7 @@ tests/configs/yaml/hbs/redis/*
 # Google Cloud Pub/Sub
 tests/configs/yaml/hbs/gpubsub
 tests/configs/yaml/hbs/gpubsub/*
+
+# Amazon SQS
+tests/configs/yaml/hbs/amazonsqs
+tests/configs/yaml/hbs/amazonsqs/*

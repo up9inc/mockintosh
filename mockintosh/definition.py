@@ -78,6 +78,14 @@ from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
     GpubsubProducerPayloadList,
     GpubsubProducerPayload
 )
+from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
+    AmazonsqsService,
+    AmazonsqsActor,
+    AmazonsqsConsumer,
+    AmazonsqsProducer,
+    AmazonsqsProducerPayloadList,
+    AmazonsqsProducerPayload
+)
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     AsyncProducerListQueueMismatch
