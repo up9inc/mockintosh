@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10 - 2021-06-22
+
+- Serve mocks from OpenAPI and Postman collections, also allow converting into config
+- AMQP protocol support (RedisMQ, ActiveMQ and others)
+- Google PubSub support
+- Amazon SQS support
+- fix the bug with traffic log not working after certain mgmt requests
+
 ## v0.9 - 2021-05-04
 
 1. Mock Actors implementation for Kafka
@@ -125,14 +133,6 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-# Next Version
-
-- fix the bug with traffic log not working after certain mgmt requests
-- AMQP protocol support (RedisMQ, ActiveMQ and others)
-- Google PubSub support  
-- Amazon SQS support  
-- Serve mocks from OpenAPI and Postman collections, also allow converting into config
-
 ---
 
 - add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
@@ -156,6 +156,7 @@
 - interceptors to access kafka comms
 - allow overriding on-demand producer fields via mgmt API
 - support dead letter topic for Google PubSub
+- serve AsyncAPI document?
 
 ## Management API/UI
 
@@ -167,6 +168,7 @@
 
 ## Other
 
+- make cloud dependencies optional, have second docker image and instructions how to enable cloud features
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
@@ -175,3 +177,7 @@
 - mocks for gRPC servers?
 
 - gatsby-style approach to telemetry
+- urlparse as helper
+- CSS selector helper for HTML
+- Better way to support GraphQL?
+- a service-level field to specify base path of the API for `/v1` and `/v2` things
