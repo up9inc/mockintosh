@@ -133,7 +133,12 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
+
+# Next Version
+
 ---
+- Better way to support GraphQL
+- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
 
 - add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
 
@@ -143,14 +148,12 @@
 - Tornado has auto-multicpu startup mode, use it optionally with CLI arg/env var
 - test the performance of ourself and optimize it
 
-- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
-- mqtt for async servers
-- SQS as one more async tech
 
 # Roadmap Ideas
 
 ## Async Mock Actors
 
+- mqtt for async servers
 - avro/grpc/binary/str problem in Kafka
 - what to do with binary headers in Kafka? data-url prefix?
 - interceptors to access kafka comms
@@ -179,5 +182,4 @@
 - gatsby-style approach to telemetry
 - urlparse as helper
 - CSS selector helper for HTML
-- Better way to support GraphQL?
 - a service-level field to specify base path of the API for `/v1` and `/v2` things
