@@ -5,7 +5,8 @@
 - Serve mocks from OpenAPI and Postman collections, also allow converting into config
 - AMQP protocol support (RabbitMQ, ActiveMQ and others)
 - Google PubSub support
-- Amazon SQS support
+- Google PubSub support
+- Redis Queues support
 - fix the bug with traffic log not working after certain mgmt requests
 
 ## v0.9 - 2021-05-04
