@@ -505,7 +505,7 @@ address: https://<AWS_ACCESS_KEY_ID>:<AWS_SECRET_ACCESS_KEY>@us-east-2.queue.ama
 ```
 
 The `<AWS_ACCESS_KEY_ID>` and `<AWS_SECRET_ACCESS_KEY>` parts of the address are omitted if the
-`AWS_ACCESS_KEY_ID` and ``AWS_SECRET_ACCESS_KEY` environment variables are set.
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables are set.
 
 ```bash
 $ AWS_ACCESS_KEY_ID="<AWS_ACCESS_KEY_ID>" \
