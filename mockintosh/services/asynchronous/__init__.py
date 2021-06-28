@@ -105,7 +105,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         self.match_value = value
         self.match_key = key
         self.match_headers = {} if headers is None else headers
-        self.match_amqp_properties = {k: v for k, v in amqp_properties.items() if v is not None}
+        self.match_amqp_properties = {} if amqp_properties is None else {k: v for k, v in amqp_properties.items() if v is not None}
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
@@ -290,7 +290,7 @@ class AsyncConsumerGroup:
 
         matched_consumer = None
 
-        amqp_properties = {k: v for k, v in amqp_properties.items() if v is not None}
+        amqp_properties = {} if amqp_properties is None else {k: v for k, v in amqp_properties.items() if v is not None}
         async_handler = None
         for _consumer in self.consumers:
             async_handler = AsyncHandler(
@@ -544,7 +544,7 @@ class AsyncProducer(AsyncConsumerProducerBase):
             value=payload.value,
             key=payload.key,
             headers=payload.headers,
-            amqp_properties={k: v for k, v in payload.amqp_properties.items() if v is not None},
+            amqp_properties={} if payload.amqp_properties is None else {k: v for k, v in payload.amqp_properties.items() if v is not None},
             context=context,
             params=self.actor.params
         )
