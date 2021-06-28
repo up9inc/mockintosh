@@ -105,7 +105,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         self.match_value = value
         self.match_key = key
         self.match_headers = {} if headers is None else headers
-        self.match_amqp_properties = amqp_properties
+        self.match_amqp_properties = {k: v for k, v in amqp_properties.items() if v is not None}
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
@@ -116,6 +116,8 @@ class AsyncConsumer(AsyncConsumerProducerBase):
     def _match_str(self, x: str, y: Union[str, None]):
         if y is None:
             y = ''
+        elif not isinstance(y, str):
+            y = str(y)
 
         x = '^%s$' % x
         match = re.search(x, y)
@@ -288,6 +290,7 @@ class AsyncConsumerGroup:
 
         matched_consumer = None
 
+        amqp_properties = {k: v for k, v in amqp_properties.items() if v is not None}
         async_handler = None
         for _consumer in self.consumers:
             async_handler = AsyncHandler(
@@ -306,7 +309,7 @@ class AsyncConsumerGroup:
                 value=value,
                 key=key,
                 headers=headers,
-                amqp_properties={k: v for k, v in amqp_properties.items() if v is not None},
+                amqp_properties=amqp_properties,
                 context=_consumer.actor.context,
                 params=_consumer.actor.params
             )
