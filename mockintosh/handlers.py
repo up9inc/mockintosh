@@ -1284,7 +1284,7 @@ class AsyncHandler(BaseHandler):
         self.value = value
         self.key = key
         self.headers = headers
-        self.amqp_properties= amqp_properties
+        self.amqp_properties = amqp_properties
         self.response_body = None
         self.response_headers = None
 
