@@ -1225,6 +1225,74 @@ class AsyncBase():
                 for entry in entries
             )
 
+        if async_service_type == 'redis':
+            assert any(
+                entry['request']['method'] == 'GET'
+                and  # noqa: W504, W503
+                entry['request']['url'] == '%s://%s/topic21' % (async_service_type, netloc)
+                and  # noqa: W504, W503
+                entry['response']['status'] == 200
+                for entry in entries
+            )
+        else:
+            assert any(
+                entry['request']['method'] == 'GET'
+                and  # noqa: W504, W503
+                entry['request']['url'] == '%s://%s/topic21?key=key21' % (async_service_type, netloc)
+                and  # noqa: W504, W503
+                entry['response']['status'] == 200
+                and  # noqa: W504, W503
+                entry['response']['headers'][-1]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+                and  # noqa: W504, W503
+                entry['response']['headers'][-1]['value'] == 'key21'
+                and  # noqa: W504, W503
+                len(entry['response']['headers']) > 2
+                and  # noqa: W504, W503
+                entry['response']['headers'][2]['name'] == 'Hdr21-1'
+                and  # noqa: W504, W503
+                entry['response']['headers'][2]['value'] == 'val21-1'
+                and  # noqa: W504, W503
+                entry['response']['headers'][3]['name'] == 'Hdr21-2'
+                and  # noqa: W504, W503
+                entry['response']['headers'][3]['value'] == '42'
+                and  # noqa: W504, W503
+                entry['response']['headers'][4]['name'] == 'Hdr21-3'
+                and  # noqa: W504, W503
+                entry['response']['headers'][4]['value'] == '3.14'
+                and  # noqa: W504, W503
+                entry['response']['headers'][5]['name'] == 'Hdr21-4'
+                and  # noqa: W504, W503
+                entry['response']['headers'][5]['value'] == '[\"val21-2\", 9, 1.61]'
+                for entry in entries
+            )
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == '%s://%s/topic21%s' % (async_service_type, netloc, '?key=key21' if async_service_type != 'redis' else '')
+            and  # noqa: W504, W503
+            len(entry['request']['headers']) > 2
+            and  # noqa: W504, W503
+            entry['request']['headers'][2]['name'] == 'Hdr21-1'
+            and  # noqa: W504, W503
+            entry['request']['headers'][2]['value'] == 'val21-1'
+            and  # noqa: W504, W503
+            entry['request']['headers'][3]['name'] == 'Hdr21-2'
+            and  # noqa: W504, W503
+            entry['request']['headers'][3]['value'] == '42'
+            and  # noqa: W504, W503
+            entry['request']['headers'][4]['name'] == 'Hdr21-3'
+            and  # noqa: W504, W503
+            entry['request']['headers'][4]['value'] == '3.14'
+            and  # noqa: W504, W503
+            entry['request']['headers'][5]['name'] == 'Hdr21-4'
+            and  # noqa: W504, W503
+            entry['request']['headers'][5]['value'] == '[\"val21-2\", 9, 1.61]'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
     def test_stats(self):
         global async_service_type
 
@@ -1243,7 +1311,7 @@ class AsyncBase():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 37
+        assert len(data['services'][0]['endpoints']) == 39
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1

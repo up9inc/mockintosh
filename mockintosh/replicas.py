@@ -17,6 +17,7 @@ from typing import (
 
 from mockintosh.helpers import _b64encode
 from mockintosh.constants import BASE64
+from mockintosh.helpers import _serialize_header_value
 
 
 class _NotParsedJSON:
@@ -90,7 +91,7 @@ class Request:
             extracted_keys.append(key.lower())
             headers.append({
                 'name': key,
-                'value': value
+                'value': _serialize_header_value(value)
             })
 
         return headers
@@ -187,7 +188,7 @@ class Response:
         for key, value in self.headers.items():
             headers.append({
                 'name': key.title(),
-                'value': value
+                'value': _serialize_header_value(value)
             })
 
         return headers

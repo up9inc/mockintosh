@@ -107,7 +107,7 @@
           "type": "string"
         },
         "headers": {
-          "$ref": "#/definitions/headers_ref"
+          "type": "object"
         }
       }
     },
@@ -144,7 +144,7 @@
           "type": "string"
         },
         "headers": {
-          "$ref": "#/definitions/headers_ref"
+          "type": "object"
         },
         "capture": {
           "type": "integer"

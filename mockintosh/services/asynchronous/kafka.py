@@ -26,6 +26,7 @@ from mockintosh.services.asynchronous import (
     AsyncActor,
     AsyncService
 )
+from mockintosh.helpers import _serialize_header_value
 
 
 def _decoder(value):
@@ -132,7 +133,7 @@ class KafkaConsumerGroup(AsyncConsumerGroup):
             )
 
     def poll_message(self, consumer: Consumer) -> Union[Message, None]:
-        return consumer.poll(1.0)
+        return consumer.poll(0.5)
 
     def is_consumed(self, msg: Union[Message, None]) -> bool:
         if msg is None:
@@ -172,6 +173,8 @@ class KafkaProducer(AsyncProducer):
                     self.topic,
                     ssl=self.actor.service.ssl
                 )
+
+        headers = {k: _serialize_header_value(v) for k, v in headers.items()}
 
         producer.poll(0)
         producer.produce(self.topic, value, key=key, headers=headers, callback=_kafka_delivery_report)

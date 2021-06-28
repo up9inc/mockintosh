@@ -316,6 +316,28 @@ services:
         captured: "1234.567" # nasty one
     delay: 1
     limit: 1000
+  # `headers` extended data types
+  - produce:
+      create: true
+      queue: topic21
+      key: key21
+      value: value21
+      headers:
+        hdr21-1: val21-1
+        hdr21-2: 42
+        hdr21-3: 3.14
+        hdr21-4:
+          - "val21-2"
+          - 9
+          - 1.61
+    delay: 4
+    limit: 100
+  - consume:
+      queue: topic21
+      # key: "{{var21_1}}"
+      # value: "{{var21_2}}"
+      # headers:
+      #   hdr21-1: "{{var21_3}}"
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001

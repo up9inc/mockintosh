@@ -10,6 +10,7 @@ import sys
 import io
 import re
 import time
+import json
 import logging
 from contextlib import contextmanager
 from base64 import b64encode
@@ -154,3 +155,9 @@ def _urlsplit(url: str, scheme: str = '', allow_fragments: bool = True):
 def _delay(seconds: int) -> None:
     logging.debug('Sleeping for %d seconds.', seconds)
     time.sleep(seconds)
+
+
+def _serialize_header_value(val):
+    if not isinstance(val, str):
+        return json.dumps(val)
+    return val
