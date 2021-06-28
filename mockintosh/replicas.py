@@ -90,7 +90,7 @@ class Request:
             extracted_keys.append(key.lower())
             headers.append({
                 'name': key,
-                'value': value
+                'value': str(value)
             })
 
         return headers
@@ -187,7 +187,7 @@ class Response:
         for key, value in self.headers.items():
             headers.append({
                 'name': key.title(),
-                'value': value
+                'value': str(value)
             })
 
         return headers

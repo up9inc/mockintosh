@@ -17,6 +17,7 @@ from typing import (
     Union
 )
 
+import pytest
 import httpx
 import yaml
 from jsonschema.validators import validate as jsonschema_validate
@@ -81,7 +82,8 @@ from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
 from utilities import (
     DefinitionMockForAsync,
     get_config_path,
-    is_valid_uuid
+    is_valid_uuid,
+    run_mock_server
 )
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
@@ -1466,3 +1468,116 @@ class TestAsyncAmazonSQS(AsyncBase):
 
         async_service_type = 'amazonsqs'
         super().setup_class()
+
+
+@pytest.mark.parametrize(('config'), [
+    'configs/yaml/hbs/amqp_properties/config.yaml'
+])
+class TestAsyncAMQPProperties():
+
+    def setup_method(self):
+        config = self._item.callspec.getparam('config')
+        self.mock_server_process = run_mock_server(get_config_path(config))
+
+    def teardown_method(self):
+        self.mock_server_process.terminate()
+
+    def test_scheduled_producer_and_consumer(self, config):
+        async_service_type = 'amqp'
+        for topic in (
+            'shipping-task'
+        ):
+            amqp_create_topic(ASYNC_ADDR[async_service_type], topic)
+        resp = httpx.post(MGMT + '/traffic-log', data={"enable": True}, verify=False)
+        assert 204 == resp.status_code
+
+        time.sleep(10)
+
+        resp = httpx.get(MGMT + '/traffic-log', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
+        data = resp.json()
+        jsonschema_validate(data, HAR_JSON_SCHEMA)
+
+        entries = data['log']['entries']
+
+        parsed = urlparse(ASYNC_ADDR[async_service_type] if ASYNC_ADDR[async_service_type].startswith('http') else 'http://%s' % ASYNC_ADDR[async_service_type])
+        netloc = parsed.netloc.split('@')[-1] if async_service_type == 'gpubsub' else parsed.netloc
+
+        assert any(
+            entry['request']['method'] == 'PUT'
+            and  # noqa: W504, W503
+            entry['request']['url'] == '%s://%s/shipping-task%s' % (async_service_type, netloc, '?key=shipping-task')
+            and  # noqa: W504, W503
+            entry['request']['headers'][0]['name'] == 'Global-Hdr1'
+            and  # noqa: W504, W503
+            entry['request']['headers'][0]['value'] == 'globalval1'
+            and  # noqa: W504, W503
+            entry['request']['headers'][1]['name'] == 'Global-Hdr2'
+            and  # noqa: W504, W503
+            entry['request']['headers'][1]['value'] == 'globalval2'
+            and  # noqa: W504, W503
+            entry['request']['headers'][2]['name'] == '__Typeid__'
+            and  # noqa: W504, W503
+            entry['request']['headers'][2]['value'] == 'works.weave.socks.shipping.entities.Shipment'
+            and  # noqa: W504, W503
+            entry['request']['headers'][3]['name'] == 'content_type'
+            and  # noqa: W504, W503
+            entry['request']['headers'][3]['value'] == 'application/json'
+            and  # noqa: W504, W503
+            entry['request']['headers'][4]['name'] == 'content_encoding'
+            and  # noqa: W504, W503
+            entry['request']['headers'][4]['value'] == 'UTF-8'
+            and  # noqa: W504, W503
+            entry['request']['headers'][5]['name'] == 'delivery_mode'
+            and  # noqa: W504, W503
+            entry['request']['headers'][5]['value'] == '2'
+            and  # noqa: W504, W503
+            entry['request']['headers'][6]['name'] == 'priority'
+            and  # noqa: W504, W503
+            entry['request']['headers'][6]['value'] == '0'
+            and  # noqa: W504, W503
+            entry['response']['status'] == 202
+            for entry in entries
+        )
+
+        assert any(
+            entry['request']['method'] == 'GET'
+            and  # noqa: W504, W503
+            entry['request']['url'] == '%s://%s/shipping-task%s' % (async_service_type, netloc, '?key=shipping-task')
+            and  # noqa: W504, W503
+            entry['response']['status'] == 200
+            and  # noqa: W504, W503
+            entry['response']['headers'][0]['name'] == 'Global-Hdr1'
+            and  # noqa: W504, W503
+            entry['response']['headers'][0]['value'] == 'globalval1'
+            and  # noqa: W504, W503
+            entry['response']['headers'][1]['name'] == 'Global-Hdr2'
+            and  # noqa: W504, W503
+            entry['response']['headers'][1]['value'] == 'globalval2'
+            and  # noqa: W504, W503
+            entry['response']['headers'][2]['name'] == '__Typeid__'
+            and  # noqa: W504, W503
+            entry['response']['headers'][2]['value'] == 'works.weave.socks.shipping.entities.Shipment'
+            and  # noqa: W504, W503
+            entry['response']['headers'][3]['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize()
+            and  # noqa: W504, W503
+            entry['response']['headers'][3]['value'] == 'shipping-task'
+            and  # noqa: W504, W503
+            entry['response']['headers'][4]['name'] == 'Content_Type'
+            and  # noqa: W504, W503
+            entry['response']['headers'][4]['value'] == 'application/json'
+            and  # noqa: W504, W503
+            entry['response']['headers'][5]['name'] == 'Content_Encoding'
+            and  # noqa: W504, W503
+            entry['response']['headers'][5]['value'] == 'UTF-8'
+            and  # noqa: W504, W503
+            entry['response']['headers'][6]['name'] == 'Delivery_Mode'
+            and  # noqa: W504, W503
+            entry['response']['headers'][6]['value'] == '2'
+            and  # noqa: W504, W503
+            entry['response']['headers'][7]['name'] == 'Priority'
+            and  # noqa: W504, W503
+            entry['response']['headers'][7]['value'] == '0'
+            for entry in entries
+        )
