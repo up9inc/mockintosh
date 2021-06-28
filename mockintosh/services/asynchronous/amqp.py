@@ -158,13 +158,33 @@ class AmqpProducer(AsyncProducer):
 
                 channel.exchange_declare(exchange=exchange, exchange_type=EXCHANGE_TYPE)
 
+                properties = None
+                if payload.amqp_properties is not None:
+                    properties = BasicProperties(
+                        content_type=payload.amqp_properties.content_type,
+                        content_encoding=payload.amqp_properties.content_encoding,
+                        headers=headers,
+                        delivery_mode=payload.amqp_properties.delivery_mode,
+                        priority=payload.amqp_properties.priority,
+                        correlation_id=payload.amqp_properties.correlation_id,
+                        reply_to=payload.amqp_properties.reply_to,
+                        expiration=payload.amqp_properties.expiration,
+                        message_id=payload.amqp_properties.message_id,
+                        timestamp=payload.amqp_properties.timestamp,
+                        type=payload.amqp_properties.type,
+                        app_id=payload.amqp_properties.app_id,
+                        cluster_id=payload.amqp_properties.cluster_id,
+                    )
+                else:
+                    properties = BasicProperties(
+                        headers=headers
+                    )
+
                 channel.basic_publish(
                     exchange=exchange,
                     routing_key=key if key is not None else '',
                     body=value,
-                    properties=BasicProperties(
-                        headers=headers
-                    )
+                    properties=properties
                 )
             except ChannelClosedByBroker as e:
                 logging.info('Queue %s does not exist: %s', queue, e)

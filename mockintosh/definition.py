@@ -397,6 +397,7 @@ class Definition:
                         produce.value,
                         key=produce.key,
                         headers={} if produce.headers is None else produce.headers.payload,
+                        amqp_properties=produce.amqp_properties,
                         tag=produce.tag,
                         enable_topic_creation=produce.create
                     )

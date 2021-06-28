@@ -112,6 +112,39 @@ class ConfigHeaders:
         self.payload = payload
 
 
+class ConfigAmqpProperties:
+
+    def __init__(
+        self,
+        content_type=None,
+        content_encoding=None,
+        delivery_mode=None,
+        priority=None,
+        correlation_id=None,
+        reply_to=None,
+        expiration=None,
+        message_id=None,
+        timestamp=None,
+        _type=None,
+        user_id=None,
+        app_id=None,
+        cluster_id=None
+    ):
+        self.content_type = content_type
+        self.content_encoding = content_encoding
+        self.delivery_mode = delivery_mode
+        self.priority = priority
+        self.correlation_id = correlation_id
+        self.reply_to = reply_to
+        self.expiration = expiration
+        self.message_id = message_id
+        self.timestamp = timestamp
+        self.type = _type
+        self.user_id = user_id
+        self.app_id = app_id
+        self.cluster_id = cluster_id
+
+
 class ConfigConsume:
 
     def __init__(
@@ -142,7 +175,8 @@ class ConfigProduce:
         create: bool = False,
         tag: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: Union[ConfigHeaders, None] = None
+        headers: Union[ConfigHeaders, None] = None,
+        amqp_properties: Union[ConfigAmqpProperties, None] = None
     ):
         self.queue = queue
         self.value = value
@@ -150,6 +184,7 @@ class ConfigProduce:
         self.tag = tag
         self.key = key
         self.headers = headers
+        self.amqp_properties = amqp_properties
 
 
 class ConfigMultiProduce:

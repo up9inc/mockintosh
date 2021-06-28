@@ -25,7 +25,8 @@ from pika.exceptions import AMQPConnectionError
 
 from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.config import (
-    ConfigExternalFilePath
+    ConfigExternalFilePath,
+    ConfigAmqpProperties
 )
 from mockintosh.helpers import _delay
 from mockintosh.handlers import AsyncHandler
@@ -359,12 +360,14 @@ class AsyncProducerPayload:
         value: str,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
+        amqp_properties: Union[ConfigAmqpProperties, None] = None,
         tag: Union[str, None] = None,
         enable_topic_creation: bool = False
     ):
         self.value = value
         self.key = key
         self.headers = {} if headers is None else headers
+        self.amqp_properties = amqp_properties
         self.tag = tag
         self.enable_topic_creation = enable_topic_creation
 

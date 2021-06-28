@@ -108,6 +108,9 @@
         },
         "headers": {
           "$ref": "#/definitions/headers_ref"
+        },
+        "amqpProperties": {
+          "$ref": "#/definitions/amqp_properties_ref"
         }
       }
     },
@@ -353,6 +356,25 @@
           ]
         }
       }
+    },
+    "amqp_properties_ref": {
+      "type": "object",
+      "properties": {
+        "content_type": {},
+        "content_encoding": {},
+        "delivery_mode": {},
+        "priority": {},
+        "correlation_id": {},
+        "reply_to": {},
+        "expiration": {},
+        "message_id": {},
+        "timestamp": {},
+        "type": {},
+        "user_id": {},
+        "app_id": {},
+        "cluster_id": {}
+      },
+      "additionalProperties": false
     },
     "profile_ref": {
       "type": "object",
