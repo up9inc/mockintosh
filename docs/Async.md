@@ -424,6 +424,27 @@ to the AMQP target hostname/IP and port.
 
 *Note: `rabbitmq` and `activemq` as a value for the `type` field instead of `amqp` is also accepted.*
 
+#### Properties Object
+
+It's possible to supply an additional `amqpProperties` field to fill the keyword arguments
+in [`pika.spec.BasicProperties`](https://pika.readthedocs.io/en/stable/modules/spec.html?highlight=BasicProperties#pika.spec.BasicProperties)
+except the `headers` argument. `headers` argument is set by just the common `headers` field.
+
+So for example, to mock the [`convertAndSend`](https://docs.spring.io/spring-amqp/docs/latest_ga/api/org/springframework/amqp/rabbit/core/RabbitTemplate.html#convertAndSend-java.lang.String-java.lang.Object-) function of [`org.springframework.amqp.rabbit.core.RabbitTemplate`](https://docs.spring.io/spring-amqp/docs/latest_ga/api/org/springframework/amqp/rabbit/core/RabbitTemplate.html) class you would simply use these
+`amqpProperties`:
+
+```yaml
+queue: queue1
+value: '{"message":"OK"}'
+amqpProperties:
+  priority: 0
+  delivery_mode: 2
+  content_encoding: "UTF-8"
+  content_type: "application/json"
+headers:
+  __TypeId__: "com.example.ClassName"
+```
+
 ### Redis
 
 [Redis](https://redis.io/) as an in-memory database, can also be used as a message queue. But note that;
