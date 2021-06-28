@@ -149,6 +149,9 @@
         "headers": {
           "$ref": "#/definitions/headers_ref"
         },
+        "amqpProperties": {
+          "$ref": "#/definitions/amqp_properties_ref"
+        },
         "capture": {
           "type": "integer"
         }

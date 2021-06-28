@@ -25,8 +25,7 @@ from pika.exceptions import AMQPConnectionError
 
 from mockintosh.constants import LOGGING_LENGTH_LIMIT
 from mockintosh.config import (
-    ConfigExternalFilePath,
-    ConfigAmqpProperties
+    ConfigExternalFilePath
 )
 from mockintosh.helpers import _delay
 from mockintosh.handlers import AsyncHandler
@@ -97,6 +96,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None,
         capture_limit: int = 1,
         enable_topic_creation: bool = False
     ):
@@ -105,6 +105,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         self.match_value = value
         self.match_key = key
         self.match_headers = {} if headers is None else headers
+        self.match_amqp_properties = amqp_properties
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
@@ -167,13 +168,15 @@ class AsyncConsumer(AsyncConsumerProducerBase):
             )
             return False
 
-    def match(self, key: str, value: str, headers: dict, async_handler: AsyncHandler) -> bool:
+    def match(self, key: str, value: str, headers: dict, async_handler: AsyncHandler, amqp_properties: dict = {}) -> bool:
         if (
             (not self.match_attr(self.match_value, value))
             or  # noqa: W504, W503
             (not self.match_attr(self.match_key, key))
             or  # noqa: W504, W503
             (not self.match_attr(self.match_headers, headers))
+            or  # noqa: W504, W503
+            (not self.match_attr(self.match_amqp_properties, amqp_properties))
         ):
             return False
         else:
@@ -267,7 +270,8 @@ class AsyncConsumerGroup:
         self,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: Union[dict, None] = None
+        headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None
     ) -> bool:
         headers = {} if headers is None else headers
         first_actor = self.consumers[0].actor
@@ -302,10 +306,11 @@ class AsyncConsumerGroup:
                 value=value,
                 key=key,
                 headers=headers,
+                amqp_properties={k: v for k, v in amqp_properties.items() if v is not None},
                 context=_consumer.actor.context,
                 params=_consumer.actor.params
             )
-            if _consumer.match(key, value, headers, async_handler):
+            if _consumer.match(key, value, headers, async_handler, amqp_properties=amqp_properties):
                 matched_consumer = _consumer
                 break
 
@@ -360,7 +365,7 @@ class AsyncProducerPayload:
         value: str,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
-        amqp_properties: Union[ConfigAmqpProperties, None] = None,
+        amqp_properties: Union[dict, None] = None,
         tag: Union[str, None] = None,
         enable_topic_creation: bool = False
     ):
@@ -536,6 +541,7 @@ class AsyncProducer(AsyncConsumerProducerBase):
             value=payload.value,
             key=payload.key,
             headers=payload.headers,
+            amqp_properties={k: v for k, v in payload.amqp_properties.items() if v is not None},
             context=context,
             params=self.actor.params
         )
@@ -548,12 +554,15 @@ class AsyncProducer(AsyncConsumerProducerBase):
         )
 
         # Templating
-        key, value, headers = async_handler.render_attributes()
+        key, value, headers, amqp_properties = async_handler.render_attributes()
 
-        try:
+        if self.actor.service.type == 'amqp':
+            try:
+                self._produce(key, value, headers, payload, amqp_properties=amqp_properties)
+            except AMQPConnectionError:
+                return
+        else:
             self._produce(key, value, headers, payload)
-        except AMQPConnectionError:
-            return
 
         logging.info(
             'Produced a %s message into %r from %r',

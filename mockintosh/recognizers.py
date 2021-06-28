@@ -21,7 +21,8 @@ from mockintosh.params import (
     BodyMultipartParam,
     AsyncValueParam,
     AsyncKeyParam,
-    AsyncHeadersParam
+    AsyncHeadersParam,
+    AsyncAmqpPropertiesParam
 )
 from mockintosh.helpers import _safe_path_split
 
@@ -62,18 +63,21 @@ class RecognizerBase:
         return compiled
 
     def recognize_async(self) -> Union[dict, str]:
-        if isinstance(self.payload, dict) and self.scope == 'asyncHeaders':
-            return self.recognize_async_headers()
+        if isinstance(self.payload, dict) and self.scope in ('asyncHeaders', 'asyncAmqpProperties'):
+            return self.recognize_async_headers(amqp_properties=True if self.scope == 'asyncAmqpProperties' else False)
         else:
             return self.recognize_async_value_or_key()
 
-    def recognize_async_headers(self) -> dict:
+    def recognize_async_headers(self, amqp_properties: bool = False) -> dict:
         result = {}
         for _key, value in self.payload.items():
             var, compiled, context = self.render_part(_key, value)
             if var is not None:
                 param = None
-                param = AsyncHeadersParam(self.scope, var)
+                if amqp_properties:
+                    param = AsyncAmqpPropertiesParam(self.scope, var)
+                else:
+                    param = AsyncHeadersParam(self.scope, var)
                 self.params[var] = param
             self.update_all_contexts(context)
             result[_key] = compiled
@@ -327,3 +331,16 @@ class AsyncProducerHeadersRecognizer(RecognizerBase):
         rendering_queue: RenderingQueue
     ):
         super().__init__(headers, params, all_contexts, engine, rendering_queue, 'asyncHeaders')
+
+
+class AsyncProducerAmqpPropertiesRecognizer(RecognizerBase):
+
+    def __init__(
+        self,
+        amqp_properties: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
+        super().__init__(amqp_properties, params, all_contexts, engine, rendering_queue, 'asyncAmqpProperties')

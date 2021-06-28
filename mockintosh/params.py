@@ -64,3 +64,8 @@ class AsyncHeadersParam(ParamBase):
 
     def __init__(self, key: str, value: Union[dict, str]):
         super().__init__(key, value)
+
+class AsyncAmqpPropertiesParam(ParamBase):
+
+    def __init__(self, key: str, value: Union[dict, str]):
+        super().__init__(key, value)

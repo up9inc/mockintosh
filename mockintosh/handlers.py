@@ -1254,6 +1254,7 @@ class AsyncHandler(BaseHandler):
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None,
         context: Union[dict, None] = None,
         params: Union[dict, None] = None
     ):
@@ -1283,6 +1284,7 @@ class AsyncHandler(BaseHandler):
         self.value = value
         self.key = key
         self.headers = headers
+        self.amqp_properties= amqp_properties
         self.response_body = None
         self.response_headers = None
 
@@ -1336,14 +1338,15 @@ class AsyncHandler(BaseHandler):
 
         return rendered
 
-    def render_attributes(self):
-        self.key, self.value, self.headers = self._render_attributes(
+    def render_attributes(self) -> tuple:
+        self.key, self.value, self.headers, self.amqp_properties = self._render_attributes(
             self.key,
             self.value,
-            self.headers
+            self.headers,
+            self.amqp_properties
         )
         self.replica_request = self.build_replica_request()
-        return self.key, self.value, self.headers
+        return self.key, self.value, self.headers, self.amqp_properties
 
     def add_params(self, context):
         return context
@@ -1415,6 +1418,8 @@ class AsyncHandler(BaseHandler):
                 value = value.path
             request.headers[key.title()] = value
 
+        request.headers.update(self.amqp_properties)
+
         # Query String
         if self.key is not None:
             request.queryString['key'] = self.key
@@ -1454,6 +1459,7 @@ class AsyncHandler(BaseHandler):
             return response
 
         response.headers = self.response_headers
+        response.headers.update(self.amqp_properties)
         response.body = self.response_body
 
         return response

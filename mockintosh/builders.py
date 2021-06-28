@@ -95,6 +95,7 @@ class ConfigRootBuilder:
             schema=self.build_config_schema(consume.get('schema', None), service=service),
             value=consume.get('value', None),
             headers=self.build_config_headers(consume, service=service),
+            amqp_properties=self.build_config_amqp_properties(consume),
             capture=consume.get('capture', 1)
         )
 

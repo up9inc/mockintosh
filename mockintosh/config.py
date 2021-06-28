@@ -155,6 +155,7 @@ class ConfigConsume:
         schema: Union[ConfigSchema, None] = None,
         value: Union[str, None] = None,
         headers: Union[ConfigHeaders, None] = None,
+        amqp_properties: Union[ConfigAmqpProperties, None] = None,
         capture: int = 1
     ):
         self.queue = queue
@@ -163,6 +164,7 @@ class ConfigConsume:
         self.schema = schema
         self.value = value
         self.headers = headers
+        self.amqp_properties = amqp_properties
         self.capture = capture
 
 
