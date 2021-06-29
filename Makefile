@@ -77,6 +77,7 @@ test-amqp-without-coverage: up-rabbitmq
 test-amqp-with-coverage: up-rabbitmq
 	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features_async.py::TestAsyncAMQP -s -vv --log-level=DEBUG && \
+	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features_async.py::TestAsyncAMQPProperties -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
