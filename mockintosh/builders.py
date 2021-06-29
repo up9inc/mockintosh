@@ -23,6 +23,7 @@ from mockintosh.config import (
     ConfigExternalFilePath,
     ConfigGlobals,
     ConfigHeaders,
+    ConfigAmqpProperties,
     ConfigHttpService,
     ConfigManagement,
     ConfigMultiProduce,
@@ -77,6 +78,12 @@ class ConfigRootBuilder:
             config_headers = ConfigHeaders(payload)
         return config_headers
 
+    def build_config_amqp_properties(self, data: dict) -> Union[ConfigHeaders, None]:
+        config_amqp_properties = None
+        if 'amqpProperties' in data:
+            config_amqp_properties = ConfigAmqpProperties(**data['amqpProperties'])
+        return config_amqp_properties
+
     def build_config_consume(self, consume: Union[dict, None], service: ConfigService = None) -> Union[ConfigConsume, None]:
         if consume is None:
             return None
@@ -88,6 +95,7 @@ class ConfigRootBuilder:
             schema=self.build_config_schema(consume.get('schema', None), service=service),
             value=consume.get('value', None),
             headers=self.build_config_headers(consume, service=service),
+            amqp_properties=self.build_config_amqp_properties(consume),
             capture=consume.get('capture', 1)
         )
 
@@ -98,7 +106,8 @@ class ConfigRootBuilder:
             produce.get('create', False),
             tag=produce.get('tag', None),
             key=produce.get('key', None),
-            headers=self.build_config_headers(produce, service=service)
+            headers=self.build_config_headers(produce, service=service),
+            amqp_properties=self.build_config_amqp_properties(produce)
         )
 
     def build_config_multi_produce(self, data: List[dict], service: ConfigService = None) -> ConfigMultiResponse:

@@ -56,6 +56,7 @@ class RedisConsumer(AsyncConsumer):
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None,
         capture_limit: int = 1,
         enable_topic_creation: bool = False
     ):
@@ -65,6 +66,7 @@ class RedisConsumer(AsyncConsumer):
             value=value,
             key=key,
             headers=headers,
+            amqp_properties=amqp_properties,
             capture_limit=capture_limit,
             enable_topic_creation=enable_topic_creation
         )

@@ -96,6 +96,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         value: Union[str, None] = None,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None,
         capture_limit: int = 1,
         enable_topic_creation: bool = False
     ):
@@ -104,6 +105,7 @@ class AsyncConsumer(AsyncConsumerProducerBase):
         self.match_value = value
         self.match_key = key
         self.match_headers = {} if headers is None else headers
+        self.match_amqp_properties = {} if amqp_properties is None else {k: v for k, v in amqp_properties.items() if v is not None}
         self.capture_limit = capture_limit
         self.log = []
         self.single_log_service = None
@@ -114,6 +116,8 @@ class AsyncConsumer(AsyncConsumerProducerBase):
     def _match_str(self, x: str, y: Union[str, None]):
         if y is None:
             y = ''
+        elif not isinstance(y, str):
+            y = str(y)
 
         x = '^%s$' % x
         match = re.search(x, y)
@@ -166,13 +170,15 @@ class AsyncConsumer(AsyncConsumerProducerBase):
             )
             return False
 
-    def match(self, key: str, value: str, headers: dict, async_handler: AsyncHandler) -> bool:
+    def match(self, key: str, value: str, headers: dict, async_handler: AsyncHandler, amqp_properties: dict = {}) -> bool:
         if (
             (not self.match_attr(self.match_value, value))
             or  # noqa: W504, W503
             (not self.match_attr(self.match_key, key))
             or  # noqa: W504, W503
             (not self.match_attr(self.match_headers, headers))
+            or  # noqa: W504, W503
+            (not self.match_attr(self.match_amqp_properties, amqp_properties))
         ):
             return False
         else:
@@ -266,7 +272,8 @@ class AsyncConsumerGroup:
         self,
         value: Union[str, None] = None,
         key: Union[str, None] = None,
-        headers: Union[dict, None] = None
+        headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None
     ) -> bool:
         headers = {} if headers is None else headers
         first_actor = self.consumers[0].actor
@@ -283,6 +290,7 @@ class AsyncConsumerGroup:
 
         matched_consumer = None
 
+        amqp_properties = {} if amqp_properties is None else {k: v for k, v in amqp_properties.items() if v is not None}
         async_handler = None
         for _consumer in self.consumers:
             async_handler = AsyncHandler(
@@ -301,10 +309,11 @@ class AsyncConsumerGroup:
                 value=value,
                 key=key,
                 headers=headers,
+                amqp_properties=amqp_properties,
                 context=_consumer.actor.context,
                 params=_consumer.actor.params
             )
-            if _consumer.match(key, value, headers, async_handler):
+            if _consumer.match(key, value, headers, async_handler, amqp_properties=amqp_properties):
                 matched_consumer = _consumer
                 break
 
@@ -359,12 +368,14 @@ class AsyncProducerPayload:
         value: str,
         key: Union[str, None] = None,
         headers: Union[dict, None] = None,
+        amqp_properties: Union[dict, None] = None,
         tag: Union[str, None] = None,
         enable_topic_creation: bool = False
     ):
         self.value = value
         self.key = key
         self.headers = {} if headers is None else headers
+        self.amqp_properties = amqp_properties
         self.tag = tag
         self.enable_topic_creation = enable_topic_creation
 
@@ -533,6 +544,7 @@ class AsyncProducer(AsyncConsumerProducerBase):
             value=payload.value,
             key=payload.key,
             headers=payload.headers,
+            amqp_properties={} if payload.amqp_properties is None else {k: v for k, v in payload.amqp_properties.items() if v is not None},
             context=context,
             params=self.actor.params
         )
@@ -545,12 +557,15 @@ class AsyncProducer(AsyncConsumerProducerBase):
         )
 
         # Templating
-        key, value, headers = async_handler.render_attributes()
+        key, value, headers, amqp_properties = async_handler.render_attributes()
 
-        try:
+        if self.actor.service.type == 'amqp':
+            try:
+                self._produce(key, value, headers, payload, amqp_properties=amqp_properties)
+            except AMQPConnectionError:
+                return
+        else:
             self._produce(key, value, headers, payload)
-        except AMQPConnectionError:
-            return
 
         logging.info(
             'Produced a %s message into %r from %r',

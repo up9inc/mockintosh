@@ -1,0 +1,38 @@
+templatingEngine: Handlebars
+management:
+  port: 8000
+  ssl: true
+globals:
+  headers:
+    global-hdr1: globalval1
+    global-hdr2: globalval2
+services:
+- name: Asynchronous Mocks
+  type: amqp
+  address: '{{env ''AMQP_ADDR'' ''localhost:5672''}}'
+  actors:
+  - produce:
+      queue: shipping-task
+      create: true
+      key: shipping-task
+      value: '{"id":"2ea440f9-f221-4baf-bb21-5af70a4dc1cd","name":"60d8942dee11cb000156d96a"}'
+      amqpProperties:
+        priority: 0
+        delivery_mode: 2
+        content_encoding: "UTF-8"
+        content_type: "application/json"
+      headers:
+        __TypeId__: "works.weave.socks.shipping.entities.Shipment"
+    delay: 2
+    limit: 100
+  - consume:
+      queue: shipping-task
+      key: "{{var21_1}}"
+      value: "{{var21_2}}"
+      amqpProperties:
+        priority: 0
+        delivery_mode: 2
+        content_encoding: "UTF-8"
+        content_type: "application/json"
+      headers:
+        __TypeId__: "works.weave.socks.shipping.entities.Shipment"

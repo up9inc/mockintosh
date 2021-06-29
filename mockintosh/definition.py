@@ -39,7 +39,8 @@ from mockintosh.recognizers import (
     BodyMultipartRecognizer,
     AsyncProducerValueRecognizer,
     AsyncProducerKeyRecognizer,
-    AsyncProducerHeadersRecognizer
+    AsyncProducerHeadersRecognizer,
+    AsyncProducerAmqpPropertiesRecognizer
 )
 from mockintosh.services.http import (
     HttpService,
@@ -334,6 +335,7 @@ class Definition:
                 value = actor.consume.value
                 key = actor.consume.key
                 headers = actor.consume.headers
+                amqp_properties = actor.consume.amqp_properties
 
                 params = async_actor.params
                 context = async_actor.context
@@ -365,12 +367,22 @@ class Definition:
                 )
                 headers = async_producer_headers_recognizer.recognize()
 
+                async_producer_amqp_properties_recognizer = AsyncProducerAmqpPropertiesRecognizer(
+                    {} if amqp_properties is None else amqp_properties.__dict__,
+                    params,
+                    context,
+                    self.template_engine,
+                    self.rendering_queue
+                )
+                amqp_properties = async_producer_amqp_properties_recognizer.recognize()
+
                 async_consumer = getattr(sys.modules[__name__], '%sConsumer' % class_name_prefix)(
                     actor.consume.queue,
                     schema=actor.consume.schema,
                     value=value,
                     key=key,
                     headers=headers,
+                    amqp_properties=amqp_properties,
                     capture_limit=capture_limit
                 )
                 async_actor.set_consumer(async_consumer)
@@ -397,6 +409,7 @@ class Definition:
                         produce.value,
                         key=produce.key,
                         headers={} if produce.headers is None else produce.headers.payload,
+                        amqp_properties={} if produce.amqp_properties is None else produce.amqp_properties.__dict__,
                         tag=produce.tag,
                         enable_topic_creation=produce.create
                     )

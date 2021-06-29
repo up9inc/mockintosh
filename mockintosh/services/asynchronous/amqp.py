@@ -64,7 +64,8 @@ class AmqpConsumerGroup(AsyncConsumerGroup):
         self.consume_message(
             key=None if not method.routing_key else method.routing_key,
             value=_decoder(body),
-            headers=properties.headers
+            headers=properties.headers,
+            amqp_properties={x: getattr(properties, x) for x in properties.__dict__ if x != 'headers'}
         )
 
     def consume(self) -> None:
@@ -137,7 +138,7 @@ class AmqpProducerPayloadList(AsyncProducerPayloadList):
 
 class AmqpProducer(AsyncProducer):
 
-    def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
+    def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload, amqp_properties: Union[dict, None] = None) -> None:
         host, port = self.actor.service.address.split(':')
         connection = BlockingConnection(
             ConnectionParameters(host=host, port=port)
@@ -163,7 +164,8 @@ class AmqpProducer(AsyncProducer):
                     routing_key=key if key is not None else '',
                     body=value,
                     properties=BasicProperties(
-                        headers=headers
+                        headers=headers,
+                        **amqp_properties
                     )
                 )
             except ChannelClosedByBroker as e:
