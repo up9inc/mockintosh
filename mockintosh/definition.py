@@ -295,6 +295,7 @@ class Definition:
                     params,
                     context,
                     performance_profile,
+                    endpoint.trigger_async_producer,
                     priority,
                     path,
                     endpoint.comment,

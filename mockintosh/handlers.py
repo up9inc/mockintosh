@@ -15,7 +15,8 @@ import socket
 import struct
 import traceback
 import copy
-from urllib.parse import quote_plus, urlparse
+import threading
+from urllib.parse import quote_plus, urlparse, unquote
 from datetime import datetime, timezone
 from typing import (
     Union,
@@ -58,6 +59,11 @@ from mockintosh.params import (
 from mockintosh.logs import Logs, LogRecord
 from mockintosh.stats import Stats
 from mockintosh.templating import TemplateRenderer, RenderingQueue
+from mockintosh.exceptions import (
+    AsyncProducerListHasNoPayloadsMatchingTags,
+    AsyncProducerPayloadLoopEnd,
+    AsyncProducerDatasetLoopEnd
+)
 
 OPTIONS = 'options'
 ORIGIN = 'Origin'
@@ -340,7 +346,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             match_alternative_return = await self.match_alternative()
             if not match_alternative_return:
                 return
-            _id, response, params, context, dataset, internal_endpoint_id, performance_profile = match_alternative_return
+            _id, response, params, context, dataset, internal_endpoint_id, performance_profile, trigger_async_producer = match_alternative_return
+            if trigger_async_producer is not None:
+                self.trigger_async_producer(trigger_async_producer)
             self.internal_endpoint_id = internal_endpoint_id
             self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
             self.custom_endpoint_id = _id
@@ -797,7 +805,17 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             context = alternative.context
             internal_endpoint_id = alternative.internal_endpoint_id
             performance_profile = alternative.performance_profile
-            return (_id, response, params, context, dataset, internal_endpoint_id, performance_profile)
+            trigger_async_producer = alternative.trigger_async_producer
+            return (
+                _id,
+                response,
+                params,
+                context,
+                dataset,
+                internal_endpoint_id,
+                performance_profile,
+                trigger_async_producer
+            )
 
         self.write(reason)
         await self.raise_http_error(400)
@@ -1232,6 +1250,68 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         parsed_header = parse_header(self.request.headers.get('Accept', 'text/html'))
         client_mime_types = [parsed.mime_type for parsed in parsed_header if parsed.mime_type != '*/*']
         return (client_mime_types and set(client_mime_types).issubset(IMAGE_MIME_TYPES)) or ext in IMAGE_EXTENSIONS
+
+    def trigger_async_producer(self, value: Union[int, str]):
+        from mockintosh.services.asynchronous import (
+            AsyncService,
+            AsyncProducer
+        )
+
+        if isinstance(value, int):
+            try:
+                producer = AsyncProducer.producers[value]
+                try:
+                    producer.check_tags()
+                    producer.check_payload_lock()
+                    producer.check_dataset_lock()
+                    t = threading.Thread(target=producer.produce, args=(), kwargs={
+                        'ignore_delay': True
+                    })
+                    t.daemon = True
+                    t.start()
+                except (
+                    AsyncProducerListHasNoPayloadsMatchingTags,
+                    AsyncProducerPayloadLoopEnd,
+                    AsyncProducerDatasetLoopEnd
+                ) as e:
+                    self.set_status(410)
+                    self.write(str(e))
+                    raise NewHTTPError()
+            except IndexError:
+                self.set_status(400)
+                self.write('Invalid producer index!')
+                raise NewHTTPError()
+        else:
+            producer = None
+            actor_name = unquote(value)
+            for service in AsyncService.services:
+                for actor_id, actor in enumerate(service.actors):
+                    if actor.name == actor_name:
+                        if actor.producer is None:  # pragma: no cover
+                            continue
+                        producer = actor.producer
+                        try:
+                            producer.check_tags()
+                            producer.check_payload_lock()
+                            producer.check_dataset_lock()
+                            t = threading.Thread(target=actor.producer.produce, args=(), kwargs={
+                                'ignore_delay': True
+                            })
+                            t.daemon = True
+                            t.start()
+                        except (
+                            AsyncProducerListHasNoPayloadsMatchingTags,
+                            AsyncProducerPayloadLoopEnd,
+                            AsyncProducerDatasetLoopEnd
+                        ) as e:
+                            self.set_status(410)
+                            self.write(str(e))
+                            raise NewHTTPError()
+
+            if producer is None:
+                self.set_status(400)
+                self.write('No producer actor is found for: %r' % actor_name)
+                raise NewHTTPError()
 
 
 class AsyncHandler(BaseHandler):

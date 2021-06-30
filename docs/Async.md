@@ -113,6 +113,41 @@ curl -X POST http://localhost:8000/async/producers/0
 
 _Note: The `limit` option actually works for any kind of producer._
 
+### Triggering a Producer From an HTTP Endpoint
+
+It's possible trigger an asynchronous producer from an HTTP endpoint using the `triggerAsyncProducer` field.
+The value of this field can be either a possitive integer that indicates the global index of a producer or
+a string that selects the producer based on its name:
+
+```yaml
+management:
+  port: 8000
+services:
+  - name: Mock for Service1
+    port: 8001
+    endpoints:
+    - path: "/endp1"
+      triggerAsyncProducer: 0
+      response: "endp1"
+    - path: "/endp2"
+      triggerAsyncProducer: on-demand-1
+      response: "endp2"
+  - name: Kafka Mock Actors
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: on-demand-1
+        produce:
+          create: true
+          queue: on-demand1
+          key: somekey or null
+          value: "@value/from/file.json"  # it's possible to reference file
+```
+
+The producer `on-demand-1` that's linked to the HTTP endpoints via the `triggerAsyncProducer` field is triggered
+whenever the an HTTP request is matched into the subject endpoint.
+There is no other criteria that can prevent the linked producer to be triggered.
+
 ## Validating Consumer
 
 The "validating consumer" actor is used when you need to check the fact of service publishing the message on the bus.

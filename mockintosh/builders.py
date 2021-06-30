@@ -210,7 +210,8 @@ class ConfigRootBuilder:
             response=response,
             multi_responses_looped=endpoint.get('multiResponsesLooped', True),
             dataset_looped=endpoint.get('datasetLooped', True),
-            performance_profile=endpoint.get('performanceProfile', None)
+            performance_profile=endpoint.get('performanceProfile', None),
+            trigger_async_producer=endpoint.get('triggerAsyncProducer', None)
         )
 
     def build_config_http_service(self, service: dict, internal_service_id: Union[int, None] = None) -> ConfigHttpService:

@@ -80,7 +80,8 @@ class HttpAlternativeBase:
         orig_path: str,
         params: dict,
         context: OrderedDict,
-        performance_profile: str,
+        performance_profile: Union[str, None],
+        trigger_async_producer: Union[str, int, None],
         query_string: Dict[str, str],
         headers: Dict[str, str],
         body: Union[HttpBody, None],
@@ -94,6 +95,7 @@ class HttpAlternativeBase:
         self.params = params
         self.context = context
         self.performance_profile = performance_profile
+        self.trigger_async_producer = trigger_async_producer
         self.query_string = query_string
         self.headers = headers
         self.body = body
@@ -111,7 +113,8 @@ class HttpEndpoint(HttpAlternativeBase):
         orig_path: str,
         params: dict,
         context: OrderedDict,
-        performance_profile: str,
+        performance_profile: Union[str, None],
+        trigger_async_producer: Union[str, int, None],
         priority: int,
         path: str,
         comment: Union[str, None],
@@ -130,6 +133,7 @@ class HttpEndpoint(HttpAlternativeBase):
             params,
             context,
             performance_profile,
+            trigger_async_producer,
             query_string,
             headers,
             body,
@@ -213,7 +217,8 @@ class HttpAlternative(HttpAlternativeBase):
         orig_path: str,
         params: dict,
         context: OrderedDict,
-        performance_profile: str,
+        performance_profile: Union[str, None],
+        trigger_async_producer: Union[str, int, None],
         query_string: Dict[str, str],
         headers: Dict[str, str],
         body: Union[HttpBody, None],
@@ -229,6 +234,7 @@ class HttpAlternative(HttpAlternativeBase):
             params,
             context,
             performance_profile,
+            trigger_async_producer,
             query_string,
             headers,
             body,

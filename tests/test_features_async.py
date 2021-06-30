@@ -88,6 +88,10 @@ from utilities import (
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 
+SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
+SRV_8001_HOST = 'service1.example.com'
+SRV_8001_SSL = SRV_8001[:4] + 's' + SRV_8001[4:]
+
 KAFKA_ADDR = os.environ.get('KAFKA_ADDR', 'localhost:9092')
 AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
@@ -142,6 +146,8 @@ class AsyncBase():
             'topic18',
             'topic19',
             'topic20',
+            'topic21',
+            'topic22',
             'binary-topic',
             'chain1-step1',
             'chain1-step2'
@@ -226,7 +232,7 @@ class AsyncBase():
 
             producers = data['producers']
             consumers = data['consumers']
-            assert len(producers) == 22 if async_service_type == 'gpubsub' else 23
+            assert len(producers) == 24 if async_service_type == 'gpubsub' else 25
             assert len(consumers) == 15 if async_service_type == 'gpubsub' else 16
 
             assert producers[0]['type'] == async_service_type
@@ -1245,7 +1251,7 @@ class AsyncBase():
         assert data['services'][0]['avg_resp_time'] == 0
         assert data['services'][0]['status_code_distribution']['200'] > 8
         assert data['services'][0]['status_code_distribution']['202'] > 8
-        assert len(data['services'][0]['endpoints']) == 37
+        assert len(data['services'][0]['endpoints']) == 39
 
         assert data['services'][0]['endpoints'][0]['hint'] == 'PUT topic1 - 0'
         assert data['services'][0]['endpoints'][0]['request_counter'] == 1
@@ -1311,11 +1317,11 @@ class AsyncBase():
         assert data['services'][0]['endpoints'][11]['avg_resp_time'] == 0
         assert data['services'][0]['endpoints'][11]['status_code_distribution'] == {'200': 3}
 
-        assert data['services'][1]['hint'] == 'http://service1.example.com:8001 - Mock for Service1'
+        assert data['services'][1]['hint'] == 'http://%s:8001 - Mock for Service1' % SRV_8001_HOST
         assert data['services'][1]['request_counter'] == 0
         assert data['services'][1]['avg_resp_time'] == 0
         assert data['services'][1]['status_code_distribution'] == {}
-        assert len(data['services'][1]['endpoints']) == 0
+        assert len(data['services'][1]['endpoints']) == 2
 
         if async_service_type not in ('gpubsub', 'amazonsqs'):
             assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
@@ -1418,6 +1424,66 @@ class AsyncBase():
             assert data == {'files': ['dataset.json', 'image.png', 'value_schema.json', 'value_schema_error.json']}
         else:
             assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}
+
+    @pytest.mark.parametrize(('topic', 'key', 'value', 'headers', 'endpoint'), [
+        (
+            'topic21',
+            'key21',
+            'value21',
+            {
+                'hdr21': 'val21',
+                'global-hdr1': 'globalval1',
+                'global-hdr2': 'globalval2'
+            },
+            '/endp1'
+        ),
+        (
+            'topic22',
+            'key22',
+            'value22',
+            {
+                'hdr22': 'val22',
+                'global-hdr1': 'globalval1',
+                'global-hdr2': 'globalval2'
+            },
+            '/endp2'
+        )
+    ])
+    def test_trigger_async_producer(self, topic, key, value, headers, endpoint):
+        global async_service_type
+
+        queue, job = start_render_queue()
+        async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
+            ASYNC_ADDR[async_service_type],
+            definition=DefinitionMockForAsync(None, PYBARS, queue)
+        )
+        async_actor = getattr(sys.modules[__name__], '%sActor' % async_service_type.capitalize())(0)
+        async_service.add_actor(async_actor)
+        async_consumer = getattr(sys.modules[__name__], '%sConsumer' % async_service_type.capitalize())(topic, enable_topic_creation=True)
+        async_actor.set_consumer(async_consumer)
+        async_consumer_group = getattr(sys.modules[__name__], '%sConsumerGroup' % async_service_type.capitalize())()
+        async_consumer_group.add_consumer(async_consumer)
+        t = threading.Thread(target=async_consumer_group.consume, args=(), kwargs={})
+        t.daemon = True
+        t.start()
+
+        if async_service_type == 'gpubsub':
+            time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
+
+        resp = httpx.get(SRV_8001 + endpoint, headers={'Host': SRV_8001_HOST})
+        assert resp.text == endpoint[1:]
+
+        self.assert_async_consume(
+            self.assert_post_async_produce,
+            async_consumer,
+            key,
+            value,
+            headers
+        )
+
+        async_consumer_group._stop()
+        t.join()
+        job.kill()
 
 
 class TestAsyncKafka(AsyncBase):
