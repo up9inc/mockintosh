@@ -1432,7 +1432,7 @@ class AsyncBase():
             'value21',
             {
                 'hdr21': 'val21',
-                'global-hdr1': 'globalval1',
+                'global-hdrX': 'globalvalY',
                 'global-hdr2': 'globalval2'
             },
             '/endp1'
@@ -1443,7 +1443,7 @@ class AsyncBase():
             'value22',
             {
                 'hdr22': 'val22',
-                'global-hdr1': 'globalval1',
+                'global-hdrX': 'globalvalY',
                 'global-hdr2': 'globalval2'
             },
             '/endp2'
