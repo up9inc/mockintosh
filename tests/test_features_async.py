@@ -1321,7 +1321,7 @@ class AsyncBase():
         assert data['services'][1]['request_counter'] == 0
         assert data['services'][1]['avg_resp_time'] == 0
         assert data['services'][1]['status_code_distribution'] == {}
-        assert len(data['services'][1]['endpoints']) == 2
+        assert len(data['services'][1]['endpoints']) == 6
 
         if async_service_type not in ('gpubsub', 'amazonsqs'):
             assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
@@ -1471,7 +1471,7 @@ class AsyncBase():
             time.sleep(ASYNC_CONSUME_TIMEOUT / 24)
 
         resp = httpx.get(SRV_8001 + endpoint, headers={'Host': SRV_8001_HOST})
-        assert resp.text == endpoint[1:]
+        assert endpoint[1:] == resp.text
 
         self.assert_async_consume(
             self.assert_post_async_produce,
@@ -1484,6 +1484,25 @@ class AsyncBase():
         async_consumer_group._stop()
         t.join()
         job.kill()
+
+    def test_trigger_async_producer_bad_requests(self):
+        resp = httpx.get(SRV_8001 + '/endp3', headers={'Host': SRV_8001_HOST})
+        assert 400 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/endp4', headers={'Host': SRV_8001_HOST})
+        assert 400 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/endp5', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/endp5', headers={'Host': SRV_8001_HOST})
+        assert 200 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/endp5', headers={'Host': SRV_8001_HOST})
+        assert 410 == resp.status_code
+
+        resp = httpx.get(SRV_8001 + '/endp6', headers={'Host': SRV_8001_HOST})
+        assert 410 == resp.status_code
 
 
 class TestAsyncKafka(AsyncBase):

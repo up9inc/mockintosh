@@ -347,8 +347,6 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             if not match_alternative_return:
                 return
             _id, response, params, context, dataset, internal_endpoint_id, performance_profile, trigger_async_producer = match_alternative_return
-            if trigger_async_producer is not None:
-                self.trigger_async_producer(trigger_async_producer)
             self.internal_endpoint_id = internal_endpoint_id
             self.stats.services[self.service_id].endpoints[self.internal_endpoint_id].increase_request_counter()
             self.custom_endpoint_id = _id
@@ -362,6 +360,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.determine_status_code()
             self.determine_headers()
             self.log_request()
+
+            if trigger_async_producer is not None:
+                self.trigger_async_producer(trigger_async_producer)
 
             self.rendered_body = self.render_template()
 

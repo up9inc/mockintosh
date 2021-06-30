@@ -342,6 +342,18 @@ services:
   - path: "/endp2"
     triggerAsyncProducer: producer22
     response: "endp2"
+  - path: "/endp3"
+    triggerAsyncProducer: 99
+    response: "endp3"
+  - path: "/endp4"
+    triggerAsyncProducer: producer99
+    response: "endp4"
+  - path: "/endp5"
+    triggerAsyncProducer: 16
+    response: "endp5"
+  - path: "/endp6"
+    triggerAsyncProducer: dataset-nonlooped
+    response: "endp6"
 - type: kafka
   address: localhost:9093
   ssl: true
