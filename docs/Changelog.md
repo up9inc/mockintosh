@@ -137,11 +137,12 @@
 
 # Next Version
 
+- Add `amqpProperties` option for async
+- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
+- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+
 ---
 - Better way to support GraphQL
-- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
-
-- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
 
 - Nicer logging of requests, with special option to enable it.
 - Nicer formatted error pages for known errors, explaining the problem
