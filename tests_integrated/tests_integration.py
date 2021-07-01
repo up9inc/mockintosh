@@ -1028,6 +1028,9 @@ class IntegrationTests(unittest.TestCase):
         else:
             self.fail("Did not capture the message")
 
+    def test_http_trigger_async(self):
+        pass
+
 
 def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
                            after_subscribe=lambda: None):

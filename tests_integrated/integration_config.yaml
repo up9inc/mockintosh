@@ -208,6 +208,10 @@ services:
         response: "{{val1}} {{val2}}"
       - path: "/qstr-multiparam3?prefix-{{data}}-suffix"
         response: "{{data}}"
+      - path: /trigger-async
+        response:
+          - triggerAsyncProducer: on-demand-1
+          - triggerAsyncProducer: produce-reaction1
 
   - name: Service with specified.host
     port: 8002
