@@ -1036,6 +1036,7 @@ class IntegrationTests(unittest.TestCase):
         # triggering first queue
         resp = httpx.get(SRV1 + '/trigger-async')
         resp.raise_for_status()
+        time.sleep(5)
         msgs = kafka_consume_expected(topic)
         self.assertTrue(msgs)
 
@@ -1046,6 +1047,7 @@ class IntegrationTests(unittest.TestCase):
         # triggering second queue
         resp = httpx.get(SRV1 + '/trigger-async')
         resp.raise_for_status()
+        time.sleep(5)
         msgs = kafka_consume_expected(queue)
         self.assertTrue(msgs)
 
