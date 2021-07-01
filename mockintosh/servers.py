@@ -274,7 +274,6 @@ class HttpServer:
                 endpoint.params,
                 endpoint.context,
                 endpoint.performance_profile,
-                endpoint.trigger_async_producer,
                 endpoint.query_string,
                 endpoint.headers,
                 endpoint.body,

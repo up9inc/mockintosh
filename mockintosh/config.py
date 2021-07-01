@@ -272,6 +272,7 @@ class ConfigResponse:
         use_templating: bool = True,
         templating_engine: str = PYBARS,
         tag: Union[str, None] = None,
+        trigger_async_producer: Union[str, int, None] = None
     ):
         self.headers = headers
         self.status = status
@@ -279,6 +280,7 @@ class ConfigResponse:
         self.use_templating = use_templating
         self.templating_engine = templating_engine
         self.tag = tag
+        self.trigger_async_producer = trigger_async_producer
 
     def oas(self, status_data: dict):
         new_headers = {k.title(): v for k, v in self.headers.payload.items()}
@@ -337,8 +339,7 @@ class ConfigEndpoint:
         response: Union[ConfigResponse, ConfigExternalFilePath, str, ConfigMultiResponse, None] = None,
         multi_responses_looped: bool = True,
         dataset_looped: bool = True,
-        performance_profile: Union[str, None] = None,
-        trigger_async_producer: Union[str, int, None] = None
+        performance_profile: Union[str, None] = None
     ):
         self.path = path
         self.id = _id
@@ -352,7 +353,6 @@ class ConfigEndpoint:
         self.multi_responses_looped = multi_responses_looped
         self.dataset_looped = dataset_looped
         self.performance_profile = performance_profile
-        self.trigger_async_producer = trigger_async_producer
 
 
 class ConfigHttpService(ConfigService):

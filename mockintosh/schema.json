@@ -288,17 +288,6 @@
         },
         "performanceProfile": {
           "type": "string"
-        },
-        "triggerAsyncProducer": {
-          "anyOf": [
-            {
-              "type": "integer",
-              "minimum": 0
-            },
-            {
-              "type": "string"
-            }
-          ]
         }
       },
       "required": [
@@ -334,6 +323,17 @@
             },
             "tag": {
               "type": "string"
+            },
+            "triggerAsyncProducer": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "string"
+                }
+              ]
             }
           },
           "additionalProperties": false

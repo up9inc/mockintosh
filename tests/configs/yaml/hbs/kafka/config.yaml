@@ -337,23 +337,29 @@ services:
   port: 8001
   endpoints:
   - path: "/endp1"
-    triggerAsyncProducer: 22
-    response: "endp1"
+    response:
+      body: "endp1"
+      triggerAsyncProducer: 22
   - path: "/endp2"
-    triggerAsyncProducer: producer22
-    response: "endp2"
+    response:
+      body: "endp2"
+      triggerAsyncProducer: producer22
   - path: "/endp3"
-    triggerAsyncProducer: 99
-    response: "endp3"
+    response:
+      body: "endp3"
+      triggerAsyncProducer: 99
   - path: "/endp4"
-    triggerAsyncProducer: producer99
-    response: "endp4"
+    response:
+      body: "endp4"
+      triggerAsyncProducer: producer99
   - path: "/endp5"
-    triggerAsyncProducer: 16
-    response: "endp5"
+    response:
+      body: "endp5"
+      triggerAsyncProducer: 16
   - path: "/endp6"
-    triggerAsyncProducer: dataset-nonlooped
-    response: "endp6"
+    response:
+      body: "endp6"
+      triggerAsyncProducer: dataset-nonlooped
 - type: kafka
   address: localhost:9093
   ssl: true
