@@ -127,11 +127,13 @@ services:
     port: 8001
     endpoints:
     - path: "/endp1"
-      triggerAsyncProducer: 0
-      response: "endp1"
+      response:
+        body: "endp1"
+        triggerAsyncProducer: 0
     - path: "/endp2"
-      triggerAsyncProducer: on-demand-1
-      response: "endp2"
+      response:
+        body: "endp2"
+        triggerAsyncProducer: on-demand-1
   - name: Kafka Mock Actors
     type: kafka
     address: localhost:9092
@@ -145,8 +147,7 @@ services:
 ```
 
 The producer `on-demand-1` that's linked to the HTTP endpoints via the `triggerAsyncProducer` field is triggered
-whenever the an HTTP request is matched into the subject endpoint.
-There is no other criteria that can prevent the linked producer to be triggered.
+whenever the an HTTP request is matched into the subject endpoint and the related response is returned.
 
 ## Validating Consumer
 
