@@ -1030,13 +1030,13 @@ class IntegrationTests(unittest.TestCase):
 
     def test_http_trigger_async(self):
         # triggering first queue
-        resp = httpx.get(SRV1 + '/async-trigger')
+        resp = httpx.get(SRV1 + '/trigger-async')
         resp.raise_for_status()
         msgs = kafka_consume_expected("on-demand1")
         self.assertTrue(msgs)
 
         # triggering second queue
-        resp = httpx.get(SRV1 + '/async-trigger')
+        resp = httpx.get(SRV1 + '/trigger-async')
         resp.raise_for_status()
         msgs = kafka_consume_expected("produce-reaction1")
         self.assertTrue(msgs)
