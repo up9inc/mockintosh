@@ -1029,7 +1029,17 @@ class IntegrationTests(unittest.TestCase):
             self.fail("Did not capture the message")
 
     def test_http_trigger_async(self):
-        pass
+        # triggering first queue
+        resp = httpx.get(SRV1 + '/async-trigger')
+        resp.raise_for_status()
+        msgs = kafka_consume_expected("on-demand1")
+        self.assertTrue(msgs)
+
+        # triggering second queue
+        resp = httpx.get(SRV1 + '/async-trigger')
+        resp.raise_for_status()
+        msgs = kafka_consume_expected("produce-reaction1")
+        self.assertTrue(msgs)
 
 
 def kafka_consume_expected(topic, group='0', timeout=1.0, mfilter=lambda x: True, validator=lambda x: None,
