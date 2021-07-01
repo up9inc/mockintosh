@@ -48,6 +48,7 @@ configs = [
 ]
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
+_MGMT = os.environ.get('_MGMT', 'http://localhost:8000')
 SRV_8000 = os.environ.get('SRV1', 'http://localhost:8000')
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
@@ -2479,6 +2480,17 @@ class TestManagement():
 
         resp = httpx.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
+        assert resp.headers['X-%s-Unhandled-Data' % PROGRAM.capitalize()] == 'false'
+
+        resp = httpx.post(MGMT + '/unhandled', data="true", verify=False)
+        assert 204 == resp.status_code
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
+        assert resp.headers['X-%s-Unhandled-Data' % PROGRAM.capitalize()] == 'true'
+
+        resp = httpx.get(MGMT + '/unhandled', verify=False)
+        assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         expected_data = {'services': []}
         assert expected_data == resp.json()
@@ -2542,6 +2554,9 @@ class TestManagement():
     def test_get_unhandled_no_endpoints(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
+        resp = httpx.post(MGMT + '/unhandled', data="true", verify=False)
+        assert 204 == resp.status_code
+
         resp = httpx.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -2562,6 +2577,9 @@ class TestManagement():
     ])
     def test_get_unhandled_changing_headers(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.post(MGMT + '/unhandled?data=true', verify=False)
+        assert 204 == resp.status_code
 
         resp = httpx.get(
             SRV_8001 + '/service1x',
@@ -2612,6 +2630,9 @@ class TestManagement():
     ])
     def test_delete_unhandled(self, config, admin_url, admin_headers):
         self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.post(MGMT + '/unhandled', data="true", verify=False)
+        assert 204 == resp.status_code
 
         resp = httpx.get(admin_url + '/unhandled', headers=admin_headers, verify=False)
         assert 200 == resp.status_code
@@ -3305,6 +3326,9 @@ class TestManagement():
     def test_fallback_to(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
 
+        resp = httpx.post(_MGMT + '/unhandled', data="true")
+        assert 204 == resp.status_code
+
         resp = httpx.get(SRV_8000 + '/unhandled')
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
@@ -3395,6 +3419,9 @@ class TestManagement():
     ])
     def test_fallback_to_binary_response(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
+
+        resp = httpx.post(_MGMT + '/unhandled', data="true")
+        assert 204 == resp.status_code
 
         resp = httpx.get(SRV_8003 + '/imagex', headers={'Host': SRV_8003_HOST})
         assert 200 == resp.status_code

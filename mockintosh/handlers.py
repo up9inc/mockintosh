@@ -277,7 +277,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         definition_engine: str,
         rendering_queue: RenderingQueue,
         interceptors: list,
-        unhandled_data,
+        unhandled_data: None,
         fallback_to: Union[str, None],
         tags: list
     ) -> None:
