@@ -48,7 +48,7 @@ configs = [
 ]
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
-SRV_8000 = os.environ.get('SRV1', 'http://localhost:8000')
+SRV_8000 = os.environ.get('SRV0', 'http://localhost:8000')
 SRV_8001 = os.environ.get('SRV1', 'http://localhost:8001')
 SRV_8002 = os.environ.get('SRV2', 'http://localhost:8002')
 SRV_8003 = os.environ.get('SRV2', 'http://localhost:8003')

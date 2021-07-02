@@ -272,6 +272,7 @@ class ConfigResponse:
         use_templating: bool = True,
         templating_engine: str = PYBARS,
         tag: Union[str, None] = None,
+        trigger_async_producer: Union[str, int, None] = None
     ):
         self.headers = headers
         self.status = status
@@ -279,6 +280,7 @@ class ConfigResponse:
         self.use_templating = use_templating
         self.templating_engine = templating_engine
         self.tag = tag
+        self.trigger_async_producer = trigger_async_producer
 
     def oas(self, status_data: dict):
         new_headers = {k.title(): v for k, v in self.headers.payload.items()}

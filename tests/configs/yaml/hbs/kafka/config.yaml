@@ -316,10 +316,50 @@ services:
         captured: "1234.567" # nasty one
     delay: 1
     limit: 1000
+  - name: producer21
+    produce:
+      queue: topic21
+      create: true
+      key: key21
+      value: value21
+      headers:
+        hdr21: val21
+  - name: producer22
+    produce:
+      queue: topic22
+      create: true
+      key: key22
+      value: value22
+      headers:
+        hdr22: val22
 - name: Mock for Service1
   hostname: service1.example.com
   port: 8001
-  endpoints: []
+  endpoints:
+  - path: "/endp1"
+    response:
+      body: "endp1"
+      triggerAsyncProducer: 22
+  - path: "/endp2"
+    response:
+      body: "endp2"
+      triggerAsyncProducer: producer22
+  - path: "/endp3"
+    response:
+      body: "endp3"
+      triggerAsyncProducer: 99
+  - path: "/endp4"
+    response:
+      body: "endp4"
+      triggerAsyncProducer: producer99
+  - path: "/endp5"
+    response:
+      body: "endp5"
+      triggerAsyncProducer: 16
+  - path: "/endp6"
+    response:
+      body: "endp6"
+      triggerAsyncProducer: dataset-nonlooped
 - type: kafka
   address: localhost:9093
   ssl: true
