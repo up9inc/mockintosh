@@ -561,6 +561,26 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(0, srv_stats['request_counter'])
 
     def test_unhandled(self):
+        # testing disabled
+        resp = httpx.post(SRV7 + '/sub/__admin/unhandled', json=False)
+        resp.raise_for_status()
+
+        resp = httpx.delete(SRV7 + '/sub/__admin/unhandled')
+        resp.raise_for_status()
+
+        path = '/unhandled-%s' % time.time()
+        resp = httpx.get(SRV1 + path)
+        self.assertEqual(404, resp.status_code)
+
+        resp = httpx.get(MGMT + '/unhandled?format=yaml', verify=False)
+        resp.raise_for_status()
+        self.assertEqual(resp.headers['x-mockintosh-unhandled-data'], 'false')
+        self.assertEqual(resp.text, 'services: []\n')
+
+        # testing enabled
+        resp = httpx.post(SRV7 + '/sub/__admin/unhandled', json=True)
+        resp.raise_for_status()
+
         path = '/unhandled-%s' % time.time()
         resp = httpx.get(SRV1 + path, headers={"hdr1": "val1", "hdr2": "val2", "hdr3": "val3"})
         self.assertEqual(404, resp.status_code)
@@ -568,6 +588,8 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.get(MGMT + '/unhandled?format=yaml', verify=False)
         resp.raise_for_status()
         self.assertTrue(resp.text.startswith('services:'))
+        self.assertNotEqual(resp.text, 'services: []\n')
+        self.assertEqual(resp.headers['x-mockintosh-unhandled-data'], 'true')
 
         resp = httpx.get(MGMT + '/unhandled', verify=False)
         resp.raise_for_status()
@@ -834,6 +856,9 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.delete(SRV7 + '/sub/__admin/unhandled')
         resp.raise_for_status()
 
+        resp = httpx.post(SRV7 + '/sub/__admin/unhandled', json=True)
+        resp.raise_for_status()
+
         resp = httpx.get(SRV7 + '/')
         self.assertEqual(200, resp.status_code)
         self.assertEqual("no fallback", resp.text)
@@ -866,6 +891,9 @@ class IntegrationTests(unittest.TestCase):
         endps[0]['response'].pop('headers')
         endps[1]['response'].pop('headers')
         self.assertEqual(exp, rdata)
+
+        resp = httpx.post(SRV7 + '/sub/__admin/unhandled', json=False)
+        resp.raise_for_status()
 
     def test_qstr_multiparam(self):
         resp = httpx.get(SRV1 + '/qstr-multiparam1?param[]=v1&param[]=v2')
