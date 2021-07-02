@@ -77,6 +77,12 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
+        'gpubsub': [
+            'google-cloud-pubsub>=2.5.0'
+        ],
+        'amazonsqs': [
+            'boto3>=1.17.97'
+        ],
         'dev': [
             'flake8',
             'psutil',

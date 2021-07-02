@@ -10,6 +10,7 @@ import sys
 import os
 import time
 import json
+import warnings
 import threading
 import subprocess
 from urllib.parse import urlparse
@@ -22,7 +23,7 @@ import httpx
 import yaml
 from jsonschema.validators import validate as jsonschema_validate
 
-from mockintosh.constants import PROGRAM, PYBARS, JINJA
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, WARN_GPUBSUB_PACKAGE, WARN_AMAZONSQS_PACKAGE
 from mockintosh import start_render_queue
 from mockintosh.services.asynchronous.kafka import (  # noqa: F401
     KafkaService,
@@ -57,28 +58,37 @@ from mockintosh.services.asynchronous.redis import (  # noqa: F401
     _create_topic as redis_create_topic,
     build_single_payload_producer as redis_build_single_payload_producer
 )
-from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
-    GpubsubService,
-    GpubsubActor,
-    GpubsubConsumer,
-    GpubsubConsumerGroup,
-    GpubsubProducer,
-    GpubsubProducerPayloadList,
-    GpubsubProducerPayload,
-    _create_topic as gpubsub_create_topic,
-    build_single_payload_producer as gpubsub_build_single_payload_producer
-)
-from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
-    AmazonsqsService,
-    AmazonsqsActor,
-    AmazonsqsConsumer,
-    AmazonsqsConsumerGroup,
-    AmazonsqsProducer,
-    AmazonsqsProducerPayloadList,
-    AmazonsqsProducerPayload,
-    _create_topic as amazonsqs_create_topic,
-    build_single_payload_producer as amazonsqs_build_single_payload_producer
-)
+
+try:
+    from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
+        GpubsubService,
+        GpubsubActor,
+        GpubsubConsumer,
+        GpubsubConsumerGroup,
+        GpubsubProducer,
+        GpubsubProducerPayloadList,
+        GpubsubProducerPayload,
+        _create_topic as gpubsub_create_topic,
+        build_single_payload_producer as gpubsub_build_single_payload_producer
+    )
+except ModuleNotFoundError:
+    warnings.warn(WARN_GPUBSUB_PACKAGE)
+
+try:
+    from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
+        AmazonsqsService,
+        AmazonsqsActor,
+        AmazonsqsConsumer,
+        AmazonsqsConsumerGroup,
+        AmazonsqsProducer,
+        AmazonsqsProducerPayloadList,
+        AmazonsqsProducerPayload,
+        _create_topic as amazonsqs_create_topic,
+        build_single_payload_producer as amazonsqs_build_single_payload_producer
+    )
+except ModuleNotFoundError:
+    warnings.warn(WARN_AMAZONSQS_PACKAGE)
+
 from utilities import (
     DefinitionMockForAsync,
     get_config_path,

@@ -500,6 +500,8 @@ to the Redis instance's hostname/IP and port.
 
 ### Google Cloud Pub/Sub
 
+*Note: Reinstall Mockintosh with `pip3 install mockintosh[gpubsub]` to have the `google-cloud-pubsub` optional Python package dependency.*
+
 [Google Cloud Pub/Sub](https://cloud.google.com/pubsub) is a message queue cloud service of Google. There are several
 ways to work with Pub/Sub;
 
@@ -540,10 +542,12 @@ $ PUBSUB_EMULATOR_HOST="localhost:8681" \
 
 ### Amazon Simple Queue Service
 
-#### Testing against AWS
+*Note: Reinstall Mockintosh with `pip3 install mockintosh[amazonsqs]` to have the `boto3` optional Python package dependency.*
 
 [Amazon Simple Queue Service](https://aws.amazon.com/sqs/) is a message queue cloud service of Amazon. There are several
 ways to work with Amazon SQS;
+
+#### Testing against AWS
 
 One is specifying the AWS credentials,
 a [legacy endpoint](https://docs.aws.amazon.com/general/latest/gr/sqs-service.html)
