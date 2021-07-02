@@ -2485,6 +2485,9 @@ class TestManagement():
         resp = httpx.post(MGMT + '/unhandled', data="true", verify=False)
         assert 204 == resp.status_code
 
+        resp = httpx.post(SRV_8001 + '/__admin/unhandled', data="true", headers={'Host': SRV_8001_HOST}, verify=False)
+        assert 204 == resp.status_code
+
         resp = httpx.get(MGMT + '/unhandled', verify=False)
         assert 200 == resp.status_code
         assert resp.headers['X-%s-Unhandled-Data' % PROGRAM.capitalize()] == 'true'
