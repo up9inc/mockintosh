@@ -562,10 +562,10 @@ class IntegrationTests(unittest.TestCase):
 
     def test_unhandled(self):
         # testing disabled
-        resp = httpx.post(SRV7 + '/sub/__admin/unhandled', json=False)
+        resp = httpx.post(SRV1 + '/__admin/unhandled', json=False)
         resp.raise_for_status()
 
-        resp = httpx.delete(SRV7 + '/sub/__admin/unhandled')
+        resp = httpx.delete(SRV1 + '/__admin/unhandled')
         resp.raise_for_status()
 
         path = '/unhandled-%s' % time.time()
@@ -578,7 +578,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(resp.text, 'services: []\n')
 
         # testing enabled
-        resp = httpx.post(SRV7 + '/sub/__admin/unhandled', json=True)
+        resp = httpx.post(SRV1 + '/__admin/unhandled', json=True)
         resp.raise_for_status()
 
         path = '/unhandled-%s' % time.time()
