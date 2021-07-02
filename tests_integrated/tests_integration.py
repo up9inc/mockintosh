@@ -565,7 +565,7 @@ class IntegrationTests(unittest.TestCase):
         resp = httpx.post(SRV1 + '/__admin/unhandled', json=False)
         resp.raise_for_status()
 
-        resp = httpx.delete(SRV1 + '/__admin/unhandled')
+        resp = httpx.delete(MGMT + '/unhandled', verify=False)
         resp.raise_for_status()
 
         path = '/unhandled-%s' % time.time()
