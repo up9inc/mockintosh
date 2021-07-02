@@ -161,7 +161,8 @@ class ConfigRootBuilder:
             body=self.build_config_external_file_path(data.get('body', None), service=service),
             use_templating=data.get('useTemplating', True),
             templating_engine=data.get('templatingEngine', PYBARS),
-            tag=data.get('tag', None)
+            tag=data.get('tag', None),
+            trigger_async_producer=data.get('triggerAsyncProducer', None)
         )
 
     def build_config_multi_response(self, data: List[Union[dict, str]], service: ConfigService) -> ConfigMultiResponse:
