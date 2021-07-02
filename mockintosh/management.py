@@ -351,8 +351,9 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
                 if rule.target == GenericHandler:
                     if rule.target_kwargs['unhandled_data']:
                         unhandled_data_enabled = True
-                    break_parent = True
-                    break
+                    if unhandled_data_enabled:
+                        break_parent = True
+                        break
 
         self.set_header('x-%s-unhandled-data' % PROGRAM.lower(), 'true' if unhandled_data_enabled else 'false')
 
