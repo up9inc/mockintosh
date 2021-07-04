@@ -134,28 +134,19 @@
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
 
-
 # Next Version
 
 - Add `amqpProperties` option for async
 - trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
 - add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+- MQTT support for async services
 
 ---
-- Better way to support GraphQL
-
-- Nicer logging of requests, with special option to enable it.
-- Nicer formatted error pages for known errors, explaining the problem
-
-- Tornado has auto-multicpu startup mode, use it optionally with CLI arg/env var
-- test the performance of ourself and optimize it
-
 
 # Roadmap Ideas
 
 ## Async Mock Actors
 
-- mqtt for async servers
 - avro/grpc/binary/str problem in Kafka
 - what to do with binary headers in Kafka? data-url prefix?
 - interceptors to access kafka comms
@@ -173,12 +164,21 @@
 
 ## Other
 
+- Better way to support GraphQL
+
+- Nicer logging of requests, with special option to enable it.
+- Nicer formatted error pages for known errors, explaining the problem
+
+- Tornado has auto-multicpu startup mode, use it optionally with CLI arg/env var
+- test the performance of ourself and optimize it
+
+
 - make cloud dependencies optional, have second docker image and instructions how to enable cloud features
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
   matching logic
-  
+
 - mocks for gRPC servers?
 
 - gatsby-style approach to telemetry
