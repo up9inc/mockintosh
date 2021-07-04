@@ -48,12 +48,14 @@ class MqttConsumer(AsyncConsumer):
 class MqttConsumerGroup(AsyncConsumerGroup):
 
     def on_connect(self, client, userdata, flags, rc):
-        print("Connected with result code " + str(rc))
-
         client.subscribe(self.consumers[0].topic)
 
     def on_message(self, client, userdata, msg):
-        print(msg.topic + " " + str(msg.payload))
+        self.consume_message(
+            key=None,
+            value=_decoder(msg.payload),
+            headers={}
+        )
 
     def consume(self) -> None:
         host, port = self.consumers[0].actor.service.address.split(':')
@@ -64,7 +66,7 @@ class MqttConsumerGroup(AsyncConsumerGroup):
         while True:
             try:
                 client.connect(host, int(port), 60)
-                client.loop_start()
+                client.loop_forever()
             except ConnectionRefusedError:
                 if not connection_error_logged:
                     logging.warning('Couldn\'t establish a connection to MQTT instance at %s:%s', host, port)
