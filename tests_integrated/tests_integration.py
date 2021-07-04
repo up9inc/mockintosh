@@ -562,7 +562,7 @@ class IntegrationTests(unittest.TestCase):
 
     def test_unhandled(self):
         # testing disabled
-        resp = httpx.post(SRV1 + '/__admin/unhandled', json=False)
+        resp = httpx.post(MGMT + '/unhandled', json=False, verify=False)
         resp.raise_for_status()
 
         resp = httpx.delete(MGMT + '/unhandled', verify=False)
