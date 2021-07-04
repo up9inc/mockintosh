@@ -77,10 +77,8 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'gpubsub': [
-            'google-cloud-pubsub>=2.5.0'
-        ],
-        'amazonsqs': [
+        'cloud': [
+            'google-cloud-pubsub>=2.5.0',
             'boto3>=1.17.97'
         ],
         'dev': [
