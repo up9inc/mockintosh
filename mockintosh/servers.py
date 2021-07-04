@@ -325,8 +325,6 @@ class HttpServer:
         for http_path in http_path_list:
             path_methods.append((http_path.path, http_path.methods))
 
-        unhandled_enabled = True if (management_root is not None or self.definition.config_root.management is not None) else False
-
         endpoint_handlers.append(
             (
                 r'.*',
@@ -340,7 +338,7 @@ class HttpServer:
                     definition_engine=self.definition.template_engine,
                     rendering_queue=self.definition.rendering_queue,
                     interceptors=self.interceptors,
-                    unhandled_data=self.unhandled_data if unhandled_enabled else None,
+                    unhandled_data=None,
                     fallback_to=service.fallback_to,
                     tags=self.tags
                 )

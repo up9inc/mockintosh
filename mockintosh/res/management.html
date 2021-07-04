@@ -194,6 +194,11 @@
             height: 100%;
         }
 
+        #unhandled label {
+            margin-right: 1rem;
+            margin-left: 1rem;
+        }
+
         #async .card {
             margin-bottom: 1rem;
         }
@@ -318,7 +323,11 @@
             <div class="tab-data">
                 <div class="controls">
                     <span class="small text-muted">Below is the config template for requests that are missing in Mockintosh config:</span>
-                    <button class="btn btn-sm btn-primary pull-right">Refresh</button>
+                    <span class="pull-right">
+                        <label><input type="checkbox"> Enabled</label>
+                        <button class="btn btn-sm btn-primary">Refresh</button>
+                        <button class="btn btn-sm btn-info">Clear</button>
+                    </span>
                 </div>
 
                 <pre><code></code></pre>
@@ -763,8 +772,7 @@
                         }
                     }
                 }
-            }
-            else if (service.actors) {
+            } else if (service.actors) {
                 for (let e = 0; e < service.actors.length; e++) {
                     const actor = service.actors[e];
                     if (!actor.produce) continue;
@@ -891,11 +899,31 @@
             });
         });
 
-        $("#unhandled button").click(function () {
-            $.get("./unhandled?format=yaml").done(function (data) {
+        $("#unhandled input").change(function () {
+            $.post("./unhandled", JSON.stringify(this.checked)).fail(function () {
+                console.log("Failed")
+                $("#unhandled input").prop('checked', '')
+            }).done(function () {
+                $("#unhandled button").click();
+            });
+        });
+
+        $("#unhandled .btn-primary").click(function () {
+            $.get("./unhandled?format=yaml").done(function (data, statusText, request) {
                 useCodeHighlight($("#unhandled pre code"), data, 'yaml');
+                $("#unhandled input").prop('checked', request.getResponseHeader('x-mockintosh-unhandled-data') === 'true');
             });
         }).trigger('click');
+
+        $("#unhandled .btn-info").click(function () {
+            $.ajax({
+                url: './unhandled',
+                type: 'DELETE',
+                success: function (result) {
+                    $("#unhandled .btn-primary").click();
+                }
+            });
+        });
 
         $.getJSON('./oas').done(function (data) {
             const parent = $('#swagger-ui');

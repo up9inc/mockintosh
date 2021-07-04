@@ -67,11 +67,16 @@ You can reset these stats by issuing `DELETE` call on same path.
 
 ## Unhandled Requests
 
-If management API is enabled, Mockintosh will record all requests that are not found in configured endpoints. You can
+By defualt, unhandled requests data capture is disabled.
+
+If the unhandled requests data is enabled via `curl -X POST http://localhost:8000/unhandled -d 'true'`
+then Mockintosh will record all the requests that are not matched into the configured endpoints. You can
 get config prototype for these endpoints by querying `GET /unhandled` in management API.
 
 The `/unhandled` endpoint can return YAML format, when queried with `format` parameter `GET /unhandled?format=yaml`.
-`POST /unhandled` endpoint also supports YAML as the payload.
+
+You can disable the unhandled requests data with `curl -X POST http://localhost:8000/unhandled -d 'false'`
+whenever you want.
 
 ## OAS Serving
 

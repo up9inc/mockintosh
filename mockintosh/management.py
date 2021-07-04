@@ -28,6 +28,7 @@ from tornado.util import unicode_type
 from tornado.escape import utf8
 
 import mockintosh
+from mockintosh.constants import PROGRAM
 from mockintosh.config import (
     ConfigService,
     ConfigExternalFilePath
@@ -341,7 +342,39 @@ class ManagementUnhandledHandler(ManagementBaseHandler):
         if data['services'] and not self.validate(data):  # pragma: no cover
             return
 
+        unhandled_data_enabled = False
+        break_parent = False
+        for app in self.http_server._apps.apps:
+            if break_parent:
+                break
+            for rule in app.default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    if rule.target_kwargs['unhandled_data']:
+                        unhandled_data_enabled = True
+                    if unhandled_data_enabled:
+                        break_parent = True
+                        break
+
+        self.set_header('x-%s-unhandled-data' % PROGRAM.lower(), 'true' if unhandled_data_enabled else 'false')
+
         self.dump(data)
+
+    async def post(self):
+        data = self.get_query_argument('data', default=None)
+        if data is None:
+            data = self.request.body.decode()
+
+        unhandled_data = self.http_server.unhandled_data if data not in (None, False, 'false', 'False', 'None') else None
+
+        for app in self.http_server._apps.apps:
+            for rule in app.default_router.rules[0].target.rules:
+                if rule.target == GenericHandler:
+                    rule.target_kwargs['unhandled_data'] = unhandled_data
+
+        for service in AsyncService.services:
+            service.tags = data
+
+        self.set_status(204)
 
     async def delete(self):
         for i, _ in enumerate(self.http_server.unhandled_data.requests):
@@ -921,10 +954,34 @@ class ManagementServiceUnhandledHandler(ManagementUnhandledHandler):
         imaginary_config = copy.deepcopy(self.http_server.definition.data)
         imaginary_config['services'] = data['services']
 
+        unhandled_data_enabled = False
+        service = self.http_server.definition.services[self.service_id]
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                if rule.target_kwargs['unhandled_data']:
+                    unhandled_data_enabled = True
+                break
+
+        self.set_header('x-%s-unhandled-data' % PROGRAM.lower(), 'true' if unhandled_data_enabled else 'false')
+
         if not self.validate(imaginary_config):  # pragma: no cover
             return
 
         self.dump(data)
+
+    async def post(self):
+        data = self.get_query_argument('data', default=None)
+        if data is None:
+            data = self.request.body.decode()
+
+        unhandled_data = self.http_server.unhandled_data if data not in (None, False, 'false', 'False', 'None') else None
+        # `service` should always be an instance of `HttpService`
+        service = self.http_server.definition.services[self.service_id]
+        for rule in self.http_server._apps.apps[service.internal_http_service_id].default_router.rules[0].target.rules:
+            if rule.target == GenericHandler:
+                rule.target_kwargs['unhandled_data'] = unhandled_data
+
+        self.set_status(204)
 
     async def delete(self):
         for key, _ in self.http_server.unhandled_data.requests[self.service_id].items():
@@ -1051,7 +1108,7 @@ class ManagementAsyncProducersHandler(ManagementBaseHandler):
             producer = None
             actor_name = unquote(value)
             for service in AsyncService.services:
-                for actor_id, actor in enumerate(service.actors):
+                for actor in service.actors:
                     if actor.name == actor_name:
                         if actor.producer is None:  # pragma: no cover
                             continue

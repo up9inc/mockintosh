@@ -208,6 +208,10 @@ services:
         response: "{{val1}} {{val2}}"
       - path: "/qstr-multiparam3?prefix-{{data}}-suffix"
         response: "{{data}}"
+      - path: /trigger-async
+        response:
+          - triggerAsyncProducer: on-demand-1
+          - triggerAsyncProducer: reactive-1
 
   - name: Service with specified.host
     port: 8002
@@ -290,7 +294,8 @@ services:
           value: json / protobuf / avro # also allow validating schema for any type of it
           headers:
             hdr-name: value matcher
-      - consume:
+      - name: reactive-1
+        consume:
           queue: consume-trigger1
           group: optional consumer group
         delay: 10 # seconds after consume
