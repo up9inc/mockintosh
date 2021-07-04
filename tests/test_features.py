@@ -69,12 +69,14 @@ AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
 GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
 AMAZONSQS_ADDR = os.environ.get('AMAZONSQS_ADDR', 'http://x:x@localhost:9324#elasticmq')
+MQTT_ADDR = os.environ.get('MQTT_ADDR', 'localhost:1883')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
     'redis': REDIS_ADDR,
     'gpubsub': GPUBSUB_ADDR,
-    'amazonsqs': AMAZONSQS_ADDR
+    'amazonsqs': AMAZONSQS_ADDR,
+    'mqtt': MQTT_ADDR
 }
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}

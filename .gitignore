@@ -152,3 +152,7 @@ tests/configs/yaml/hbs/gpubsub/*
 # Amazon SQS
 tests/configs/yaml/hbs/amazonsqs
 tests/configs/yaml/hbs/amazonsqs/*
+
+# MQTT
+tests/configs/yaml/hbs/mqtt
+tests/configs/yaml/hbs/mqtt/*

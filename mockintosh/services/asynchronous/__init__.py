@@ -42,7 +42,8 @@ SERVICE_TYPES = {
     'amqp': 'AMQP',
     'redis': 'Redis',
     'gpubsub': 'Google Cloud Pub/Sub',
-    'amazonsqs': 'Amazon SQS'
+    'amazonsqs': 'Amazon SQS',
+    'mqtt': 'MQTT'
 }
 
 

@@ -22,7 +22,8 @@
             "activemq",
             "redis",
             "gpubsub",
-            "amazonsqs"
+            "amazonsqs",
+            "mqtt"
           ]
         },
         "actors": {

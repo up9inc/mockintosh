@@ -87,6 +87,14 @@ from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
     AmazonsqsProducerPayloadList,
     AmazonsqsProducerPayload
 )
+from mockintosh.services.asynchronous.mqtt import (  # noqa: F401
+    MqttService,
+    MqttActor,
+    MqttConsumer,
+    MqttProducer,
+    MqttProducerPayloadList,
+    MqttProducerPayload
+)
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     AsyncProducerListQueueMismatch
@@ -151,7 +159,20 @@ class Definition:
         validate(instance=self.data, schema=self.schema)
         logging.info('Configuration file is valid according to the JSON schema.')
 
-    def analyze(self, data: dict) -> Tuple[List[Union[HttpService, KafkaService, AmqpService]], ConfigRoot]:
+    def analyze(self, data: dict) -> Tuple[
+        List[
+            Union[
+                HttpService,
+                KafkaService,
+                AmqpService,
+                RedisService,
+                GpubsubService,
+                AmazonsqsService,
+                MqttService
+            ]
+        ],
+        ConfigRoot
+    ]:
         config_root_builder = ConfigRootBuilder()
         config_root = config_root_builder.build(data)
 

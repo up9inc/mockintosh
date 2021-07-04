@@ -164,7 +164,8 @@ copy-assets: copy-certs \
 	copy-amqp \
 	copy-redis \
 	copy-gpubsub \
-	copy-amazonsqs
+	copy-amazonsqs \
+	copy-mqtt
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -200,6 +201,10 @@ copy-amazonsqs:
 	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amazonsqs/ && \
 	python3 ./tests/assets_copy_kafka_to_amazonsqs.py
 
+copy-mqtt:
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/mqtt/ && \
+	python3 ./tests/assets_copy_kafka_to_mqtt.py
+
 up-asyncs: up-kafka up-rabbitmq up-redis up-gpubsub up-elasticmq
 
 up-kafka:
@@ -219,7 +224,10 @@ up-gpubsub:
 		messagebird/gcloud-pubsub-emulator:latest && \
 	sleep 2
 
-
 up-elasticmq:
 	docker run -d -it --rm --name elasticmq --net=host softwaremill/elasticmq:latest && \
+	sleep 2
+
+up-mosquitto:
+	docker run -it --rm --name mosquitto --net=host eclipse-mosquitto:latest && \
 	sleep 2

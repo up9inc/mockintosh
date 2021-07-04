@@ -79,6 +79,17 @@ from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
     _create_topic as amazonsqs_create_topic,
     build_single_payload_producer as amazonsqs_build_single_payload_producer
 )
+from mockintosh.services.asynchronous.mqtt import (  # noqa: F401
+    MqttService,
+    MqttActor,
+    MqttConsumer,
+    MqttConsumerGroup,
+    MqttProducer,
+    MqttProducerPayloadList,
+    MqttProducerPayload,
+    _create_topic as mqtt_create_topic,
+    build_single_payload_producer as mqtt_build_single_payload_producer
+)
 from utilities import (
     DefinitionMockForAsync,
     get_config_path,
@@ -97,12 +108,14 @@ AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
 GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
 AMAZONSQS_ADDR = os.environ.get('AMAZONSQS_ADDR', 'http://localhost:9324#elasticmq')
+MQTT_ADDR = os.environ.get('MQTT_ADDR', 'localhost:1883')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
     'redis': REDIS_ADDR,
     'gpubsub': GPUBSUB_ADDR,
-    'amazonsqs': AMAZONSQS_ADDR
+    'amazonsqs': AMAZONSQS_ADDR,
+    'mqtt': MQTT_ADDR
 }
 ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
