@@ -283,7 +283,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         definition_engine: str,
         rendering_queue: RenderingQueue,
         interceptors: list,
-        unhandled_data,
+        unhandled_data: None,
         fallback_to: Union[str, None],
         tags: list
     ) -> None:
@@ -1200,7 +1200,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
         http_verb = getattr(client, self.request.method.lower())
         try:
-            if self.request.method.upper() in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            if self.request.method.upper() in ('POST', 'PUT', 'PATCH'):
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT, data=data, files=files)
             else:
                 resp = await http_verb(url, headers=headers, timeout=FALLBACK_TO_TIMEOUT)
