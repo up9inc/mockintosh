@@ -9,5 +9,7 @@ COPY README.md .
 COPY mockintosh/ ./mockintosh/
 
 RUN pip3 install .
+RUN env
+RUN set
 
 ENTRYPOINT ["mockintosh"]

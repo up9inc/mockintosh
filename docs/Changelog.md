@@ -140,6 +140,7 @@
 - trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
 - add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
 - MQTT support for async services
+- make Google Pub/Sub and SQS dependencies optional, to minimize Docker image size
 
 ---
 
