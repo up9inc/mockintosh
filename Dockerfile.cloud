@@ -1,0 +1,3 @@
+FROM up9inc/mockintosh:latest
+
+RUN pip3 install .[cloud]
