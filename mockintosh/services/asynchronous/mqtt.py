@@ -13,6 +13,7 @@ from typing import (
 )
 
 import paho.mqtt.client as mqtt
+from paho.mqtt.publish import single
 
 from mockintosh.services.asynchronous import (
     AsyncConsumerProducerBase,
@@ -91,10 +92,8 @@ class MqttProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
         host, port = self.actor.service.address.split(':')
-        client = mqtt.Client()
         try:
-            client.connect(host, int(port), 60)
-            client.publish(self.topic, value)
+            single(self.topic, payload=value, hostname=host, port=int(port))
         except ConnectionRefusedError:
             logging.warning('Couldn\'t establish a connection to MQTT instance at %s:%s', host, port)
             raise

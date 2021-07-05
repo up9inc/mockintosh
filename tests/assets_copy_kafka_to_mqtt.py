@@ -23,11 +23,8 @@ data['services'][0]['address'] = "{{env 'MQTT_ADDR' 'localhost:1883'}}"
 data['services'][0]['actors'][9]['produce']['headers']['counter'] = "{{counter 'mqttCounter'}}"
 data['services'][0]['actors'][4]['produce']['value'] = "value5 and {{consumed.value}}"
 
-data['services'][2]['type'] = 'mqtt'
-data['services'][2]['address'] = 'localhost:5673'
-
-data['services'][3]['type'] = 'mqtt'
-data['services'][3]['address'] = 'localhost:5674'
+data['services'].pop()
+data['services'].pop()
 
 remove_a_key(data, 'key')
 remove_a_key(data, 'headers')
