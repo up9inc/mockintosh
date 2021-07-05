@@ -1,5 +1,8 @@
 FROM python:slim
 
+ARG IMAGE_NAME
+ENV IMAGE_NAME $IMAGE_NAME
+
 WORKDIR /usr/src/mockintosh
 
 COPY requirements.txt .
