@@ -13,8 +13,16 @@ from mockintosh.services.asynchronous import AsyncService, AsyncConsumerGroup
 from mockintosh.services.asynchronous.kafka import KafkaConsumerGroup  # noqa: F401
 from mockintosh.services.asynchronous.amqp import AmqpConsumerGroup  # noqa: F401
 from mockintosh.services.asynchronous.redis import RedisConsumerGroup  # noqa: F401
-from mockintosh.services.asynchronous.gpubsub import GpubsubConsumerGroup  # noqa: F401
-from mockintosh.services.asynchronous.amazonsqs import AmazonsqsConsumerGroup  # noqa: F401
+
+try:
+    from mockintosh.services.asynchronous.gpubsub import GpubsubConsumerGroup  # noqa: F401
+except ModuleNotFoundError:
+    pass
+
+try:
+    from mockintosh.services.asynchronous.amazonsqs import AmazonsqsConsumerGroup  # noqa: F401
+except ModuleNotFoundError:
+    pass
 
 
 def run_loops():
