@@ -24,3 +24,6 @@ JINJA_VARNAME_DICT = 'jinja_varname_dict'
 BASE64 = 'base64'
 
 LOGGING_LENGTH_LIMIT = int(environ.get('%s_LOGGING_LENGTH_LIMIT' % PROGRAM, 100))
+
+WARN_GPUBSUB_PACKAGE = 'google-cloud-pubsub Python package is not installed! (gpubsub)'
+WARN_AMAZONSQS_PACKAGE = 'boto3 Python package is not installed! (amazonsqs)'
