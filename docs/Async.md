@@ -434,7 +434,7 @@ to the Apache Kafka instance's hostname/IP and port.
 ### Advanced Message Queuing Protocol (AMQP)
 
 AMQP as an [OASIS](https://en.wikipedia.org/wiki/OASIS_(organization)) standard is a widely accepted protocol
-accross the asynchronous message queue software such as;
+accross the message broker software such as;
 
 -   [RabbitMQ](https://www.rabbitmq.com/)
 -   [Apache ActiveMQ](https://activemq.apache.org/)
@@ -588,3 +588,23 @@ Use the `address` below to establish a connection to local ElasticMQ instance:
 type: amazonsqs
 address: http://localhost:9324#elasticmq
 ```
+
+### The Message Queuing Telemetry Transport (MQTT)
+
+MQTT is an [OASIS](https://en.wikipedia.org/wiki/OASIS_(organization)) standard messaging protocol
+for the Internet of Things (IoT). Some of the most notable message brokers that supports MQTT are:
+
+- [Eclipse Mosquitto](https://mosquitto.org/)
+- [openHAB](https://www.openhab.org/)
+- [ejabberd](https://www.process-one.net/en/ejabberd/)
+- [Node-RED](https://nodered.org/)
+
+To be able to work with MQTT, these two fields should be specified in a service:
+
+```yaml
+type: mqtt
+address: localhost:1883
+```
+
+The `mqtt` value for the `type` field is a keyword and `<HOST>:<PORT>` configuration in the `address` field should match
+to the MQTT target hostname/IP and port.
