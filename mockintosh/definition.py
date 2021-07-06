@@ -176,8 +176,6 @@ class Definition:
                 KafkaService,
                 AmqpService,
                 RedisService,
-                GpubsubService,
-                AmazonsqsService,
                 MqttService
             ]
         ],
