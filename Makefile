@@ -9,6 +9,9 @@ install:
 install-dev:
 	pip3 install -e .[dev]
 
+install-cloud:
+	pip3 install -e .[cloud]
+
 test: test-style test-integration test-without-coverage
 
 test-fast: test-style test-without-coverage
@@ -96,13 +99,13 @@ test-redis-with-coverage: up-redis
 
 test-gpubsub: test-gpubsub-without-coverage
 
-test-gpubsub-without-coverage: up-gpubsub
+test-gpubsub-without-coverage: install-cloud up-gpubsub
 	PUBSUB_EMULATOR_HOST=localhost:8681 \
 	PUBSUB_PROJECT_ID=test-gpubsub \
 	pytest tests/test_features_async.py::TestAsyncGpubsub -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
-test-gpubsub-with-coverage: up-gpubsub
+test-gpubsub-with-coverage: install-cloud up-gpubsub
 	PUBSUB_EMULATOR_HOST=localhost:8681 \
 	PUBSUB_PROJECT_ID=test-gpubsub \
 	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
@@ -111,11 +114,11 @@ test-gpubsub-with-coverage: up-gpubsub
 
 test-amazonsqs: test-amazonsqs-without-coverage
 
-test-amazonsqs-without-coverage: up-elasticmq
+test-amazonsqs-without-coverage: install-cloud up-elasticmq
 	pytest tests/test_features_async.py::TestAsyncAmazonSQS -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
-test-amazonsqs-with-coverage: up-elasticmq
+test-amazonsqs-with-coverage: install-cloud up-elasticmq
 	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
 		tests/test_features_async.py::TestAsyncAmazonSQS -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers

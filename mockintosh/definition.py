@@ -20,7 +20,7 @@ from typing import (
 import yaml
 from jsonschema import validate
 
-from mockintosh.constants import PROGRAM
+from mockintosh.constants import PROGRAM, WARN_GPUBSUB_PACKAGE, WARN_AMAZONSQS_PACKAGE
 from mockintosh.builders import ConfigRootBuilder
 from mockintosh.helpers import _detect_engine, _urlsplit
 from mockintosh.config import (
@@ -71,22 +71,31 @@ from mockintosh.services.asynchronous.redis import (  # noqa: F401
     RedisProducerPayloadList,
     RedisProducerPayload
 )
-from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
-    GpubsubService,
-    GpubsubActor,
-    GpubsubConsumer,
-    GpubsubProducer,
-    GpubsubProducerPayloadList,
-    GpubsubProducerPayload
-)
-from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
-    AmazonsqsService,
-    AmazonsqsActor,
-    AmazonsqsConsumer,
-    AmazonsqsProducer,
-    AmazonsqsProducerPayloadList,
-    AmazonsqsProducerPayload
-)
+
+try:
+    from mockintosh.services.asynchronous.gpubsub import (  # noqa: F401
+        GpubsubService,
+        GpubsubActor,
+        GpubsubConsumer,
+        GpubsubProducer,
+        GpubsubProducerPayloadList,
+        GpubsubProducerPayload
+    )
+except ModuleNotFoundError:
+    pass
+
+try:
+    from mockintosh.services.asynchronous.amazonsqs import (  # noqa: F401
+        AmazonsqsService,
+        AmazonsqsActor,
+        AmazonsqsConsumer,
+        AmazonsqsProducer,
+        AmazonsqsProducerPayloadList,
+        AmazonsqsProducerPayload
+    )
+except ModuleNotFoundError:
+    pass
+
 from mockintosh.services.asynchronous.mqtt import (  # noqa: F401
     MqttService,
     MqttActor,
@@ -95,6 +104,7 @@ from mockintosh.services.asynchronous.mqtt import (  # noqa: F401
     MqttProducerPayloadList,
     MqttProducerPayload
 )
+
 from mockintosh.exceptions import (
     UnrecognizedConfigFileFormat,
     AsyncProducerListQueueMismatch
@@ -336,6 +346,19 @@ class Definition:
         self,
         service: ConfigAsyncService
     ):
+        if service.type == 'gpubsub':
+            try:
+                import mockintosh.services.asynchronous.gpubsub  # noqa: F401
+            except ModuleNotFoundError:
+                logging.error(WARN_GPUBSUB_PACKAGE)
+                raise
+        elif service.type == 'amazonsqs':
+            try:
+                import mockintosh.services.asynchronous.amazonsqs  # noqa: F401
+            except ModuleNotFoundError:
+                logging.error(WARN_AMAZONSQS_PACKAGE)
+                raise
+
         class_name_prefix = service.type.capitalize()
         async_service = getattr(sys.modules[__name__], '%sService' % class_name_prefix)(
             service.address,
