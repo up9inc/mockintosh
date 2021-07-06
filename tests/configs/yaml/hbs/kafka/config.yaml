@@ -70,7 +70,7 @@ services:
       value: value7
       headers:
         hdr7: val7
-    delay: 20
+    delay: 10
   - name: short-loop
     produce:
       queue: topic8

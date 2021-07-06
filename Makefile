@@ -51,13 +51,15 @@ test-asyncs: test-kafka \
 	test-amqp \
 	test-redis \
 	test-gpubsub \
-	test-amazonsqs
+	test-amazonsqs \
+	test-mqtt
 
 test-asyncs-with-coverage: test-kafka-with-coverage \
 	test-amqp-with-coverage \
 	test-redis-with-coverage \
 	test-gpubsub-with-coverage \
-	test-amazonsqs-with-coverage
+	test-amazonsqs-with-coverage \
+	test-mqtt-with-coverage
 
 test-kafka: test-kafka-without-coverage
 
@@ -121,6 +123,17 @@ test-amazonsqs-with-coverage: install-cloud up-elasticmq
 		tests/test_features_async.py::TestAsyncAmazonSQS -s -vv --log-level=DEBUG && \
 	${MAKE} stop-containers
 
+test-mqtt: test-mqtt-without-coverage
+
+test-mqtt-without-coverage: up-mosquitto
+	pytest tests/test_features_async.py::TestAsyncMQTT -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
+test-mqtt-with-coverage: up-mosquitto
+	COVERAGE_PROCESS_START=true coverage run --parallel -m pytest \
+		tests/test_features_async.py::TestAsyncMQTT -s -vv --log-level=DEBUG && \
+	${MAKE} stop-containers
+
 test-openapi-transpiler:
 	./tests/test-openapi-transpiler.sh
 
@@ -167,7 +180,8 @@ copy-assets: copy-certs \
 	copy-amqp \
 	copy-redis \
 	copy-gpubsub \
-	copy-amazonsqs
+	copy-amazonsqs \
+	copy-mqtt
 
 copy-certs:
 	cp tests_integrated/subdir/cert.pem tests/configs/json/hbs/management/cert.pem && \
@@ -203,6 +217,10 @@ copy-amazonsqs:
 	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/amazonsqs/ && \
 	python3 ./tests/assets_copy_kafka_to_amazonsqs.py
 
+copy-mqtt:
+	rsync -av tests/configs/yaml/hbs/kafka/ tests/configs/yaml/hbs/mqtt/ && \
+	python3 ./tests/assets_copy_kafka_to_mqtt.py
+
 up-asyncs: up-kafka up-rabbitmq up-redis up-gpubsub up-elasticmq
 
 up-kafka:
@@ -222,7 +240,10 @@ up-gpubsub:
 		messagebird/gcloud-pubsub-emulator:latest && \
 	sleep 2
 
-
 up-elasticmq:
 	docker run -d -it --rm --name elasticmq --net=host softwaremill/elasticmq:latest && \
+	sleep 2
+
+up-mosquitto:
+	docker run -d -it --rm --name mosquitto --net=host eclipse-mosquitto:latest && \
 	sleep 2

@@ -24,6 +24,8 @@ try:
 except ModuleNotFoundError:
     pass
 
+from mockintosh.services.asynchronous.mqtt import MqttConsumerGroup  # noqa: F401
+
 
 def run_loops():
     for service in AsyncService.services:

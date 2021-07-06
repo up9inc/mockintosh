@@ -89,6 +89,18 @@ try:
 except ModuleNotFoundError:
     warnings.warn(WARN_AMAZONSQS_PACKAGE)
 
+from mockintosh.services.asynchronous.mqtt import (  # noqa: F401
+    MqttService,
+    MqttActor,
+    MqttConsumer,
+    MqttConsumerGroup,
+    MqttProducer,
+    MqttProducerPayloadList,
+    MqttProducerPayload,
+    _create_topic as mqtt_create_topic,
+    build_single_payload_producer as mqtt_build_single_payload_producer
+)
+
 from utilities import (
     DefinitionMockForAsync,
     get_config_path,
@@ -107,12 +119,14 @@ AMQP_ADDR = os.environ.get('AMQP_ADDR', 'localhost:5672')
 REDIS_ADDR = os.environ.get('REDIS_ADDR', 'localhost:6379')
 GPUBSUB_ADDR = os.environ.get('GPUBSUB_ADDR', 'test-gpubsub@localhost:8681')
 AMAZONSQS_ADDR = os.environ.get('AMAZONSQS_ADDR', 'http://localhost:9324#elasticmq')
+MQTT_ADDR = os.environ.get('MQTT_ADDR', 'localhost:1883')
 ASYNC_ADDR = {
     'kafka': KAFKA_ADDR,
     'amqp': AMQP_ADDR,
     'redis': REDIS_ADDR,
     'gpubsub': GPUBSUB_ADDR,
-    'amazonsqs': AMAZONSQS_ADDR
+    'amazonsqs': AMAZONSQS_ADDR,
+    'mqtt': MQTT_ADDR
 }
 ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
 ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
@@ -195,7 +209,7 @@ class AsyncBase():
     def assert_consumer_log(self, data: dict, key: Union[str, None], value: str, headers: dict, invert: bool = False):
         global async_service_type
 
-        if async_service_type != 'redis' and key is not None:
+        if async_service_type not in ('redis', 'mqtt') and key is not None:
             criteria = any(any(header['name'] == 'X-%s-Message-Key' % PROGRAM.capitalize() and header['value'] == key for header in entry['response']['headers']) for entry in data['log']['entries'])
             if invert:
                 assert not criteria
@@ -207,7 +221,7 @@ class AsyncBase():
         else:
             assert criteria
 
-        if async_service_type != 'redis':
+        if async_service_type not in ('redis', 'mqtt'):
             for n, v in headers.items():
                 criteria = any(any(header['name'] == n.title() and header['value'] == v for header in entry['response']['headers']) for entry in data['log']['entries'])
                 if invert:
@@ -418,7 +432,7 @@ class AsyncBase():
         data = resp.json()
         consumers = data['consumers']
         assert consumers[0]['captured'] == 1
-        assert consumers[0]['consumedMessages'] == 2 if async_service_type != 'redis' else 3
+        assert consumers[0]['consumedMessages'] == 2 if async_service_type not in ('redis', 'mqtt') else 3
 
         job.kill()
 
@@ -601,7 +615,7 @@ class AsyncBase():
     def assert_post_async_produce(self, async_consumer, key, value, headers):
         global async_service_type
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(row[1] == value for row in async_consumer.log)
         else:
             assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
@@ -657,7 +671,7 @@ class AsyncBase():
     def assert_post_async_produce_by_actor_name(self, async_consumer, key, value, headers):
         global async_service_type
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(row[1] == value for row in async_consumer.log)
         else:
             assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
@@ -717,7 +731,7 @@ class AsyncBase():
     ):
         global async_service_type
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(
                 (row[1] == '%s and %s' % (
                     consumer_value,
@@ -820,7 +834,7 @@ class AsyncBase():
         global async_service_type
 
         for i in range(2):
-            if async_service_type == 'redis':
+            if async_service_type in ('redis', 'mqtt'):
                 assert any(
                     (row[1][0].isupper())
                     for row in async_consumer.log
@@ -1132,13 +1146,13 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s/topic1%s' % (async_service_type, netloc, '?key=key1' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s/topic1%s' % (async_service_type, netloc, '?key=key1' if async_service_type not in ('redis', 'mqtt') else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
         )
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
@@ -1161,7 +1175,7 @@ class AsyncBase():
                 for entry in entries
             )
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(
                 entry['request']['method'] == 'GET'
                 and  # noqa: W504, W503
@@ -1187,7 +1201,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s/topic3%s' % (async_service_type, netloc, '?key=key3' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s/topic3%s' % (async_service_type, netloc, '?key=key3' if async_service_type not in ('redis', 'mqtt') else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1205,7 +1219,7 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s/topic7%s' % (async_service_type, netloc, '?key=key7' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s/topic7%s' % (async_service_type, netloc, '?key=key7' if async_service_type not in ('redis', 'mqtt') else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
@@ -1214,13 +1228,13 @@ class AsyncBase():
         assert any(
             entry['request']['method'] == 'PUT'
             and  # noqa: W504, W503
-            entry['request']['url'] == '%s://%s/topic8%s' % (async_service_type, netloc, '?key=key8' if async_service_type != 'redis' else '')
+            entry['request']['url'] == '%s://%s/topic8%s' % (async_service_type, netloc, '?key=key8' if async_service_type not in ('redis', 'mqtt') else '')
             and  # noqa: W504, W503
             entry['response']['status'] == 202
             for entry in entries
         )
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(
                 entry['request']['method'] == 'PUT'
                 and  # noqa: W504, W503
@@ -1269,7 +1283,7 @@ class AsyncBase():
         assert data['services'][0]['endpoints'][0]['status_code_distribution'] == {'202': 1}
 
         assert data['services'][0]['endpoints'][1]['hint'] == 'GET topic2 - 1'
-        if async_service_type != 'redis':
+        if async_service_type not in ('redis', 'mqtt'):
             assert data['services'][0]['endpoints'][1]['request_counter'] == 2
             assert data['services'][0]['endpoints'][1]['status_code_distribution'] == {'200': 2}
         assert data['services'][0]['endpoints'][1]['avg_resp_time'] == 0
@@ -1333,7 +1347,7 @@ class AsyncBase():
         assert data['services'][1]['status_code_distribution'] == {}
         assert len(data['services'][1]['endpoints']) == 6
 
-        if async_service_type not in ('gpubsub', 'amazonsqs'):
+        if async_service_type not in ('gpubsub', 'amazonsqs', 'mqtt'):
             assert data['services'][2]['hint'] == '%s://localhost:%s' % (async_service_type, str(int(ASYNC_ADDR[async_service_type].split(':')[1]) + 1))
             assert data['services'][2]['request_counter'] == 0
             assert data['services'][2]['avg_resp_time'] == 0
@@ -1351,7 +1365,7 @@ class AsyncBase():
             'global-hdr2': 'globalval2'
         }
 
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert any(row[1] == value for row in async_consumer.log)
         else:
             assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
@@ -1379,7 +1393,7 @@ class AsyncBase():
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
 
-        if async_service_type != 'redis':
+        if async_service_type not in ('redis', 'mqtt'):
             del data['globals']['headers']['global-hdr1']
             data['globals']['headers']['global-hdrX'] = 'globalvalY'
             data['services'][0]['actors'][2]['produce']['key'] = 'key301'
@@ -1430,7 +1444,7 @@ class AsyncBase():
         assert 200 == resp.status_code
         assert resp.headers['Content-Type'] == 'application/json; charset=UTF-8'
         data = resp.json()
-        if async_service_type == 'redis':
+        if async_service_type in ('redis', 'mqtt'):
             assert data == {'files': ['dataset.json', 'image.png', 'value_schema.json', 'value_schema_error.json']}
         else:
             assert data == {'files': ['dataset.json', 'image.png', 'templates/example.txt', 'value_schema.json', 'value_schema_error.json']}
@@ -1562,6 +1576,16 @@ class TestAsyncAmazonSQS(AsyncBase):
         global async_service_type
 
         async_service_type = 'amazonsqs'
+        super().setup_class()
+
+
+class TestAsyncMQTT(AsyncBase):
+
+    @classmethod
+    def setup_class(cls):
+        global async_service_type
+
+        async_service_type = 'mqtt'
         super().setup_class()
 
 
