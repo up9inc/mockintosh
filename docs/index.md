@@ -1,39 +1,94 @@
 # Mockintosh
 
-## About
+You've just found a new way of mocking microservices!
 
-Mockintosh aims to provide usual HTTP mock service functionality with small resource footprint, making it friendly for
-microservice applications. You can have tens of mocks at once, inside moderate laptop or single Docker container. Also,
-we have some additional ideas on how to make mocks simple and useful.
+![Control Plane](https://i.ibb.co/zf0f1fS/Screenshot-from-2021-07-07-12-56-55.png)
+
+Here have some mocks:
+
+```yaml
+templatingEngine: Jinja2
+services:
+- name: Mock for Service1
+  hostname: localhost
+  port: 8001
+  managementRoot: __admin
+  endpoints:
+  - path: "/"
+    method: GET
+    response:
+      headers:
+        Content-Type: "text/html; charset=UTF-8"
+      body: "@templates/index.html.j2"
+  - path: "/users"
+    method: GET
+    response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
+      body: "@templates/users.json.j2"
+- name: Mock for Service2
+  hostname: service2.example.com
+  port: 8002
+  endpoints:
+  - path: "/companies"
+    method: POST
+    body:
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          address:
+            type: string
+        required:
+        - name
+        - address
+    response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
+      body: "@templates/company.json.j2"
+```
+
+Mockintosh is a mock server generator that's capable to generate **RESTful APIs** and communicate with **message queues**
+to either mimic **asyncronous** tasks or to simulate **microservice architectures** in a blink of an eye.
+
+The state-of-the-art mocking capabilities of Mockintosh enables software development teams to work
+**independently** while building and maintaining a **complicated** microservice architecture.
 
 Key features:
 
-- multiple services mocked by a single instance of Mockintosh
-- lenient [configuration syntax](Configuring.md)
-- request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
-- performance testing supported (with [datasets](Configuring.md#datasets) and low resource footprint)
-- [interceptors](#interceptors) support for unlimited customization
-- remote [management UI+API](Management.md)
+- Multiple services mocked by a single instance of Mockintosh
+- Lenient [configuration syntax](Configuring.md)
+- Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
+- Performance testing supported (with [datasets](Configuring.md#datasets) and low resource footprint)
+- [Interceptors](#interceptors) support for unlimited customization
+- Remote [management UI+API](Management.md)
 
-_Note: There is an [article on UP9 blog](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) explaining motivation behind Mockintosh project._
+_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh has born as a new way of mocking microservices._
 
 ## Quick Start
 
-```shell
-pip3 install mockintosh
-```
-
-If you have installed Mockintosh as Python package (requires Python 3.x+), start it with JSON/YAML configuration as an
-argument (consider [my_mocks.yaml](examples/my_mocks.yaml) as example):
+Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/):
 
 ```shell
-mockintosh my_mocks.yaml
+$ pip install mockintosh
 ```
+
+Once the installation complete, you can start Mockintosh with a JSON/YAML configuration as an
+argument, e.g. [example.yaml](examples/example.yaml):
+
+```shell
+$ mockintosh example.yaml
+```
+
+and you should be seeing a web page like this whenever you visit [localhost:8001](http://localhost:8001):
+
+![HTML Templating Example](https://i.ibb.co/PcjBNGF/Screenshot-from-2021-07-07-14-08-26.png)
 
 Alternatively, you can run Mockintosh as Docker container:
 
-```bash
-docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp up9inc/mockintosh /tmp/config.json
+```shell
+$ docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp up9inc/mockintosh /tmp/config.json
 ```
 
 Please note the `-p` flag used to publish container's ports and `-v` to mount directory with config into container.
@@ -51,7 +106,7 @@ If you don't want to listen all of the services in a configuration file then you
 names (`name` is a string attribute you can set per service):
 
 ```shell
-mockintosh my_mocks.yaml 'Mock for Service1' 'Mock for Service2'
+$ mockintosh example.yaml 'Mock for Service1' 'Mock for Service2'
 ```
 
 Using `--quiet` and `--verbose` options the logging level can be changed.
@@ -114,15 +169,15 @@ def forbid_admin(req: Request, resp: Response):
 
 and you would specify such interceptor with a command like below:
 
-```bash
-mockintosh some_config.json --interceptor=mypackage.mymodule.forbid_admin
+```shell
+$ mockintosh some_config.json --interceptor=mypackage.mymodule.forbid_admin
 ```
 
 Instead of specifying a package name, you can alternatively set the `PYTHONPATH` environment variable to a directory
 that contains your interceptor modules like this:
 
-```bash
-PYTHONPATH=/some/dir mockintosh some_config.json --interceptor=mymodule.forbid_admin
+```shell
+$ PYTHONPATH=/some/dir mockintosh some_config.json --interceptor=mymodule.forbid_admin
 ```
 
 _Note: With interceptors, you can even omit `endpoints` section from the service config. You will still get all requests

@@ -1,9 +1,0 @@
-# simplistic example of Mockintosh configuration file
-
-services:
-  - name: Example Mock Service Config
-    port: 8001
-    managementRoot: __admin
-    endpoints:
-      - path: /
-        response: hello world

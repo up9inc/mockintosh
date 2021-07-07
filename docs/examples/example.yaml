@@ -1,0 +1,45 @@
+# An example of a configuration file that demonstrates
+# common features of Mockintosh.
+# Run:
+# $ mockintosh example.yaml
+
+templatingEngine: Jinja2
+services:
+- name: Mock for Service1
+  hostname: localhost
+  port: 8001
+  managementRoot: __admin
+  endpoints:
+  - path: "/"
+    method: GET
+    response:
+      headers:
+        Content-Type: "text/html; charset=UTF-8"
+      body: "@templates/index.html.j2"
+  - path: "/users"
+    method: GET
+    response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
+      body: "@templates/users.json.j2"
+- name: Mock for Service2
+  hostname: service2.example.com
+  port: 8002
+  endpoints:
+  - path: "/companies"
+    method: POST
+    body:
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          address:
+            type: string
+        required:
+        - name
+        - address
+    response:
+      headers:
+        Content-Type: "application/json; charset=UTF-8"
+      body: "@templates/company.json.j2"

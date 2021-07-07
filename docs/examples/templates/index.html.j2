@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<head>
+  <title>HTML Templating Example</title>
+  <style>
+    .color-box {
+      width: {{ random.int(25, 50) }}px;
+      height: {{ random.int(25, 50) }}px;
+      background-color: #fff;
+    }
+  </style>
+</head>
+<html>
+  <body>
+
+    <h2>HTML Templating Example</h2>
+
+    <p>Hello <b>{{ fake.first_name_nonbinary() }}</b>!</p>
+
+    <p>Today is <b>{{ date.date('%Y-%m-%d') }}</b>.</p>
+
+    <p>I'm a <b>{{ fake.job() | title }}</b> and my favorite color is: </p>
+
+    <div class="color-box" style="background-color: {{ fake.color() }};"></div>
+
+    <p>This is my cat <b>{{ fake.first_name_male() }}</b>:</p>
+
+    <img src="https://loremflickr.com/400/400/cat?random={{ fake.random_int(min=0, max=1000, step=1) }}" />
+
+    <p>and this is my house on <b>{{ fake.street_address() }} St., {{ fake.city() }}</b>:</p>
+
+    <img src="https://loremflickr.com/400/400/real-estate?random={{ fake.random_int(min=0, max=1000, step=1) }}" />
+
+  </body>
+</html>
