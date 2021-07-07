@@ -1,10 +1,25 @@
 # Mockintosh
 
+<p align="center">
+    <a href="https://github.com/up9inc/mockintosh/releases/latest">
+        <img alt="GitHub Latest Release" src="https://img.shields.io/github/v/release/up9inc/mockintosh?logo=GitHub&style=flat-square">
+    </a>
+    <a href="https://github.com/up9inc/mockintosh/blob/master/LICENSE">
+        <img alt="GitHub License" src="https://img.shields.io/github/license/up9inc/mockintosh?logo=GitHub&style=flat-square">
+    </a>
+    <a href="https://travis-ci.com/github/up9inc/mockintosh/builds/">
+        <img alt="Travis" src="https://img.shields.io/travis/up9inc/mockintosh?logo=Travis&style=flat-square">
+    </a>
+    <a href="https://codecov.io/gh/up9inc/mockintosh">
+        <img alt="Code Coverage (Codecov)" src="https://img.shields.io/codecov/c/github/up9inc/mockintosh?logo=Codecov&style=flat-square">
+    </a>
+</p>
+
 You've just found a new way of mocking microservices!
 
 ![Control Plane](https://i.ibb.co/zf0f1fS/Screenshot-from-2021-07-07-12-56-55.png)
 
-Here have some mocks:
+An example config that demonstrates the common features of Mockintosh:
 
 ```yaml
 templatingEngine: Jinja2
