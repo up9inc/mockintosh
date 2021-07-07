@@ -1,6 +1,5 @@
 # Mockintosh
 
-
 <p align="center">
     <a href="https://github.com/up9inc/mockintosh/releases/latest">
         <img alt="GitHub Latest Release" src="https://img.shields.io/github/v/release/up9inc/mockintosh?logo=GitHub&style=flat-square">
@@ -25,3 +24,24 @@ we have some additional ideas on how to make mocks simple and useful.
 
 Go to [official documentation site =>](https://mockintosh.io/)
 
+### Build the Docs
+
+Install [Jekyll](https://jekyllrb.com/) and [Bundler](https://bundler.io/):
+
+```shell
+$ gem install jekyll bundler
+```
+
+Install the gems:
+
+```shell
+$ cd docs/
+$ bundle config set --local path 'vendor/bundle'
+$ bundle install
+```
+
+Run the server:
+
+```shell
+$ bundle exec jekyll serve
+```
