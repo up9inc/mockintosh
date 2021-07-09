@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.11 - 2021-07-09
+
+- Add `amqpProperties` option for async
+- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
+- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
+- MQTT support for async services
+- make Google Pub/Sub and SQS dependencies optional, to minimize Docker image size
+
 ## v0.10 - 2021-06-22
 
 - Serve mocks from OpenAPI and Postman collections, also allow converting into config
@@ -136,11 +144,6 @@
 
 # Next Version
 
-- Add `amqpProperties` option for async
-- trigger async produce via HTTP endpoint response's `triggerAsyncProducer` option
-- add API toggle to enable unhandled requests capture. Otherwise, we get OOMed easily.
-- MQTT support for async services
-- make Google Pub/Sub and SQS dependencies optional, to minimize Docker image size
 
 ---
 
@@ -174,7 +177,6 @@
 - test the performance of ourself and optimize it
 
 
-- make cloud dependencies optional, have second docker image and instructions how to enable cloud features
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - add support of array/list parameters on query strings like
   `/service2q?a=b&a=c` or `/service2q?a[]=b&a[]=c` and form data with multiple values for the same key to the request
