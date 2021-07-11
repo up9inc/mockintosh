@@ -284,7 +284,7 @@ class Definition:
             http_body = None
             if endpoint.body is not None:
                 body_text_recognizer = BodyTextRecognizer(
-                    endpoint.body.text,
+                    endpoint.body.graphql_query if endpoint.body.graphql_query is not None else endpoint.body.text,
                     params,
                     context,
                     template_engine,
@@ -314,7 +314,8 @@ class Definition:
                     endpoint.body.schema,
                     text,
                     urlencoded,
-                    multipart
+                    multipart,
+                    is_grapql_query=True if endpoint.body.graphql_query is not None else False
                 )
 
             http_service.add_endpoint(

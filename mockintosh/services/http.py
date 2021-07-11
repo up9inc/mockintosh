@@ -14,6 +14,9 @@ from typing import (
     Union
 )
 
+from graphql import parse as graphql_parse
+from graphql.language.printer import print_ast as graphql_print_ast
+
 from mockintosh.config import (
     ConfigSchema,
     ConfigExternalFilePath,
@@ -30,12 +33,21 @@ class HttpBody:
         schema: Union[ConfigSchema, ConfigExternalFilePath, None],
         text: Union[str, None],
         urlencoded: Union[Dict[str, str], None],
-        multipart: Union[Dict[str, str], None]
+        multipart: Union[Dict[str, str], None],
+        is_grapql_query: bool = False
     ):
         self.schema = schema
         self.text = text
         self.urlencoded = urlencoded
         self.multipart = multipart
+        self.is_graphql_query = is_grapql_query
+        self.graphql_ast = None
+
+        if self.is_graphql_query:
+            json_data = json.loads(self.text)
+            self.graphql_ast = graphql_parse(json_data['query'])
+            json_data['query'] = graphql_print_ast(self.graphql_ast)
+            self.text = json.dumps(json_data)
 
     def oas(self, handler) -> Union[dict, None]:
         request_body = None
