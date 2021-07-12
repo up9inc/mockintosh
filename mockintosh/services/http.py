@@ -46,12 +46,12 @@ class HttpBody:
         self.graphql_ast = None
 
         if self.is_graphql_query:
-            json_data = json.loads(self.text)
-            self.graphql_ast = graphql_parse(json_data['query'])
+            self.graphql_ast = graphql_parse(self.text)
+            json_data = {}
             json_data['query'] = graphql_print_ast(self.graphql_ast)
             json_data['query'] = _graphql_undo_escapes(json_data['query'])
             self.text = json.dumps(json_data)
-            logging.debug('Rendered GraphQL:\n%s' % self.text)
+            logging.debug('Rendered GraphQL:\n%s' % json_data['query'])
 
     def oas(self, handler) -> Union[dict, None]:
         request_body = None
