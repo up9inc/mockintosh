@@ -33,6 +33,9 @@ from accept_types import parse_header
 from tornado.concurrent import Future
 from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
 from tornado import httputil
+from graphql import parse as graphql_parse
+from graphql.language.printer import print_ast as graphql_print_ast
+from graphql.language.parser import GraphQLSyntaxError
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -932,6 +935,17 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         fail = False
         if alternative.body.text is not None:
             value = alternative.body.text
+            if alternative.body.is_graphql_query:
+                json_data = json.loads(body)
+                # logging.debug('GraphQL original request:\n%s', json_data['query'])
+                try:
+                    graphql_ast = graphql_parse(json_data['query'])
+                    json_data['query'] = graphql_print_ast(graphql_ast)
+                except GraphQLSyntaxError as e:
+                    return True, 'GraphQL: %s' % (str(e))
+                body = json.dumps(json_data['query'])
+            # logging.debug('GraphQL parsed/unparsed request:\n%s', body)
+            # logging.debug('GraphQL regex:\n%s', value)
             if not body == value:
                 match = re.search(value, body)
                 if match is None:
