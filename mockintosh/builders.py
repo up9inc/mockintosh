@@ -182,7 +182,7 @@ class ConfigRootBuilder:
         return ConfigBody(
             schema=self.build_config_schema(data.get('schema', None), service=service),
             text=data.get('text', None),
-            graphql_query=data.get('graphql-query', None),
+            graphql_query=self.build_config_external_file_path(data.get('graphql-query', None), service=service),
             urlencoded=data.get('urlencoded', None),
             multipart=data.get('multipart', None),
         )

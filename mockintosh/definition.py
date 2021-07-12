@@ -6,6 +6,7 @@
     :synopsis: module that contains a class that encompasses the properties of the configuration file and maps it.
 """
 
+import os
 import sys
 import logging
 from collections import OrderedDict
@@ -28,7 +29,8 @@ from mockintosh.config import (
     ConfigHttpService,
     ConfigAsyncService,
     ConfigMultiProduce,
-    ConfigGlobals
+    ConfigGlobals,
+    ConfigExternalFilePath
 )
 from mockintosh.recognizers import (
     PathRecognizer,
@@ -283,7 +285,16 @@ class Definition:
 
             http_body = None
             if endpoint.body is not None:
-                graphql_query = None if endpoint.body.graphql_query is None else _graphql_escape_templating(endpoint.body.graphql_query)
+                graphql_query = None if endpoint.body.graphql_query is None else endpoint.body.graphql_query
+
+                if isinstance(graphql_query, ConfigExternalFilePath):
+                    external_path = self.resolve_relative_path('GraphQL', graphql_query.path)
+                    with open(external_path, 'r') as file:
+                        logging.debug('Reading external file from path: %s', external_path)
+                        graphql_query = file.read()
+
+                graphql_query = _graphql_escape_templating(graphql_query)
+
                 body_text_recognizer = BodyTextRecognizer(
                     graphql_query if graphql_query is not None else endpoint.body.text,
                     params,
@@ -470,3 +481,19 @@ class Definition:
             async_actor.dataset_looped = actor.dataset_looped
 
         return async_service
+
+    def resolve_relative_path(self, document_type, source_text):
+        relative_path = None
+        orig_relative_path = source_text[1:]
+
+        error_msg = 'External %s document %r couldn\'t be accessed or found!' % (document_type, orig_relative_path)
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        relative_path = os.path.join(self.source_dir, orig_relative_path)
+        if not os.path.isfile(relative_path):
+            raise Exception(error_msg)
+        relative_path = os.path.abspath(relative_path)
+        if not relative_path.startswith(self.source_dir):
+            raise Exception(error_msg)
+
+        return relative_path

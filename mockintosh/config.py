@@ -315,7 +315,7 @@ class ConfigBody:
         self,
         schema: ConfigSchema = None,
         text: Union[str, None] = None,
-        graphql_query: Union[str, None] = None,
+        graphql_query: Union[str, ConfigExternalFilePath, None] = None,
         urlencoded: Dict[str, str] = None,
         multipart: Dict[str, str] = None
     ):
