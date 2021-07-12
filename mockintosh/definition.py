@@ -283,9 +283,7 @@ class Definition:
 
             http_body = None
             if endpoint.body is not None:
-                print('Original:\n%s' % endpoint.body.graphql_query)
                 graphql_query = None if endpoint.body.graphql_query is None else _graphql_escape_templating(endpoint.body.graphql_query)
-                print('Escaped:\n%s' % graphql_query)
                 body_text_recognizer = BodyTextRecognizer(
                     graphql_query if graphql_query is not None else endpoint.body.text,
                     params,

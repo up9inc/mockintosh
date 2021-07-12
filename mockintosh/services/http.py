@@ -7,6 +7,7 @@
 """
 
 import json
+import logging
 from os import environ
 from collections import OrderedDict
 from typing import (
@@ -50,6 +51,7 @@ class HttpBody:
             json_data['query'] = graphql_print_ast(self.graphql_ast)
             json_data['query'] = _graphql_undo_escapes(json_data['query'])
             self.text = json.dumps(json_data)
+            logging.debug('Rendered GraphQL:\n%s' % self.text)
 
     def oas(self, handler) -> Union[dict, None]:
         request_body = None

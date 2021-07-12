@@ -157,9 +157,7 @@ def _delay(seconds: int) -> None:
 
 
 def _graphql_escape_templating(text: str) -> str:
-    text = re.sub(r'(?<!\")({{)', '\\"%s_REMOVE_ME_AFTERWARDS{{' % PROGRAM.upper(), text)
-    # text = re.sub(r'(}})(?!\")', '}}%s_REMOVE_ME_AFTERWARDS"' % PROGRAM.upper(), text)
-    text = re.sub(r'(}})(?!\\\")', '}}%s_REMOVE_ME_AFTERWARDS\\"' % PROGRAM.upper(), text)
+    text = re.sub(r'(?<!\")({{[^{}]*}})', r'\\"%s_REMOVE_ME_AFTERWARDS\1%s_REMOVE_ME_AFTERWARDS\\"' % (PROGRAM.upper(), PROGRAM.upper()), text)
     return text
 
 
