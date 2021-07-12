@@ -20,7 +20,7 @@ from typing import (
     Union
 )
 
-from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
 
 def _safe_path_split(path: str) -> list:
@@ -154,3 +154,16 @@ def _urlsplit(url: str, scheme: str = '', allow_fragments: bool = True):
 def _delay(seconds: int) -> None:
     logging.debug('Sleeping for %d seconds.', seconds)
     time.sleep(seconds)
+
+
+def _graphql_escape_templating(text: str) -> str:
+    text = re.sub(r'(?<!\")({{)', '\\"%s_REMOVE_ME_AFTERWARDS{{' % PROGRAM.upper(), text)
+    # text = re.sub(r'(}})(?!\")', '}}%s_REMOVE_ME_AFTERWARDS"' % PROGRAM.upper(), text)
+    text = re.sub(r'(}})(?!\\\")', '}}%s_REMOVE_ME_AFTERWARDS\\"' % PROGRAM.upper(), text)
+    return text
+
+
+def _graphql_undo_escapes(text: str) -> str:
+    text = text.replace('"%s_REMOVE_ME_AFTERWARDS' % PROGRAM.upper(), '')
+    text = text.replace('%s_REMOVE_ME_AFTERWARDS"' % PROGRAM.upper(), '')
+    return text

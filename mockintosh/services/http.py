@@ -17,6 +17,7 @@ from typing import (
 from graphql import parse as graphql_parse
 from graphql.language.printer import print_ast as graphql_print_ast
 
+from mockintosh.helpers import _graphql_undo_escapes
 from mockintosh.config import (
     ConfigSchema,
     ConfigExternalFilePath,
@@ -47,6 +48,7 @@ class HttpBody:
             json_data = json.loads(self.text)
             self.graphql_ast = graphql_parse(json_data['query'])
             json_data['query'] = graphql_print_ast(self.graphql_ast)
+            json_data['query'] = _graphql_undo_escapes(json_data['query'])
             self.text = json.dumps(json_data)
 
     def oas(self, handler) -> Union[dict, None]:

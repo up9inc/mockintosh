@@ -22,7 +22,7 @@ from jsonschema import validate
 
 from mockintosh.constants import PROGRAM, WARN_GPUBSUB_PACKAGE, WARN_AMAZONSQS_PACKAGE
 from mockintosh.builders import ConfigRootBuilder
-from mockintosh.helpers import _detect_engine, _urlsplit
+from mockintosh.helpers import _detect_engine, _urlsplit, _graphql_escape_templating
 from mockintosh.config import (
     ConfigRoot,
     ConfigHttpService,
@@ -283,8 +283,11 @@ class Definition:
 
             http_body = None
             if endpoint.body is not None:
+                print('Original:\n%s' % endpoint.body.graphql_query)
+                graphql_query = None if endpoint.body.graphql_query is None else _graphql_escape_templating(endpoint.body.graphql_query)
+                print('Escaped:\n%s' % graphql_query)
                 body_text_recognizer = BodyTextRecognizer(
-                    endpoint.body.graphql_query if endpoint.body.graphql_query is not None else endpoint.body.text,
+                    graphql_query if graphql_query is not None else endpoint.body.text,
                     params,
                     context,
                     template_engine,
@@ -315,7 +318,7 @@ class Definition:
                     text,
                     urlencoded,
                     multipart,
-                    is_grapql_query=True if endpoint.body.graphql_query is not None else False
+                    is_grapql_query=True if graphql_query is not None else False
                 )
 
             http_service.add_endpoint(
