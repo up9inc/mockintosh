@@ -937,15 +937,16 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             value = alternative.body.text
             if alternative.body.is_graphql_query:
                 json_data = json.loads(body)
-                # logging.debug('GraphQL original request:\n%s', json_data['query'])
+                logging.debug('GraphQL original request:\n%s', json_data['query'])
                 try:
                     graphql_ast = graphql_parse(json_data['query'])
                     json_data['query'] = graphql_print_ast(graphql_ast)
+                    logging.debug('GraphQL parsed/unparsed request:\n%s', json_data['query'])
                 except GraphQLSyntaxError as e:
                     return True, 'GraphQL: %s' % (str(e))
                 body = json.dumps(json_data['query'])
-            # logging.debug('GraphQL parsed/unparsed request:\n%s', body)
-            # logging.debug('GraphQL regex:\n%s', value)
+            logging.debug('GraphQL parsed/unparsed request JSON dump:\n%s', body)
+            logging.debug('GraphQL regex:\n%s', value)
             if not body == value:
                 match = re.search(value, body)
                 if match is None:

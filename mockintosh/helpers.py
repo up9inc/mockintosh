@@ -23,6 +23,38 @@ from typing import (
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
 
 
+class RegexEscapeBase(object):
+
+    matches = []
+    count = -1
+
+    def __call__(self, match):
+        RegexEscapeBase.matches.append(match)
+        RegexEscapeBase.count += 1
+
+
+class RegexEscape1(RegexEscapeBase):
+
+    def __call__(self, match):
+        super().__call__(match)
+        return '"%s_REMOVE_ME_AFTERWARDS%s_REGEX_BACKUP_%d%s_REMOVE_ME_AFTERWARDS"' % (
+            PROGRAM.upper(),
+            PROGRAM.upper(),
+            RegexEscapeBase.count,
+            PROGRAM.upper()
+        )
+
+
+class RegexEscape2(RegexEscapeBase):
+
+    def __call__(self, match):
+        super().__call__(match)
+        return '%s_REGEX_BACKUP_%d' % (
+            PROGRAM.upper(),
+            RegexEscapeBase.count
+        )
+
+
 def _safe_path_split(path: str) -> list:
     return re.split(r'/(?![^{{}}]*}})', path)
 
@@ -157,11 +189,18 @@ def _delay(seconds: int) -> None:
 
 
 def _graphql_escape_templating(text: str) -> str:
-    text = re.sub(r'(?<!\")({{[^{}]*}})', r'"%s_REMOVE_ME_AFTERWARDS\1%s_REMOVE_ME_AFTERWARDS"' % (PROGRAM.upper(), PROGRAM.upper()), text)
+    text = re.sub(r'(?<!\")({{[^{}]*}})', RegexEscape1(), text)
+    text = re.sub(r'({{[^{}]*}})', RegexEscape2(), text)
     return text
 
 
 def _graphql_undo_escapes(text: str) -> str:
     text = text.replace('"%s_REMOVE_ME_AFTERWARDS' % PROGRAM.upper(), '')
     text = text.replace('%s_REMOVE_ME_AFTERWARDS"' % PROGRAM.upper(), '')
+    logging.debug('Before re.escape:\n%s', text)
+    text = re.escape(text)
+    logging.debug('After re.escape:\n%s', text)
+    for i, match in enumerate(RegexEscapeBase.matches):
+        logging.debug('Replacing %s with %s', '%s_REGEX_BACKUP_%d' % (PROGRAM.upper(), i), match.group())
+        text = text.replace('%s_REGEX_BACKUP_%d' % (PROGRAM.upper(), i), match.group())
     return text
