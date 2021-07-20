@@ -17,7 +17,7 @@ from mockintosh.config import (
 )
 
 
-class TestHelpers():
+class TestHelpers:
 
     def test_urlsplit(self):
         scheme, netloc, path, query, fragment = _urlsplit('https://example.com/path/resource.txt?a=b&c=d#fragment')

@@ -7,15 +7,13 @@
 """
 
 import json
-import logging
-from os import environ
 from collections import OrderedDict
+from os import environ
 from typing import (
     Dict,
     Union
 )
 
-from mockintosh.helpers import _graphql_undo_escapes
 from mockintosh.config import (
     ConfigSchema,
     ConfigExternalFilePath,
