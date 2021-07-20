@@ -691,8 +691,11 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
                 match = re.search(value['regex'], match_string)
                 if match is not None:
-                    for i, key in enumerate(value['args']):
-                        self.custom_context[key] = match.group(i + 1)
+                    try:
+                        for i, key in enumerate(value['args']):
+                            self.custom_context[key] = match.group(i + 1)
+                    except IndexError:  # Added after GraphQL
+                        pass
 
     def determine_headers(self) -> None:
         """Method to determine the headers of the response."""
@@ -772,7 +775,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 # Text
                 fail, reason = self.match_alternative_body_text(body, alternative)
                 if fail:
-                    break
+                    continue
 
                 # Urlencoded
                 fail, reason = self.match_alternative_body_urlencoded(body, alternative)
@@ -943,11 +946,10 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 logging.debug('GraphQL original request:\n%s', json_data['query'])
                 try:
                     graphql_ast = graphql_parse(json_data['query'])
-                    json_data['query'] = graphql_print_ast(graphql_ast)
-                    logging.debug('GraphQL parsed/unparsed request:\n%s', json_data['query'])
+                    body = graphql_print_ast(graphql_ast)
+                    logging.debug('GraphQL parsed/unparsed request:\n%s', body)
                 except GraphQLSyntaxError as e:
                     return True, 'GraphQL: %s' % (str(e))
-                body = json.dumps(json_data['query'])
             logging.debug('GraphQL parsed/unparsed request JSON dump:\n%s', body)
             logging.debug('GraphQL regex:\n%s', value)
             if not body == value:

@@ -8,7 +8,6 @@
 
 import os
 import sys
-import json
 import logging
 from collections import OrderedDict
 from os import path, environ
@@ -302,12 +301,10 @@ class Definition:
                 if graphql_query is not None:
                     graphql_query = _graphql_escape_templating(graphql_query)
                     logging.debug('Before GraphQL parse/unparse:\n%s', graphql_query)
-                    json_data = {}
                     graphql_ast = graphql_parse(graphql_query)
-                    json_data['query'] = graphql_print_ast(graphql_ast)
-                    logging.debug('After GraphQL parse/unparse:\n%s', json_data['query'])
-                    json_data['query'] = _graphql_undo_escapes(json_data['query'])
-                    graphql_query = json.dumps(json_data['query'])
+                    graphql_query = graphql_print_ast(graphql_ast).strip()
+                    logging.debug('After GraphQL parse/unparse:\n%s', graphql_query)
+                    graphql_query = _graphql_undo_escapes(graphql_query)
                     logging.debug('Rendered GraphQL:\n%s', graphql_query)
 
                 body_text_recognizer = BodyTextRecognizer(
