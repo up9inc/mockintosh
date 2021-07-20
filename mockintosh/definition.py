@@ -21,6 +21,7 @@ from typing import (
 
 import yaml
 from jsonschema import validate
+import graphql
 from graphql import parse as graphql_parse
 from graphql.language.printer import print_ast as graphql_print_ast
 
@@ -117,6 +118,8 @@ from mockintosh.exceptions import (
 from mockintosh.templating import RenderingQueue
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
+
+graphql.language.printer.MAX_LINE_LENGTH = float('-inf')
 
 stats = Stats()
 logs = Logs()

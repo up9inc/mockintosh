@@ -25,3 +25,29 @@ services:
             }
           }
         }
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp2.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: |
+        query HeroNameAndFriends {
+          hero(
+            where: {name:       {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
+          ) {
+            name
+            age
+          }
+        }
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp2.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: "@example.graphql"

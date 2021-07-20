@@ -33,6 +33,7 @@ from accept_types import parse_header
 from tornado.concurrent import Future
 from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
 from tornado import httputil
+import graphql
 from graphql import parse as graphql_parse
 from graphql.language.printer import print_ast as graphql_print_ast
 from graphql.language.parser import GraphQLSyntaxError
@@ -99,6 +100,8 @@ IMAGE_EXTENSIONS = [
 
 FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
 CONTENT_TYPE = 'Content-Type'
+
+graphql.language.printer.MAX_LINE_LENGTH = float('-inf')
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
