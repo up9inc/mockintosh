@@ -101,7 +101,7 @@ IMAGE_EXTENSIONS = [
 FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
 CONTENT_TYPE = 'Content-Type'
 
-graphql.language.printer.MAX_LINE_LENGTH = float('-inf')
+graphql.language.printer.MAX_LINE_LENGTH = -1
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()

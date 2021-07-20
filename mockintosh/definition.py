@@ -119,7 +119,7 @@ from mockintosh.templating import RenderingQueue
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
 
-graphql.language.printer.MAX_LINE_LENGTH = float('-inf')
+graphql.language.printer.MAX_LINE_LENGTH = -1
 
 stats = Stats()
 logs = Logs()
