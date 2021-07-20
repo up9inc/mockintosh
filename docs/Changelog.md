@@ -13,7 +13,6 @@
 - Serve mocks from OpenAPI and Postman collections, also allow converting into config
 - AMQP protocol support (RabbitMQ, ActiveMQ and others)
 - Google PubSub support
-- Google PubSub support
 - Redis Queues support
 - fix the bug with traffic log not working after certain mgmt requests
 
