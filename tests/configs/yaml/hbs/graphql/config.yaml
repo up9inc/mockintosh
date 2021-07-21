@@ -46,8 +46,28 @@ services:
     response:
       headers:
         Content-Type: application/json
-      body: '@templates/resp2.json.hbs'
+      body: '@templates/resp3.json.hbs'
       useTemplating: true
     method: post
     body:
       graphql-query: "@example.graphql"
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp4.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: |
+        query HeroNameAndFriends {
+          hero(
+            where: {name:       {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+          ) {
+            name
+            city
+          }
+        }
+      graphql-variables:
+        var1: val1
+        var2: "{{regEx '\\d'}}"

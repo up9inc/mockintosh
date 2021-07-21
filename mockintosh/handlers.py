@@ -781,7 +781,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 if error:
                     return
                 elif fail:
-                    break
+                    continue
 
                 # Text
                 fail, reason = self.match_alternative_body_text(body, alternative)
@@ -795,6 +795,11 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
                 # Multipart
                 fail, reason = self.match_alternative_body_multipart(body, alternative)
+                if fail:
+                    continue
+
+                # GraphQL Variables
+                fail, reason = self.match_alternative_body_graphql_variables(body, alternative)
                 if fail:
                     continue
 
@@ -1020,6 +1025,38 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     fail = True
                     reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
                         multipart_argument,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_body_graphql_variables(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.graphql_variables:
+            for key, value in alternative.body.graphql_variables.items():
+                json_data = json.loads(body)
+                if 'variables' not in json_data:
+                    fail = True
+                    reason = '`variables` JSON field does not exist in the request body!'
+                    break
+                graphql_variables = json_data['variables']
+                if key not in graphql_variables:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Key %r couldn\'t found in the GraphQL variables!' % key
+                    break
+                graphql_variable_value = str(graphql_variables[key])
+                if value == graphql_variable_value:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, graphql_variable_value)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'GraphQL variable value %r on key %r does not match to regex: %s' % (
+                        graphql_variable_value,
                         key,
                         value
                     )

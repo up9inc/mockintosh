@@ -31,12 +31,14 @@ class HttpBody:
         text: Union[str, None],
         urlencoded: Union[Dict[str, str], None],
         multipart: Union[Dict[str, str], None],
+        graphql_variables: Union[Dict[str, str], None],
         is_grapql_query: bool = False
     ):
         self.schema = schema
         self.text = text
         self.urlencoded = urlencoded
         self.multipart = multipart
+        self.graphql_variables = graphql_variables
         self.is_graphql_query = is_grapql_query
 
     def oas(self, handler) -> Union[dict, None]:

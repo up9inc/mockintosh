@@ -19,6 +19,7 @@ from mockintosh.params import (
     BodyTextParam,
     BodyUrlencodedParam,
     BodyMultipartParam,
+    BodyGraphQLVariablesParam,
     AsyncValueParam,
     AsyncKeyParam,
     AsyncHeadersParam,
@@ -114,6 +115,8 @@ class RecognizerBase:
                 param = BodyUrlencodedParam(key, var)
             elif self.scope == 'bodyMultipart':
                 param = BodyMultipartParam(key, var)
+            elif self.scope == 'graphqlVariables':
+                params = BodyGraphQLVariablesParam(key, var)
             self.params[var] = param
             if self.scope == 'path':
                 priority = 2
@@ -292,6 +295,19 @@ class BodyMultipartRecognizer(RecognizerBase):
         rendering_queue: RenderingQueue
     ):
         super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'bodyMultipart')
+
+
+class BodyGraphQLVariablesRecognizer(RecognizerBase):
+
+    def __init__(
+        self,
+        multipart: dict,
+        params: dict,
+        all_contexts: dict,
+        engine: str,
+        rendering_queue: RenderingQueue
+    ):
+        super().__init__(multipart, params, all_contexts, engine, rendering_queue, 'graphqlVariables')
 
 
 class AsyncProducerValueRecognizer(RecognizerBase):

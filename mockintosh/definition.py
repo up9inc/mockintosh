@@ -42,6 +42,7 @@ from mockintosh.recognizers import (
     BodyTextRecognizer,
     BodyUrlencodedRecognizer,
     BodyMultipartRecognizer,
+    BodyGraphQLVariablesRecognizer,
     AsyncProducerValueRecognizer,
     AsyncProducerKeyRecognizer,
     AsyncProducerHeadersRecognizer,
@@ -334,11 +335,21 @@ class Definition:
                 )
                 multipart = body_multipart_recognizer.recognize()
 
+                body_graphql_variables_recognizer = BodyGraphQLVariablesRecognizer(
+                    endpoint.body.graphql_variables,
+                    params,
+                    context,
+                    template_engine,
+                    rendering_queue
+                )
+                graphql_variables = body_graphql_variables_recognizer.recognize()
+
                 http_body = HttpBody(
                     endpoint.body.schema,
                     text,
                     urlencoded,
                     multipart,
+                    graphql_variables,
                     is_grapql_query=True if graphql_query is not None else False
                 )
 

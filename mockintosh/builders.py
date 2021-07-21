@@ -183,6 +183,7 @@ class ConfigRootBuilder:
             schema=self.build_config_schema(data.get('schema', None), service=service),
             text=data.get('text', None),
             graphql_query=self.build_config_external_file_path(data.get('graphql-query', None), service=service),
+            graphql_variables=data.get('graphql-variables', None),
             urlencoded=data.get('urlencoded', None),
             multipart=data.get('multipart', None),
         )
