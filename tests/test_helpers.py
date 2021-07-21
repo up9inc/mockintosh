@@ -94,8 +94,8 @@ def graphql_match(query, template):
     for k, v in mapper.matches.items():
         template = template.replace(k, v)
 
-    task = RenderingTask(PYBARS, template, inject_methods=[reg_ex], inject_objects={"scope": None, 'key': None})
-    template, context = task.render_handlebars()
+    template = template.replace("\\ ", " ")
+    template = template.replace("\\\n", "\n")
 
     logging.info("Template after render:\n%s", template)
 
@@ -153,5 +153,55 @@ class TestGraphQL(unittest.TestCase):
                     }
                 )
         }
+        """
+        self.assertTrue(graphql_match(query, template))
+
+    def test_3(self):
+        query = """
+              { 
+                      userIdentify: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
+                        identity(aliases: [{id: "435345", tag: "sometag", priority: 2}]) {
+                          identify {
+                            id
+                          }
+                        }
+                      }
+                     
+                      userEvents: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
+                        events(from: "2021-07-18T18:37:24.584Z") {
+                          id
+                          name
+                          time
+                          session_id
+                          view_id
+                          properties
+                        }
+                      }
+                     }
+                             """
+        template = """
+            {
+              userIdentify: user(user_id: "{{regEx '.*' 'str_1'}}") {
+                identity(aliases: [{
+                    id: "{{regEx '.*' 'str_2'}}", 
+                    tag: "{{regEx '.*' 'str_3'}}", 
+                    priority: {{regEx '.*' 'int_4'}}
+                    }]) {
+                  identify {
+                    id
+                  }
+                }
+              }
+              userEvents: user(user_id: "{{regEx '.*' 'str_5'}}") {
+                events(from: "{{regEx '.*' 'str_6'}}") {
+                  id
+                  name
+                  time
+                  session_id
+                  view_id
+                  properties
+                }
+              }
+            }
         """
         self.assertTrue(graphql_match(query, template))
