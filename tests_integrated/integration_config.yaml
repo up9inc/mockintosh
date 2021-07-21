@@ -287,3 +287,151 @@ services:
     endpoints:
       - path: /
         response: no fallback
+
+
+  - name: Kafka Mocks
+    type: kafka # amqp, redis
+    address: localhost:9092 # deployed address
+    actors:
+      # on-demand producer
+      - name: on-demand-1
+        produce:
+          queue: on-demand1
+          key: somekey or null
+          value: json ( protobuf / avro )
+          headers:
+            name: ondemand
+
+      # scheduled producer
+      - name: scheduled1
+        produce:
+          queue: scheduled-queue1
+          key: somekeyprefix-{{random.uuid4}}
+          value: scheduled-value {{counter 'insideScheduledKafka'}}
+          headers:
+            constant: justvalue
+            timestamp: '{{date.timestamp}}'
+        delay: 5 # seconds between producing
+        limit: 100 # produce up to N messages
+
+      # reactive producer
+      - name: trigger for reactive case testing
+        produce:
+          queue: consume-trigger1
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
+      - name: reactive-1
+        consume:
+          queue: consume-trigger1
+          group: optional consumer group
+        delay: 10 # seconds after consume
+        produce:
+          queue: produce-reaction1
+          key: somekey or null
+          value: "@subdir/kafka_payload1.txt"
+          headers:
+            name: '{{consumed.headers.hdr-name}}'
+
+      # validating consumer
+      - name: validating-consumer1
+        consume:
+          capture: 10  # limit len of messages to store for validation
+          queue: another-queue-name
+          key: matching keys
+          value: json / protobuf / avro # also allow validating schema for any type of it
+          headers:
+            hdr-name: value matcher
+
+  - name: Kafka Mocks Pt. 2 # making sure we can handle multiple
+    type: kafka
+    address: localhost:9092
+    actors:
+      - name: chain1-on-demand
+        produce:
+          queue: chain1-step1
+          value: "{{date.timestamp}}"
+      - name: chain1-reactive
+        consume:
+          queue: chain1-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          queue: chain1-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain1-validating
+        consume:
+          queue: chain1-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"
+
+      # couple of irrelevant message sources
+      - name: chain1-scheduled-noise1  # should be ignored by chain
+        produce:
+          queue: chain1-step1
+          value: "I'm a noise #1"
+        delay: 1
+        limit: 1000
+      - name: chain1-scheduled-noise2  # should be ignored by chain
+        produce:
+          queue: chain1-step2
+          value: "I'm a noise #2"
+          headers:
+            captured: "1234.567" # nasty one
+        delay: 1
+        limit: 1000
+
+  - name: RabbitMQ
+    type: amqp
+    address: localhost:5672
+    actors:
+      - name: chain2-on-demand
+        produce:
+          create: true
+          queue: chain2-step1
+          value: "{{date.timestamp}}"
+      - name: chain2-reactive
+        consume:
+          queue: chain2-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          create: true
+          queue: chain2-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain2-validating
+        consume:
+          queue: chain2-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"
+
+  - name: Redis
+    type: redis
+    address: localhost:6379
+    actors:
+      - name: chain3-on-demand
+        produce:
+          create: true
+          queue: chain3-step1
+          value: "{{date.timestamp}}"
+      - name: chain3-reactive
+        consume:
+          queue: chain3-step1
+          value: "{{regEx '\\d+' 'captured'}}"
+
+        produce:
+          create: true
+          queue: chain3-step2
+          value: "{{consumed.value}}"
+          headers:
+            captured-val: '{{captured}}'
+      - name: chain3-validating
+        consume:
+          queue: chain3-step2
+          headers:
+            captured-val: "{{regEx '\\d+'}}"
