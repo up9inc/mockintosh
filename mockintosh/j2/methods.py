@@ -6,6 +6,7 @@
     :synopsis: module that contains methods to be injected into Jinja2 template engine.
 """
 
+import re
 import random
 import string
 import os
@@ -35,7 +36,9 @@ def reg_ex(context, regex, *args, **kwargs):
             _jinja_add_varname(context, arg)
     else:
         if context['scope'] == 'bodyText':
-            regex = '(%s)' % regex
+            pattern = re.compile(regex)
+            if pattern.groups == 0:
+                regex = '(%s)' % regex
         _type = 'regex'
         _jinja_add_to_context(
             context,
