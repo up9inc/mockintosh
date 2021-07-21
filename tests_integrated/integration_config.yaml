@@ -268,7 +268,7 @@ services:
             }
           graphql-variables:
             var1: val1
-            var2: {{random.int 10 20}}
+            var2: "{{regEx '\\d'}}"
 
   - name: Service with specified.host
     port: 8002
