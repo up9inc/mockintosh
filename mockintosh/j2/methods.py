@@ -93,7 +93,7 @@ class Random():
         self.ascii = self._ascii
 
     def _int(self, minimum, maximum):
-        return random.randint(minimum, maximum)
+        return random.randint(int(minimum), int(maximum))
 
     def _float(self, minimum, maximum, precision):
         return round(random.uniform(float(minimum), float(maximum)), precision)

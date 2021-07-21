@@ -115,7 +115,7 @@ class TestGraphQL(unittest.TestCase):
                     where: {name: {_eq: "hello"}, _and: {age: {_gt: 3}}}
                 ) {
                     name
-                    age    
+                    age
                     friends {      name    }
             }
         }
@@ -127,7 +127,7 @@ class TestGraphQL(unittest.TestCase):
                     where: {name: {_eq: "{{regEx '.+'}}"}, _and: {age: {_gt: {{regEx '.+'}}}}}
                 ) {
                     name
-                    age    
+                    age
                     friends { name }
             }
         }
@@ -142,7 +142,7 @@ class TestGraphQL(unittest.TestCase):
         {
             hero(
                     where: {name: {_eq: "hello"}}
-                ) 
+                )
         }
         """
         template = """
@@ -151,7 +151,7 @@ class TestGraphQL(unittest.TestCase):
                     where: {
                         name: {_eq: "{{regEx '.+'}}"}
                     }
-                ) 
+                )
         }
         """
         self.assertTrue(graphql_match(query, template))

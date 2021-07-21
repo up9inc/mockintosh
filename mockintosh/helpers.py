@@ -83,7 +83,11 @@ def _handlebars_add_to_context(context: dict, scope: str, key: str, value) -> No
         context[SPECIAL_CONTEXT] = {}
     if scope not in context[SPECIAL_CONTEXT]:
         context[SPECIAL_CONTEXT][scope] = {}
-    context[SPECIAL_CONTEXT][scope][key] = value
+
+    if key in context[SPECIAL_CONTEXT][scope]:
+        context[SPECIAL_CONTEXT][scope][key]['args'] += value['args']
+    else:
+        context[SPECIAL_CONTEXT][scope][key] = value
 
 
 def _jinja_add_to_context(context: dict, scope: str, key: str, value) -> None:
@@ -91,7 +95,11 @@ def _jinja_add_to_context(context: dict, scope: str, key: str, value) -> None:
         context.environment.globals[SPECIAL_CONTEXT] = {}
     if scope not in context.environment.globals[SPECIAL_CONTEXT]:
         context.environment.globals[SPECIAL_CONTEXT][scope] = {}
-    context.environment.globals[SPECIAL_CONTEXT][scope][key] = value
+
+    if key in context.environment.globals[SPECIAL_CONTEXT][scope]:
+        context.environment.globals[SPECIAL_CONTEXT][scope][key]['args'] += value['args']
+    else:
+        context.environment.globals[SPECIAL_CONTEXT][scope][key] = value
 
 
 def _jinja_add_varname(context: dict, varname: str) -> None:

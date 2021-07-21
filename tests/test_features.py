@@ -3510,3 +3510,34 @@ class TestPerformanceProfile():
         for _ in range(50):
             status_code = profile.trigger(201)
             assert str(status_code) in faults or status_code == 201
+
+
+class TestGraphQL():
+
+    def setup_method(self):
+        self.mock_server_process = None
+
+    def teardown_method(self):
+        if self.mock_server_process is not None:
+            self.mock_server_process.terminate()
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/graphql/config.yaml'
+    ])
+    def test_generic(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        path = '/graphql'
+
+        resp = httpx.post(SRV_8001 + path, json={"query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    age\n    friends {\n      name\n    }\n    }\n}\n"})
+        assert 200 == resp.status_code
+        data = resp.json()
+        assert data['data']['hero']['name'] == 'hello'
+        assert 30 <= data['data']['hero']['age'] <= 50
+        assert 3 == len(data['data']['hero']['friends'])
+
+        resp = httpx.post(SRV_8001 + path, json={"query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    age\n     }\n}\n"})
+        assert 200 == resp.status_code
+        data = resp.json()
+        assert data['data']['hero']['name'] == 'hello brother'
+        assert 30 <= data['data']['hero']['age'] <= 50
+        assert 'friends' not in data['data']['hero']
