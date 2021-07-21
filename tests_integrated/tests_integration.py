@@ -915,7 +915,7 @@ class RESTTests(unittest.TestCase):
     def test_graphql(self):
         req = {
             "query": """
-                { 
+                {
                       userIdentify: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
                         identity(aliases: [{id: "435345", tag: "sometag", priority: 2}]) {
                           identify {
@@ -923,7 +923,7 @@ class RESTTests(unittest.TestCase):
                           }
                         }
                       }
-                     
+
                       userEvents: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
                         events(from: "2021-07-18T18:37:24.584Z") {
                           id

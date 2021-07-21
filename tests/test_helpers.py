@@ -161,7 +161,7 @@ class TestGraphQL(unittest.TestCase):
 
     def test_3(self):
         query = """
-              { 
+              {
                       userIdentify: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
                         identity(aliases: [{id: "435345", tag: "sometag", priority: 2}]) {
                           identify {
@@ -169,7 +169,7 @@ class TestGraphQL(unittest.TestCase):
                           }
                         }
                       }
-                     
+
                       userEvents: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
                         events(from: "2021-07-18T18:37:24.584Z") {
                           id
@@ -186,8 +186,8 @@ class TestGraphQL(unittest.TestCase):
             {
               userIdentify: user(user_id: "{{regEx '.*' 'str_1'}}") {
                 identity(aliases: [{
-                    id: "{{regEx '.*' 'str_2'}}", 
-                    tag: "{{regEx '.*' 'str_3'}}", 
+                    id: "{{regEx '.*' 'str_2'}}",
+                    tag: "{{regEx '.*' 'str_3'}}",
                     priority: {{regEx '.*' 'int_4'}}
                     }]) {
                   identify {
