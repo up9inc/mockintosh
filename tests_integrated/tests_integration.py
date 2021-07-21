@@ -940,6 +940,14 @@ class RESTTests(unittest.TestCase):
         resp = httpx.post(SRV1 + '/graphql', json=req)
         resp.raise_for_status()
 
+        req["variables"] = {"var1": "val1"}
+        resp = httpx.post(SRV1 + '/graphql', json=req)
+        self.assertEqual(400, resp.status_code)
+
+        req["variables"]["var2"] = 25
+        resp = httpx.post(SRV1 + '/graphql', json=req)
+        resp.raise_for_status()
+
 
 class AsyncTests(unittest.TestCase):
     @pytest.mark.kafka

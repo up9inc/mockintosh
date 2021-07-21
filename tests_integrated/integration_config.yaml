@@ -216,7 +216,7 @@ services:
         response:
           headers:
             Content-Type: application/json
-          body: '{}'
+          body: '"variant1"'
         method: post
         body:
           graphql-query: |
@@ -239,6 +239,36 @@ services:
                 }
               }
             }
+      - path: /graphql
+        response:
+          headers:
+            Content-Type: application/json
+          body: '"variant2"'
+        method: post
+        body:
+          graphql-query: |
+            {
+              userIdentify: user(user_id: "{{regEx '.*' 'str_1'}}") {
+                identity(aliases: [{id: "{{regEx '.*' 'str_2'}}", tag: "{{regEx '.*' 'str_3'}}", priority: {{regEx '.*' 'int_4'}}}]) {
+                  identify {
+                    id
+                  }
+                }
+              }
+              userEvents: user(user_id: "{{regEx '.*' 'str_5'}}") {
+                events(from: "{{regEx '.*' 'str_6'}}") {
+                  id
+                  name
+                  time
+                  session_id
+                  view_id
+                  properties
+                }
+              }
+            }
+          graphql-variables:
+            var1: val1
+            var2: {{random.int 10 20}}
 
   - name: Service with specified.host
     port: 8002
