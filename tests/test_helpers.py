@@ -97,6 +97,9 @@ def graphql_match(query, template):
     template = template.replace("\\ ", " ")
     template = template.replace("\\\n", "\n")
 
+    task = RenderingTask(PYBARS, template, inject_methods=[reg_ex], inject_objects={"scope": None, 'key': None})
+    template, context = task.render_handlebars()
+
     logging.info("Template after render:\n%s", template)
 
     return re.match(template, query)
