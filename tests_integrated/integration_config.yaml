@@ -216,7 +216,7 @@ services:
         response:
           headers:
             Content-Type: application/json
-          body: '@mock-data/resp_api_permutive_com_2.json'
+          body: '{}'
         method: post
         body:
           graphql-query: |
