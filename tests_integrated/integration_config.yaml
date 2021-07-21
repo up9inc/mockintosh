@@ -212,7 +212,7 @@ services:
         response:
           - triggerAsyncProducer: on-demand-1
           - triggerAsyncProducer: reactive-1
-      - path: /graphql
+      - path: /graphql1
         response:
           headers:
             Content-Type: application/json
@@ -239,7 +239,7 @@ services:
                 }
               }
             }
-      - path: /graphql
+      - path: /graphql2
         response:
           headers:
             Content-Type: application/json
