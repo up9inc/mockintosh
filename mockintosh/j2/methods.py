@@ -34,6 +34,8 @@ def reg_ex(context, regex, *args, **kwargs):
         for arg in args:
             _jinja_add_varname(context, arg)
     else:
+        if context['scope'] == 'bodyText':
+            regex = '(%s)' % regex
         _type = 'regex'
         _jinja_add_to_context(
             context,

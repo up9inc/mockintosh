@@ -34,6 +34,8 @@ def reg_ex(this, regex, *args, **kwargs):
         for arg in args:
             this.context[arg] = None
     else:
+        if this.context['scope'] == 'bodyText':
+            regex = '(%s)' % regex
         _type = 'regex'
         _handlebars_add_to_context(
             this.context,
