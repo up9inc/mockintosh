@@ -2,7 +2,7 @@
   "data": {
     "hero": {
       "name": "{{ name_eq }} brother",
-      "city": "{{ fake.address }}"
+      "city": "{{ replace ( fake.address ) old='\n' new='\\n' }}"
     }
   }
 }

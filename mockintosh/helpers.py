@@ -79,6 +79,9 @@ def _detect_engine(obj: Union[object, dict], context: str = 'config', default: s
 
 
 def _handlebars_add_to_context(context: dict, scope: str, key: str, value) -> None:
+    if scope == 'graphqlVariables':  # TODO: `graphqlVariables` is corrupting the context, investigate...
+        return
+
     if SPECIAL_CONTEXT not in context:
         context[SPECIAL_CONTEXT] = {}
     if scope not in context[SPECIAL_CONTEXT]:
@@ -91,6 +94,9 @@ def _handlebars_add_to_context(context: dict, scope: str, key: str, value) -> No
 
 
 def _jinja_add_to_context(context: dict, scope: str, key: str, value) -> None:
+    if scope == 'graphqlVariables':  # TODO: `graphqlVariables` is corrupting the context, investigate...
+        return
+
     if SPECIAL_CONTEXT not in context.environment.globals:
         context.environment.globals[SPECIAL_CONTEXT] = {}
     if scope not in context.environment.globals[SPECIAL_CONTEXT]:
