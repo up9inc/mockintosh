@@ -116,7 +116,7 @@ class RecognizerBase:
             elif self.scope == 'bodyMultipart':
                 param = BodyMultipartParam(key, var)
             elif self.scope == 'graphqlVariables':
-                params = BodyGraphQLVariablesParam(key, var)
+                param = BodyGraphQLVariablesParam(key, var)
             self.params[var] = param
             if self.scope == 'path':
                 priority = 2

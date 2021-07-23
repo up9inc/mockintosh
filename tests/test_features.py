@@ -3549,12 +3549,12 @@ class TestGraphQL():
         assert 'age' not in data['data']['hero']
 
         resp = httpx.post(SRV_8001 + path, json={
-	"query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    city\n     }\n}\n",
-	"variables": {
-		"var1": "val1",
-		"var2": 3
-	}
-})
+            "query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    city\n     }\n}\n",
+            "variables": {
+                "var1": "val1",
+                "var2": 3
+            }
+        })
         assert 200 == resp.status_code
         data = resp.json()
         assert data['data']['hero']['name'] == 'hello brother'
