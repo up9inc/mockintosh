@@ -37,10 +37,10 @@ class RegexEscape1(RegexEscapeBase):
 
     def __call__(self, match):
         super().__call__(match)
-        return '"%s_REMOVE_ME_AFTERWARDS%s_REGEX_BACKUP_%d%s_REMOVE_ME_AFTERWARDS"' % (
+        return '"%s_REMOVE_ME_AFTERWARDS%s_REGEX_BACKUP_%s%s_REMOVE_ME_AFTERWARDS"' % (
             PROGRAM.upper(),
             PROGRAM.upper(),
-            RegexEscapeBase.count,
+            str(RegexEscapeBase.count).zfill(7),
             PROGRAM.upper()
         )
 
@@ -49,9 +49,9 @@ class RegexEscape2(RegexEscapeBase):
 
     def __call__(self, match):
         super().__call__(match)
-        return '%s_REGEX_BACKUP_%d' % (
+        return '%s_REGEX_BACKUP_%s' % (
             PROGRAM.upper(),
-            RegexEscapeBase.count
+            str(RegexEscapeBase.count).zfill(7)
         )
 
 
@@ -203,6 +203,7 @@ def _delay(seconds: int) -> None:
 
 
 def _graphql_escape_templating(text: str) -> str:
+    RegexEscapeBase.count = -1
     text = re.sub(r'(?<!\")({{[^{}]*}})', RegexEscape1(), text)
     text = re.sub(r'({{[^{}]*}})', RegexEscape2(), text)
     return text
@@ -215,6 +216,6 @@ def _graphql_undo_escapes(text: str) -> str:
     text = re.escape(text)
     logging.debug('After re.escape:\n%s', text)
     for i, match in enumerate(RegexEscapeBase.matches):
-        logging.debug('Replacing %s with %s', '%s_REGEX_BACKUP_%d' % (PROGRAM.upper(), i), match.group())
-        text = text.replace('%s_REGEX_BACKUP_%d' % (PROGRAM.upper(), i), match.group())
+        logging.debug('Replacing %s with %s', '%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)), str(match.group()).zfill(7))
+        text = text.replace('%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)), str(match.group()).zfill(7))
     return text
