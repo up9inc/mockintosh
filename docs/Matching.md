@@ -213,6 +213,7 @@ There are several ways of matching request body: with `regEx` on `text` or with 
 for urlencoded and multipart request bodies.
 
 ### Multipart & URL-encoded
+
 To match request by urlencoded or multipart form POST, use `urlencoded` or `multipart` section under `body`. The content of that section is very much like [query string](#query-string) or headers matching by parameter name:
 
 ```yaml
@@ -236,6 +237,7 @@ To match request by urlencoded or multipart form POST, use `urlencoded` or `mult
 ```
 
 ### RegEx
+
 To match request body text using `regEx`, just do it like this:
 
 ```yaml
@@ -252,6 +254,7 @@ To match request body text using `regEx`, just do it like this:
 _Note: you can use familiar `regEx` named value capturing for body, as usual._
 
 ### JSONSchema
+
 To do the match against [JSON Schema](https://json-schema.org/), please consider this example:
 
 ```yaml
@@ -304,4 +307,157 @@ services:
         method: POST
         body:
           schema: "@path/to/schema.json"
+```
+
+### GraphQL
+
+The `body` field can also be used to match incoming GraphQL requests.
+
+#### `graphql-query` field
+
+To do that, the `graphql-query` field should be defined under the `body` field:
+
+```yaml
+{% raw %}services:
+  - name: Mock for Service1
+    port: 8001
+    endpoints:
+      - path: "/endpoint1"
+        method: POST
+        response:
+          headers:
+            Content-Type: application/json
+          body: '@templates/resp1.json.hbs'
+          useTemplating: true
+        body:
+          graphql-query: |
+            query HeroNameAndFriends {
+              hero(
+                where: {name: {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+              ) {
+                name
+                age
+                friends {
+                  name
+                }
+              }
+            }{% endraw %}
+```
+
+The `graphql-query` contains the template for regex generation. So it translates into the regex below:
+
+```
+query\ HeroNameAndFriends\ \{\
+\ \ hero\(\
+\ \ \ \ where:\ \{name:\ \{_eq:\ "(.*)"\},\ _and:\ \{age:\ \{_gt:\ (.*)\}\}\}\
+\ \ \)\ \{\
+\ \ \ \ name\
+\ \ \ \ age\
+\ \ \ \ friends\ \{\
+\ \ \ \ \ \ name\
+\ \ \ \ \}\
+\ \ \}\
+\}
+```
+
+and this regex matches to a GraphQL request like below:
+
+```json
+{"query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    age\n    friends {\n      name\n    }\n    }\n}\n"}
+```
+
+Such that we can respond with a template like this:
+
+```hbs
+{% raw %}{
+  "data": {
+    "hero": {
+      "name": "{{ name_eq }}",
+      "age": {{ random.int age_gt 50 }},
+      "friends": [
+        {
+          "name": "Luke Skywalker"
+        },
+        {
+          "name": "Han Solo"
+        },
+        {
+          "name": "Leia Organa"
+        }
+      ]
+    }
+  }
+}{% endraw %}
+```
+
+It's possible to define variations of a GraphQL query such that you can select the fields
+by adding or subtracting them from the GrahpQL query matching definition:
+
+```yaml
+{% raw %}graphql-query: |
+  query HeroNameAndFriends {
+    hero(
+      where: {name: {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+    ) {
+      name
+      age
+    }
+  }{% endraw %}
+```
+
+and you would respond to a query like this with response template like below:
+
+```hbs
+{% raw %}{
+  "data": {
+    "hero": {
+      "name": "{{ name_eq }}",
+      "age": {{ random.int age_gt 50 }}
+    }
+  }
+}{% endraw %}
+```
+
+#### `graphql-variables` field
+
+Besides the `graphql-query` field, you can define an additional field named `graphql-variables` to
+specify matching criteria for GraphQL variables:
+
+```yaml
+{% raw %}services:
+  - name: Mock for Service1
+    port: 8001
+    endpoints:
+      - path: "/endpoint1"
+        method: POST
+        response:
+          headers:
+            Content-Type: application/json
+          body: '@templates/resp1.json.hbs'
+          useTemplating: true
+        body:
+          graphql-query: |
+            query HeroNameAndFriends {
+              hero(
+                where: {name:       {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+              ) {
+                name
+                city
+              }
+            }
+          graphql-variables:
+            var1: val1
+            var2: "{{regEx '\\d'}}"{% endraw %}
+```
+
+Such that this would match into a request like below:
+
+```json
+{
+    "query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    city\n     }\n}\n",
+    "variables": {
+        "var1": "val1",
+        "var2": 3
+    }
+}
 ```
