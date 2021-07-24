@@ -16,7 +16,7 @@ services:
       graphql-query: |
         query HeroNameAndFriends {
           hero(
-            where: {name: {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+            where: {name: {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
           ) {
             name
             age
@@ -36,7 +36,7 @@ services:
       graphql-query: |
         query HeroNameAndFriends {
           hero(
-            where: {name:       {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+            where: {name:       {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
           ) {
             name
             age
@@ -62,7 +62,7 @@ services:
       graphql-query: |
         query HeroNameAndFriends {
           hero(
-            where: {name:       {_eq: "{{regEx '(.*)' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '(.*)' 'age_gt'}}}}}
+            where: {name:       {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
           ) {
             name
             city

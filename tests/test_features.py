@@ -81,8 +81,6 @@ ASYNC_ADDR = {
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
-should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
-
 
 @pytest.mark.parametrize(('config'), configs)
 class TestCommon:
@@ -3559,3 +3557,41 @@ class TestGraphQL():
         data = resp.json()
         assert data['data']['hero']['name'] == 'hello brother'
         assert 'city' in data['data']['hero']
+
+    @pytest.mark.parametrize(('config'), [
+        'configs/yaml/hbs/graphql/config.yaml'
+    ])
+    def test_bad_requests(self, config):
+        self.mock_server_process = run_mock_server(get_config_path(config))
+        path = '/graphql'
+
+        resp = httpx.post(SRV_8001 + path, json={
+            "query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    city\n     }\n}\n"
+        })
+        assert 400 == resp.status_code
+
+        resp = httpx.post(SRV_8001 + path, json={
+            "query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    city\n     }\n}\n",
+            "variables": {
+                "var1": "val1"
+            }
+        })
+        assert 400 == resp.status_code
+
+        resp = httpx.post(SRV_8001 + path, json={
+            "query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    name\n    city\n     }\n}\n",
+            "variables": {
+                "var1": "val1",
+                "var2": "nope"
+            }
+        })
+        assert 400 == resp.status_code
+
+        resp = httpx.post(SRV_8001 + path, json={
+            "query": "query HeroNameAndFriends {\n  hero(\n    where: {name: {_eq: \"hello\"}, _and: {age: {_gt: 30}}}\n  ) {\n    \"name\"\n    city\n     }\n}\n",
+            "variables": {
+                "var1": "val1",
+                "var2": 3
+            }
+        })
+        assert 400 == resp.status_code
