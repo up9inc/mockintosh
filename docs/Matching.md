@@ -346,7 +346,7 @@ To do that, the `graphql-query` field should be defined under the `body` field:
 
 The `graphql-query` contains the template for regex generation. So it translates into the regex below:
 
-```
+```graphql
 query\ HeroNameAndFriends\ \{\
 \ \ hero\(\
 \ \ \ \ where:\ \{name:\ \{_eq:\ "(.*)"\},\ _and:\ \{age:\ \{_gt:\ (.*)\}\}\}\
