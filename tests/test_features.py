@@ -3520,7 +3520,8 @@ class TestGraphQL():
             self.mock_server_process.terminate()
 
     @pytest.mark.parametrize(('config'), [
-        'configs/yaml/hbs/graphql/config.yaml'
+        'configs/yaml/hbs/graphql/config.yaml',
+        'configs/yaml/j2/graphql/config.yaml'
     ])
     def test_generic(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
@@ -3559,7 +3560,8 @@ class TestGraphQL():
         assert 'city' in data['data']['hero']
 
     @pytest.mark.parametrize(('config'), [
-        'configs/yaml/hbs/graphql/config.yaml'
+        'configs/yaml/hbs/graphql/config.yaml',
+        'configs/yaml/j2/graphql/config.yaml'
     ])
     def test_bad_requests(self, config):
         self.mock_server_process = run_mock_server(get_config_path(config))
