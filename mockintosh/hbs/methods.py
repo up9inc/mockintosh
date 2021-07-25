@@ -6,6 +6,7 @@
     :synopsis: module that contains methods to be injected into Handlebars template engine.
 """
 
+import re
 import random
 import string
 import os
@@ -34,6 +35,10 @@ def reg_ex(this, regex, *args, **kwargs):
         for arg in args:
             this.context[arg] = None
     else:
+        if this.context['scope'] == 'bodyText':
+            pattern = re.compile(regex)
+            if pattern.groups == 0:
+                regex = '(%s)' % regex
         _type = 'regex'
         _handlebars_add_to_context(
             this.context,
@@ -111,7 +116,7 @@ class Random():
         self.ascii = self._ascii
 
     def _int(self, this, minimum, maximum):
-        return random.randint(minimum, maximum)
+        return random.randint(int(minimum), int(maximum))
 
     def _float(self, this, minimum, maximum, precision):
         return round(random.uniform(float(minimum), float(maximum)), precision)

@@ -33,6 +33,10 @@ from accept_types import parse_header
 from tornado.concurrent import Future
 from tornado.http1connection import HTTP1Connection, HTTP1ServerConnection
 from tornado import httputil
+import graphql
+from graphql import parse as graphql_parse
+from graphql.language.printer import print_ast as graphql_print_ast
+from graphql.language.parser import GraphQLSyntaxError
 
 import mockintosh
 from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
@@ -96,6 +100,8 @@ IMAGE_EXTENSIONS = [
 
 FALLBACK_TO_TIMEOUT = int(os.environ.get('MOCKINTOSH_FALLBACK_TO_TIMEOUT', 30))
 CONTENT_TYPE = 'Content-Type'
+
+graphql.language.printer.MAX_LINE_LENGTH = -1
 
 hbs_random = hbs_Random()
 j2_random = j2_Random()
@@ -301,6 +307,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             self.unhandled_data = unhandled_data
             self.fallback_to = fallback_to
             self.tags = tags
+            self.alternative = None
 
             for path, methods in self.path_methods:
                 if re.fullmatch(path, self.request.path):
@@ -672,18 +679,31 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         if _key in payload or component == 'bodyText':
             if value['type'] == 'regex':
                 match_string = None
+                regex = value['regex']
                 if component == 'headers':
                     match_string = self.request.headers.get(key)
                 elif component == 'queryString':
                     match_string = self.get_query_argument(key)
                 elif component == 'bodyText':
                     match_string = payload
+                    if self.alternative is not None and self.alternative.body is not None:
+                        regex = self.alternative.body.text
+                    if self.alternative.body.is_graphql_query:
+                        json_data = json.loads(payload)
+                        logging.debug('[inject] GraphQL original request:\n%s', json_data['query'])
+                        try:
+                            graphql_ast = graphql_parse(json_data['query'])
+                            match_string = graphql_print_ast(graphql_ast).strip()
+                            logging.debug('[inject] GraphQL parsed/unparsed request:\n%s', match_string)
+                        except GraphQLSyntaxError as e:
+                            logging.error('[inject] GraphQL: %s', str(e))
+                            return
                 elif component == 'bodyUrlencoded':
                     match_string = self.get_body_argument(key)
                 elif component == 'bodyMultipart':
                     match_string = self.request.files[key][0].body.decode()
 
-                match = re.search(value['regex'], match_string)
+                match = re.search(regex, match_string)
                 if match is not None:
                     for i, key in enumerate(value['args']):
                         self.custom_context[key] = match.group(i + 1)
@@ -761,12 +781,12 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                 if error:
                     return
                 elif fail:
-                    break
+                    continue
 
                 # Text
                 fail, reason = self.match_alternative_body_text(body, alternative)
                 if fail:
-                    break
+                    continue
 
                 # Urlencoded
                 fail, reason = self.match_alternative_body_urlencoded(body, alternative)
@@ -775,6 +795,11 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
 
                 # Multipart
                 fail, reason = self.match_alternative_body_multipart(body, alternative)
+                if fail:
+                    continue
+
+                # GraphQL Variables
+                fail, reason = self.match_alternative_body_graphql_variables(body, alternative)
                 if fail:
                     continue
 
@@ -806,6 +831,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             context = alternative.context
             internal_endpoint_id = alternative.internal_endpoint_id
             performance_profile = alternative.performance_profile
+            self.alternative = alternative
             return (
                 _id,
                 response,
@@ -932,6 +958,17 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         fail = False
         if alternative.body.text is not None:
             value = alternative.body.text
+            if alternative.body.is_graphql_query:
+                json_data = json.loads(body)
+                logging.debug('GraphQL original request:\n%s', json_data['query'])
+                try:
+                    graphql_ast = graphql_parse(json_data['query'])
+                    body = graphql_print_ast(graphql_ast).strip()
+                    logging.debug('GraphQL parsed/unparsed request:\n%s', body)
+                except GraphQLSyntaxError as e:
+                    return True, 'GraphQL: %s' % (str(e))
+            logging.debug('GraphQL parsed/unparsed request JSON dump:\n%s', body)
+            logging.debug('GraphQL regex:\n%s', value)
             if not body == value:
                 match = re.search(value, body)
                 if match is None:
@@ -988,6 +1025,38 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
                     fail = True
                     reason = 'Multipart field value %r on key %r does not match to regex: %s' % (
                         multipart_argument,
+                        key,
+                        value
+                    )
+                    break
+        return fail, reason
+
+    def match_alternative_body_graphql_variables(self, body: str, alternative: HttpAlternative) -> Tuple[bool, Union[str, None]]:
+        reason = None
+        fail = False
+        if alternative.body.graphql_variables:
+            for key, value in alternative.body.graphql_variables.items():
+                json_data = json.loads(body)
+                if 'variables' not in json_data:
+                    fail = True
+                    reason = '`variables` JSON field does not exist in the request body!'
+                    break
+                graphql_variables = json_data['variables']
+                if key not in graphql_variables:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'Key %r couldn\'t found in the GraphQL variables!' % key
+                    break
+                graphql_variable_value = str(graphql_variables[key])
+                if value == graphql_variable_value:
+                    continue
+                value = '^%s$' % value
+                match = re.search(value, graphql_variable_value)
+                if match is None:
+                    self.internal_endpoint_id = alternative.internal_endpoint_id
+                    fail = True
+                    reason = 'GraphQL variable value %r on key %r does not match to regex: %s' % (
+                        graphql_variable_value,
                         key,
                         value
                     )

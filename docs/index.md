@@ -74,10 +74,9 @@ Key features:
 
 - Multiple services mocked by a single instance of Mockintosh
 - Lenient [configuration syntax](Configuring.md)
-- Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
-- Performance testing supported (with [datasets](Configuring.md#datasets) and low resource footprint)
-- [Interceptors](#interceptors) support for unlimited customization
 - Remote [management UI+API](Management.md)
+- Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses) and [tags](Configuring.md#tagged-responses)
+- GraphQL queries recognizing
 
 _[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh has born as a new way of mocking microservices._
 

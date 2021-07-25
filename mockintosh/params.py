@@ -48,6 +48,12 @@ class BodyMultipartParam(ParamBase):
         super().__init__(key, value)
 
 
+class BodyGraphQLVariablesParam(ParamBase):
+
+    def __init__(self, key: str, value: Union[dict, str]):
+        super().__init__(key, value)
+
+
 class AsyncValueParam(ParamBase):
 
     def __init__(self, key: str, value: Union[dict, str]):

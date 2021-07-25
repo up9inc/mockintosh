@@ -6,6 +6,7 @@
     :synopsis: module that contains a class that encompasses the properties of the configuration file and maps it.
 """
 
+import os
 import sys
 import logging
 from collections import OrderedDict
@@ -19,16 +20,20 @@ from typing import (
 
 import yaml
 from jsonschema import validate
+import graphql
+from graphql import parse as graphql_parse
+from graphql.language.printer import print_ast as graphql_print_ast
 
 from mockintosh.constants import PROGRAM, WARN_GPUBSUB_PACKAGE, WARN_AMAZONSQS_PACKAGE
 from mockintosh.builders import ConfigRootBuilder
-from mockintosh.helpers import _detect_engine, _urlsplit
+from mockintosh.helpers import _detect_engine, _urlsplit, _graphql_escape_templating, _graphql_undo_escapes
 from mockintosh.config import (
     ConfigRoot,
     ConfigHttpService,
     ConfigAsyncService,
     ConfigMultiProduce,
-    ConfigGlobals
+    ConfigGlobals,
+    ConfigExternalFilePath
 )
 from mockintosh.recognizers import (
     PathRecognizer,
@@ -37,6 +42,7 @@ from mockintosh.recognizers import (
     BodyTextRecognizer,
     BodyUrlencodedRecognizer,
     BodyMultipartRecognizer,
+    BodyGraphQLVariablesRecognizer,
     AsyncProducerValueRecognizer,
     AsyncProducerKeyRecognizer,
     AsyncProducerHeadersRecognizer,
@@ -112,6 +118,8 @@ from mockintosh.exceptions import (
 from mockintosh.templating import RenderingQueue
 from mockintosh.stats import Stats
 from mockintosh.logs import Logs
+
+graphql.language.printer.MAX_LINE_LENGTH = -1
 
 stats = Stats()
 logs = Logs()
@@ -283,8 +291,25 @@ class Definition:
 
             http_body = None
             if endpoint.body is not None:
+                graphql_query = None if endpoint.body.graphql_query is None else endpoint.body.graphql_query
+
+                if isinstance(graphql_query, ConfigExternalFilePath):
+                    external_path = self.resolve_relative_path('GraphQL', graphql_query.path)
+                    with open(external_path, 'r') as file:
+                        logging.debug('Reading external file from path: %s', external_path)
+                        graphql_query = file.read()
+
+                if graphql_query is not None:
+                    graphql_query = _graphql_escape_templating(graphql_query)
+                    logging.debug('Before GraphQL parse/unparse:\n%s', graphql_query)
+                    graphql_ast = graphql_parse(graphql_query)
+                    graphql_query = graphql_print_ast(graphql_ast).strip()
+                    logging.debug('After GraphQL parse/unparse:\n%s', graphql_query)
+                    graphql_query = _graphql_undo_escapes(graphql_query)
+                    logging.debug('Rendered GraphQL:\n%s', graphql_query)
+
                 body_text_recognizer = BodyTextRecognizer(
-                    endpoint.body.text,
+                    graphql_query if graphql_query is not None else endpoint.body.text,
                     params,
                     context,
                     template_engine,
@@ -310,11 +335,22 @@ class Definition:
                 )
                 multipart = body_multipart_recognizer.recognize()
 
+                body_graphql_variables_recognizer = BodyGraphQLVariablesRecognizer(
+                    endpoint.body.graphql_variables,
+                    params,
+                    context,
+                    template_engine,
+                    rendering_queue
+                )
+                graphql_variables = body_graphql_variables_recognizer.recognize()
+
                 http_body = HttpBody(
                     endpoint.body.schema,
                     text,
                     urlencoded,
-                    multipart
+                    multipart,
+                    graphql_variables,
+                    is_grapql_query=True if graphql_query is not None else False
                 )
 
             http_service.add_endpoint(
@@ -468,3 +504,19 @@ class Definition:
             async_actor.dataset_looped = actor.dataset_looped
 
         return async_service
+
+    def resolve_relative_path(self, document_type, source_text):
+        relative_path = None
+        orig_relative_path = source_text[1:]
+
+        error_msg = 'External %s document %r couldn\'t be accessed or found!' % (document_type, orig_relative_path)
+        if orig_relative_path[0] == '/':
+            orig_relative_path = orig_relative_path[1:]
+        relative_path = os.path.join(self.source_dir, orig_relative_path)
+        if not os.path.isfile(relative_path):
+            raise Exception(error_msg)
+        relative_path = os.path.abspath(relative_path)
+        if not relative_path.startswith(self.source_dir):
+            raise Exception(error_msg)
+
+        return relative_path

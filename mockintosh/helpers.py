@@ -20,7 +20,39 @@ from typing import (
     Union
 )
 
-from mockintosh.constants import PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, SHORT_JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
+
+
+class RegexEscapeBase(object):
+
+    matches = []
+    count = -1
+
+    def __call__(self, match):
+        RegexEscapeBase.matches.append(match)
+        RegexEscapeBase.count += 1
+
+
+class RegexEscape1(RegexEscapeBase):
+
+    def __call__(self, match):
+        super().__call__(match)
+        return '"%s_REMOVE_ME_AFTERWARDS%s_REGEX_BACKUP_%s%s_REMOVE_ME_AFTERWARDS"' % (
+            PROGRAM.upper(),
+            PROGRAM.upper(),
+            str(RegexEscapeBase.count).zfill(7),
+            PROGRAM.upper()
+        )
+
+
+class RegexEscape2(RegexEscapeBase):
+
+    def __call__(self, match):
+        super().__call__(match)
+        return '%s_REGEX_BACKUP_%s' % (
+            PROGRAM.upper(),
+            str(RegexEscapeBase.count).zfill(7)
+        )
 
 
 def _safe_path_split(path: str) -> list:
@@ -47,19 +79,33 @@ def _detect_engine(obj: Union[object, dict], context: str = 'config', default: s
 
 
 def _handlebars_add_to_context(context: dict, scope: str, key: str, value) -> None:
+    if scope == 'graphqlVariables':  # TODO: `graphqlVariables` is corrupting the context, investigate...
+        return
+
     if SPECIAL_CONTEXT not in context:
         context[SPECIAL_CONTEXT] = {}
     if scope not in context[SPECIAL_CONTEXT]:
         context[SPECIAL_CONTEXT][scope] = {}
-    context[SPECIAL_CONTEXT][scope][key] = value
+
+    if key in context[SPECIAL_CONTEXT][scope]:
+        context[SPECIAL_CONTEXT][scope][key]['args'] += value['args']
+    else:
+        context[SPECIAL_CONTEXT][scope][key] = value
 
 
 def _jinja_add_to_context(context: dict, scope: str, key: str, value) -> None:
+    if scope == 'graphqlVariables':  # TODO: `graphqlVariables` is corrupting the context, investigate...
+        return
+
     if SPECIAL_CONTEXT not in context.environment.globals:
         context.environment.globals[SPECIAL_CONTEXT] = {}
     if scope not in context.environment.globals[SPECIAL_CONTEXT]:
         context.environment.globals[SPECIAL_CONTEXT][scope] = {}
-    context.environment.globals[SPECIAL_CONTEXT][scope][key] = value
+
+    if key in context.environment.globals[SPECIAL_CONTEXT][scope]:
+        context.environment.globals[SPECIAL_CONTEXT][scope][key]['args'] += value['args']
+    else:
+        context.environment.globals[SPECIAL_CONTEXT][scope][key] = value
 
 
 def _jinja_add_varname(context: dict, varname: str) -> None:
@@ -154,3 +200,22 @@ def _urlsplit(url: str, scheme: str = '', allow_fragments: bool = True):
 def _delay(seconds: int) -> None:
     logging.debug('Sleeping for %d seconds.', seconds)
     time.sleep(seconds)
+
+
+def _graphql_escape_templating(text: str) -> str:
+    RegexEscapeBase.count = -1
+    text = re.sub(r'(?<!\")({{[^{}]*}})', RegexEscape1(), text)
+    text = re.sub(r'({{[^{}]*}})', RegexEscape2(), text)
+    return text
+
+
+def _graphql_undo_escapes(text: str) -> str:
+    text = text.replace('"%s_REMOVE_ME_AFTERWARDS' % PROGRAM.upper(), '')
+    text = text.replace('%s_REMOVE_ME_AFTERWARDS"' % PROGRAM.upper(), '')
+    logging.debug('Before re.escape:\n%s', text)
+    text = re.escape(text)
+    logging.debug('After re.escape:\n%s', text)
+    for i, match in enumerate(RegexEscapeBase.matches):
+        logging.debug('Replacing %s with %s', '%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)), str(match.group()).zfill(7))
+        text = text.replace('%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)), str(match.group()).zfill(7))
+    return text

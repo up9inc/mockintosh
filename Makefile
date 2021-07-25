@@ -12,9 +12,9 @@ install-dev:
 install-cloud:
 	pip3 install -e .[cloud]
 
-test: test-style test-integration test-without-coverage
+test: test-integration test-without-coverage test-style
 
-test-fast: test-style test-without-coverage
+test-fast: test-without-coverage test-style
 
 coverage: test-with-coverage coverage-after
 
@@ -28,7 +28,7 @@ test-without-coverage: copy-assets
 	MOCKINTOSH_FALLBACK_TO_TIMEOUT=3 pytest tests/test_features.py -s -vv --log-level=DEBUG && \
 	${MAKE} test-asyncs
 
-test-with-coverage: test-style copy-assets test-openapi-transpiler
+test-with-coverage: copy-assets test-openapi-transpiler test-style
 	TESTING_ENV=somevalue coverage run --parallel -m pytest tests/test_helpers.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_IMPORT=true coverage run --parallel -m pytest tests/test_exceptions.py -s -vv --log-level=DEBUG && \
 	COVERAGE_NO_RUN=true coverage run --parallel -m mockintosh tests/configs/json/hbs/common/config.json && \
