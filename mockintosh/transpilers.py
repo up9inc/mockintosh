@@ -54,7 +54,7 @@ class OASToConfigTranspiler:
 
     def _transpile_consumes(self, details: dict, endpoint: dict) -> dict:
         if 'consumes' in details and details['consumes']:
-            endpoint['headers']['Accept'] = '{{ headers_accept_%s }}' % re.sub('[^a-zA-Z0-9 \n\.]', '_', details['consumes'][0])
+            endpoint['headers']['Accept'] = '{{ headers_accept_%s }}' % re.sub(r'[^a-zA-Z0-9 \n\.]', '_', details['consumes'][0])
         return endpoint
 
     def _transpile_parameters(self, details: dict, endpoint: dict) -> dict:
