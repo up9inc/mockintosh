@@ -54,10 +54,7 @@ class OASToConfigTranspiler:
 
     def _transpile_consumes(self, details: dict, endpoint: dict) -> dict:
         if 'consumes' in details and details['consumes']:
-            accept = ''
-            for mime in details['consumes']:
-                accept += '%s, ' % mime
-            endpoint['headers']['Accept'] = accept.strip()[:-1]
+            endpoint['headers']['Accept'] = '{{ headers_accept_%s }}' % re.sub('[^a-zA-Z0-9 \n\.]', '_', details['consumes'][0])
         return endpoint
 
     def _transpile_parameters(self, details: dict, endpoint: dict) -> dict:
@@ -90,8 +87,10 @@ class OASToConfigTranspiler:
         if 'type' not in schema or schema['type'] == 'object':
             if 'properties' in schema:
                 ref = schema['properties']
-            if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
-                ref.update(schema['additionalProperties'])
+            # This means that there could be arbitrarily appearing additional fields in the JSON response
+            # and there is no equivalent of this in Mockintosh.
+            # if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
+            #     ref.update(schema['additionalProperties'])
         elif schema['type'] == 'array':
             if 'allOf' in schema['items']:
                 ref = schema['items']['allOf'][0]['properties']
@@ -104,7 +103,7 @@ class OASToConfigTranspiler:
                     ref = schema['items']
         return ref
 
-    def _transpile_body_json_object(self, properties: dict, last_path_param_index: Union[int, None]) -> str:
+    def _transpile_body_json_object(self, properties: dict, last_path_param_index: Union[int, None] = None) -> str:
         body_json = ''
         for field, _details in properties.items():
             if not isinstance(_details, dict):
@@ -128,31 +127,46 @@ class OASToConfigTranspiler:
                 else:
                     body_json += '"%s": %s, ' % (
                         field,
-                        self._transpile_body_json_value(_details, last_path_param_index)
+                        self._transpile_body_json_value(_details, last_path_param_index=last_path_param_index)
                     )
 
         return '{%s}' % body_json[:-2]
 
-    def _transpile_body_json_value(self, _details: str, last_path_param_index: Union[int, None]) -> str:
+    def _transpile_body_json_value(
+        self,
+        _details: str,
+        last_path_param_index: Union[int, None] = None,
+        future: bool = False
+    ) -> str:
         result = ''
         if _details['type'] == 'string':
-            result += self._transpile_body_json_string()
+            result += self._transpile_body_json_string(_format=_details.get('format', None), future=future)
         elif _details['type'] == 'number':
-            result += self._transpile_body_json_number(_details.get('format', None))
+            result += self._transpile_body_json_number(_format=_details.get('format', None))
         elif _details['type'] == 'integer':
-            result += self._transpile_body_json_integer(_details.get('format', None))
+            result += self._transpile_body_json_integer(_format=_details.get('format', None))
         elif _details['type'] == 'boolean':
             result += self._transpile_body_json_boolean()
         elif _details['type'] == 'array':
-            result += self._transpile_body_json_array(_details, last_path_param_index)
+            result += self._transpile_body_json_array(_details, last_path_param_index=last_path_param_index)
         elif _details['type'] == 'object':
-            result += self._transpile_body_json_object(_details['properties'], last_path_param_index)
+            result += self._transpile_body_json_object(_details['properties'], last_path_param_index=last_path_param_index)
         return result
 
-    def _transpile_body_json_string(self) -> str:
-        return '"{{ fake.sentence(nb_words=random.int(0, 20)) }}"'
+    def _transpile_body_json_string(
+        self,
+        _format: Union[str, None] = None,
+        future: bool = False
+    ) -> str:
+        if _format == 'date-time':
+            if future:
+                return '"{{ fake.future_datetime() }}"'
+            else:
+                return '"{{ fake.date_time() }}"'
+        else:
+            return '"{{ fake.sentence(nb_words=random.int(0, 20)) }}"'
 
-    def _transpile_body_json_number(self, _format: Union[str, None]) -> str:
+    def _transpile_body_json_number(self, _format: Union[str, None] = None) -> str:
         _min = sys.float_info.min
         _max = sys.float_info.max
         if _format == 'float':
@@ -163,7 +177,7 @@ class OASToConfigTranspiler:
             _max
         )
 
-    def _transpile_body_json_integer(self, _format: Union[str, None]) -> str:
+    def _transpile_body_json_integer(self, _format: Union[str, None] = None) -> str:
         _min = - sys.maxsize - 1
         _max = sys.maxsize
         if _format == 'int32':
@@ -175,11 +189,15 @@ class OASToConfigTranspiler:
         )
 
     def _transpile_body_json_boolean(self) -> str:
-        return '"{{ fake.boolean(chance_of_getting_true=50) | lower }}"'
+        return '{{ fake.boolean(chance_of_getting_true=50) | lower }}'
 
-    def _transpile_body_json_array(self, _details: dict, last_path_param_index: Union[int, None]) -> str:
+    def _transpile_body_json_array(
+        self,
+        _details: dict,
+        last_path_param_index: Union[int, None] = None
+    ) -> str:
         return '[{%% for n in range(range(100) | random) %%} %s {%% if not loop.last %%},{%% endif %%}{%% endfor %%}]' % (
-            self._transpile_body_json_value(_details['items'], last_path_param_index)
+            self._transpile_body_json_value(_details['items'], last_path_param_index=last_path_param_index)
         )
 
     def _transpile_responses(
@@ -213,13 +231,23 @@ class OASToConfigTranspiler:
 
             if 'schema' in _response:
                 ref = self._transpile_schema(_response['schema'])
-                response['body'] = self._transpile_body_json_object(ref, last_path_param_index)
+                response['body'] = self._transpile_body_json_object(ref, last_path_param_index=last_path_param_index)
+
+            if 'headers' in _response:
+                response['headers'].update(self._transpile_headers(_response['headers']))
 
             self._delete_key_if_empty(response, 'headers')
 
             endpoint['response'].append(response)
 
         return endpoint
+
+    def _transpile_headers(self, headers: dict) -> dict:
+        result = {}
+        for key, value in headers.items():
+            future = True if 'expire' in key.lower() else False
+            result[key] = self._transpile_body_json_value(value, future=future)
+        return result
 
     def _determine_management_port(self, service_port: int) -> int:
         port = 8000
