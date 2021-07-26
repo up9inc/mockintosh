@@ -134,7 +134,9 @@ Using `--bind` option the bind address for the mock server can be specified, e.g
 Using `--enable-tags` option the tags in the configuration file can be
 enabled in startup time, e.g. `mockintosh --enable-tags first,second`
 
-### OpenAPI Specification to Mockintosh Config Conversion
+### OpenAPI Specification to Mockintosh Config Conversion (experimental)
+
+_Note: This feature is experimental. One-to-one transpilation of OAS documents is not guaranteed._
 
 It could be a good kickstart if you have already an OpenAPI Specification for your API.
 Mockintosh is able to transpile an OpenAPI Specification to its own config format in two different ways:
