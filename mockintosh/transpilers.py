@@ -101,9 +101,9 @@ class OASToConfigTranspiler:
                     ref = schema['items']
         return ref
 
-    def _transpile_body_json(self, ref: dict) -> str:
+    def _transpile_body_json_object(self, properties: dict) -> str:
         body_json = ''
-        for field, _details in ref.items():
+        for field, _details in properties.items():
             if not isinstance(_details, dict):
                 continue
 
@@ -111,26 +111,66 @@ class OASToConfigTranspiler:
                 if 'type' in _details and _details['type'] == 'string':
                     body_json += '"%s": "%s", ' % (field, _details['example'])
                 else:
-                    body_json += '"%s": %s, ' % (field, _details['example'])
+                    body_json += '"%s": %s, ' % (field, str(_details['example']))
             else:
                 if 'type' not in _details:
                     continue
 
-                if _details['type'] == 'integer':
-                    body_json += '"%s": {{ random.int %d %d }}, ' % (
-                        field,
-                        - sys.maxsize - 1,
-                        sys.maxsize
-                    )
-                elif _details['type'] == 'float':
-                    body_json += '"%s": {{ random.float %f %f (random.int 1 5) }}, ' % (
-                        field,
-                        sys.float_info.min,
-                        sys.float_info.max
-                    )
-                else:
-                    body_json += '"%s": "{{ fake.sentence nb_words=10 }}", ' % field
-        return body_json
+                body_json += '"%s": %s, ' % (
+                    field,
+                    self._transpile_body_json_value(_details)
+                )
+
+        return '{%s}' % body_json[:-2]
+
+    def _transpile_body_json_value(self, _details: str) -> str:
+        result = ''
+        if _details['type'] == 'string':
+            result += self._transpile_body_json_string()
+        elif _details['type'] == 'number':
+            result += self._transpile_body_json_number(_details.get('format', None))
+        elif _details['type'] == 'integer':
+            result += self._transpile_body_json_integer(_details.get('format', None))
+        elif _details['type'] == 'boolean':
+            result += self._transpile_body_json_boolean()
+        elif _details['type'] == 'array':
+            result += self._transpile_body_json_array(_details)
+        elif _details['type'] == 'object':
+            result += self._transpile_body_json_object(_details['properties'])
+        return result
+
+    def _transpile_body_json_string(self) -> str:
+        return '"{{ fake.sentence(nb_words=10) }}"'
+
+    def _transpile_body_json_number(self, _format: Union[str, None]) -> str:
+        _min = sys.float_info.min
+        _max = sys.float_info.max
+        if _format == 'float':
+            _min /= 2
+            _max /= 2
+        return '{{ random.float(%f, %f, (random.int 1 5)) }}' % (
+            _min,
+            _max
+        )
+
+    def _transpile_body_json_integer(self, _format: Union[str, None]) -> str:
+        _min = - sys.maxsize - 1
+        _max = sys.maxsize
+        if _format == 'int32':
+            _min /= 2
+            _max /= 2
+        return '{{ random.int(%d, %d) }}' % (
+            _min,
+            _max
+        )
+
+    def _transpile_body_json_boolean(self) -> str:
+        return '"{{ fake.boolean(chance_of_getting_true=50) | lower }}"'
+
+    def _transpile_body_json_array(self, _details: dict) -> str:
+        return '[{%% for n in range(range(100) | random) %%} %s {%% if not loop.last %%},{%% endif %%}{%% endfor %%}]' % (
+            self._transpile_body_json_value(_details['items'])
+        )
 
     def _transpile_responses(self, details: dict, endpoint: dict, content_type: Union[str, None]) -> dict:
         if not isinstance(details, dict) or 'responses' not in details:
@@ -157,8 +197,7 @@ class OASToConfigTranspiler:
 
             if 'schema' in _response:
                 ref = self._transpile_schema(_response['schema'])
-                body_json = self._transpile_body_json(ref)
-                response['body'] = '{%s}' % body_json[:-2]
+                response['body'] = self._transpile_body_json_object(ref)
 
             self._delete_key_if_empty(response, 'headers')
 
@@ -220,6 +259,7 @@ class OASToConfigTranspiler:
                 service['endpoints'].append(endpoint)
 
         out = {
+            'templatingEngine': 'Jinja2',
             'management': {
                 'port': self._determine_management_port(service['port'])
             },
