@@ -16,7 +16,8 @@ from urllib.parse import urlparse
 from collections import OrderedDict
 from typing import (
     List,
-    Union
+    Union,
+    Tuple
 )
 
 import yaml
@@ -37,17 +38,19 @@ class OASToConfigTranspiler:
         parser = ResolvingParser(self.source)
         self.data = parser.specification
 
-    def path_oas_to_handlebars(self, path: str) -> str:
+    def path_oas_to_handlebars(self, path: str) -> Tuple[str, Union[int, None]]:
         segments = _safe_path_split(path)
         new_segments = []
-        for segment in segments:
+        last_param_index = None
+        for i, segment in enumerate(segments):
             match = re.search(r'{(.*)}', segment)
             if match is not None:
                 name = match.group(1).strip()
                 new_segments.append('{{ %s }}' % name)
+                last_param_index = i + 1
             else:
                 new_segments.append(segment)
-        return '/'.join(new_segments)
+        return '/'.join(new_segments), last_param_index
 
     def _transpile_consumes(self, details: dict, endpoint: dict) -> dict:
         if 'consumes' in details and details['consumes']:
@@ -101,7 +104,7 @@ class OASToConfigTranspiler:
                     ref = schema['items']
         return ref
 
-    def _transpile_body_json_object(self, properties: dict) -> str:
+    def _transpile_body_json_object(self, properties: dict, last_path_param_index: Union[int, None]) -> str:
         body_json = ''
         for field, _details in properties.items():
             if not isinstance(_details, dict):
@@ -116,14 +119,21 @@ class OASToConfigTranspiler:
                 if 'type' not in _details:
                     continue
 
-                body_json += '"%s": %s, ' % (
-                    field,
-                    self._transpile_body_json_value(_details)
-                )
+                if field == 'id' and _details['type'] in ('integer', 'number') and last_path_param_index is not None:
+                    body_json += '"%s": {{ request.path.%s }}, ' % (
+                        field,
+                        str(last_path_param_index)
+                    )
+                    last_path_param_index = None
+                else:
+                    body_json += '"%s": %s, ' % (
+                        field,
+                        self._transpile_body_json_value(_details, last_path_param_index)
+                    )
 
         return '{%s}' % body_json[:-2]
 
-    def _transpile_body_json_value(self, _details: str) -> str:
+    def _transpile_body_json_value(self, _details: str, last_path_param_index: Union[int, None]) -> str:
         result = ''
         if _details['type'] == 'string':
             result += self._transpile_body_json_string()
@@ -134,13 +144,13 @@ class OASToConfigTranspiler:
         elif _details['type'] == 'boolean':
             result += self._transpile_body_json_boolean()
         elif _details['type'] == 'array':
-            result += self._transpile_body_json_array(_details)
+            result += self._transpile_body_json_array(_details, last_path_param_index)
         elif _details['type'] == 'object':
-            result += self._transpile_body_json_object(_details['properties'])
+            result += self._transpile_body_json_object(_details['properties'], last_path_param_index)
         return result
 
     def _transpile_body_json_string(self) -> str:
-        return '"{{ fake.sentence(nb_words=10) }}"'
+        return '"{{ fake.sentence(nb_words=random.int(0, 20)) }}"'
 
     def _transpile_body_json_number(self, _format: Union[str, None]) -> str:
         _min = sys.float_info.min
@@ -148,7 +158,7 @@ class OASToConfigTranspiler:
         if _format == 'float':
             _min /= 2
             _max /= 2
-        return '{{ random.float(%f, %f, (random.int 1 5)) }}' % (
+        return '{{ random.float(%f, %f, (random.int(1, 5))) }}' % (
             _min,
             _max
         )
@@ -167,12 +177,18 @@ class OASToConfigTranspiler:
     def _transpile_body_json_boolean(self) -> str:
         return '"{{ fake.boolean(chance_of_getting_true=50) | lower }}"'
 
-    def _transpile_body_json_array(self, _details: dict) -> str:
+    def _transpile_body_json_array(self, _details: dict, last_path_param_index: Union[int, None]) -> str:
         return '[{%% for n in range(range(100) | random) %%} %s {%% if not loop.last %%},{%% endif %%}{%% endfor %%}]' % (
-            self._transpile_body_json_value(_details['items'])
+            self._transpile_body_json_value(_details['items'], last_path_param_index)
         )
 
-    def _transpile_responses(self, details: dict, endpoint: dict, content_type: Union[str, None]) -> dict:
+    def _transpile_responses(
+        self,
+        details: dict,
+        endpoint: dict,
+        content_type: Union[str, None],
+        last_path_param_index: Union[int, None]
+    ) -> dict:
         if not isinstance(details, dict) or 'responses' not in details:
             return endpoint
 
@@ -197,7 +213,7 @@ class OASToConfigTranspiler:
 
             if 'schema' in _response:
                 ref = self._transpile_schema(_response['schema'])
-                response['body'] = self._transpile_body_json_object(ref)
+                response['body'] = self._transpile_body_json_object(ref, last_path_param_index)
 
             self._delete_key_if_empty(response, 'headers')
 
@@ -231,7 +247,7 @@ class OASToConfigTranspiler:
             base_path = self.data['basePath']
 
         for _path, _details in self.data['paths'].items():
-            _path = self.path_oas_to_handlebars(_path)
+            _path, last_path_param_index = self.path_oas_to_handlebars(_path)
             _path = base_path + _path
             for method, details in _details.items():
                 if method == 'parameters':
@@ -249,7 +265,7 @@ class OASToConfigTranspiler:
                 endpoint = self._transpile_consumes(details, endpoint)
                 endpoint = self._transpile_parameters(details, endpoint)
                 content_type = self._transpile_produces(details)
-                endpoint = self._transpile_responses(details, endpoint, content_type)
+                endpoint = self._transpile_responses(details, endpoint, content_type, last_path_param_index)
 
                 self._delete_key_if_empty(endpoint, 'headers')
                 self._delete_key_if_empty(endpoint, 'queryString')
