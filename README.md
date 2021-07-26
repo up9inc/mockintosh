@@ -67,7 +67,7 @@ services:
       body: "@templates/company.json.j2"
 ```
 
-Mockintosh is a mock server generator that's capable to generate **RESTful APIs** and communicate with **message queues**
+Mockintosh is a service virtualization tool that's capable to generate mocks for **RESTful APIs** and communicate with **message queues**
 to either mimic **asyncronous** tasks or to simulate **microservice architectures** in a blink of an eye.
 
 The state-of-the-art mocking capabilities of Mockintosh enables software development teams to work
@@ -93,7 +93,7 @@ $ pip install mockintosh
 ```
 
 Once the installation complete, you can start Mockintosh with a JSON/YAML configuration as an
-argument, e.g. [example.yaml](examples/example.yaml):
+argument, e.g. [example.yaml](docs/examples/example.yaml):
 
 ```shell
 $ mockintosh example.yaml
