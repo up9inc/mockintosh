@@ -64,7 +64,7 @@ services:
       body: "@templates/company.json.j2"
 ```
 
-Mockintosh is a mock server generator that's capable to generate **RESTful APIs** and communicate with **message queues**
+Mockintosh is a service virtualization tool that's capable to generate mocks for **RESTful APIs** and communicate with **message queues**
 to either mimic **asyncronous** tasks or to simulate **microservice architectures** in a blink of an eye.
 
 The state-of-the-art mocking capabilities of Mockintosh enables software development teams to work
@@ -130,7 +130,9 @@ Using `--bind` option the bind address for the mock server can be specified, e.g
 Using `--enable-tags` option the tags in the configuration file can be
 enabled in startup time, e.g. `mockintosh --enable-tags first,second`
 
-### OpenAPI Specification to Mockintosh Config Conversion
+### OpenAPI Specification to Mockintosh Config Conversion (_experimental_)
+
+_Note: This feature is experimental. One-to-one transpilation of OAS documents is not guaranteed._
 
 It could be a good kickstart if you have already an OpenAPI Specification for your API.
 Mockintosh is able to transpile an OpenAPI Specification to its own config format in two different ways:
