@@ -315,6 +315,8 @@ class ConfigBody:
         self,
         schema: ConfigSchema = None,
         text: Union[str, None] = None,
+        graphql_query: Union[str, ConfigExternalFilePath, None] = None,
+        graphql_variables: Dict[str, str] = None,
         urlencoded: Dict[str, str] = None,
         multipart: Dict[str, str] = None
     ):
@@ -322,6 +324,8 @@ class ConfigBody:
         self.text = text
         self.urlencoded = urlencoded
         self.multipart = multipart
+        self.graphql_query = graphql_query
+        self.graphql_variables = graphql_variables
 
 
 class ConfigEndpoint:

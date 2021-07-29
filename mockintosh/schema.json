@@ -250,6 +250,15 @@
             "text": {
               "type": "string"
             },
+            "graphql-query": {
+              "type": "string"
+            },
+            "graphql-variables": {
+              "type": "object",
+              ".+": {
+                "type": "string"
+              }
+            },
             "urlencoded": {
               "type": "object",
               ".+": {

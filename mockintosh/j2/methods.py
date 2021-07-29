@@ -6,6 +6,7 @@
     :synopsis: module that contains methods to be injected into Jinja2 template engine.
 """
 
+import re
 import random
 import string
 import os
@@ -34,6 +35,10 @@ def reg_ex(context, regex, *args, **kwargs):
         for arg in args:
             _jinja_add_varname(context, arg)
     else:
+        if context['scope'] == 'bodyText':
+            pattern = re.compile(regex)
+            if pattern.groups == 0:
+                regex = '(%s)' % regex
         _type = 'regex'
         _jinja_add_to_context(
             context,
@@ -93,7 +98,7 @@ class Random():
         self.ascii = self._ascii
 
     def _int(self, minimum, maximum):
-        return random.randint(minimum, maximum)
+        return random.randint(int(minimum), int(maximum))
 
     def _float(self, minimum, maximum, precision):
         return round(random.uniform(float(minimum), float(maximum)), precision)

@@ -1,0 +1,73 @@
+management:
+  port: 8000
+services:
+- name: GrahpQL Example
+  port: 8001
+  managementRoot: __admin
+  endpoints:
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp1.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: |
+        query HeroNameAndFriends {
+          hero(
+            where: {name: {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
+          ) {
+            name
+            age
+            friends {
+              name
+            }
+          }
+        }
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp2.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: |
+        query HeroNameAndFriends {
+          hero(
+            where: {name:       {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
+          ) {
+            name
+            age
+          }
+        }
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp3.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: "@example.graphql"
+  - path: /graphql
+    response:
+      headers:
+        Content-Type: application/json
+      body: '@templates/resp4.json.hbs'
+      useTemplating: true
+    method: post
+    body:
+      graphql-query: |
+        query HeroNameAndFriends {
+          hero(
+            where: {name:       {_eq: "{{regEx '.*' 'name_eq'}}"}, _and: {age: {_gt: {{regEx '.*' 'age_gt'}}}}}
+          ) {
+            name
+            city
+          }
+        }
+      graphql-variables:
+        var1: val1
+        var2: "{{regEx '\\d'}}"

@@ -25,7 +25,7 @@ SRV7 = os.environ.get('SRV7', 'http://localhost:8007')
 KAFK = os.environ.get('KAFK', 'localhost:9092')
 
 
-class IntegrationTests(unittest.TestCase):
+class RESTTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -912,6 +912,44 @@ class IntegrationTests(unittest.TestCase):
         resp.raise_for_status()
         self.assertEqual("somedata", resp.text)
 
+    def test_graphql(self):
+        req = {
+            "query": """
+                {
+                      userIdentify: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
+                        identity(aliases: [{id: "435345", tag: "sometag", priority: 2}]) {
+                          identify {
+                            id
+                          }
+                        }
+                      }
+
+                      userEvents: user(user_id: "deadbeef-6c86-4ee0-97b3-12ef2e530c6f") {
+                        events(from: "2021-07-18T18:37:24.584Z") {
+                          id
+                          name
+                          time
+                          session_id
+                          view_id
+                          properties
+                        }
+                      }
+                     }
+                 """
+        }
+        resp = httpx.post(SRV1 + '/graphql1', json=req)
+        resp.raise_for_status()
+
+        req["variables"] = {"var1": "val1"}
+        resp = httpx.post(SRV1 + '/graphql2', json=req)
+        self.assertEqual(400, resp.status_code)
+
+        req["variables"]["var2"] = 25
+        resp = httpx.post(SRV1 + '/graphql2', json=req)
+        resp.raise_for_status()
+
+
+class AsyncTests(unittest.TestCase):
     @pytest.mark.kafka
     def test_kafka_producer_ondemand(self):
         resp = httpx.get(MGMT + '/async', verify=False)  # gets the list of available actors

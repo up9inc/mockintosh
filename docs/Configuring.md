@@ -309,8 +309,8 @@ If you pick `profile1` for your service:
 - With ~13% probability the responses will have `500` status code.
 - With ~6% probability the responses will have `503` status code.
 - With ~26% probability the responses will have the default status code determined by the endpoint config.
-- With ~13% probability the connections will be resetted.
-- With ~6% probability the connections will be closed.
+- With ~13% probability the connections will be **resetted**.
+- With ~6% probability the connections will be **closed**.
 
 If you pick `profile2` for your endpoint:
 

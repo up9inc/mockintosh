@@ -16,7 +16,8 @@ from urllib.parse import urlparse
 from collections import OrderedDict
 from typing import (
     List,
-    Union
+    Union,
+    Tuple
 )
 
 import yaml
@@ -37,24 +38,23 @@ class OASToConfigTranspiler:
         parser = ResolvingParser(self.source)
         self.data = parser.specification
 
-    def path_oas_to_handlebars(self, path: str) -> str:
+    def path_oas_to_handlebars(self, path: str) -> Tuple[str, Union[int, None]]:
         segments = _safe_path_split(path)
         new_segments = []
-        for segment in segments:
+        last_param_index = None
+        for i, segment in enumerate(segments):
             match = re.search(r'{(.*)}', segment)
             if match is not None:
                 name = match.group(1).strip()
                 new_segments.append('{{ %s }}' % name)
+                last_param_index = i + 1
             else:
                 new_segments.append(segment)
-        return '/'.join(new_segments)
+        return '/'.join(new_segments), last_param_index
 
     def _transpile_consumes(self, details: dict, endpoint: dict) -> dict:
         if 'consumes' in details and details['consumes']:
-            accept = ''
-            for mime in details['consumes']:
-                accept += '%s, ' % mime
-            endpoint['headers']['Accept'] = accept.strip()[:-1]
+            endpoint['headers']['Accept'] = '{{ headers_accept_%s }}' % re.sub(r'[^a-zA-Z0-9 \n\.]', '_', details['consumes'][0])
         return endpoint
 
     def _transpile_parameters(self, details: dict, endpoint: dict) -> dict:
@@ -87,8 +87,10 @@ class OASToConfigTranspiler:
         if 'type' not in schema or schema['type'] == 'object':
             if 'properties' in schema:
                 ref = schema['properties']
-            if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
-                ref.update(schema['additionalProperties'])
+            # This means that there could be arbitrarily appearing additional fields in the JSON response
+            # and there is no equivalent of this in Mockintosh.
+            # if 'additionalProperties' in schema and isinstance(schema['additionalProperties'], dict):
+            #     ref.update(schema['additionalProperties'])
         elif schema['type'] == 'array':
             if 'allOf' in schema['items']:
                 ref = schema['items']['allOf'][0]['properties']
@@ -101,9 +103,9 @@ class OASToConfigTranspiler:
                     ref = schema['items']
         return ref
 
-    def _transpile_body_json(self, ref: dict) -> str:
+    def _transpile_body_json_object(self, properties: dict, last_path_param_index: Union[int, None] = None) -> str:
         body_json = ''
-        for field, _details in ref.items():
+        for field, _details in properties.items():
             if not isinstance(_details, dict):
                 continue
 
@@ -111,28 +113,100 @@ class OASToConfigTranspiler:
                 if 'type' in _details and _details['type'] == 'string':
                     body_json += '"%s": "%s", ' % (field, _details['example'])
                 else:
-                    body_json += '"%s": %s, ' % (field, _details['example'])
+                    body_json += '"%s": %s, ' % (field, str(_details['example']))
             else:
                 if 'type' not in _details:
                     continue
 
-                if _details['type'] == 'integer':
-                    body_json += '"%s": {{ random.int %d %d }}, ' % (
+                if field == 'id' and _details['type'] in ('integer', 'number') and last_path_param_index is not None:
+                    body_json += '"%s": {{ request.path.%s }}, ' % (
                         field,
-                        - sys.maxsize - 1,
-                        sys.maxsize
+                        str(last_path_param_index)
                     )
-                elif _details['type'] == 'float':
-                    body_json += '"%s": {{ random.float %f %f (random.int 1 5) }}, ' % (
-                        field,
-                        sys.float_info.min,
-                        sys.float_info.max
-                    )
+                    last_path_param_index = None
                 else:
-                    body_json += '"%s": "{{ fake.sentence nb_words=10 }}", ' % field
-        return body_json
+                    body_json += '"%s": %s, ' % (
+                        field,
+                        self._transpile_body_json_value(_details, last_path_param_index=last_path_param_index)
+                    )
 
-    def _transpile_responses(self, details: dict, endpoint: dict, content_type: Union[str, None]) -> dict:
+        return '{%s}' % body_json[:-2]
+
+    def _transpile_body_json_value(
+        self,
+        _details: str,
+        last_path_param_index: Union[int, None] = None,
+        future: bool = False
+    ) -> str:
+        result = ''
+        if _details['type'] == 'string':
+            result += self._transpile_body_json_string(_format=_details.get('format', None), future=future)
+        elif _details['type'] == 'number':
+            result += self._transpile_body_json_number(_format=_details.get('format', None))
+        elif _details['type'] == 'integer':
+            result += self._transpile_body_json_integer(_format=_details.get('format', None))
+        elif _details['type'] == 'boolean':
+            result += self._transpile_body_json_boolean()
+        elif _details['type'] == 'array':
+            result += self._transpile_body_json_array(_details, last_path_param_index=last_path_param_index)
+        elif _details['type'] == 'object':
+            result += self._transpile_body_json_object(_details['properties'], last_path_param_index=last_path_param_index)
+        return result
+
+    def _transpile_body_json_string(
+        self,
+        _format: Union[str, None] = None,
+        future: bool = False
+    ) -> str:
+        if _format == 'date-time':
+            if future:
+                return '"{{ fake.future_datetime() }}"'
+            else:
+                return '"{{ fake.date_time() }}"'
+        else:
+            return '"{{ fake.sentence(nb_words=random.int(0, 20)) }}"'
+
+    def _transpile_body_json_number(self, _format: Union[str, None] = None) -> str:
+        _min = sys.float_info.min
+        _max = sys.float_info.max
+        if _format == 'float':
+            _min /= 2
+            _max /= 2
+        return '{{ random.float(%f, %f, (random.int(1, 5))) }}' % (
+            _min,
+            _max
+        )
+
+    def _transpile_body_json_integer(self, _format: Union[str, None] = None) -> str:
+        _min = - sys.maxsize - 1
+        _max = sys.maxsize
+        if _format == 'int32':
+            _min /= 2
+            _max /= 2
+        return '{{ random.int(%d, %d) }}' % (
+            _min,
+            _max
+        )
+
+    def _transpile_body_json_boolean(self) -> str:
+        return '{{ fake.boolean(chance_of_getting_true=50) | lower }}'
+
+    def _transpile_body_json_array(
+        self,
+        _details: dict,
+        last_path_param_index: Union[int, None] = None
+    ) -> str:
+        return '[{%% for n in range(range(100) | random) %%} %s {%% if not loop.last %%},{%% endif %%}{%% endfor %%}]' % (
+            self._transpile_body_json_value(_details['items'], last_path_param_index=last_path_param_index)
+        )
+
+    def _transpile_responses(
+        self,
+        details: dict,
+        endpoint: dict,
+        content_type: Union[str, None],
+        last_path_param_index: Union[int, None]
+    ) -> dict:
         if not isinstance(details, dict) or 'responses' not in details:
             return endpoint
 
@@ -157,14 +231,23 @@ class OASToConfigTranspiler:
 
             if 'schema' in _response:
                 ref = self._transpile_schema(_response['schema'])
-                body_json = self._transpile_body_json(ref)
-                response['body'] = '{%s}' % body_json[:-2]
+                response['body'] = self._transpile_body_json_object(ref, last_path_param_index=last_path_param_index)
+
+            if 'headers' in _response:
+                response['headers'].update(self._transpile_headers(_response['headers']))
 
             self._delete_key_if_empty(response, 'headers')
 
             endpoint['response'].append(response)
 
         return endpoint
+
+    def _transpile_headers(self, headers: dict) -> dict:
+        result = {}
+        for key, value in headers.items():
+            future = True if 'expire' in key.lower() else False
+            result[key] = self._transpile_body_json_value(value, future=future)
+        return result
 
     def _determine_management_port(self, service_port: int) -> int:
         port = 8000
@@ -192,7 +275,7 @@ class OASToConfigTranspiler:
             base_path = self.data['basePath']
 
         for _path, _details in self.data['paths'].items():
-            _path = self.path_oas_to_handlebars(_path)
+            _path, last_path_param_index = self.path_oas_to_handlebars(_path)
             _path = base_path + _path
             for method, details in _details.items():
                 if method == 'parameters':
@@ -210,7 +293,7 @@ class OASToConfigTranspiler:
                 endpoint = self._transpile_consumes(details, endpoint)
                 endpoint = self._transpile_parameters(details, endpoint)
                 content_type = self._transpile_produces(details)
-                endpoint = self._transpile_responses(details, endpoint, content_type)
+                endpoint = self._transpile_responses(details, endpoint, content_type, last_path_param_index)
 
                 self._delete_key_if_empty(endpoint, 'headers')
                 self._delete_key_if_empty(endpoint, 'queryString')
@@ -220,6 +303,7 @@ class OASToConfigTranspiler:
                 service['endpoints'].append(endpoint)
 
         out = {
+            'templatingEngine': 'Jinja2',
             'management': {
                 'port': self._determine_management_port(service['port'])
             },

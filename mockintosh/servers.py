@@ -315,7 +315,7 @@ class HttpServer:
         http_path_list: List[HttpPath],
         _globals: dict,
         debug: bool = False,
-        management_root: str = None
+        management_root: Union[str, None] = None
     ) -> tornado.web.Application:
         endpoint_handlers = []
         http_path_list = sorted(http_path_list, key=lambda x: x.priority, reverse=False)
