@@ -65,7 +65,7 @@ services:
 ```
 
 Mockintosh is a service virtualization tool that's capable to generate mocks for **RESTful APIs** and communicate with **message queues**
-to either mimic **asyncronous** tasks or to simulate **microservice architectures** in a blink of an eye.
+to either mimic **asynchronous** tasks or to simulate **microservice architectures** in a blink of an eye.
 
 The state-of-the-art mocking capabilities of Mockintosh enables software development teams to work
 **independently** while building and maintaining a **complicated** microservice architecture.
