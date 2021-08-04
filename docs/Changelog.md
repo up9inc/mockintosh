@@ -13,7 +13,6 @@
 - Serve mocks from OpenAPI and Postman collections, also allow converting into config
 - AMQP protocol support (RabbitMQ, ActiveMQ and others)
 - Google PubSub support
-- Google PubSub support
 - Redis Queues support
 - fix the bug with traffic log not working after certain mgmt requests
 
@@ -144,6 +143,10 @@
 
 # Next Version
 
+- special matching options for GraphQL
+- improve OAS converter
+- have a mark for "unhandled" entries in traffic log, allow adding these entries to config with one click
+- fix issue of unhandled traffic JSON shown as base64
 
 ---
 
@@ -160,6 +163,7 @@
 
 ## Management API/UI
 
+- save modified config in mgmtUI somehow to disk
 - find solution better than querying traffic log each second
 - In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 - upon navigating between mgmt UI tabs, refresh unhandled, stats

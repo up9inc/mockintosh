@@ -88,6 +88,7 @@
         }
 
         .responses-table .col {
+            /*noinspection CssInvalidPropertyValue*/
             width: -webkit-fit-content;
             width: -moz-fit-content;
             width: fit-content;
@@ -255,7 +256,7 @@
                aria-selected="true">Statistics</a>
         </li>
         <li class="nav-item" role="presentation">
-            <a class="nav-link" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
+            <a class="nav-link" id="config-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
                aria-selected="false">Configuration</a>
         </li>
         <li class="nav-item" role="presentation">
@@ -350,9 +351,16 @@
                     <div class="right traffic-details">
                         <span class="text-muted">Select traffic entry from the left sidebar...</span>
                         <div style="display: none">
-                            <i class="fa fa-times text-muted pull-right"></i>
                             <small class="text-muted ts"></small>
-                            <small class="text-muted pull-right"></small><br/>
+
+                            <div class="pull-right">
+                                <button class="btn btn-sm btn-primary">
+                                    <i class="fa fa-eyedropper"></i> Add to config
+                                </button>
+                                <small class="text-muted"></small>
+                                <i class="fa fa-times text-muted"></i>
+                            </div>
+
                             <div class="request">
                                 <span class="method"></span>
                                 <a href="#" class="url text-dark" target="_blank"></a>
@@ -576,12 +584,21 @@
         jqNode.html(highlightedText);
     }
 
-    function details(entry, container) {
+    function traffic_details(entry, container) {
+        container.find(".traffic-details").data('entry', entry);
         container.find(".traffic-details>span").hide();
         container.find(".traffic-details>div").show();
         container.find(".traffic-details .ts").text(new Date(entry.startedDateTime).toLocaleString(language));
-        container.find(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        container.find(".traffic-details > div > div.pull-right > small.text-muted").text(entry._serviceName ? entry._serviceName : "");
         container.find(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
+
+        const adder = container.find(".traffic-details > div > div.pull-right > .btn-primary");
+        if (isUnhandled(entry)) {
+            adder.show();
+        } else {
+            adder.hide();
+        }
+
         let method = container.find(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
 
@@ -671,6 +688,17 @@
 
     let traffic_offset = 0;
 
+    function isUnhandled(entry) {
+        let isUnhandled = true;
+        for (let n = 0; n < entry.response.headers.length; n++) {
+            const hdr = entry.response.headers[n];
+            if (hdr.name.toLowerCase() === 'x-mockintosh-prompt') {
+                isUnhandled = false;
+            }
+        }
+        return isUnhandled;
+    }
+
     function traffic_log() {
         $.ajax({
             url: './traffic-log',
@@ -681,7 +709,13 @@
                     const entry = result.log.entries[traffic_offset];
                     const url = new URL(entry.request.url);
                     const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
-                    li.append('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
+                    const dateBlock = $('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
+
+                    if (isUnhandled(entry)) {
+                        dateBlock.append(" <i class='fa fa-eyedropper text-dark' title='Request were forwarded to real service'></i>");
+                    }
+
+                    li.append(dateBlock);
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
 
                     const sbadge = $('<span class="badge"></span>').addClass("badge-" + status_color(entry.response.status));
@@ -692,6 +726,7 @@
                     }
 
                     li.append(sbadge);
+
                     const parts = entry.request.url.split('/');
                     parts.shift();
                     parts.shift();
@@ -703,7 +738,7 @@
                         $(".traffic-items .selected").removeClass('selected');
                         const item = $(this);
                         item.addClass('selected');
-                        details(item.data("obj"), $("#reqlog"));
+                        traffic_details(item.data("obj"), $("#reqlog"));
                     });
                     $("#reqlog .traffic-items").append(li);
                     if (!$(".traffic-items .selected").length) {
@@ -857,6 +892,23 @@
             }
         });
 
+        function updateConfig(config, isYAML, callback) {
+            $.ajax("./config", {
+                'data': isYAML ? config : JSON.stringify(config),
+                'type': 'POST',
+                'processData': false,
+                'contentType': isYAML ? 'application/x-yaml' : 'application/json',
+                success: function () {
+                    alert("Config has been updated");
+                    callback();
+                },
+                error: function (xhr) {
+                    alert("Failed to apply config: " + xhr.responseText);
+                }
+            });
+
+        }
+
         $("#config .btn-success").click(function () {
             let val = $("#config select").val();
 
@@ -877,18 +929,8 @@
                     }
                 });
             } else {
-                $.ajax("./config", {
-                    'data': $("#config pre code").text(),
-                    'type': 'POST',
-                    'processData': false,
-                    'contentType': 'application/x-yaml',
-                    success: function () {
-                        alert("Config has been updated");
-                        window.location.reload();
-                    },
-                    error: function (xhr) {
-                        alert("Failed to apply config: " + xhr.responseText);
-                    }
+                updateConfig($("#config pre code").text(), true, function () {
+                    window.location.reload();
                 });
             }
         });
@@ -919,7 +961,7 @@
             $.ajax({
                 url: './unhandled',
                 type: 'DELETE',
-                success: function (result) {
+                success: function () {
                     $("#unhandled .btn-primary").click();
                 }
             });
@@ -944,7 +986,7 @@
             $.ajax({
                 url: './traffic-log',
                 type: 'DELETE',
-                success: function (result) {
+                success: function () {
                     traffic_offset = 0;
                     $("#reqlog .traffic-items").empty();
                     $(".traffic-details .fa-times").click();
@@ -977,6 +1019,104 @@
             $(".traffic-items .selected").removeClass('selected');
             $(".traffic-details>span").show();
             $(".traffic-details>div").hide();
+        });
+
+        const REGULAR_HEADERS = [
+            'a-im',
+            'accept', 'accept-charset', 'accept-datetime', 'accept-encoding', 'accept-language',
+            'access-control-allow-credentials', 'access-control-allow-origin', 'access-control-request-headers',
+            'access-control-request-method', 'access-control-allow-methods',
+            'authorization', 'cache-control', 'connection', 'content-encoding', 'content-length', 'content-type', 'cookie',
+            'date', 'dnt', 'expect', 'forwarded', 'from', 'front-end-https', 'host', 'http2-settings',
+            'if-match', 'if-modified-since', 'if-none-match', 'if-range', 'if-unmodified-since',
+            'max-forwards', 'origin', 'pragma', 'proxy-authorization', 'proxy-connection', 'range', 'referer',
+            'save-data', 'sec-fetch-user', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'upgrade-insecure-requests',
+            'user-agent', 'via', 'warning',
+            'x-att-deviceid', 'x-correlation-id',
+            'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-port', 'x-forwarded-proto',
+            'x-http-method-override', 'x-real-ip', 'x-request-id', 'x-request-start', 'x-requested-with', 'x-uidh',
+            'x-wap-profile',
+            'x-envoy-expected-rq-timeout-ms', 'x-envoy-external-address',
+            'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-fetch-site', 'sec-fetch-mode', 'sec-fetch-dest',
+            'server', 'vary', 'etag', 'strict-transport-security',
+        ]
+
+        function entryToEndpoint(entry) {
+            // REQUEST
+            const url = new URL(entry.request.url);
+            const endp = {
+                "path": url.pathname,
+                "method": entry.request.method,
+            }
+
+            for (let n = 0; n < entry.request.queryString.length; n++) {
+                const hdr = entry.request.queryString[n];
+                endp.queryString = endp.queryString ? endp.queryString : {};
+                endp.queryString[hdr.name] = hdr.value;
+            }
+
+            for (let n = 0; n < entry.request.headers.length; n++) {
+                const hdr = entry.request.headers[n];
+                if (REGULAR_HEADERS.indexOf(hdr.name.toLowerCase()) >= 0) {
+                    continue;
+                }
+
+                endp.headers = endp.headers ? endp.headers : {};
+                endp.headers[hdr.name] = hdr.value;
+            }
+
+            if (entry.request.postData && entry.request.postData.text) {
+                endp.body = {"text": "{{regEx '.+'}}"}
+            }
+
+            // RESPONSE
+            endp.response = {
+                "status": entry.response.status
+            }
+
+            for (let n = 0; n < entry.response.headers.length; n++) {
+                const hdr = entry.response.headers[n];
+                if (REGULAR_HEADERS.indexOf(hdr.name.toLowerCase()) >= 0) {
+                    continue;
+                }
+
+                endp.response.headers = endp.response.headers ? endp.response.headers : {};
+                endp.response.headers[hdr.name] = hdr.value;
+            }
+
+            if (entry.response.content.text) {
+                try {
+                    endp.response.body = JSON.stringify(JSON.parse(entry.response.content.text), null, 2);
+                } catch (error) {
+                    endp.response.body = entry.response.content.text;
+                }
+
+                if (entry.response.content.encoding) {
+                    endp.response.body = "Seems binary, please use external file to provide it (@-prefix value)"
+                }
+            }
+
+            return endp;
+        }
+
+        $(".traffic-details .btn-primary").click(function () {
+            const entry = $(".traffic-details").data('entry');
+            $.getJSON('./config').done(function (config) {
+                for (let n = 0; n < config['services'].length; n++) {
+                    const svc = config['services'][n];
+                    if (svc.name === entry._serviceName) {
+                        if (svc.endpoints === undefined) {
+                            svc.endpoints = [];
+                        }
+                        svc.endpoints.push(entryToEndpoint(entry));
+                        updateConfig(config, false, function () {
+                            $("#config .btn-primary").click();
+                            $("#config-tab").click();
+                        });
+                        break;
+                    }
+                }
+            });
         });
 
         $(".nav-link").map(function (i, obj) {
@@ -1060,7 +1200,7 @@
                                 asyncModal.find('.modal-body > .content').append(details);
                             }
 
-                            details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
+                            traffic_details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
                         });
 
                         if (data.log.entries.length) {
