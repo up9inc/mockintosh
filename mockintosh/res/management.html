@@ -576,7 +576,7 @@
         jqNode.html(highlightedText);
     }
 
-    function details(entry, container) {
+    function traffic_details(entry, container) {
         container.find(".traffic-details>span").hide();
         container.find(".traffic-details>div").show();
         container.find(".traffic-details .ts").text(new Date(entry.startedDateTime).toLocaleString(language));
@@ -671,6 +671,17 @@
 
     let traffic_offset = 0;
 
+    function isUnhandled(entry) {
+        let isUnhandled = true;
+        for (let n = 0; n < entry.response.headers.length; n++) {
+            const hdr = entry.response.headers[n];
+            if (hdr.name.toLowerCase() === 'x-mockintosh-prompt') {
+                isUnhandled = false;
+            }
+        }
+        return isUnhandled;
+    }
+
     function traffic_log() {
         $.ajax({
             url: './traffic-log',
@@ -681,7 +692,13 @@
                     const entry = result.log.entries[traffic_offset];
                     const url = new URL(entry.request.url);
                     const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
-                    li.append('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
+                    const dateBlock = $('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
+
+                    if (isUnhandled(entry)) {
+                        dateBlock.append(" <i class='fa fa-eyedropper text-dark' title='Request were forwarded to real service'></i>");
+                    }
+
+                    li.append(dateBlock);
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
 
                     const sbadge = $('<span class="badge"></span>').addClass("badge-" + status_color(entry.response.status));
@@ -692,6 +709,7 @@
                     }
 
                     li.append(sbadge);
+
                     const parts = entry.request.url.split('/');
                     parts.shift();
                     parts.shift();
@@ -703,7 +721,7 @@
                         $(".traffic-items .selected").removeClass('selected');
                         const item = $(this);
                         item.addClass('selected');
-                        details(item.data("obj"), $("#reqlog"));
+                        traffic_details(item.data("obj"), $("#reqlog"));
                     });
                     $("#reqlog .traffic-items").append(li);
                     if (!$(".traffic-items .selected").length) {
@@ -1060,7 +1078,7 @@
                                 asyncModal.find('.modal-body > .content').append(details);
                             }
 
-                            details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
+                            traffic_details(btn.data('entry'), asyncModal.find('.modal-body > .content'));
                         });
 
                         if (data.log.entries.length) {
