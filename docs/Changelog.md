@@ -148,8 +148,6 @@
 
 ---
 
-save modified config in mgmtUI somehow
-
 # Roadmap Ideas
 
 ## Async Mock Actors
@@ -163,6 +161,8 @@ save modified config in mgmtUI somehow
 
 ## Management API/UI
 
+- save modified config in mgmtUI somehow to disk
+- have a mark for "unhandled" entries in traffic log, allow adding these entries to config with one click
 - find solution better than querying traffic log each second
 - In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
