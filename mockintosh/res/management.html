@@ -1043,14 +1043,18 @@
 
         function entryToEndpoint(entry) {
             // TODO: kafka?
-            console.log(entry);
+            console.log(entry); // FIXME
+            // REQUEST
             const url = new URL(entry.request.url);
             const endp = {
                 "path": url.pathname,
                 "method": entry.request.method,
-                "response": {
-                    "status": entry.response.status
-                }
+            }
+
+            for (let n = 0; n < entry.request.queryString.length; n++) {
+                const hdr = entry.request.queryString[n];
+                endp.queryString = endp.queryString ? endp.queryString : {};
+                endp.queryString[hdr.name] = hdr.value;
             }
 
             for (let n = 0; n < entry.request.headers.length; n++) {
@@ -1063,6 +1067,15 @@
                 endp.headers[hdr.name] = hdr.value;
             }
 
+            if (entry.request.postData && entry.request.postData.text) {
+                endp.body = {"text": "{{regEx '.+'}}"}
+            }
+
+            // RESPONSE
+            endp.response = {
+                "status": entry.response.status
+            }
+
             for (let n = 0; n < entry.response.headers.length; n++) {
                 const hdr = entry.response.headers[n];
                 if (REGULAR_HEADERS.indexOf(hdr.name.toLowerCase()) >= 0) {
@@ -1071,6 +1084,18 @@
 
                 endp.response.headers = endp.response.headers ? endp.response.headers : {};
                 endp.response.headers[hdr.name] = hdr.value;
+            }
+
+            if (entry.response.content.text) {
+                try {
+                    endp.response.body = JSON.stringify(JSON.parse(entry.response.content.text), null, 2);
+                } catch (error) {
+                    endp.response.body = entry.response.content.text;
+                }
+
+                if (entry.response.content.encoding) {
+                    endp.response.body = "Seems binary, please use external file to provide it (@-prefix value)"
+                }
             }
 
             return endp;
