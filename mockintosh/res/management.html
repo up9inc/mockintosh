@@ -88,6 +88,7 @@
         }
 
         .responses-table .col {
+            /*noinspection CssInvalidPropertyValue*/
             width: -webkit-fit-content;
             width: -moz-fit-content;
             width: fit-content;
@@ -255,7 +256,7 @@
                aria-selected="true">Statistics</a>
         </li>
         <li class="nav-item" role="presentation">
-            <a class="nav-link" id="home-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
+            <a class="nav-link" id="config-tab" data-toggle="tab" href="#config" role="tab" aria-controls="home"
                aria-selected="false">Configuration</a>
         </li>
         <li class="nav-item" role="presentation">
@@ -350,9 +351,16 @@
                     <div class="right traffic-details">
                         <span class="text-muted">Select traffic entry from the left sidebar...</span>
                         <div style="display: none">
-                            <i class="fa fa-times text-muted pull-right"></i>
                             <small class="text-muted ts"></small>
-                            <small class="text-muted pull-right"></small><br/>
+
+                            <div class="pull-right">
+                                <button class="btn btn-sm btn-primary">
+                                    <i class="fa fa-eyedropper"></i> Add to config
+                                </button>
+                                <small class="text-muted"></small>
+                                <i class="fa fa-times text-muted"></i>
+                            </div>
+
                             <div class="request">
                                 <span class="method"></span>
                                 <a href="#" class="url text-dark" target="_blank"></a>
@@ -577,11 +585,20 @@
     }
 
     function traffic_details(entry, container) {
+        container.find(".traffic-details").data('entry', entry);
         container.find(".traffic-details>span").hide();
         container.find(".traffic-details>div").show();
         container.find(".traffic-details .ts").text(new Date(entry.startedDateTime).toLocaleString(language));
-        container.find(".traffic-details > div > small.text-muted.pull-right").text(entry._serviceName ? entry._serviceName : "");
+        container.find(".traffic-details > div > div.pull-right > small.text-muted").text(entry._serviceName ? entry._serviceName : "");
         container.find(".traffic-details .url").text(entry.request.url).attr('href', entry.request.url);
+
+        const adder = container.find(".traffic-details > div > div.pull-right > .btn-primary");
+        if (isUnhandled(entry)) {
+            adder.show();
+        } else {
+            adder.hide();
+        }
+
         let method = container.find(".traffic-details .method");
         method.removeClass('text-' + method_color(method.text())).text(entry.request.method).addClass('text-' + method_color(entry.request.method));
 
@@ -875,6 +892,23 @@
             }
         });
 
+        function updateConfig(config, isYAML, callback) {
+            $.ajax("./config", {
+                'data': isYAML ? config : JSON.stringify(config),
+                'type': 'POST',
+                'processData': false,
+                'contentType': isYAML ? 'application/x-yaml' : 'application/json',
+                success: function () {
+                    alert("Config has been updated");
+                    callback();
+                },
+                error: function (xhr) {
+                    alert("Failed to apply config: " + xhr.responseText);
+                }
+            });
+
+        }
+
         $("#config .btn-success").click(function () {
             let val = $("#config select").val();
 
@@ -895,18 +929,8 @@
                     }
                 });
             } else {
-                $.ajax("./config", {
-                    'data': $("#config pre code").text(),
-                    'type': 'POST',
-                    'processData': false,
-                    'contentType': 'application/x-yaml',
-                    success: function () {
-                        alert("Config has been updated");
-                        window.location.reload();
-                    },
-                    error: function (xhr) {
-                        alert("Failed to apply config: " + xhr.responseText);
-                    }
+                updateConfig($("#config pre code").text(), true, function () {
+                    window.location.reload();
                 });
             }
         });
@@ -995,6 +1019,30 @@
             $(".traffic-items .selected").removeClass('selected');
             $(".traffic-details>span").show();
             $(".traffic-details>div").hide();
+        });
+
+        function entryToEndpoint(entry) {
+            return {"path": ""};
+        }
+
+        $(".traffic-details .btn-primary").click(function () {
+            const entry = $(".traffic-details").data('entry');
+            $.getJSON('./config').done(function (config) {
+                for (let n = 0; n < config['services'].length; n++) {
+                    const svc = config['services'][n];
+                    if (svc.name === entry._serviceName) {
+                        if (svc.endpoints === undefined) {
+                            svc.endpoints = [];
+                        }
+                        svc.endpoints.push(entryToEndpoint(entry));
+                        updateConfig(config, false, function () {
+                            $("#config .btn-primary").click();
+                            $("#config-tab").click();
+                        });
+                        break;
+                    }
+                }
+            });
         });
 
         $(".nav-link").map(function (i, obj) {
