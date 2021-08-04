@@ -143,8 +143,12 @@
 
 # Next Version
 
+- special matching options for GraphQL
+- improve OAS converter
 
 ---
+
+save modified config in mgmtUI somehow
 
 # Roadmap Ideas
 
