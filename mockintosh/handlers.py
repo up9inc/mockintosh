@@ -1211,17 +1211,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         return headers
 
     def resolve_unhandled_request_query_string(self) -> str:
-        query_string = ''
-        for key, value in self.request.query_arguments.items():
-            if not query_string:
-                query_string = '?'
-            values = [x.decode() for x in value]
-            if len(values) == 1:
-                query_string += '%s=%s' % (key, values[0])
-            else:
-                for _value in values:
-                    query_string += '%s[]=%s' % (key, _value)
-        return query_string
+        return ('?' if self.request.query else '') + self.request.query
 
     def resolve_unhandled_request_body(self) -> Tuple[dict, dict]:
         data = {}
@@ -1295,6 +1285,9 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
             ):
                 continue
             self.set_header(key, value)
+
+        if ORIGIN in self.request.headers:
+            self.set_cors_headers()
 
         self.write(resp.content)
         self.replica_response = self.build_replica_response()

@@ -211,8 +211,11 @@ class Response:
         }
 
         if isinstance(content['text'], (bytes, bytearray)):
-            content['text'] = _b64encode(content['text'])
-            content['encoding'] = BASE64
+            try:
+                content['text'] = content['text'].decode()
+            except (AttributeError, UnicodeDecodeError):
+                content['text'] = _b64encode(content['text'])
+                content['encoding'] = BASE64
 
         return {
             "status": self.status,
