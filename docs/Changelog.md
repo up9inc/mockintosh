@@ -1,5 +1,13 @@
 # Changelog
 
+## Next Version
+
+- special matching options for GraphQL
+- improve OAS converter
+- have a mark for "unhandled" entries in traffic log, allow adding these entries to config with one click
+- fix issue of unhandled traffic JSON shown as base64
+
+
 ## v0.11 - 2021-07-09
 
 - Add `amqpProperties` option for async
@@ -140,13 +148,6 @@
 6. Performance aspects kept in mind from the beginning
 8. Extensibility aspects kept in mind from the very beginning
 9. Logging with `-q` and `-v` respected
-
-# Next Version
-
-- special matching options for GraphQL
-- improve OAS converter
-- have a mark for "unhandled" entries in traffic log, allow adding these entries to config with one click
-- fix issue of unhandled traffic JSON shown as base64
 
 ---
 

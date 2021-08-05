@@ -636,8 +636,7 @@
         }
 
         // Response
-        const url = new URL(entry.request.url);
-        if (url.protocol === 'kafka:') {
+        if (isMQ(entry)) {
             container.find(".traffic-details .response > span.status").hide();
         } else {
             container.find(".traffic-details .response > span.status").show();
@@ -696,7 +695,12 @@
                 isUnhandled = false;
             }
         }
-        return isUnhandled;
+        return isUnhandled && !isMQ(entry);
+    }
+
+    function isMQ(entry) {
+        const url = new URL(entry.request.url);
+        return url.protocol === 'kafka:' // FIXME: what about other MQs?
     }
 
     function traffic_log() {
@@ -719,7 +723,7 @@
                     li.append($('<span class="pull-left">' + entry.request.method + '</span>').addClass("text-" + method_color(entry.request.method)));
 
                     const sbadge = $('<span class="badge"></span>').addClass("badge-" + status_color(entry.response.status));
-                    if (url.protocol === 'kafka:') {
+                    if (isMQ(entry)) {
                         sbadge.append('K');
                     } else {
                         sbadge.append(entry.response.status);
