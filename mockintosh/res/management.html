@@ -711,7 +711,6 @@
                 $("#reqlog input").prop('checked', result['log']['_enabled']);
                 for (; traffic_offset < result.log.entries.length; traffic_offset++) {
                     const entry = result.log.entries[traffic_offset];
-                    const url = new URL(entry.request.url);
                     const li = $("<li></li>").addClass('list-group-item').data('obj', entry);
                     const dateBlock = $('<span class="small text-muted">' + new Date(entry.startedDateTime).toLocaleString(language) + '</span>');
 
@@ -1030,7 +1029,7 @@
             'accept', 'accept-charset', 'accept-datetime', 'accept-encoding', 'accept-language',
             'access-control-allow-credentials', 'access-control-allow-origin', 'access-control-request-headers',
             'access-control-request-method', 'access-control-allow-methods',
-            'authorization', 'cache-control', 'connection', 'content-encoding', 'content-length', 'content-type', 'cookie',
+            'authorization', 'cache-control', 'connection', 'content-encoding', 'content-length', 'cookie',
             'date', 'dnt', 'expect', 'forwarded', 'from', 'front-end-https', 'host', 'http2-settings',
             'if-match', 'if-modified-since', 'if-none-match', 'if-range', 'if-unmodified-since',
             'max-forwards', 'origin', 'pragma', 'proxy-authorization', 'proxy-connection', 'range', 'referer',

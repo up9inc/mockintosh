@@ -247,7 +247,7 @@ def initiate():
         try:
             load_override = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
             logging.info("Automatically transpiled the config YAML from OpenAPI Specification.")
-        except ValidationError:
+        except (ValidationError, AttributeError):
             logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
         except ResolutionError:  # pragma: no cover
             pass

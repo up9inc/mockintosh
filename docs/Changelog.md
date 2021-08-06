@@ -173,8 +173,6 @@
 
 ## Other
 
-- Better way to support GraphQL
-
 - Nicer logging of requests, with special option to enable it.
 - Nicer formatted error pages for known errors, explaining the problem
 

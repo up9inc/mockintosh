@@ -10,4 +10,6 @@ COPY mockintosh/ ./mockintosh/
 
 RUN pip3 install .
 
+WORKDIR /tmp
+
 ENTRYPOINT ["mockintosh"]
