@@ -31,7 +31,7 @@ from mockintosh.transpilers import OASToConfigTranspiler
 from prance import ValidationError
 from prance.util.url import ResolutionError
 
-__version__ = "0.11"
+__version__ = "0.12"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)

@@ -1,12 +1,11 @@
 # Changelog
 
-## Next Version
+## v0.12 - 2021-08-18
 
 - special matching options for GraphQL
 - improve OAS converter
 - have a mark for "unhandled" entries in traffic log, allow adding these entries to config with one click
 - fix issue of unhandled traffic JSON shown as base64
-
 
 ## v0.11 - 2021-07-09
 
@@ -165,6 +164,7 @@
 ## Management API/UI
 
 - save modified config in mgmtUI somehow to disk
+- have a UI switch of YAML/JSON for /config and /unhandled
 - find solution better than querying traffic log each second
 - In unhandled tab, height: calc(100vh - 150px); does not work well when text is long
 - upon navigating between mgmt UI tabs, refresh unhandled, stats
@@ -178,7 +178,6 @@
 
 - Tornado has auto-multicpu startup mode, use it optionally with CLI arg/env var
 - test the performance of ourself and optimize it
-
 
 - support fragment same way we support query string - both in `path` and as standalone `fragment` option
 - add support of array/list parameters on query strings like
