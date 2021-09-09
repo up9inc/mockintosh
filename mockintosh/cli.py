@@ -31,7 +31,6 @@ from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.templating import RenderingQueue, RenderingJob
 from mockintosh.transpilers import OASToConfigTranspiler
 
-__version__ = "0.12"
 __location__ = path.abspath(path.dirname(__file__))
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
