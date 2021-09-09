@@ -349,83 +349,84 @@ class HttpServer:
         if management_root is not None:
             if management_root and management_root[0] == '/':
                 management_root = management_root[1:]
-            endpoint_handlers = [
-                                    (
-                                        '/%s/' % management_root,
-                                        ManagementServiceRootHandler,
-                                        dict()
-                                    ),
-                                    (
-                                        '/%s' % management_root,
-                                        ManagementServiceRootRedirectHandler,
-                                        dict(
-                                            management_root=management_root
-                                        )
-                                    ),
-                                    (
-                                        '/%s/config' % management_root,
-                                        ManagementServiceConfigHandler,
-                                        dict(
-                                            http_server=self,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/stats' % management_root,
-                                        ManagementServiceStatsHandler,
-                                        dict(
-                                            stats=self.definition.stats,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/traffic-log' % management_root,
-                                        ManagementServiceLogsHandler,
-                                        dict(
-                                            logs=self.definition.logs,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/reset-iterators' % management_root,
-                                        ManagementServiceResetIteratorsHandler,
-                                        dict(
-                                            http_server=self,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/unhandled' % management_root,
-                                        ManagementServiceUnhandledHandler,
-                                        dict(
-                                            http_server=self,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/oas' % management_root,
-                                        ManagementServiceOasHandler,
-                                        dict(
-                                            http_server=self,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/tag' % management_root,
-                                        ManagementServiceTagHandler,
-                                        dict(
-                                            http_server=self,
-                                            service_id=service.internal_service_id
-                                        )
-                                    ),
-                                    (
-                                        '/%s/resources' % management_root,
-                                        ManagementResourcesHandler,
-                                        dict(
-                                            http_server=self
-                                        )
-                                    )
-                                ] + endpoint_handlers
+            endpoint_handlers_prepend = [
+                (
+                    '/%s/' % management_root,
+                    ManagementServiceRootHandler,
+                    dict()
+                ),
+                (
+                    '/%s' % management_root,
+                    ManagementServiceRootRedirectHandler,
+                    dict(
+                        management_root=management_root
+                    )
+                ),
+                (
+                    '/%s/config' % management_root,
+                    ManagementServiceConfigHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/stats' % management_root,
+                    ManagementServiceStatsHandler,
+                    dict(
+                        stats=self.definition.stats,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/traffic-log' % management_root,
+                    ManagementServiceLogsHandler,
+                    dict(
+                        logs=self.definition.logs,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/reset-iterators' % management_root,
+                    ManagementServiceResetIteratorsHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/unhandled' % management_root,
+                    ManagementServiceUnhandledHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/oas' % management_root,
+                    ManagementServiceOasHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/tag' % management_root,
+                    ManagementServiceTagHandler,
+                    dict(
+                        http_server=self,
+                        service_id=service.internal_service_id
+                    )
+                ),
+                (
+                    '/%s/resources' % management_root,
+                    ManagementResourcesHandler,
+                    dict(
+                        http_server=self
+                    )
+                )
+            ]
+            endpoint_handlers = endpoint_handlers_prepend + endpoint_handlers
 
         return tornado.web.Application(endpoint_handlers, debug=debug, interceptors=self.interceptors)
 
