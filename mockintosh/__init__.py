@@ -10,29 +10,31 @@ import argparse
 import atexit
 import json
 import logging
+import os
 import signal
 import sys
-from os import path, environ
 from gettext import gettext
+from os import path, environ
 from typing import (
     Union,
     Tuple,
     List
 )
 
+from prance import ValidationError
+from prance.util.url import ResolutionError
+
 from mockintosh.constants import PROGRAM
 from mockintosh.definition import Definition
-from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _nostderr, _import_from
+from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.servers import HttpServer, TornadoImpl
 from mockintosh.templating import RenderingQueue, RenderingJob
 from mockintosh.transpilers import OASToConfigTranspiler
 
-from prance import ValidationError
-from prance.util.url import ResolutionError
-
-__version__ = "0.12"
 __location__ = path.abspath(path.dirname(__file__))
+with open(os.path.join(__location__, "res", "version.txt")) as fp:
+    __version__ = fp.read().strip()
 
 should_cov = environ.get('COVERAGE_PROCESS_START', False)
 cov_no_run = environ.get('COVERAGE_NO_RUN', False)
