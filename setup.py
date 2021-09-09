@@ -116,7 +116,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'mockintosh=mockintosh.__main__:initiate',
+            'mockintosh=mockintosh:initiate',
         ],
     },
     ext_modules=[]
