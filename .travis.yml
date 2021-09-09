@@ -1,8 +1,8 @@
 language: python
-branches:
-  only:
-    - main
-    - /^(\d+\.?)+$/
+# branches:
+#  only:
+#    - main
+#    - /^(\d+\.?)+$/
 services:
   - docker
 addons:
