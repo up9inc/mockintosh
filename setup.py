@@ -34,7 +34,11 @@ def read_requirements():
 with open(path.join(__location__, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(path.join(__location__, "mockintosh", "res", "version.txt")) as fp:
+    __version__ = fp.read().strip()
+
 setup(
+    version=__version__,
     name='mockintosh',
     description='The API mocking server for microservice environments',
     long_description=long_description,
