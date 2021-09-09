@@ -10,8 +10,6 @@ addons:
     - service1.example.com
     - service2.example.com
     - service3.example.com
-before_install:
-  - env
 install:
   - travis_fold start "Install.Pip.Package" && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
