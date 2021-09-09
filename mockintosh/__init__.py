@@ -79,14 +79,14 @@ def start_render_queue() -> Tuple[RenderingQueue, RenderingJob]:
 
 
 def run(
-    source: str,
-    is_file: bool = True,
-    debug: bool = False,
-    interceptors: tuple = (),
-    address: str = '',
-    services_list: list = [],
-    tags: list = [],
-    load_override: Union[dict, None] = None
+        source: str,
+        is_file: bool = True,
+        debug: bool = False,
+        interceptors: tuple = (),
+        address: str = '',
+        services_list: tuple = (),
+        tags: list = (),
+        load_override: Union[dict, None] = None
 ):
     queue, _ = start_render_queue()
 
@@ -125,7 +125,7 @@ def _cov_exit(cov):
         cov.save()  # pragma: no cover
 
 
-def _handle_cli_args_logging(args: list, fmt: str) -> None:
+def _handle_cli_args_logging(args: dict, fmt: str) -> None:
     if args['quiet']:
         logging.basicConfig(level=logging.WARNING, format=fmt)
         logging.getLogger('pika').setLevel(logging.CRITICAL)
@@ -141,21 +141,21 @@ def _handle_cli_args_logging(args: list, fmt: str) -> None:
     logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
 
 
-def _handle_cli_args_logfile(args: list, fmt: str) -> None:
+def _handle_cli_args_logfile(args: dict, fmt: str) -> None:
     if args['logfile']:
         handler = logging.FileHandler(args['logfile'])
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
 
-def _handle_cli_args_tags(args: list) -> list:
+def _handle_cli_args_tags(args: dict) -> list:
     tags = []
     if args['enable_tags']:
         tags = args['enable_tags'].split(',')
     return tags
 
 
-def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
+def _handle_cli_args(args: dict) -> Tuple[list, str, list]:
     interceptors = import_interceptors(args['interceptor'])
     address = args['bind'] if args['bind'] is not None else ''
     tags = _handle_cli_args_tags(args)
@@ -211,7 +211,8 @@ def initiate():
     ap.add_argument(
         '-c',
         '--convert',
-        help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config. Example: `$ mockintosh petstore.json -c dev.json json`' % PROGRAM.capitalize(),
+        help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config. '
+             'Example: `$ mockintosh petstore.json -c dev.json json`' % PROGRAM.capitalize(),
         action='store',
         nargs='+',
         metavar=('filename', 'format')
@@ -260,7 +261,7 @@ def initiate():
             run(
                 source,
                 debug=debug_mode,
-                interceptors=interceptors,
+                interceptors=tuple(interceptors),
                 address=address,
                 services_list=services_list,
                 tags=tags,
