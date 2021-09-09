@@ -8,8 +8,8 @@
 
 from os import environ
 
+
 PROGRAM = 'mockintosh'
-VERSION = "0.12"
 
 PYBARS = 'Handlebars'
 JINJA = 'Jinja2'

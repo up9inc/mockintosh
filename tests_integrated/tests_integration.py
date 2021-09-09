@@ -12,7 +12,7 @@ import yaml
 from confluent_kafka.cimpl import Consumer, Producer
 from jsonschema.validators import validate
 
-from mockintosh import VERSION
+import mockintosh
 
 MGMT = os.environ.get('MGMT', 'https://localhost:8000')
 SRV1 = os.environ.get('SRV1', 'http://localhost:8001')
@@ -32,7 +32,7 @@ class RESTTests(unittest.TestCase):
         logging.basicConfig(level=logging.DEBUG, format='[%(relativeCreated)d %(name)s %(levelname)s] %(message)s')
         # test for release version consistency
         ttag = os.getenv("TRAVIS_TAG")
-        ver = VERSION
+        ver = mockintosh.__version__
         logging.info("Travis tag: %s, src version: %s", ttag, ver)
         assert not ttag or ttag == ver, "Git tag/version mismatch"
 
