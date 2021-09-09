@@ -20,7 +20,7 @@ from typing import (
     List
 )
 
-from mockintosh.constants import PROGRAM
+from mockintosh.constants import PROGRAM, VERSION
 from mockintosh.definition import Definition
 from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.helpers import _nostderr, _import_from
@@ -252,7 +252,7 @@ def initiate():
         except ResolutionError:  # pragma: no cover
             pass
 
-        logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
+        logging.info("%s v%s is starting...", PROGRAM.capitalize(), VERSION)
 
         if not cov_no_run:  # pragma: no cover
             run(

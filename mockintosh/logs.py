@@ -13,8 +13,7 @@ from typing import (
 
 from tornado.http1connection import HTTP1ServerConnection
 
-import mockintosh
-from mockintosh.constants import PROGRAM
+from mockintosh.constants import PROGRAM, VERSION
 from mockintosh.replicas import Request, Response
 
 
@@ -25,7 +24,7 @@ def _get_log_root(enabled) -> dict:
             "version": "1.2",
             "creator": {
                 "name": "%s" % PROGRAM.capitalize(),
-                "version": "%s" % mockintosh.__version__
+                "version": "%s" % VERSION
             },
             "entries": []
         }

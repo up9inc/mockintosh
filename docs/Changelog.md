@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13 - next
+
+- fixed `setup.py` to be virtualenv-friendly
+
 ## v0.12 - 2021-08-18
 
 - special matching options for GraphQL

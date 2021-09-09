@@ -25,7 +25,7 @@ from jsonschema.validators import validate as jsonschema_validate
 from backports.datetime_fromisoformat import MonkeyPatch
 
 import mockintosh
-from mockintosh.constants import PROGRAM, BASE64
+from mockintosh.constants import PROGRAM, BASE64, VERSION
 from mockintosh.performance import PerformanceProfile
 from mockintosh.helpers import _b64encode
 from utilities import (
@@ -2960,7 +2960,7 @@ class TestManagement():
             assert not data['log']['_enabled']
             assert data['log']['version'] == '1.2'
             assert data['log']['creator']['name'] == PROGRAM.capitalize()
-            assert data['log']['creator']['version'] == mockintosh.__version__
+            assert data['log']['creator']['version'] == VERSION
             assert len(data['log']['entries']) == 0
 
             resp = httpx.get(SRV_8001 + '/service1', headers={'Host': SRV_8001_HOST})
@@ -3035,7 +3035,7 @@ class TestManagement():
                 assert entry['response']['httpVersion'] == 'HTTP/1.1'
                 assert not entry['response']['cookies']
                 response_headers = {x['name']: x['value'] for x in entry['response']['headers']}
-                assert response_headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), mockintosh.__version__)
+                assert response_headers['Server'] == '%s/%s' % (PROGRAM.capitalize(), VERSION)
                 assert entry['response']['content']['mimeType'] == 'text/html; charset=utf-8'
                 assert 'Date' in response_headers
                 assert response_headers['X-%s-Prompt' % PROGRAM.capitalize()] == 'Hello, I\'m %s.' % PROGRAM.capitalize()

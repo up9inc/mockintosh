@@ -38,8 +38,7 @@ from graphql import parse as graphql_parse
 from graphql.language.printer import print_ast as graphql_print_ast
 from graphql.language.parser import GraphQLSyntaxError
 
-import mockintosh
-from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64
+from mockintosh.constants import PROGRAM, PYBARS, JINJA, SPECIAL_CONTEXT, BASE64, VERSION
 from mockintosh.config import (
     ConfigExternalFilePath,
     ConfigDataset,
@@ -1133,7 +1132,7 @@ class GenericHandler(tornado.web.RequestHandler, BaseHandler):
         """Method that sets the default headers."""
         self.set_header('Server', '%s/%s' % (
             PROGRAM.capitalize(),
-            mockintosh.__version__
+            VERSION
         ))
         self.set_header('x-%s-prompt' % PROGRAM.lower(), "Hello, I'm Mockintosh.")  # clear signature that it's mock
         self.set_cors_headers()
