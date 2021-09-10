@@ -415,7 +415,7 @@
             "pattern": "^\\d+|RST|FIN|PASS$"
           },
           "items": {
-            "type": "string"
+            "type": "number"
           }
         }
       },

@@ -1,0 +1,71 @@
+services: # config requires at least one service to be configured
+  - name: Demo Service  # optional, used for visual reference
+    port: 8888  # required option, on which port to serve HTTP traffic
+    # ssl: true  # uncomment to enable SSL, see also sslCertFile and sslKeyFile options
+    # fallbackTo: https://httpbin.org  # all unhandled requests will be forwarded to that address
+
+    endpoints:
+      # that's enough to serve empty response for curl -v http://localhost:8888/
+      - path: /
+
+      # test with: curl -v http://localhost:8888/api/myURLParamValue123/action
+      - path: /api/{{param}}/action  # Handlebars expressions can be part of request URL
+        response: "request URL contained {{param}}"  # and can be referenced in response
+
+      # only works when query string is provided
+      - path: /api/queryStringDemo
+        queryString:
+          qName1: qValue  # will only match if query string parameter exists
+          qName2: "{{regEx '\\d+'}}"  # will require numeric value
+        response: "request URL contained {{request.queryString.qName2}}"  # request parts can be referenced in response
+
+      - path: /withPerfProfile
+        performanceProfile: allPossibleOptions  # will cause 40% of requests to fail with various reasons
+        response: "worked fine"
+
+      - path: /varyingResponses
+        response:
+          - "The response"
+          - "can be different"
+          - "each time."
+          - body: "Drastically different!"
+            status: 202
+
+      - path: /someMoreFields
+        comment: endpoint comments are just for visual help in large configs
+        method: POST
+        headers:
+          x-required-header: someval  # will cause only requests with specific header to work
+        body:
+          text: "{{regEx '.+'}}"  # will require non-empty POST body
+
+        response:
+          status: 204
+          headers:
+            x-response-header: "{{random.uuid4}}"
+
+
+globals: # optional section
+  performanceProfile: justSlow  # for all endpoints, apply this performance profile
+  headers: # for all endpoints, add these response headers
+    content-type: text/plain  # can be a single place to set application/json as default
+
+
+management:
+  port: 9999  # enable the management API+UI on certain port
+  # ssl: true  # same behavior as service's option
+
+performanceProfiles:
+  justSlow:
+    ratio: 1.0  # work 100% of time
+    delay: 0.5  # introduce 0.5s delay
+
+  allPossibleOptions:
+    ratio: 0.5  # only affect half of the traffic
+    delay: 2.5  # considerable delay
+    faults:
+      PASS: 0.2  # 20% of times, cause no failure
+      RST: 0.2   # simulate connection reset
+      FIN: 0.2   # simulate sudden connection shutdown
+      400: 0.2
+      500: 0.2
