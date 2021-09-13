@@ -11,6 +11,7 @@ import atexit
 import json
 import logging
 import os
+import shutil
 import signal
 import sys
 from gettext import gettext
@@ -79,14 +80,14 @@ def start_render_queue() -> Tuple[RenderingQueue, RenderingJob]:
 
 
 def run(
-    source: str,
-    is_file: bool = True,
-    debug: bool = False,
-    interceptors: tuple = (),
-    address: str = '',
-    services_list: list = [],
-    tags: list = [],
-    load_override: Union[dict, None] = None
+        source: str,
+        is_file: bool = True,
+        debug: bool = False,
+        interceptors: tuple = (),
+        address: str = '',
+        services_list: list = [],
+        tags: list = [],
+        load_override: Union[dict, None] = None
 ):
     queue, _ = start_render_queue()
 
@@ -221,6 +222,13 @@ def initiate():
     args = vars(ap.parse_args())
 
     interceptors, address, tags = _handle_cli_args(args)
+
+    if args['sample_config']:
+        fname = os.path.abspath(args['source'][0])
+        shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
+        logging.info("Created sample configuration file in %r", fname)
+        logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
+        sys.exit(0)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
