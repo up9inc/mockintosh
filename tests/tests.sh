@@ -4,6 +4,7 @@
 cd $(dirname $0)/..
 
 rm -f .coverage.*
+docker ps  # test if docker is operational
 
 tests/ps.sh &
 
