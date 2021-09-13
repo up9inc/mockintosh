@@ -5,11 +5,13 @@
 .. module:: __init__
     :synopsis: Contains classes that tests mock server's asynchronous features.
 """
-
 import json
+import logging
 import os
+import shlex
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import warnings
@@ -178,19 +180,31 @@ class AsyncBase:
             create_topic_method(ASYNC_ADDR[cls.async_service_type], topic)
 
         time.sleep(ASYNC_CONSUME_TIMEOUT / 20)
-
-        cmd = '%s %s' % (PROGRAM, get_config_path(config))
+        logfile = tempfile.mktemp(prefix=PROGRAM, suffix=".log")
+        cmd = '%s -v -l %s %s' % (PROGRAM, logfile, get_config_path(config))
         if should_cov:
             cmd = 'coverage run --parallel -m %s' % cmd
+        else:
+            cmd = sys.executable + " -m " + cmd
         this_env = os.environ.copy()
+        logging.info("Starting mockintosh: %s", cmd)
         AsyncBase.mock_server_process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=True,
+            shlex.split(cmd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=this_env
         )
-        time.sleep(ASYNC_CONSUME_TIMEOUT / 20)
+
+        cnt = 0
+        while cnt < ASYNC_CONSUME_TIMEOUT:
+            time.sleep(1)
+            assert AsyncBase.mock_server_process.poll() is None
+            if os.path.exists(logfile):
+                with open(logfile) as fp:
+                    if "Mock server is ready!" in fp.read():
+                        break
+                    else:
+                        logging.debug("Waiting for Mockintosh to be ready")
 
         create_topic = getattr(sys.modules[__name__], '%s_create_topic' % cls.async_service_type)
         create_topic(ASYNC_ADDR[cls.async_service_type], 'topic2')
@@ -236,6 +250,7 @@ class AsyncBase:
         start = time.time()
         while True:
             try:
+                logging.debug("Trying consume: %r(%r)...", callback, args)
                 callback(*args)
             except AssertionError:
                 time.sleep(ASYNC_CONSUME_WAIT)
