@@ -212,7 +212,8 @@ def initiate():
     ap.add_argument(
         '-c',
         '--convert',
-        help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config. Example: `$ mockintosh petstore.json -c dev.json json`' % PROGRAM.capitalize(),
+        help='Convert an OpenAPI Specification (Swagger) 2.0 / 3.0 / 3.1 file to %s config. '
+             'Example: `$ mockintosh petstore.json -c dev.json json`' % PROGRAM.capitalize(),
         action='store',
         nargs='+',
         metavar=('filename', 'format')
