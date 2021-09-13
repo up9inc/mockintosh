@@ -217,6 +217,7 @@ def initiate():
         metavar=('filename', 'format')
     )
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
+    ap.add_argument('--sample-config', help='Writes sample config file to disk', action='store_true')
     args = vars(ap.parse_args())
 
     interceptors, address, tags = _handle_cli_args(args)
