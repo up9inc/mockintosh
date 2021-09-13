@@ -197,6 +197,7 @@ class AsyncBase:
 
         cnt = 0
         while cnt < ASYNC_CONSUME_TIMEOUT:
+            cnt += 1
             time.sleep(1)
             assert AsyncBase.mock_server_process.poll() is None
             if os.path.exists(logfile):
