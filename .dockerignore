@@ -1,0 +1,7 @@
+*/__pycache__
+*/.pytest_cache
+.idea
+.git
+tests
+.coveragerc
+!tests/*.sh
