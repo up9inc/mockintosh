@@ -12,28 +12,15 @@ services: # config requires at least one service to be configured
       - path: /api/{{param}}/action  # Handlebars expressions can be part of request URL
         response: "request URL contained {{param}}"  # and can be referenced in response
 
-      # only works when query string is provided
-      - path: /api/queryStringDemo
-        queryString:
-          qName1: qValue  # will only match if query string parameter exists
-          qName2: "{{regEx '\\d+'}}"  # will require numeric value
-        response: "request URL contained {{request.queryString.qName2}}"  # request parts can be referenced in response
-
-      - path: /withPerfProfile
-        performanceProfile: allPossibleOptions  # will cause 40% of requests to fail with various reasons
-        response: "worked fine"
-
-      - path: /varyingResponses
-        response:
-          - "The response"
-          - "can be different"
-          - "each time."
-          - body: "Drastically different!"
-            status: 202
-
+      # the below example only works for complex request, tested like below:
+      # curl -v "http://localhost:8888/someMoreFields?qName1=qValue&qName2=12345" \
+      #   -X POST -H"X-Required-Header: someval" --data "payload"
       - path: /someMoreFields
         comment: endpoint comments are just for visual help in large configs
         method: POST
+        queryString:
+          qName1: qValue  # will only match if query string parameter exists
+          qName2: "{{regEx '\\d+'}}"  # will require numeric value
         headers:
           x-required-header: someval  # will cause only requests with specific header to work
         body:
@@ -42,7 +29,23 @@ services: # config requires at least one service to be configured
         response:
           status: 204
           headers:
-            x-response-header: "{{random.uuid4}}"
+            x-response-header: "{{random.uuid4}}"  # a selection of random/dynamic functions is available
+            x-query-string-value: "{{request.queryString.qName2}}"  # request parts can be referenced in response
+
+      # demo for variety of separately configured responses
+      - path: /varyingResponses
+        response:
+          - "The response"
+          - "can be different"
+          - "each time."
+          - body: "Drastically different!"
+            headers:
+              content-type: application/octet-stream
+            status: 202
+
+      - path: /withPerfProfile
+        performanceProfile: allPossibleOptions  # enables certain performance/chaos profile, see section below
+        response: "worked fine"
 
 
 globals: # optional section
@@ -60,7 +63,7 @@ performanceProfiles:
     ratio: 1.0  # work 100% of time
     delay: 0.5  # introduce 0.5s delay
 
-  allPossibleOptions:
+  allPossibleOptions:  # will cause 40% of requests to fail with various reasons
     ratio: 0.5  # only affect half of the traffic
     delay: 2.5  # considerable delay
     faults:
