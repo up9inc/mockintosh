@@ -10,13 +10,9 @@ addons:
     - service1.example.com
     - service2.example.com
     - service3.example.com
-install:
-  - travis_fold start "Build.Image" && make build && docker image ls mockintosh && docker run -it mockintosh --help && travis_fold end "Build.Image"
 script:
   - stty cols 120
-  - travis_fold start "Unit.Tests" && tests/tests.sh && travis_fold end "Unit.Tests"
-  - travis_fold start "StopContainers.Tests" && make stop-containers && travis_fold end "StopContainers.Tests"
-  - travis_fold start "Integration.Tests" && make test-integration && travis_fold end "Integration.Tests"
+  - tests.sh
 after_success:
   - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force https://${GH_TOKEN}@github.com/up9inc/mockintosh.git HEAD:gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
   - make coverage-after
