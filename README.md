@@ -25,12 +25,11 @@ You've just found a new way of mocking microservices!
 An example config that demonstrates the common features of Mockintosh:
 
 ```yaml
-templatingEngine: Jinja2
 services:
 - name: Mock for Service1
   hostname: localhost
   port: 8001
-  managementRoot: __admin
+  managementRoot: __admin  # open it in browser to see the UI
   endpoints:
   - path: "/"
     method: GET
@@ -76,21 +75,39 @@ The state-of-the-art mocking capabilities of Mockintosh enables software develop
 Key features:
 
 - Multiple services mocked by a single instance of Mockintosh
-- Lenient [configuration syntax](Configuring.md)
-- Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
-- Performance testing supported (with [datasets](Configuring.md#datasets) and low resource footprint)
+- Lenient [configuration syntax](https://mockintosh.io/Configuring.html)
+- Request scenarios support with [multi-response endpoints](http://mockintosh.io/Configuring.html#multiple-responses)
+- Performance testing supported (with [datasets](http://mockintosh.io/Configuring.html#datasets) and low resource footprint)
 - [Interceptors](#interceptors) support for unlimited customization
-- Remote [management UI+API](Management.md)
+- Remote [management UI+API](http://mockintosh.io/Management.html)
 
 _[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh has born as a new way of mocking microservices._
 
 ## Quick Start
 
-Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/):
+### Install on MacOS
+
+Install Mockintosh app on Mac using [Homebrew](https://brew.sh/) package manager:
 
 ```shell
-$ pip install mockintosh
+$ brew install up9inc/repo/mockintosh
 ```
+
+### Install on Linux and Windows
+
+Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/) (or `pip3` on some machines):
+
+```shell
+$ pip install -U mockintosh
+```
+
+### Use Demo Sample Config
+
+```shell
+$ mockintosh --config
+```
+
+### Use Jinja2-based Sample Config
 
 Once the installation complete, you can start Mockintosh with a JSON/YAML configuration as an
 argument, e.g. [example.yaml](docs/examples/example.yaml):
@@ -112,9 +129,9 @@ $ docker run -it -p 8000-8005:8000-8005 -v `pwd`:/tmp up9inc/mockintosh /tmp/con
 Please note the `-p` flag used to publish container's ports and `-v` to mount directory with config into container.
 
 After server starts, you can issue requests against it. For example, `curl -v http://localhost:8000/` would
-respond `hello world`. Also, consider opening [Management UI](Management.md) in your
+respond `hello world`. Also, consider opening [Management UI](http://mockintosh.io/Management.html) in your
 browser: [http://localhost:8000/__admin](http://localhost:8000/__admin). Management UI offers visual tools to see available mock endpoints, traffic log
-and many other [features](Management.md).
+and many other [features](http://mockintosh.io/Management.html).
 
 ## Command-line Arguments
 
@@ -205,7 +222,7 @@ to the service into your interceptor._
 
 ### Request Object
 
-The `Request` object is exactly the same object defined in [here](Templating.md#request-object)
+The `Request` object is exactly the same object defined in [here](http://mockintosh.io/Templating.html#request-object)
 with a minor difference: Instead of accesing the dictonary elements using `.<key>`, you access them using `['<key>']`
 e.g. `request.queryString['a']`.
 

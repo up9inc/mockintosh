@@ -8,5 +8,7 @@ docker ps  # test if docker is operational
 
 tests/ps.sh &
 
+docker kill kafka || true
+
 make install-dev
-make test-with-coverage
+make test-asyncs
