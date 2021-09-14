@@ -5,6 +5,7 @@ globals:
   headers:
     global-hdr1: globalval1
     global-hdr2: globalval2
+    global-hdr3: globalval3
   performanceProfile: never
 performanceProfiles:
   justDelay:
@@ -84,7 +85,7 @@ services:
               - name2={{request.headers.hdr3}}
       - path: /header-matching1
         headers:
-          hdr4: another header
+          hdr4: another header is broken
         response: alternative header
       - path: /body-jsonschema1
         method: POST
