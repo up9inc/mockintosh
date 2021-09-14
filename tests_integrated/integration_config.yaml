@@ -313,7 +313,7 @@ services:
   - name: Service with fallback
     port: 8007
     managementRoot: /sub/__admin
-    fallbackTo: https://mockintosh.io
+    fallbackTo: https://httpbin.org/
     endpoints:
       - path: /
         response: no fallback
