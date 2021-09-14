@@ -5,7 +5,7 @@
 .. module:: __init__
     :synopsis: Contains classes that tests mock server's asynchronous features.
 """
-
+import logging
 import sys
 import os
 import time
@@ -236,7 +236,9 @@ class AsyncBase():
                 callback(*args)
             except AssertionError:
                 time.sleep(ASYNC_CONSUME_WAIT)
-                if time.time() - start > ASYNC_CONSUME_TIMEOUT:
+                elapsed = time.time() - start
+                logging.debug("Consume did not work for %s/%s: %r", elapsed, ASYNC_CONSUME_TIMEOUT, callback)
+                if elapsed > ASYNC_CONSUME_TIMEOUT:
                     raise
                 else:
                     continue
