@@ -193,7 +193,7 @@ class RESTTests(unittest.TestCase):
         self.assertEqual("intercepted", resp.text)
         self.assertEqual("some-i-val", resp.headers.get("someheader"))
 
-        with open("tests_integrated/server.log") as fp:
+        with open(os.path.dirname(__file__) + "/server.log") as fp:
             self.assertTrue(any('Processed intercepted request' in line for line in fp))
 
     def test_files_locating(self):
