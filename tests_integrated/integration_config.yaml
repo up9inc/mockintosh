@@ -68,9 +68,7 @@ services:
           body: 'qstr match 1: {{request.queryString.param1}} {{capturedVar}} {{anyValIntoVar}}'
           status: '202'
           headers:
-            Content-Type: application/x-my-own
             param2: '{{request.queryString.param2}} {{request.queryString.param3}}'
-            global-hdr1: overridden
       - path: /header-matching1
         headers:
           hdr1: constant val
