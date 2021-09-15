@@ -136,7 +136,7 @@ HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonsch
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 async_service_type: str = None
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 class AsyncBase:
