@@ -137,7 +137,6 @@ should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 async_service_type: str = None
 
 
-
 class AsyncBase:
     mock_server_process = None
 
