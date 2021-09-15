@@ -131,14 +131,12 @@ ASYNC_ADDR = {
     'mqtt': MQTT_ADDR
 }
 ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
-ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 1)
+ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
 should_cov = os.environ.get('COVERAGE_PROCESS_START', False)
 async_service_type: str = None
-
-# logging.basicConfig(level=logging.DEBUG)
 
 
 class AsyncBase:
@@ -254,9 +252,7 @@ class AsyncBase:
                 callback(*args)
             except AssertionError:
                 time.sleep(ASYNC_CONSUME_WAIT)
-                elapsed = time.time() - start
-                logging.debug("Consume did not work for %s/%s: %r", elapsed, ASYNC_CONSUME_TIMEOUT, callback)
-                if elapsed > ASYNC_CONSUME_TIMEOUT:
+                if time.time() - start > ASYNC_CONSUME_TIMEOUT:
                     raise
                 else:
                     continue
@@ -638,8 +634,7 @@ class AsyncBase:
         if async_service_type in ('redis', 'mqtt'):
             assert any(row[1] == value for row in async_consumer.log)
         else:
-            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log), \
-                "%s=%s not found in %r" % (key, value, async_consumer.log)
+            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
     @pytest.mark.skip("Fails all the time")
     def test_post_async_produce(self):
@@ -696,8 +691,7 @@ class AsyncBase:
         if async_service_type in ('redis', 'mqtt'):
             assert any(row[1] == value for row in async_consumer.log)
         else:
-            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log), \
-                "%s=%s not found in %r" % (key, value, async_consumer.log)
+            assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
     def test_post_async_produce_by_actor_name(self):
         global async_service_type
