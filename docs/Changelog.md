@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.13 - next
+
+- create Homebrew repo for Mac users
+- add `--sample-config` to CLI, to obtain small sample config easily
+
 ## v0.12 - 2021-08-18
 
 - special matching options for GraphQL
