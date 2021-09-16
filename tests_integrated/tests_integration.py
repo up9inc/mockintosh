@@ -1053,7 +1053,8 @@ class AsyncTests(unittest.TestCase):
         resp = httpx.post(MGMT + '/async/producers/chain2-reactive', verify=False)
         resp.raise_for_status()
 
-        time.sleep(2)  # wait for consumers to subscribe
+        # TODO: make it detect the moment when queues are created
+        time.sleep(10)  # wait for consumers to subscribe
 
         # clean the log
         resp = httpx.delete(MGMT + '/async/consumers/chain2-validating', verify=False)
