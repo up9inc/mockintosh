@@ -1421,7 +1421,7 @@ class AsyncBase:
         resp = httpx.post(MGMT + '/config', data=json.dumps(data), verify=False)
         assert 204 == resp.status_code
 
-        time.sleep(ASYNC_CONSUME_WAIT / 10)
+        time.sleep(ASYNC_CONSUME_WAIT)
 
         queue, job = start_render_queue()
         async_service = getattr(sys.modules[__name__], '%sService' % async_service_type.capitalize())(
