@@ -138,7 +138,7 @@ test-openapi-transpiler:
 	./tests/test-openapi-transpiler.sh
 
 stop-containers:
-	docker stop $$(docker ps -a -q) || exit 0
+	docker kill $$(docker ps -a -q) || exit 0
 
 test-style:
 	flake8
