@@ -130,8 +130,8 @@ ASYNC_ADDR = {
     'amazonsqs': AMAZONSQS_ADDR,
     'mqtt': MQTT_ADDR
 }
-ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 120)
-ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 0.5)
+ASYNC_CONSUME_TIMEOUT = os.environ.get('ASYNC_CONSUME_TIMEOUT', 180)
+ASYNC_CONSUME_WAIT = os.environ.get('ASYNC_CONSUME_WAIT', 1.0)
 
 HAR_JSON_SCHEMA = {"$ref": "https://raw.githubusercontent.com/undera/har-jsonschema/master/har-schema.json"}
 
