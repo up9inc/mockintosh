@@ -191,6 +191,13 @@ through the management UI without even restarting Mockintosh.
 
 ## Build the Docs
 
+Single-command from `/docs` to review docs locally:
+```shell
+docker run -p 8080:4000 -v $(pwd):/site bretfisher/jekyll-serve
+```
+
+Or manual:
+
 Install [Jekyll](https://jekyllrb.com/) and [Bundler](https://bundler.io/):
 
 ```shell

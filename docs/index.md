@@ -22,33 +22,34 @@ You've just found a new way of mocking microservices!
 An example config that demonstrates the common features of Mockintosh:
 
 ```yaml
-services:
+{% raw %}services:
   - name: Mock for Service1
     hostname: localhost
     port: 8000
     managementRoot: __admin  # open http://localhost:8001/__admin it in browser to see the UI  
     endpoints:
 
-      - path: "/"  # simplest mock
+    - path: "/"  # simplest mock
 
-      - path: "/api/users/{{param}}"  # parameterized URLs
-        response: "simple string response with {{param}} included"
+    - path: "/api/users/{{param}}"  # parameterized URLs
+      response: "simple string response with {{param}} included"
 
-      - path: /comprehensive-matching-and-response
-        method: POST
-        queryString:
-          qName1: qValue  # will only match if query string parameter exists
-          qName2: "{{regEx '\\d+'}}"  # will require numeric value
+    - path: /comprehensive-matching-and-response
+      method: POST
+      queryString:
+        qName1: qValue  # will only match if query string parameter exists
+        qName2: "{{regEx '\\d+'}}"  # will require numeric value
+      headers:
+        x-required-header: someval  # will cause only requests with specific header to work
+      body:
+        text: "{{regEx '.+'}}"  # will require non-empty POST body
+      response:  # the mocked response specification goes below
+        status: 202
+        body: "It worked"
         headers:
-          x-required-header: someval  # will cause only requests with specific header to work
-        body:
-          text: "{{regEx '.+'}}"  # will require non-empty POST body
-        response:  # the mocked response specification goes below
-          status: 202
-          body: "It worked"
-          headers:
-            x-response-header: "{{random.uuid4}}"  # a selection of random/dynamic functions is available
-            x-query-string-value: "{{request.queryString.qName2}}"  # request parts can be referenced in response
+          x-response-header: "{{random.uuid4}}"  # a selection of random/dynamic functions is available
+          x-query-string-value: "{{request.queryString.qName2}}"  # request parts can be referenced in response
+{% endraw %}
 ```
 
 Mockintosh is a service virtualization tool that's capable to generate mocks for **RESTful APIs** and communicate with **message queues**
