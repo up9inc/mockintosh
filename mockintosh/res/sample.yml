@@ -27,7 +27,8 @@ services: # config requires at least one service to be configured
           text: "{{regEx '.+'}}"  # will require non-empty POST body
 
         response:
-          status: 204
+          status: 202
+          body: "It worked!"
           headers:
             x-response-header: "{{random.uuid4}}"  # a selection of random/dynamic functions is available
             x-query-string-value: "{{request.queryString.qName2}}"  # request parts can be referenced in response
@@ -41,11 +42,11 @@ services: # config requires at least one service to be configured
           - body: "Drastically different!"
             headers:
               content-type: application/octet-stream
-            status: 202
+            status: 201
 
       - path: /withPerfProfile
         performanceProfile: allPossibleOptions  # enables certain performance/chaos profile, see section below
-        response: "worked fine"
+        response: "Pay attention to status code"
 
 
 globals: # optional section
@@ -55,7 +56,7 @@ globals: # optional section
 
 
 management:
-  port: 9999  # enable the management API+UI on certain port
+  port: 9999  # enable the management API+UI on certain port, open in browser http://localhost:9999 to see it
   # ssl: true  # same behavior as service's option
 
 performanceProfiles:
