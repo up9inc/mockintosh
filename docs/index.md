@@ -22,46 +22,34 @@ You've just found a new way of mocking microservices!
 An example config that demonstrates the common features of Mockintosh:
 
 ```yaml
-templatingEngine: Jinja2
-services:
-- name: Mock for Service1
-  hostname: localhost
-  port: 8001
-  managementRoot: __admin
-  endpoints:
-  - path: "/"
-    method: GET
-    response:
+{% raw %}services:
+  - name: Mock for Service1
+    hostname: localhost
+    port: 8000
+    managementRoot: __admin  # open http://localhost:8001/__admin it in browser to see the UI  
+    endpoints:
+
+    - path: "/"  # simplest mock
+
+    - path: "/api/users/{{param}}"  # parameterized URLs
+      response: "simple string response with {{param}} included"
+
+    - path: /comprehensive-matching-and-response
+      method: POST
+      queryString:
+        qName1: qValue  # will only match if query string parameter exists
+        qName2: "{{regEx '\\d+'}}"  # will require numeric value
       headers:
-        Content-Type: "text/html; charset=UTF-8"
-      body: "@templates/index.html.j2"
-  - path: "/users"
-    method: GET
-    response:
-      headers:
-        Content-Type: "application/json; charset=UTF-8"
-      body: "@templates/users.json.j2"
-- name: Mock for Service2
-  hostname: service2.example.com
-  port: 8002
-  endpoints:
-  - path: "/companies"
-    method: POST
-    body:
-      schema:
-        type: object
-        properties:
-          name:
-            type: string
-          address:
-            type: string
-        required:
-        - name
-        - address
-    response:
-      headers:
-        Content-Type: "application/json; charset=UTF-8"
-      body: "@templates/company.json.j2"
+        x-required-header: someval  # will cause only requests with specific header to work
+      body:
+        text: "{{regEx '.+'}}"  # will require non-empty POST body
+      response:  # the mocked response specification goes below
+        status: 202
+        body: "It worked"
+        headers:
+          x-response-header: "{{random.uuid4}}"  # a selection of random/dynamic functions is available
+          x-query-string-value: "{{request.queryString.qName2}}"  # request parts can be referenced in response
+{% endraw %}
 ```
 
 Mockintosh is a service virtualization tool that's capable to generate mocks for **RESTful APIs** and communicate with **message queues**
@@ -76,19 +64,56 @@ Key features:
 - Lenient [configuration syntax](Configuring.md)
 - Remote [management UI+API](Management.md)
 - Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses) and [tags](Configuring.md#tagged-responses)
+- [Mock Actor](Async.md) pattern for Kafka, RabbitMQ, Redis and some other message bus protocols
 - GraphQL queries recognizing
 
-_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh has born as a new way of mocking microservices._
+_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh was born as a new way of mocking microservices._
 
 ## Quick Start
 
-Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/):
+### Install on MacOS
+
+Install Mockintosh app on Mac using [Homebrew](https://brew.sh/) package manager:
 
 ```shell
-$ pip install mockintosh
+$ brew install up9inc/repo/mockintosh
 ```
 
-Once the installation complete, you can start Mockintosh with a JSON/YAML configuration as an
+### Install on Linux and Windows
+
+Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/) (or `pip3` on some machines):
+
+```shell
+$ pip install -U mockintosh
+```
+
+### Use Demo Sample Config
+
+Run following command to generate `example.yaml` file in the current directory:
+
+```shell
+$ mockintosh --sample-config example.yaml
+```
+
+then, run that config with Mockintosh:
+```shell
+$ mockintosh example.yaml
+```
+
+And open http://localhost:9999 in your web browser.
+
+You can also issue some CURL requests against it:
+```shell
+curl -v http://localhost:8888/
+
+curl -v http://localhost:8888/api/myURLParamValue123/action
+
+curl -v "http://localhost:8888/someMoreFields?qName1=qValue&qName2=12345" -X POST -H"X-Required-Header: someval" --data "payload"
+```
+
+### Download and Use Jinja2-based Sample Config
+
+Once the installation complete, you can start Mockintosh with Jinja2 used as templating language. Use a JSON/YAML configuration as an
 argument, e.g. [example.yaml](examples/example.yaml):
 
 ```shell
@@ -129,6 +154,8 @@ Using `--bind` option the bind address for the mock server can be specified, e.g
 
 Using `--enable-tags` option the tags in the configuration file can be
 enabled in startup time, e.g. `mockintosh --enable-tags first,second`
+
+Using `--sample-config` will cause Mockintosh to write the example configuration file into specified location.
 
 ### OpenAPI Specification to Mockintosh Config Conversion (_experimental_)
 

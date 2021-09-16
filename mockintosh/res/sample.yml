@@ -1,0 +1,75 @@
+services: # config requires at least one service to be configured
+  - name: Demo Service  # optional, used for visual reference
+    port: 8888  # required option, on which port to serve HTTP traffic
+    # ssl: true  # uncomment to enable SSL, see also sslCertFile and sslKeyFile options
+    # fallbackTo: https://httpbin.org  # all unhandled requests will be forwarded to that address
+
+    endpoints:
+      # that's enough to serve empty response for curl -v http://localhost:8888/
+      - path: /
+
+      # test with: curl -v http://localhost:8888/api/myURLParamValue123/action
+      - path: /api/{{param}}/action  # Handlebars expressions can be part of request URL
+        response: "request URL contained {{param}}"  # and can be referenced in response
+
+      # the below example only works for complex request, tested like below:
+      # curl -v "http://localhost:8888/someMoreFields?qName1=qValue&qName2=12345" \
+      #   -X POST -H"X-Required-Header: someval" --data "payload"
+      - path: /someMoreFields
+        comment: endpoint comments are just for visual help in large configs
+        method: POST
+        queryString:
+          qName1: qValue  # will only match if query string parameter exists
+          qName2: "{{regEx '\\d+'}}"  # will require numeric value
+        headers:
+          x-required-header: someval  # will cause only requests with specific header to work
+        body:
+          text: "{{regEx '.+'}}"  # will require non-empty POST body
+
+        response:
+          status: 202
+          body: "It worked!"
+          headers:
+            x-response-header: "{{random.uuid4}}"  # a selection of random/dynamic functions is available
+            x-query-string-value: "{{request.queryString.qName2}}"  # request parts can be referenced in response
+
+      # demo for variety of separately configured responses
+      - path: /varyingResponses
+        response:
+          - "The response"
+          - "can be different"
+          - "each time."
+          - body: "Drastically different!"
+            headers:
+              content-type: application/octet-stream
+            status: 201
+
+      - path: /withPerfProfile
+        performanceProfile: allPossibleOptions  # enables certain performance/chaos profile, see section below
+        response: "Pay attention to status code"
+
+
+globals: # optional section
+  performanceProfile: justSlow  # for all endpoints, apply this performance profile
+  headers: # for all endpoints, add these response headers
+    content-type: text/plain  # can be a single place to set application/json as default
+
+
+management:
+  port: 9999  # enable the management API+UI on certain port, open in browser http://localhost:9999 to see it
+  # ssl: true  # same behavior as service's option
+
+performanceProfiles:
+  justSlow:
+    ratio: 1.0  # work 100% of time
+    delay: 0.5  # introduce 0.5s delay
+
+  allPossibleOptions:  # will cause 40% of requests to fail with various reasons
+    ratio: 0.5  # only affect half of the traffic
+    delay: 2.5  # considerable delay
+    faults:
+      PASS: 0.2  # 20% of times, cause no failure
+      RST: 0.2   # simulate connection reset
+      FIN: 0.2   # simulate sudden connection shutdown
+      400: 0.2
+      500: 0.2

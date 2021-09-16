@@ -22,14 +22,9 @@ import tornado.ioloop
 import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
-from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.definition import Definition
+from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
-from mockintosh.services.http import (
-    HttpService,
-    HttpPath,
-    HttpAlternative
-)
 from mockintosh.management import (
     ManagementRootHandler,
     ManagementConfigHandler,
@@ -54,9 +49,13 @@ from mockintosh.management import (
     ManagementServiceTagHandler,
     UnhandledData
 )
-from mockintosh.stats import Stats
 from mockintosh.services.asynchronous._looping import run_loops as async_run_loops
-
+from mockintosh.services.http import (
+    HttpService,
+    HttpPath,
+    HttpAlternative
+)
+from mockintosh.stats import Stats
 
 __location__ = path.abspath(path.dirname(__file__))
 
@@ -65,10 +64,10 @@ class Impl:
 
     @abstractmethod
     def get_server(
-        self,
-        router: Union[RuleRouter, tornado.web.Application],
-        is_ssl: bool,
-        ssl_options: dict
+            self,
+            router: Union[RuleRouter, tornado.web.Application],
+            is_ssl: bool,
+            ssl_options: dict
     ):
         raise NotImplementedError
 
@@ -80,10 +79,10 @@ class Impl:
 class TornadoImpl(Impl):
 
     def get_server(
-        self,
-        router: Union[RuleRouter, tornado.web.Application],
-        is_ssl: bool,
-        ssl_options: dict
+            self,
+            router: Union[RuleRouter, tornado.web.Application],
+            is_ssl: bool,
+            ssl_options: dict
     ) -> tornado.web.HTTPServer:
         if is_ssl:
             server = tornado.web.HTTPServer(router, ssl_options=ssl_options)
@@ -115,14 +114,14 @@ class _Apps:
 class HttpServer:
 
     def __init__(
-        self,
-        definition: Definition,
-        impl: Impl,
-        debug: bool = False,
-        interceptors: tuple = (),
-        address: str = '',
-        services_list: tuple = (),
-        tags: list = []
+            self,
+            definition: Definition,
+            impl: Impl,
+            debug: bool = False,
+            interceptors: tuple = (),
+            address: str = '',
+            services_list: tuple = (),
+            tags: list = []
     ):
         self.definition = definition
         self.impl = impl
@@ -158,7 +157,7 @@ class HttpServer:
                 if service.ssl_cert_file is not None:
                     cert_file = self.resolve_cert_path(service.ssl_cert_file)
                 if service.ssl_key_file is not None:
-                    key_file = self.resolve_cert_path(service. ssl_key_file)
+                    key_file = self.resolve_cert_path(service.ssl_key_file)
                 break
         ssl_options = {
             "certfile": cert_file,
@@ -310,12 +309,12 @@ class HttpServer:
         self.impl.serve()
 
     def make_app(
-        self,
-        service: dict,
-        http_path_list: List[HttpPath],
-        _globals: dict,
-        debug: bool = False,
-        management_root: Union[str, None] = None
+            self,
+            service: dict,
+            http_path_list: List[HttpPath],
+            _globals: dict,
+            debug: bool = False,
+            management_root: Union[str, None] = None
     ) -> tornado.web.Application:
         endpoint_handlers = []
         http_path_list = sorted(http_path_list, key=lambda x: x.priority, reverse=False)
@@ -541,7 +540,7 @@ class HttpServer:
         ])
         server = self.impl.get_server(app, ssl, ssl_options)
         server.listen(config_management.port, address=self.address)
-        self.services_log.append('Serving management API at %s://%s:%s' % (
+        self.services_log.append('Serving management UI+API at %s://%s:%s' % (
             protocol,
             self.address if self.address else 'localhost',
             config_management.port
