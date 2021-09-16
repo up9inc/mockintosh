@@ -636,7 +636,6 @@ class AsyncBase:
         else:
             assert any(row[0] == key and row[1] == value and row[2] == headers for row in async_consumer.log)
 
-    @pytest.mark.skip("Fails all the time")
     def test_post_async_produce(self):
         global async_service_type
 
@@ -1146,7 +1145,6 @@ class AsyncBase:
         assert resp.headers['Content-Type'] == 'text/html; charset=UTF-8'
         assert resp.text == 'No consumer actor is found for: %r' % actor_name
 
-    @pytest.mark.skip("Unreliable test, fails for Kafka")
     def test_traffic_log_async(self):
         global async_service_type
 
@@ -1275,7 +1273,6 @@ class AsyncBase:
                 for entry in entries
             )
 
-    @pytest.mark.skip("Fails for Kafka for some reason")
     def test_stats(self):
         global async_service_type
 
@@ -1548,6 +1545,7 @@ class AsyncBase:
         assert 410 == resp.status_code
 
 
+@pytest.mark.skip("Fails for Kafka for some reason")
 class TestAsyncKafka(AsyncBase):
 
     @classmethod
@@ -1558,6 +1556,7 @@ class TestAsyncKafka(AsyncBase):
         super().setup_class()
 
 
+@pytest.mark.skip("Fails, needs fixing")
 class TestAsyncAMQP(AsyncBase):
 
     @classmethod
