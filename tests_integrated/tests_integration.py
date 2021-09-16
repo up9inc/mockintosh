@@ -1062,7 +1062,7 @@ class AsyncTests(unittest.TestCase):
         resp = httpx.post(MGMT + '/async/producers/chain2-on-demand', verify=False)
         resp.raise_for_status()
 
-        for _ in range(10):
+        for _ in range(60):
             resp = httpx.get(MGMT + '/async/consumers/chain2-validating', verify=False)
             resp.raise_for_status()
             msgs = resp.json()['log']['entries']
