@@ -66,7 +66,7 @@ Key features:
 - [Mock Actor](Async.md) pattern for Kafka, RabbitMQ, Redis and some other message bus protocols
 - GraphQL queries recognizing
 
-_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh has born as a new way of mocking microservices._
+_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh was born as a new way of mocking microservices._
 
 ## Quick Start
 
