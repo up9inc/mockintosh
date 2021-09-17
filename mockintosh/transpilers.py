@@ -14,7 +14,6 @@ import tempfile
 from collections import OrderedDict
 from os import getcwd, path
 from typing import (
-    List,
     Union,
     Tuple
 )
@@ -28,10 +27,11 @@ from mockintosh.helpers import _safe_path_split
 
 class OASToConfigTranspiler:
 
-    def __init__(self, source: str, convert_args: List[str]):
+    def __init__(self, source: str, convert_args: str):
         self.source = source
         self.data = None
-        self.target_filename, self.format = convert_args
+        self.target_filename = convert_args
+        self.format = 'json' if convert_args.lower().endswith(".json") else 'yaml'
         self.load()
 
     def load(self) -> None:
@@ -316,7 +316,6 @@ class OASToConfigTranspiler:
 
         cwd = getcwd()
         target_path = path.join(cwd, self.target_filename)
-        file = None
         try:
             file = open(target_path, 'w')
         except PermissionError:

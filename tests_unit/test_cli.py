@@ -1,7 +1,14 @@
+import logging
 import tempfile
 import unittest
+from os import path
 
+import mockintosh
 from mockintosh.__main__ import main
+
+__location__ = path.abspath(path.dirname(__file__))
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class CLITests(unittest.TestCase):
@@ -13,10 +20,10 @@ class CLITests(unittest.TestCase):
         main(["--sample-config", tempfile.mktemp()])
 
     def test_oas_conversion(self):
-        pass
+        main(["--convert=%s" % tempfile.mktemp(), __location__ + "/../tests_integrated/subdir/oas.json"])
 
     def test_oas_serving(self):
-        pass
+        main([__location__ + "/tests_integrated/subdir/oas.json"])
 
     def test_config_serving(self):
-        pass
+        main([mockintosh.__location__ + "/res/sample.yml"])

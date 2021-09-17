@@ -19,6 +19,7 @@ from typing import Union, Tuple, List
 from prance import ValidationError
 from prance.util.url import ResolutionError
 
+from mockintosh import Mockintosh
 from mockintosh.constants import PROGRAM
 from mockintosh.helpers import _import_from
 from mockintosh.replicas import Request, Response  # noqa: F401
@@ -108,10 +109,9 @@ def _initiate(args):
         logging.info("Created sample configuration file in %r", fname)
         logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
     elif convert_args:
-        logging.info("Converting OpenAPI Specification %s to %s in %s format...",
-                     source, convert_args[0], convert_args[1].upper())
-        target_path = _handle_oas_input(source, convert_args)
-        logging.info("The transpiled config %s is written to %s", convert_args[1].upper(), target_path)
+        logging.info("Converting OpenAPI Specification %r to %r...", source, convert_args[0])
+        target_path = _handle_oas_input(source, convert_args[0])
+        logging.info("The transpiled config is written to %s", target_path)
     else:
         try:
             loaded_config = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
@@ -122,17 +122,11 @@ def _initiate(args):
 
         services_list = args['source'][1:]
 
-        logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
+        logging.info("Mockintosh v%s is starting...", __version__)
 
-        run(
-            source,
-            debug=debug_mode,
-            interceptors=interceptors,
-            address=address,
-            services_list=services_list,
-            tags=tags,
-            load_override=load_override
-        )
+        controller = Mockintosh(bind_address=address, interceptors=interceptors, debug=debug_mode)
+        controller.management.set_config(loaded_config, services_list)
+        controller.management.set_enabled_tags(tags)
 
 
 def _configure_args():
