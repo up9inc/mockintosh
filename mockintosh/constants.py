@@ -8,8 +8,7 @@
 
 from os import environ
 
-
-PROGRAM = 'mockintosh'
+PROGRAM = 'mockintosh'  # FIXME: remove it
 
 PYBARS = 'Handlebars'
 JINJA = 'Jinja2'

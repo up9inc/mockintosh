@@ -7,11 +7,11 @@
 """
 
 import argparse
-import json
 import logging
 import os
 import shutil
 import sys
+from collections import namedtuple
 from gettext import gettext
 from os import path, environ
 from typing import Union, Tuple, List
@@ -20,11 +20,8 @@ from prance import ValidationError
 from prance.util.url import ResolutionError
 
 from mockintosh.constants import PROGRAM
-from mockintosh.definition import Definition
-from mockintosh.helpers import _nostderr, _import_from
+from mockintosh.helpers import _import_from
 from mockintosh.replicas import Request, Response  # noqa: F401
-from mockintosh.servers import HttpServer, TornadoImpl
-from mockintosh.templating import RenderingQueue, RenderingJob
 from mockintosh.transpilers import OASToConfigTranspiler
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -39,76 +36,21 @@ class CustomArgumentParser(argparse.ArgumentParser):
         self.exit(2, gettext('\n%(prog)s: error: %(message)s\n') % args)
 
 
-def get_schema():
-    schema_path = path.join(__location__, 'schema.json')
-    with open(schema_path, 'r') as file:
-        schema_text = file.read()
-        logging.debug('JSON schema: %s', schema_text)
-        schema = json.loads(schema_text)
-    return schema
-
-
-def import_interceptors(interceptors):
+def _import_interceptors(interceptors):
     imported_interceptors = []
-    if interceptors is not None:
-        if 'unittest' in sys.modules.keys():
-            tests_dir = path.join(__location__, '../tests')
-            sys.path.append(tests_dir)
-        for interceptor in interceptors:
-            module, name = interceptor[0].rsplit('.', 1)
-            imported_interceptors.append(_import_from(module, name))
+    for interceptor in interceptors if interceptors else []:
+        module, name = interceptor[0].rsplit('.', 1)
+        imported_interceptors.append(_import_from(module, name))
     return imported_interceptors
 
 
-def start_render_queue() -> Tuple[RenderingQueue, RenderingJob]:
-    queue = RenderingQueue()
-    t = RenderingJob(queue)
-    t.daemon = True
-    t.start()
-
-    return queue, t
-
-
-def run(
-        source: str,
-        is_file: bool = True,
-        debug: bool = False,
-        interceptors: tuple = (),
-        address: str = '',
-        services_list: list = [],
-        tags: list = [],
-        load_override: Union[dict, None] = None
-):
-    queue, _ = start_render_queue()
-
-    if address:  # pragma: no cover
-        logging.info('Bind address: %s', address)
-    schema = get_schema()
-
-    try:
-        definition = Definition(source, schema, queue, is_file=is_file, load_override=load_override)
-        http_server = HttpServer(
-            definition,
-            TornadoImpl(),
-            debug=debug,
-            interceptors=interceptors,
-            address=address,
-            services_list=services_list,
-            tags=tags
-        )
-    except Exception:  # pragma: no cover
-        logging.exception('Mock server loading error:')
-        with _nostderr():
-            raise
-    http_server.run()
-
-
-def _handle_cli_args_logging(args: dict, fmt: str) -> None:
-    if args['quiet']:
+def _configure_logging(quiet, verbose, logfile) -> None:
+    fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
+    if quiet:
         logging.basicConfig(level=logging.WARNING, format=fmt)
         logging.getLogger('pika').setLevel(logging.CRITICAL)
         logging.getLogger('rsmq').setLevel(logging.CRITICAL)
-    elif args['verbose']:
+    elif verbose:
         logging.basicConfig(level=logging.DEBUG, format=fmt)
     else:
         logging.basicConfig(level=logging.INFO, format=fmt)
@@ -118,30 +60,19 @@ def _handle_cli_args_logging(args: dict, fmt: str) -> None:
     logging.getLogger('boto3').setLevel(logging.CRITICAL)
     logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
 
-
-def _handle_cli_args_logfile(args: list, fmt: str) -> None:
-    if args['logfile']:
-        handler = logging.FileHandler(args['logfile'])
+    if logfile:
+        handler = logging.FileHandler(logfile)
         handler.setFormatter(logging.Formatter(fmt))
         logging.getLogger('').addHandler(handler)
 
 
-def _handle_cli_args_tags(args: list) -> list:
-    tags = []
-    if args['enable_tags']:
-        tags = args['enable_tags'].split(',')
-    return tags
+def _handle_cli_args(args: namedtuple) -> Tuple[tuple, str, list]:
+    interceptors = _import_interceptors(args.interceptor)
+    address = args.bind if args.bind else ''
+    tags = args.enable_tags.split(',') if args.enable_tags else []
+    _configure_logging(args.quiet, args.verbose, args.logfile)
 
-
-def _handle_cli_args(args: list) -> Tuple[tuple, str, list]:
-    interceptors = import_interceptors(args['interceptor'])
-    address = args['bind'] if args['bind'] is not None else ''
-    tags = _handle_cli_args_tags(args)
-    fmt = "[%(asctime)s %(name)s %(levelname)s] %(message)s"
-    _handle_cli_args_logging(args, fmt)
-    _handle_cli_args_logfile(args, fmt)
-
-    return interceptors, address, tags
+    return tuple(interceptors), address, tags
 
 
 def _handle_oas_input(source: str, convert_args: List[str], direct: bool = False) -> Union[str, dict]:
@@ -149,7 +80,11 @@ def _handle_oas_input(source: str, convert_args: List[str], direct: bool = False
     return oas_transpiler.transpile(direct=direct)
 
 
-def initiate(parsed_args):
+def _load_config(source):
+    pass
+
+
+def _initiate(args):
     """The top-level method to serve as the entry point of Mockintosh.
 
     This method is the entry point defined in `setup.py` for the `mockintosh` executable that
@@ -158,61 +93,46 @@ def initiate(parsed_args):
     This method parses the command-line arguments and handles the top-level initiations accordingly.
     """
 
-    args = vars(parsed_args)
-
     interceptors, address, tags = _handle_cli_args(args)
-
-    if args['sample_config']:
-        fname = os.path.abspath(args['source'][0])
-        shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
-        logging.info("Created sample configuration file in %r", fname)
-        logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
-        sys.exit(0)
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
         logging.debug('Tornado Web Server\'s debug mode is enabled!')
 
-    source = args['source'][0]
-    services_list = args['source'][1:]
-    convert_args = args['convert']
+    source = args.source[0]
+    convert_args = args.convert
 
-    load_override = None
-
-    if convert_args:
-        if len(convert_args) < 2:
-            convert_args.append('yaml')
-        elif convert_args[1] != 'json':
-            convert_args[1] = 'yaml'
-
-        logging.info(
-            "Converting OpenAPI Specification %s to ./%s in %s format...",
-            source,
-            convert_args[0],
-            convert_args[1].upper()
-        )
+    if args.sample_config:
+        fname = os.path.abspath(source)
+        shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
+        logging.info("Created sample configuration file in %r", fname)
+        logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
+    elif convert_args:
+        logging.info("Converting OpenAPI Specification %s to %s in %s format...",
+                     source, convert_args[0], convert_args[1].upper())
         target_path = _handle_oas_input(source, convert_args)
-        logging.info("The transpiled config %s is ready at %s", convert_args[1].upper(), target_path)
+        logging.info("The transpiled config %s is written to %s", convert_args[1].upper(), target_path)
     else:
         try:
-            load_override = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
+            loaded_config = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
             logging.info("Automatically transpiled the config YAML from OpenAPI Specification.")
-        except (ValidationError, AttributeError):
+        except (ValidationError, AttributeError, ResolutionError):
             logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
-        except ResolutionError:  # pragma: no cover
-            pass
+            loaded_config = _load_config(source)
+
+        services_list = args['source'][1:]
 
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
         run(
-                source,
-                debug=debug_mode,
-                interceptors=interceptors,
-                address=address,
-                services_list=services_list,
-                tags=tags,
-                load_override=load_override
-            )
+            source,
+            debug=debug_mode,
+            interceptors=interceptors,
+            address=address,
+            services_list=services_list,
+            tags=tags,
+            load_override=load_override
+        )
 
 
 def _configure_args():
@@ -248,6 +168,10 @@ def _configure_args():
     return ap
 
 
-if __name__ == '__main__':
+def main(args=None):
     args_parser = _configure_args()
-    initiate(args_parser.parse_args())
+    _initiate(args_parser.parse_args(args))
+
+
+if __name__ == '__main__':
+    main()
