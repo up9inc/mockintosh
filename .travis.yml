@@ -16,7 +16,7 @@ install:
 script:
   - stty cols 120
   - ./ps.sh &
-  - travis_fold start "Unit.Tests" && coverage run pytest tests_unit && travis_fold end "Unit.Tests" && travis_fold start "Integration.Tests" && tests_integrated/acceptance.sh && travis_fold end "Integration.Tests"
+  - travis_fold start "Unit.Tests" && coverage run -m pytest tests_unit && travis_fold end "Unit.Tests" && travis_fold start "Integration.Tests" && tests_integrated/acceptance.sh && travis_fold end "Integration.Tests"
 after_success:
   - coverage report && codecov
   - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force https://${GH_TOKEN}@github.com/up9inc/mockintosh.git HEAD:gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
