@@ -23,9 +23,7 @@ class CLITests(unittest.TestCase):
         main(["--convert=%s" % tempfile.mktemp(), __location__ + "/../tests_integrated/subdir/oas.json"])
 
     def test_oas_serving(self):
-        self.skipTest("")
-        main([__location__ + "/tests_integrated/subdir/oas.json"])
+        main([__location__ + "/../tests_integrated/subdir/oas.json"])
 
     def test_config_serving(self):
-        self.skipTest("")
         main([mockintosh.__location__ + "/res/sample.yml"])

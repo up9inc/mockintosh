@@ -14,13 +14,15 @@ import sys
 from collections import namedtuple
 from gettext import gettext
 from os import path, environ
-from typing import Union, Tuple, List
+from typing import Union, Tuple
 
+import yaml
 from prance import ValidationError
 from prance.util.url import ResolutionError
 
 from mockintosh import Mockintosh
 from mockintosh.constants import PROGRAM
+from mockintosh.exceptions import UnrecognizedConfigFileFormat
 from mockintosh.helpers import _import_from
 from mockintosh.replicas import Request, Response  # noqa: F401
 from mockintosh.transpilers import OASToConfigTranspiler
@@ -76,13 +78,20 @@ def _handle_cli_args(args: namedtuple) -> Tuple[tuple, str, list]:
     return tuple(interceptors), address, tags
 
 
-def _handle_oas_input(source: str, convert_args: List[str], direct: bool = False) -> Union[str, dict]:
+def _handle_oas_input(source: str, convert_args: str, direct: bool = False) -> Union[str, dict]:
     oas_transpiler = OASToConfigTranspiler(source, convert_args)
     return oas_transpiler.transpile(direct=direct)
 
 
 def _load_config(source):
-    pass
+    with open(source, 'r') as file:
+        logging.info('Reading configuration file from path: %s', source)
+
+        try:
+            return yaml.safe_load(file)
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
+            raise UnrecognizedConfigFileFormat('Configuration file is neither a JSON file nor a YAML file!',
+                                               source, str(e))
 
 
 def _initiate(args):
@@ -120,13 +129,15 @@ def _initiate(args):
             logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
             loaded_config = _load_config(source)
 
-        services_list = args['source'][1:]
-
         logging.info("Mockintosh v%s is starting...", __version__)
+
+        services_list = args.source[1:]
 
         controller = Mockintosh(bind_address=address, interceptors=interceptors, debug=debug_mode)
         controller.management.set_config(loaded_config, services_list)
         controller.management.set_enabled_tags(tags)
+
+        controller.run()
 
 
 def _configure_args():

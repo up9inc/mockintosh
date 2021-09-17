@@ -3,6 +3,8 @@ import logging
 from os import path
 from typing import Union
 
+from mockintosh.definition import Definition
+from mockintosh.helpers import _nostderr
 from mockintosh.replicas import Request, Response  # noqa: F401
 
 __location__ = path.abspath(path.dirname(__file__))
@@ -52,9 +54,12 @@ def run(
 
 
 class Mockintosh:
-    def __init__(self) -> None:
+    def __init__(self, bind_address='', interceptors=(), debug=False) -> None:
         super().__init__()
         self.management = Management()
+
+    def run(self):
+        pass
 
 
 class Service:
@@ -62,4 +67,8 @@ class Service:
 
 
 class Management(Service):
-    pass
+    def set_config(self, config, services_list):
+        pass
+
+    def set_enabled_tags(self, tags: list):
+        pass
