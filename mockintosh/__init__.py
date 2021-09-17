@@ -6,10 +6,11 @@ from typing import Union
 from mockintosh.definition import Definition
 from mockintosh.helpers import _nostderr
 from mockintosh.replicas import Request, Response  # noqa: F401
+from mockintosh.servers import TornadoImpl
 
 __location__ = path.abspath(path.dirname(__file__))
-
-from mockintosh.servers import TornadoImpl
+with open(path.join(__location__, "res", "version.txt")) as fp:
+    __version__ = fp.read().strip()
 
 
 def get_schema():
