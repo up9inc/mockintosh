@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 from collections import namedtuple
 from gettext import gettext
 from os import path, environ
@@ -94,52 +95,6 @@ def _load_config(source):
                                                source, str(e))
 
 
-def _initiate(args):
-    """The top-level method to serve as the entry point of Mockintosh.
-
-    This method is the entry point defined in `setup.py` for the `mockintosh` executable that
-    placed a directory in `$PATH`.
-
-    This method parses the command-line arguments and handles the top-level initiations accordingly.
-    """
-
-    interceptors, address, tags = _handle_cli_args(args)
-
-    debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
-    if debug_mode:
-        logging.debug('Tornado Web Server\'s debug mode is enabled!')
-
-    source = args.source[0]
-    convert_args = args.convert
-
-    if args.sample_config:
-        fname = os.path.abspath(source)
-        shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
-        logging.info("Created sample configuration file in %r", fname)
-        logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
-    elif convert_args:
-        logging.info("Converting OpenAPI Specification %r to %r...", source, convert_args[0])
-        target_path = _handle_oas_input(source, convert_args[0])
-        logging.info("The transpiled config is written to %s", target_path)
-    else:
-        try:
-            loaded_config = _handle_oas_input(source, ['config.yaml', 'yaml'], True)
-            logging.info("Automatically transpiled the config YAML from OpenAPI Specification.")
-        except (ValidationError, AttributeError, ResolutionError):
-            logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
-            loaded_config = _load_config(source)
-
-        logging.info("Mockintosh v%s is starting...", __version__)
-
-        services_list = args.source[1:]
-
-        controller = Mockintosh(bind_address=address, interceptors=interceptors, debug=debug_mode)
-        controller.management.set_config(loaded_config, services_list)
-        controller.management.set_enabled_tags(tags)
-
-        controller.run()
-
-
 def _configure_args():
     ap = CustomArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument(
@@ -171,6 +126,52 @@ def _configure_args():
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     ap.add_argument('--sample-config', help='Writes sample config file to disk', action='store_true')
     return ap
+
+
+def _initiate(args):
+    """The top-level method to serve as the entry point of Mockintosh.
+
+    This method is the entry point defined in `setup.py` for the `mockintosh` executable that
+    placed a directory in `$PATH`.
+
+    This method parses the command-line arguments and handles the top-level initiations accordingly.
+    """
+
+    interceptors, address, tags = _handle_cli_args(args)
+
+    debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
+    if debug_mode:
+        logging.debug('Tornado Web Server\'s debug mode is enabled!')
+
+    source = args.source[0]
+    convert_args = args.convert
+
+    if args.sample_config:
+        fname = os.path.abspath(source)
+        shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
+        logging.info("Created sample configuration file in %r", fname)
+        logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
+    elif convert_args:
+        logging.info("Converting OpenAPI Specification %r to %r...", source, convert_args[0])
+        target_path = _handle_oas_input(source, convert_args[0])
+        logging.info("The transpiled config is written to %s", target_path)
+    else:
+        try:
+            loaded_config = _handle_oas_input(source, tempfile.mktemp(prefix="converted_", suffix=".yaml"), True)
+            logging.info("Automatically transpiled the config YAML from OpenAPI Specification")
+        except (ValidationError, AttributeError, ResolutionError):
+            logging.debug("The input is not a valid OpenAPI Specification, defaulting to Mockintosh config.")
+            loaded_config = _load_config(source)
+
+        logging.info("Mockintosh v%s is starting...", __version__)
+
+        services_list = args.source[1:]
+
+        controller = Mockintosh(bind_address=address, interceptors=interceptors, debug=debug_mode)
+        controller.management.set_config(loaded_config, services_list)
+        controller.management.set_enabled_tags(tags)
+
+        controller.run()
 
 
 def main(args=None):

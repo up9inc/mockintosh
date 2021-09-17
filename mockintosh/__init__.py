@@ -9,6 +9,8 @@ from mockintosh.replicas import Request, Response  # noqa: F401
 
 __location__ = path.abspath(path.dirname(__file__))
 
+from mockintosh.servers import TornadoImpl
+
 
 def get_schema():
     schema_path = path.join(__location__, 'schema.json')
