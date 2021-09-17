@@ -248,10 +248,10 @@ class AsyncBase:
     def assert_async_consume(self, callback, *args):
         start = time.time()
         while True:
+            time.sleep(ASYNC_CONSUME_WAIT)
             try:
                 callback(*args)
             except AssertionError:
-                time.sleep(ASYNC_CONSUME_WAIT)
                 if time.time() - start > ASYNC_CONSUME_TIMEOUT:
                     raise
                 else:
