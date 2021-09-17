@@ -1589,6 +1589,7 @@ class TestAsyncGpubsub(AsyncBase):
         super().setup_class()
 
 
+@pytest.mark.skip("Hangs")
 class TestAsyncAmazonSQS(AsyncBase):
 
     @classmethod

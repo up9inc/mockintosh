@@ -11,7 +11,7 @@ addons:
     - service2.example.com
     - service3.example.com
 install:
-  - travis_fold start "Install.Pip.Package" && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Install.Pip.Package" && make install-cloud && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
 script:
   - stty cols 120
