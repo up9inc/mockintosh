@@ -6,19 +6,18 @@
     :synopsis: module that contains config transpiler classes.
 """
 
+import json
+import logging
 import re
 import sys
-import json
 import tempfile
-import logging
-from os import getcwd, path
-from urllib.parse import urlparse
 from collections import OrderedDict
+from os import getcwd, path
 from typing import (
-    List,
     Union,
     Tuple
 )
+from urllib.parse import urlparse
 
 import yaml
 from prance import ResolvingParser
@@ -28,10 +27,11 @@ from mockintosh.helpers import _safe_path_split
 
 class OASToConfigTranspiler:
 
-    def __init__(self, source: str, convert_args: List[str]):
+    def __init__(self, source: str, convert_args: str):
         self.source = source
         self.data = None
-        self.target_filename, self.format = convert_args
+        self.target_filename = convert_args
+        self.format = 'json' if convert_args.lower().endswith(".json") else 'yaml'
         self.load()
 
     def load(self) -> None:
@@ -54,7 +54,8 @@ class OASToConfigTranspiler:
 
     def _transpile_consumes(self, details: dict, endpoint: dict) -> dict:
         if 'consumes' in details and details['consumes']:
-            endpoint['headers']['Accept'] = '{{ headers_accept_%s }}' % re.sub(r'[^a-zA-Z0-9 \n\.]', '_', details['consumes'][0])
+            endpoint['headers']['Accept'] = '{{ headers_accept_%s }}' % re.sub(r'[^a-zA-Z0-9 \n.]', '_',
+                                                                               details['consumes'][0])
         return endpoint
 
     def _transpile_parameters(self, details: dict, endpoint: dict) -> dict:
@@ -133,10 +134,10 @@ class OASToConfigTranspiler:
         return '{%s}' % body_json[:-2]
 
     def _transpile_body_json_value(
-        self,
-        _details: str,
-        last_path_param_index: Union[int, None] = None,
-        future: bool = False
+            self,
+            _details: dict,
+            last_path_param_index: Union[int, None] = None,
+            future: bool = False
     ) -> str:
         result = ''
         if _details['type'] == 'string':
@@ -150,13 +151,14 @@ class OASToConfigTranspiler:
         elif _details['type'] == 'array':
             result += self._transpile_body_json_array(_details, last_path_param_index=last_path_param_index)
         elif _details['type'] == 'object':
-            result += self._transpile_body_json_object(_details['properties'], last_path_param_index=last_path_param_index)
+            result += self._transpile_body_json_object(_details['properties'],
+                                                       last_path_param_index=last_path_param_index)
         return result
 
     def _transpile_body_json_string(
-        self,
-        _format: Union[str, None] = None,
-        future: bool = False
+            self,
+            _format: Union[str, None] = None,
+            future: bool = False
     ) -> str:
         if _format == 'date-time':
             if future:
@@ -192,20 +194,19 @@ class OASToConfigTranspiler:
         return '{{ fake.boolean(chance_of_getting_true=50) | lower }}'
 
     def _transpile_body_json_array(
-        self,
-        _details: dict,
-        last_path_param_index: Union[int, None] = None
+            self,
+            _details: dict,
+            last_path_param_index: Union[int, None] = None
     ) -> str:
-        return '[{%% for n in range(range(100) | random) %%} %s {%% if not loop.last %%},{%% endif %%}{%% endfor %%}]' % (
-            self._transpile_body_json_value(_details['items'], last_path_param_index=last_path_param_index)
-        )
+        tpl = '[{%% for n in range(range(100) | random) %%} %s {%% if not loop.last %%},{%% endif %%}{%% endfor %%}]'
+        return tpl % (self._transpile_body_json_value(_details['items'], last_path_param_index=last_path_param_index))
 
     def _transpile_responses(
-        self,
-        details: dict,
-        endpoint: dict,
-        content_type: Union[str, None],
-        last_path_param_index: Union[int, None]
+            self,
+            details: dict,
+            endpoint: dict,
+            content_type: Union[str, None],
+            last_path_param_index: Union[int, None]
     ) -> dict:
         if not isinstance(details, dict) or 'responses' not in details:
             return endpoint
@@ -315,7 +316,6 @@ class OASToConfigTranspiler:
 
         cwd = getcwd()
         target_path = path.join(cwd, self.target_filename)
-        file = None
         try:
             file = open(target_path, 'w')
         except PermissionError:

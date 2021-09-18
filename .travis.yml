@@ -11,18 +11,15 @@ addons:
     - service2.example.com
     - service3.example.com
 install:
-  - travis_fold start "Install.Pip.Package" && make install-cloud && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
-  - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
+  - travis_fold start "Install.Pip.Package" && pip install -e .[cloud] && pip install -e .[dev] && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
+  - travis_fold start "Build.Image" && docker build . -t mockintosh && docker image ls mockintosh && travis_fold end "Build.Image"
 script:
   - stty cols 120
   - ./ps.sh &
-  - travis_fold start "Unit.Tests" && make test-with-coverage && travis_fold end "Unit.Tests"
-  - travis_fold start "StopContainers.Tests" && make stop-containers && travis_fold end "StopContainers.Tests"
-  - travis_fold start "Integration.Tests" && make test-integration && travis_fold end "Integration.Tests"
+  - travis_fold start "Unit.Tests" && coverage run -m pytest tests_unit && travis_fold end "Unit.Tests" && travis_fold start "Integration.Tests" && tests_integrated/acceptance.sh && travis_fold end "Integration.Tests"
 after_success:
+  - coverage report && codecov
   - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force https://${GH_TOKEN}@github.com/up9inc/mockintosh.git HEAD:gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
-  - make coverage-after
-  - codecov
 # after_failure:
 #  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
 deploy:
