@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.13 - 2021-09-17
+## v0.13 - 2021-09-18
 
 - create Homebrew repo for Mac users
 - add `--sample-config` to CLI, to obtain small sample config easily
