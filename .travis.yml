@@ -28,6 +28,7 @@ after_success:
 deploy:
   edge: true  # use latest v2 deploy
   provider: pypi
+  distributions: "sdist bdist_wheel"
   #  skip_cleanup: true
   on:
     tags: true
