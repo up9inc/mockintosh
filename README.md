@@ -100,6 +100,9 @@ Install Mockintosh app on Mac using [Homebrew](https://brew.sh/) package manager
 ```shell
 $ brew install up9inc/repo/mockintosh
 ```
+### Install on Windows
+
+Download an installer from [releases](https://github.com/up9inc/mockintosh/releases) section and launch it. Follow the steps in wizard to install Mockintosh.
 
 ### Install on Linux and Windows
 
