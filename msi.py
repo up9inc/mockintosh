@@ -1,8 +1,6 @@
 import configparser
 import os
 import platform
-import sys
-import tempfile
 
 from nsist import main as pynsist_main
 from poet import merge_graphs, make_graph

@@ -12,7 +12,7 @@ python3 -m venv --clear build/venv
 source build/venv/bin/activate
 
 pip install homebrew-pypi-poet wheel pynsist
-pip install ruamel.yaml.clib
+pip install ruamel.yaml.clib openapi-spec-validator
 pip install -e .[cloud]
 python3 msi.py
 
