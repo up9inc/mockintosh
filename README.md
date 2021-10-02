@@ -104,7 +104,7 @@ $ brew install up9inc/repo/mockintosh
 
 Download an installer from [releases](https://github.com/up9inc/mockintosh/releases) section and launch it. Follow the steps in wizard to install Mockintosh.
 
-### Install on Linux and Windows
+### Install on Linux
 
 Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/) (or `pip3` on some machines):
 
