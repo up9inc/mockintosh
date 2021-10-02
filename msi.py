@@ -2,6 +2,7 @@ import configparser
 import os
 import platform
 
+import pkg_resources
 from nsist import main as pynsist_main
 from poet import merge_graphs, make_graph
 
@@ -43,6 +44,7 @@ def generate_pynsist_config(dependencies, wheel_dir, version):
 
 
 def get_deps(pkgs):
+    # copied a piece from `poet`
     nodes = merge_graphs(make_graph(p) for p in pkgs)
     return nodes
 
@@ -52,6 +54,7 @@ def main():
     os.makedirs(wheel_dir, exist_ok=True)
 
     dependencies = [(x['name'], x['version']) for x in get_deps(['mockintosh']).values()]
+    dependencies.extend((x.key, x.version) for x in pkg_resources.working_set if x.key == 'setuptools')
     cfg = generate_pynsist_config(dependencies, wheel_dir, __version__)
     fname = 'msi.cfg'
     with open(fname, 'w') as fp:
