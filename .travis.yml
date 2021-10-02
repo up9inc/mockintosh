@@ -23,7 +23,7 @@ script:
   - travis_fold start "StopContainers.Tests" && make stop-containers && travis_fold end "StopContainers.Tests"
   - travis_fold start "Integration.Tests" && make test-integration && travis_fold end "Integration.Tests"
 after_success:
-  - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then git push --force https://${GH_TOKEN}@github.com/up9inc/mockintosh.git HEAD:gh-pages; else echo Not pushing "$TRAVIS_TAG"; fi
+  - if [[ $TRAVIS_TAG =~ ^([0-9]+\.?)+$ ]]; then ./release.sh; else echo Not pushing "$TRAVIS_TAG"; fi
   - make coverage-after
   - codecov
 # after_failure:
