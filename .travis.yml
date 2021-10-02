@@ -29,9 +29,15 @@ after_success:
 # after_failure:
 #  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
 deploy:
-  edge: true  # use latest v2 deploy
-  provider: pypi
-  distributions: "sdist bdist_wheel"
-  #  skip_cleanup: true
-  on:
-    tags: true
+  - edge: true  # use latest v2 deploy
+    provider: pypi
+    distributions: "sdist bdist_wheel"
+    #  skip_cleanup: true
+    on:
+      tags: true
+  - provider: releases
+    api_key: "$GH_TOKEN"
+    file: "build/nsis/Mockintosh_$TRAVIS_TAG_x64.exe"
+    # skip_cleanup: true
+    on:
+      tags: true
