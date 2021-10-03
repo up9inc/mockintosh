@@ -225,6 +225,8 @@ def initiate(argv=None):
 
     interceptors, address, tags = _handle_cli_args(args)
 
+    logging.debug('Current working dir: %s', os.getcwd())
+
     if args['sample_config']:
         fname = os.path.abspath(args['source'][0])
         shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
@@ -241,6 +243,7 @@ def initiate(argv=None):
     convert_args = args['convert']
 
     load_override = None
+    logging.debug("Source absolute path: %s", os.path.abspath(source))
 
     if convert_args:
         if len(convert_args) < 2:
