@@ -15,10 +15,15 @@ def generate_pynsist_config(dependencies, wheel_dir, version):
         'name': 'Mockintosh',
         'version': version,
         'publisher': 'UP9 Inc.',
-        'entry_point': 'mockintosh:initiate',
+        'entry_point': 'mockintosh:demo_run',
         'console': 'true',
         'icon': 'docs/favicon.ico',
         'license_file': 'LICENSE',
+    }
+
+    cfg['Command mockintosh'] = {
+        'entry_point': 'mockintosh:initiate',
+        'console': 'true',
     }
 
     cfg['Python'] = {

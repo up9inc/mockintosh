@@ -14,6 +14,7 @@ import os
 import shutil
 import signal
 import sys
+import tempfile
 from gettext import gettext
 from os import path, environ
 from typing import (
@@ -172,7 +173,7 @@ def _handle_oas_input(source: str, convert_args: List[str], direct: bool = False
     return oas_transpiler.transpile(direct=direct)
 
 
-def initiate():
+def initiate(argv=None):
     if should_cov:  # pragma: no cover
         signal.signal(signal.SIGTERM, _gracefully_exit)
         logging.debug('Starting coverage')
@@ -220,7 +221,7 @@ def initiate():
     )
     ap.add_argument('--enable-tags', help='A comma separated list of tags to enable', action='store')
     ap.add_argument('--sample-config', help='Writes sample config file to disk', action='store_true')
-    args = vars(ap.parse_args())
+    args = vars(ap.parse_args(argv))
 
     interceptors, address, tags = _handle_cli_args(args)
 
@@ -229,7 +230,7 @@ def initiate():
         shutil.copy(os.path.join(__location__, "res", "sample.yml"), fname)
         logging.info("Created sample configuration file in %r", fname)
         logging.info("To run it, use the following command:\n    mockintosh %s", os.path.basename(fname))
-        sys.exit(0)
+        return 0
 
     debug_mode = environ.get('DEBUG', False) or environ.get('MOCKINTOSH_DEBUG', False)
     if debug_mode:
@@ -276,3 +277,11 @@ def initiate():
                 tags=tags,
                 load_override=load_override
             )
+
+
+def demo_run():
+    # for Windows, we have this command
+    # to generate demo config and run it right away
+    fname = tempfile.mktemp(prefix="mock-config-", suffix=".yaml")
+    initiate(["--sample-config", fname])
+    initiate([fname])
