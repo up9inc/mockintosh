@@ -32,13 +32,13 @@ deploy:
   - edge: true  # use latest v2 deploy
     provider: pypi
     distributions: "sdist bdist_wheel"
-    #  skip_cleanup: true
+    skip_cleanup: true
     skip_existing: true
     on:
       tags: true
   - provider: releases
     api_key: "$GH_TOKEN"
     file: "build/nsis/Mockintosh_$TRAVIS_TAG_x64.exe"
-    # skip_cleanup: true
+    skip_cleanup: true
     on:
       tags: true
