@@ -39,7 +39,7 @@ deploy:
   - provider: releases
     api_key: "$GH_TOKEN"
     file_glob: true
-    file: "build/nsis/Mockintosh_*_x64.exe"
+    file: "build/nsis/Mockintosh_${TRAVIS_TAG}_x64.exe"
     skip_cleanup: true
     on:
       tags: true
