@@ -55,7 +55,7 @@ def get_deps(pkgs):
 
 
 def main():
-    wheel_dir = "dist"
+    wheel_dir = "dist-msi"
     os.makedirs(wheel_dir, exist_ok=True)
 
     dependencies = [(x['name'], x['version']) for x in get_deps(['mockintosh']).values()]

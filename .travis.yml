@@ -33,6 +33,7 @@ deploy:
     provider: pypi
     distributions: "sdist bdist_wheel"
     #  skip_cleanup: true
+    skip_existing: true
     on:
       tags: true
   - provider: releases

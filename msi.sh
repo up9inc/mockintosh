@@ -14,6 +14,9 @@ source build/venv/bin/activate
 pip install homebrew-pypi-poet wheel pynsist
 pip install -U ruamel.yaml.clib setuptools # to get it installed with certain version
 pip install -e .[cloud]
+
+mv dist dist-msi
+
 python3 msi.py
 
 deactivate
