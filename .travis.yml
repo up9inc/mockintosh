@@ -28,6 +28,7 @@ after_success:
 # after_failure:
 #  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
 before_deploy:
+  - pwd
   - ./msi.sh
   - find dist
   - find build
