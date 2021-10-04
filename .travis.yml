@@ -28,9 +28,7 @@ after_success:
 # after_failure:
 #  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
 before_deploy:
-  - pwd
   - ./msi.sh
-  - find dist
   - find build
 deploy:
   - edge: true  # use latest v2 deploy
@@ -43,7 +41,7 @@ deploy:
   - provider: releases
     api_key: "$GH_TOKEN"
     # file_glob: true
-    file: "build/nsis/Mockintosh_0.13.8_x64.exe"
+    file: "build/nsis/Mockintosh_0.13.9_x64.exe"
     skip_cleanup: true
     on:
       tags: true
