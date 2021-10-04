@@ -55,16 +55,19 @@ def get_deps(pkgs):
 
 
 def main():
-    wheel_dir = "dist-msi"
+    wheel_dir = "dist"
     os.makedirs(wheel_dir, exist_ok=True)
 
     dependencies = [(x['name'], x['version']) for x in get_deps(['mockintosh']).values()]
     dependencies.extend((x.key, x.version) for x in pkg_resources.working_set if x.key == 'setuptools')
     cfg = generate_pynsist_config(dependencies, wheel_dir, __version__)
+
     fname = 'msi.cfg'
     with open(fname, 'w') as fp:
         cfg.write(fp)
-    pynsist_main([fname])
+
+    rc = pynsist_main([fname])
+    assert not rc, "pynsist failed with code %s" % rc
 
 
 if __name__ == '__main__':
