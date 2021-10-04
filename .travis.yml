@@ -12,6 +12,8 @@ addons:
     - service1.example.com
     - service2.example.com
     - service3.example.com
+before_install:
+  - sudo apt-get -y update && sudo apt-get install -y nsis
 install:
   - travis_fold start "Install.Pip.Package" && make install-cloud && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
@@ -28,7 +30,7 @@ after_success:
 # after_failure:
 #  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
 before_deploy:
-  - apt-get -y update && apt-get install -y nsis
+  - sudo apt-get -y update && sudo apt-get install -y nsis
   - ./msi.sh
 deploy:
   - edge: true  # use latest v2 deploy
