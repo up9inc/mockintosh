@@ -161,3 +161,4 @@ tests/configs/yaml/hbs/mqtt/*
 docs/_site
 docs/.bundle
 docs/vendor
+/msi.cfg

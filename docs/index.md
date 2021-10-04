@@ -63,13 +63,19 @@ Key features:
 - Multiple services mocked by a single instance of Mockintosh
 - Lenient [configuration syntax](Configuring.md)
 - Remote [management UI+API](Management.md)
-- Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses) and [tags](Configuring.md#tagged-responses)
+- Request scenarios support with [multi-response endpoints](Configuring.md#multiple-responses)
+  and [tags](Configuring.md#tagged-responses)
 - [Mock Actor](Async.md) pattern for Kafka, RabbitMQ, Redis and some other message bus protocols
 - GraphQL queries recognizing
 
-_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why Mockintosh was born as a new way of mocking microservices._
+_[In this article](https://up9.com/open-source-microservice-mocking-introducing-mockintosh) we explain how and why
+Mockintosh was born as a new way of mocking microservices._
 
 ## Quick Start
+
+### Install on Windows
+
+Download the latest [installer](https://github.com/up9inc/mockintosh/releases/download/GIT_TAG/Mockintosh_GIT_TAG_x64.exe) and launch it. Follow the steps in wizard to install Mockintosh.
 
 ### Install on MacOS
 
@@ -79,7 +85,7 @@ Install Mockintosh app on Mac using [Homebrew](https://brew.sh/) package manager
 $ brew install up9inc/repo/mockintosh
 ```
 
-### Install on Linux and Windows
+### Install on Linux
 
 Install Mockintosh Python package using [`pip`](https://pypi.org/project/pip/) (or `pip3` on some machines):
 
