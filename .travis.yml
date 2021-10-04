@@ -28,6 +28,9 @@ after_success:
   - codecov
 # after_failure:
 #  - travis_fold start "server_log" && ( cat tests_integrated/server.log || echo No logfile) && travis_fold end "server_log" # the log from container
+before_deploy:
+  - find dist
+  - find build
 deploy:
   - edge: true  # use latest v2 deploy
     provider: pypi
