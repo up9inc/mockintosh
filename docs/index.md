@@ -75,7 +75,13 @@ Mockintosh was born as a new way of mocking microservices._
 
 ### Install on Windows
 
-Download the latest [installer](https://github.com/up9inc/mockintosh/releases/download/GIT_TAG/Mockintosh_GIT_TAG_x64.exe) and launch it. Follow the steps in wizard to install Mockintosh.
+Download the latest installer EXE from [releases](https://github.com/up9inc/mockintosh/releases) section and launch it.
+Follow the steps in wizard to install Mockintosh.
+
+To launch Mockintosh in "quick demo" mode, just start it via Start Menu.
+
+To start Mockintosh with customized configuration and command-line switches, open Command Prompt and start
+with `mockintosh --help` command there. See also a [section below](#use-demo-sample-config).
 
 ### Install on MacOS
 
