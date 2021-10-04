@@ -12,8 +12,6 @@ addons:
     - service1.example.com
     - service2.example.com
     - service3.example.com
-before_install:
-  - sudo apt-get -y update && sudo apt-get install -y nsis
 install:
   - travis_fold start "Install.Pip.Package" && make install-cloud && make install-dev && pip3 show mockintosh && travis_fold end "Install.Pip.Package"
   - travis_fold start "Build.Image" && make build && docker image ls mockintosh && travis_fold end "Build.Image"
@@ -33,17 +31,17 @@ before_deploy:
   - sudo apt-get -y update && sudo apt-get install -y nsis
   - ./msi.sh
 deploy:
-  - edge: true  # use latest v2 deploy
-    provider: pypi
-    distributions: "sdist bdist_wheel"
-    skip_cleanup: true
-    skip_existing: true
-    on:
-      tags: true
   - provider: releases
     api_key: "$GH_TOKEN"
     # file_glob: true
     file: "build/nsis/Mockintosh_*_x64.exe"
     skip_cleanup: true
+    on:
+      tags: true
+  - edge: true  # use latest v2 deploy
+    provider: pypi
+    distributions: "sdist bdist_wheel"
+    skip_cleanup: true
+    skip_existing: true
     on:
       tags: true
