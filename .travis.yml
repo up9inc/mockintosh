@@ -33,7 +33,7 @@ before_deploy:
 deploy:
   - provider: releases
     api_key: "$GH_TOKEN"
-    # file_glob: true
+    file_glob: true
     file: "build/nsis/Mockintosh_*_x64.exe"
     skip_cleanup: true
     on:
@@ -41,7 +41,7 @@ deploy:
   - edge: true  # use latest v2 deploy
     provider: pypi
     distributions: "sdist bdist_wheel"
-    skip_cleanup: true
+    # skip_cleanup: true
     skip_existing: true
     on:
       tags: true
