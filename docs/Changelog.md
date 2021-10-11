@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.16 - 2021-10-08
+
+- add Windows Installer to release assets
+
 ## v0.13 - 2021-09-18
 
 - create Homebrew repo for Mac users
