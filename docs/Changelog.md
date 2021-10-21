@@ -181,6 +181,7 @@
 - allow enabling multiple tags + allow response to trigger tag up/down => state machine for complex scenarios
 
 ## Other
+- Have SIGHUP handler
 
 - Nicer logging of requests, with special option to enable it.
 - Nicer formatted error pages for known errors, explaining the problem
