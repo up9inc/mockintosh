@@ -15,7 +15,6 @@ import shutil
 import signal
 import sys
 import tempfile
-import time
 from gettext import gettext
 from os import path, environ
 from typing import (

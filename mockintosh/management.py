@@ -29,13 +29,8 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.constants import PROGRAM
-from mockintosh.config import (
-    ConfigService,
-    ConfigExternalFilePath
-)
-from mockintosh.services.http import (
-    HttpService
-)
+from mockintosh.config import ConfigExternalFilePath
+from mockintosh.services.http import HttpService
 from mockintosh.builders import ConfigRootBuilder
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
@@ -46,13 +41,7 @@ from mockintosh.exceptions import (
     AsyncProducerDatasetLoopEnd,
     InternalResourcePathCheckError
 )
-from mockintosh.services.asynchronous import (
-    AsyncService,
-    AsyncActor,
-    AsyncProducer,
-    AsyncConsumer,
-    AsyncConsumerGroup
-)
+from mockintosh.services.asynchronous import AsyncService, AsyncProducer, AsyncConsumer
 from mockintosh.services.asynchronous._looping import run_loops as async_run_loops, stop_loops
 from mockintosh.replicas import Request, Response
 
