@@ -9,7 +9,7 @@
 import sys
 import threading
 
-from mockintosh.services.asynchronous import AsyncService, AsyncConsumerGroup
+from mockintosh.services.asynchronous import AsyncService, AsyncConsumerGroup, AsyncActor, AsyncProducer, AsyncConsumer
 from mockintosh.services.asynchronous.kafka import KafkaConsumerGroup  # noqa: F401
 from mockintosh.services.asynchronous.amqp import AmqpConsumerGroup  # noqa: F401
 from mockintosh.services.asynchronous.redis import RedisConsumerGroup  # noqa: F401
@@ -49,3 +49,17 @@ def run_loops():
             t = threading.Thread(target=consumer_group.consume, args=(), kwargs={})
             t.daemon = True
             t.start()
+
+
+def stop_loops():
+    for actor in AsyncActor.actors:
+        actor.stop = True
+
+    for consumer_group in AsyncConsumerGroup.groups:
+        consumer_group.stop = True
+
+    AsyncService.services = []
+    AsyncActor.actors = []
+    AsyncProducer.producers = []
+    AsyncConsumer.consumers = []
+    AsyncConsumerGroup.groups = []

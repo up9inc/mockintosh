@@ -53,7 +53,7 @@ from mockintosh.services.asynchronous import (
     AsyncConsumer,
     AsyncConsumerGroup
 )
-from mockintosh.services.asynchronous._looping import run_loops as async_run_loops
+from mockintosh.services.asynchronous._looping import run_loops as async_run_loops, stop_loops
 from mockintosh.replicas import Request, Response
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -166,21 +166,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.check_restricted_fields(service, i):
                 return
 
-        for actor in AsyncActor.actors:
-            actor.stop = True
-
-        for consumer_group in AsyncConsumerGroup.groups:
-            consumer_group.stop = True
+        stop_loops()
+        self.http_server.clear_lists()
 
         definition.stats.services = []
-        AsyncService.services = []
-        AsyncActor.actors = []
-        AsyncProducer.producers = []
-        AsyncConsumer.consumers = []
-        AsyncConsumerGroup.groups = []
-        HttpService.services = []
-        ConfigService.services = []
-        ConfigExternalFilePath.files = []
         definition.services, definition.config_root = definition.analyze(data)
 
         for service in HttpService.services:

@@ -15,6 +15,7 @@ import shutil
 import signal
 import sys
 import tempfile
+import time
 from gettext import gettext
 from os import path, environ
 from typing import (
@@ -90,7 +91,7 @@ def run(
         tags: list = [],
         load_override: Union[dict, None] = None
 ):
-    queue, _ = start_render_queue()
+    queue, render_thread = start_render_queue()
 
     if address:  # pragma: no cover
         logging.info('Bind address: %s', address)
@@ -111,7 +112,21 @@ def run(
         logging.exception('Mock server loading error:')
         with _nostderr():
             raise
+
+    prev_handler = signal.getsignal(signal.SIGHUP)
+    do_restart = [False]  # mutable
+
+    def sighup_handler(num, frame):
+        logging.info("Received SIGHUP")
+        http_server.stop()
+        render_thread.kill()
+        signal.signal(signal.SIGHUP, prev_handler)
+        do_restart[0] = True
+
+    signal.signal(signal.SIGHUP, sighup_handler)
     http_server.run()
+
+    return do_restart[0]
 
 
 def _gracefully_exit(num, frame):
@@ -271,15 +286,9 @@ def initiate(argv=None):
         logging.info("%s v%s is starting...", PROGRAM.capitalize(), __version__)
 
         if not cov_no_run:  # pragma: no cover
-            run(
-                source,
-                debug=debug_mode,
-                interceptors=interceptors,
-                address=address,
-                services_list=services_list,
-                tags=tags,
-                load_override=load_override
-            )
+            while run(source, debug=debug_mode, interceptors=interceptors, address=address,
+                      services_list=services_list, tags=tags, load_override=load_override):
+                logging.info("Restarting...")
 
 
 def demo_run():
