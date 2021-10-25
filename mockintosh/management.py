@@ -15,12 +15,14 @@ import logging
 import threading
 from typing import (
     Union,
-    Tuple
+    Tuple, Optional, Awaitable
 )
 from collections import OrderedDict
 from urllib.parse import parse_qs, unquote
 
 import yaml
+import yaml.scanner
+import yaml.parser
 from yaml.representer import Representer
 import jsonschema
 import tornado.web
@@ -98,7 +100,6 @@ def _reset_iterators(app):
 
 
 class ManagementBaseHandler(tornado.web.RequestHandler):
-
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         if self._finished:  # pragma: no cover
             raise RuntimeError("Cannot write() after finish()")
@@ -119,6 +120,9 @@ class ManagementBaseHandler(tornado.web.RequestHandler):
     def _log(self) -> None:
         if logging.DEBUG >= logging.root.level:
             self.application.log_request(self)
+
+    def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
+        pass
 
 
 class ManagementRootHandler(ManagementBaseHandler):
@@ -276,7 +280,7 @@ class ManagementLogsHandler(ManagementBaseHandler):
         self.write(self.logs.json())
 
     async def post(self):
-        enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        enabled = not self.get_body_argument('enable', default='True') in ('false', 'False', '0')
         for service in self.logs.services:
             service.enabled = enabled
         self.set_status(204)

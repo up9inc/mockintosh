@@ -115,6 +115,7 @@ class TornadoImpl(Impl):
         logging.debug("Stopping servers...")
         for server in self.servers:
             logging.debug("Stopping: %s", server)
+            self.ioloop.add_callback(server.close_all_connections)
             server.stop()
 
         logging.debug("Stopping IOLoop...")
