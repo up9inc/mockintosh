@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.13.17 - next
+## v0.13.17 - 2021-10-25
 
-- handle SUGHUP to reload configuration
+- handle SUGHUP to reload configuration from disk and restart
 
 ## v0.13.16 - 2021-10-08
 
