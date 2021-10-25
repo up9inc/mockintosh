@@ -15,12 +15,14 @@ import logging
 import threading
 from typing import (
     Union,
-    Tuple
+    Tuple, Optional, Awaitable
 )
 from collections import OrderedDict
 from urllib.parse import parse_qs, unquote
 
 import yaml
+import yaml.scanner
+import yaml.parser
 from yaml.representer import Representer
 import jsonschema
 import tornado.web
@@ -29,13 +31,8 @@ from tornado.escape import utf8
 
 import mockintosh
 from mockintosh.constants import PROGRAM
-from mockintosh.config import (
-    ConfigService,
-    ConfigExternalFilePath
-)
-from mockintosh.services.http import (
-    HttpService
-)
+from mockintosh.config import ConfigExternalFilePath
+from mockintosh.services.http import HttpService
 from mockintosh.builders import ConfigRootBuilder
 from mockintosh.handlers import GenericHandler
 from mockintosh.helpers import _safe_path_split, _b64encode, _urlsplit
@@ -46,14 +43,8 @@ from mockintosh.exceptions import (
     AsyncProducerDatasetLoopEnd,
     InternalResourcePathCheckError
 )
-from mockintosh.services.asynchronous import (
-    AsyncService,
-    AsyncActor,
-    AsyncProducer,
-    AsyncConsumer,
-    AsyncConsumerGroup
-)
-from mockintosh.services.asynchronous._looping import run_loops as async_run_loops
+from mockintosh.services.asynchronous import AsyncService, AsyncProducer, AsyncConsumer
+from mockintosh.services.asynchronous._looping import run_loops as async_run_loops, stop_loops
 from mockintosh.replicas import Request, Response
 
 POST_CONFIG_RESTRICTED_FIELDS = ('port', 'hostname', 'ssl', 'sslCertFile', 'sslKeyFile')
@@ -109,7 +100,6 @@ def _reset_iterators(app):
 
 
 class ManagementBaseHandler(tornado.web.RequestHandler):
-
     def write(self, chunk: Union[str, bytes, dict]) -> None:
         if self._finished:  # pragma: no cover
             raise RuntimeError("Cannot write() after finish()")
@@ -130,6 +120,9 @@ class ManagementBaseHandler(tornado.web.RequestHandler):
     def _log(self) -> None:
         if logging.DEBUG >= logging.root.level:
             self.application.log_request(self)
+
+    def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
+        pass
 
 
 class ManagementRootHandler(ManagementBaseHandler):
@@ -166,21 +159,10 @@ class ManagementConfigHandler(ManagementBaseHandler):
             if not self.check_restricted_fields(service, i):
                 return
 
-        for actor in AsyncActor.actors:
-            actor.stop = True
-
-        for consumer_group in AsyncConsumerGroup.groups:
-            consumer_group.stop = True
+        stop_loops()
+        self.http_server.clear_lists()
 
         definition.stats.services = []
-        AsyncService.services = []
-        AsyncActor.actors = []
-        AsyncProducer.producers = []
-        AsyncConsumer.consumers = []
-        AsyncConsumerGroup.groups = []
-        HttpService.services = []
-        ConfigService.services = []
-        ConfigExternalFilePath.files = []
         definition.services, definition.config_root = definition.analyze(data)
 
         for service in HttpService.services:
@@ -298,7 +280,7 @@ class ManagementLogsHandler(ManagementBaseHandler):
         self.write(self.logs.json())
 
     async def post(self):
-        enabled = not self.get_body_argument('enable', default=True) in ('false', 'False', '0')
+        enabled = not self.get_body_argument('enable', default='True') in ('false', 'False', '0')
         for service in self.logs.services:
             service.enabled = enabled
         self.set_status(204)

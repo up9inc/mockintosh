@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.17 - 2021-10-25
+
+- handle SUGHUP to reload configuration from disk and restart
+
 ## v0.13.16 - 2021-10-08
 
 - add Windows Installer to release assets
@@ -181,8 +185,6 @@
 - allow enabling multiple tags + allow response to trigger tag up/down => state machine for complex scenarios
 
 ## Other
-- Have SIGHUP handler
-
 - Nicer logging of requests, with special option to enable it.
 - Nicer formatted error pages for known errors, explaining the problem
 

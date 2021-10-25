@@ -22,6 +22,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.routing import Rule, RuleRouter, HostMatches
 
+from mockintosh.config import ConfigService, ConfigExternalFilePath
 from mockintosh.definition import Definition
 from mockintosh.exceptions import CertificateLoadingError
 from mockintosh.handlers import GenericHandler
@@ -49,7 +50,7 @@ from mockintosh.management import (
     ManagementServiceTagHandler,
     UnhandledData
 )
-from mockintosh.services.asynchronous._looping import run_loops as async_run_loops
+from mockintosh.services.asynchronous._looping import run_loops as async_run_loops, stop_loops as async_stop_loops
 from mockintosh.services.http import (
     HttpService,
     HttpPath,
@@ -75,8 +76,16 @@ class Impl:
     def serve(self):
         raise NotImplementedError
 
+    @abstractmethod
+    def stop(self):
+        raise NotImplementedError
+
 
 class TornadoImpl(Impl):
+    def __init__(self) -> None:
+        super().__init__()
+        self.ioloop = None
+        self.servers = []
 
     def get_server(
             self,
@@ -89,13 +98,31 @@ class TornadoImpl(Impl):
         else:
             server = tornado.web.HTTPServer(router)
 
+        self.servers.append(server)
         return server
 
     def serve(self) -> None:
+        self.ioloop = tornado.ioloop.IOLoop.current()
+        logging.debug("Starting ioloop: %s", self.ioloop)
         try:
-            tornado.ioloop.IOLoop.current().start()
+            self.ioloop.start()
         except KeyboardInterrupt:
             logging.debug("Shutdown: %s", traceback.format_exc())
+
+        logging.debug("IOLoop has completed")
+
+    def stop(self):
+        logging.debug("Stopping servers...")
+        for server in self.servers:
+            logging.debug("Stopping: %s", server)
+            self.ioloop.add_callback(server.close_all_connections)
+            server.stop()
+
+        logging.debug("Stopping IOLoop...")
+        logging.debug("%s", self.ioloop)
+        self.ioloop.add_callback_from_signal(self.ioloop.stop)
+
+        logging.debug("TornadoImpl is stopped")
 
 
 class _Listener:
@@ -191,19 +218,20 @@ class HttpServer:
         http_path_list, management_root = self.prepare_app(service)
         app = self.make_app(service, http_path_list, self.globals, debug=self.debug, management_root=management_root)
         self._apps.apps[service.internal_http_service_id] = app
+        address_str = self.address if self.address else 'localhost'
         self._apps.listeners[service.internal_http_service_id] = _Listener(
             service.hostname,
             service.port,
-            self.address if self.address else 'localhost'
+            address_str
         )
 
         if service.hostname is None:
             server = self.impl.get_server(app, ssl, ssl_options)
+            logging.debug('Will listen: %s:%d', address_str, service.port)
             server.listen(service.port, address=self.address)
-            logging.debug('Will listen port number: %d', service.port)
             self.services_log.append('Serving at %s://%s:%s%s' % (
                 protocol,
-                self.address if self.address else 'localhost',
+                address_str,
                 service.port,
                 ' the mock for %r' % service.get_name_or_empty()
             ))
@@ -250,8 +278,8 @@ class HttpServer:
             if rules:
                 router = RuleRouter(rules)
                 server = self.impl.get_server(router, ssl, ssl_options)
+                logging.debug('Listening on port: %s:%d', self.address, service.port)
                 server.listen(services[0].port, address=self.address)
-                logging.debug('Will listen port number: %d', service.port)
 
         self.load_management_api()
 
@@ -538,6 +566,7 @@ class HttpServer:
                 )
             )
         ])
+        logging.debug("Listening on port %s:%s", self.address, config_management.port)
         server = self.impl.get_server(app, ssl, ssl_options)
         server.listen(config_management.port, address=self.address)
         self.services_log.append('Serving management UI+API at %s://%s:%s' % (
@@ -545,3 +574,16 @@ class HttpServer:
             self.address if self.address else 'localhost',
             config_management.port
         ))
+
+    def clear_lists(self):
+        HttpService.services = []
+        ConfigService.services = []
+        ConfigExternalFilePath.files = []
+
+    def stop(self):
+        logging.info("Stopping server...")
+        self.impl.stop()
+        logging.debug("Stoppping async actor threads")
+        async_stop_loops()
+        self.clear_lists()
+        logging.debug("Done shutdown")

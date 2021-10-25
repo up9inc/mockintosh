@@ -169,6 +169,8 @@ enabled in startup time, e.g. `mockintosh --enable-tags first,second`
 
 Using `--sample-config` will cause Mockintosh to write the example configuration file into specified location.
 
+_Note: sending SIGHUP to Mockintosh's process will cause it to re-read configuration file and restart the server._ 
+
 ### OpenAPI Specification to Mockintosh Config Conversion (_experimental_)
 
 _Note: This feature is experimental. One-to-one transpilation of OAS documents is not guaranteed._
