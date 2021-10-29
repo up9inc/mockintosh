@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.18 - next
+
+- switch to Alpine-based Docker image for security
+
 ## v0.13.17 - 2021-10-25
 
 - handle SUGHUP to reload configuration from disk and restart
