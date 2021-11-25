@@ -76,8 +76,8 @@ services:
 
 ### Multiple Services on Same Port (Virtual Hosts)
 
-You can also serve multiple services from the same port number, if you provide them with different hostnames. This is
-handy when you serve multiple microservice mocks from single container:
+You can also serve multiple services from the same port number, if you provide them with different hostnames, and regular expression is supported with "$" at the end. 
+This is handy when you serve multiple microservice mocks from single container. 
 
 ```yaml
 services:
@@ -87,6 +87,9 @@ services:
   - name: "Second service"
     hostname: "service2.example.com"
     port: 80
+  - name: "default service"
+    hostname: ".*$"
+    port: 80  
 ```
 
 ### Fallback To
