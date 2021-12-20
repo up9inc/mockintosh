@@ -112,17 +112,22 @@ def run(
         with _nostderr():
             raise
 
-    prev_handler = signal.getsignal(signal.SIGHUP)
     do_restart = [False]  # mutable
 
-    def sighup_handler(num, frame):
-        logging.info("Received SIGHUP")
-        http_server.stop()
-        render_thread.kill()
-        signal.signal(signal.SIGHUP, prev_handler)
-        do_restart[0] = True
+    try:
+        prev_handler = signal.getsignal(signal.SIGHUP)
 
-    signal.signal(signal.SIGHUP, sighup_handler)
+        def sighup_handler(num, frame):
+            logging.info("Received SIGHUP")
+            http_server.stop()
+            render_thread.kill()
+            signal.signal(signal.SIGHUP, prev_handler)
+            do_restart[0] = True
+
+        signal.signal(signal.SIGHUP, sighup_handler)
+    except AttributeError:
+        logging.info("No SIGHUP support on this machine")
+
     http_server.run()
 
     return do_restart[0]
