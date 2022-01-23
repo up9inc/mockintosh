@@ -3,6 +3,7 @@
 ## v0.13.18 - next
 
 - switch to Alpine-based Docker image for security
+- add `MOCKINTOSH_FAKER_LOCALE` env variable to control locale used by Faker library
 
 ## v0.13.17 - 2021-10-25
 

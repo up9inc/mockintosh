@@ -8,17 +8,18 @@
 
 import copy
 import logging
+import os
 import threading
 from os import environ
 
+from faker import Faker
 from jinja2 import Environment, StrictUndefined
 from jinja2.exceptions import TemplateSyntaxError, UndefinedError
 from pybars import Compiler, PybarsError
-from faker import Faker
 
 from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
-from mockintosh.helpers import _to_camel_case
 from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
+from mockintosh.helpers import _to_camel_case
 from mockintosh.j2.meta import find_undeclared_variables_in_order
 
 cov_no_import = environ.get('COVERAGE_NO_IMPORT', False)
@@ -26,28 +27,28 @@ if not cov_no_import:
     import queue
 
 compiler = Compiler()
-faker = Faker()
-hbs_faker = HbsFaker()
+faker_locale = os.getenv('MOCKINTOSH_FAKER_LOCALE', None)
+faker = Faker(faker_locale)
+hbs_faker = HbsFaker(faker_locale)
 
 debug_mode = environ.get('MOCKINTOSH_DEBUG', False)
 
 
 class RenderingTask:
-
     def __init__(
-        self,
-        engine,
-        text,
-        inject_objects={},
-        inject_methods=[],
-        add_params_callback=None,
-        fill_undefineds_with=None,
-        counters=None
+            self,
+            engine,
+            text,
+            inject_objects=None,
+            inject_methods=None,
+            add_params_callback=None,
+            fill_undefineds_with=None,
+            counters=None
     ):
         self.engine = engine
         self.text = text
-        self.inject_objects = inject_objects
-        self.inject_methods = inject_methods
+        self.inject_objects = inject_objects if inject_objects else {}
+        self.inject_methods = inject_methods if inject_methods else {}
         self.add_params_callback = add_params_callback
         self.fill_undefineds_with = fill_undefineds_with
         self.counters = counters
@@ -208,21 +209,21 @@ class TemplateRenderer:
         self.one_and_only_var = None
 
     def render(
-        self,
-        engine,
-        text,
-        _queue,
-        inject_objects={},
-        inject_methods=[],
-        add_params_callback=None,
-        fill_undefineds_with=None,
-        counters=None
+            self,
+            engine,
+            text,
+            _queue,
+            inject_objects=None,
+            inject_methods=None,
+            add_params_callback=None,
+            fill_undefineds_with=None,
+            counters=None
     ):
         task = RenderingTask(
             engine,
             text,
-            inject_objects=inject_objects,
-            inject_methods=inject_methods,
+            inject_objects=inject_objects if inject_objects else {},
+            inject_methods=inject_methods if inject_methods else [],
             add_params_callback=add_params_callback,
             fill_undefineds_with=fill_undefineds_with,
             counters=counters

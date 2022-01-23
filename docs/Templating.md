@@ -168,6 +168,8 @@ Rendered:
 
 An extended list of Faker examples can be found in: [Handlebars](https://github.com/up9inc/mockintosh/blob/main/tests/configs/json/hbs/core/templates/faker.json.hbs) and [Jinja2](https://github.com/up9inc/mockintosh/blob/main/tests/configs/json/j2/core/templates/faker.json.j2)
 
+_NOTE: a special `MOCKINTOSH_FAKER_LOCALE` environment variable allows to control the locale used by Faker library._
+
 ### Counters
 
 There is special kind of template helper, offering named counters like `{% raw %}{{counter 'counterName'}}{% endraw %}`. The counters are global and identified by name. You can also refer to last value of counter by its name like this: `{% raw %}{{counterName}}{% endraw %}`

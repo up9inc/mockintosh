@@ -24,7 +24,6 @@ from mockintosh.constants import PROGRAM, PYBARS, JINJA, SHORT_JINJA, JINJA_VARN
 
 
 class RegexEscapeBase(object):
-
     matches = []
     count = -1
 
@@ -68,7 +67,7 @@ def _detect_engine(obj: Union[object, dict], context: str = 'config', default: s
     template_engine = default
     if isinstance(obj, dict):
         if 'templatingEngine' in obj and (
-            obj['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
+                obj['templatingEngine'].lower() in (JINJA.lower(), SHORT_JINJA)
         ):
             template_engine = JINJA
     else:
@@ -132,6 +131,7 @@ def _b64encode(s: bytes) -> str:
 
 
 def _urlsplit_scheme(url: str, i: int) -> Tuple[str, str]:
+    scheme = None
     for c in url[:i]:
         if c not in scheme_chars:  # pragma: no cover
             break  # https://github.com/nedbat/coveragepy/issues/198
@@ -143,9 +143,9 @@ def _urlsplit_scheme(url: str, i: int) -> Tuple[str, str]:
 def _urlsplit_netloc(url: str) -> Tuple[str, str]:
     netloc, url = _splitnetloc(url, 2)
     if (
-        ('[' in netloc and ']' not in netloc)
-        or  # noqa: W504, W503
-        (']' in netloc and '[' not in netloc)
+            ('[' in netloc and ']' not in netloc)
+            or  # noqa: W504, W503
+            (']' in netloc and '[' not in netloc)
     ):
         raise ValueError("Invalid IPv6 URL")
     return netloc, url
@@ -216,6 +216,7 @@ def _graphql_undo_escapes(text: str) -> str:
     text = re.escape(text)
     logging.debug('After re.escape:\n%s', text)
     for i, match in enumerate(RegexEscapeBase.matches):
-        logging.debug('Replacing %s with %s', '%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)), str(match.group()).zfill(7))
+        logging.debug('Replacing %s with %s', '%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)),
+                      str(match.group()).zfill(7))
         text = text.replace('%s_REGEX_BACKUP_%s' % (PROGRAM.upper(), str(i).zfill(7)), str(match.group()).zfill(7))
     return text
