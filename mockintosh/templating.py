@@ -48,7 +48,7 @@ class RenderingTask:
         self.engine = engine
         self.text = text
         self.inject_objects = inject_objects if inject_objects else {}
-        self.inject_methods = inject_methods if inject_methods else {}
+        self.inject_methods = inject_methods if inject_methods else []
         self.add_params_callback = add_params_callback
         self.fill_undefineds_with = fill_undefineds_with
         self.counters = counters
