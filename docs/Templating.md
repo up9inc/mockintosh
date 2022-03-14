@@ -215,6 +215,14 @@ Jinja2 usage: `{% raw %}{{ fake.random_letters() | tojson }}{% endraw %}`
 
 Handlebars usage: `{% raw %}{{ tojson ( fake.random_letters ) }}{% endraw %}`
 
+#### fromjson(text) (Handlebars only)
+
+A helper to convert a JSON string to a JSON object.
+
+`{% raw %}{{ fromjson ( '{ "testKey": "testValue" }' ) }}{% endraw %}`
+
+would return `{"testKey": "testValue"}`.
+
 #### array(*args) (Handlebars only)
 
 Provides array support in parameters. `{% raw %}{{ array 'a' 'b' 'c' 'd' 'e' }}{% endraw %}` returns `['a', 'b', 'c', 'd', 'e']`.

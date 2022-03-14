@@ -18,7 +18,7 @@ from jinja2.exceptions import TemplateSyntaxError, UndefinedError
 from pybars import Compiler, PybarsError
 
 from mockintosh.constants import PYBARS, JINJA, JINJA_VARNAME_DICT, SPECIAL_CONTEXT
-from mockintosh.hbs.methods import HbsFaker, tojson, array, replace
+from mockintosh.hbs.methods import HbsFaker, tojson, fromjson, array, replace
 from mockintosh.helpers import _to_camel_case
 from mockintosh.j2.meta import find_undeclared_variables_in_order
 
@@ -138,6 +138,7 @@ class RenderingTask:
         if engine == PYBARS:
             self.inject_methods += [
                 tojson,
+                fromjson,
                 array,
                 replace
             ]
