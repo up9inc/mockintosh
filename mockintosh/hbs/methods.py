@@ -96,6 +96,10 @@ def tojson(this, text):
         .replace(u"'", u'\\u0027')
 
 
+def fromjson(this, text):
+    return json.loads(text)
+
+
 def array(this, *args):
     return [*args]
 
