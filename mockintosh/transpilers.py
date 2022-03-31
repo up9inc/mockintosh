@@ -226,11 +226,9 @@ class OASToConfigTranspiler:
                 'headers': {}
             }
 
-            if content_type is not None:
-                response['headers']['Content-Type'] = content_type
-
-            if 'schema' in _response:
-                ref = self._transpile_schema(_response['schema'])
+            if 'content' in _response:
+                response['headers']['Content-Type'] = 'application/json'  # FIXME: this is a dirty hack for a single case
+                ref = self._transpile_schema(_response['content']['application/json']['schema'])
                 response['body'] = self._transpile_body_json_object(ref, last_path_param_index=last_path_param_index)
 
             if 'headers' in _response:
