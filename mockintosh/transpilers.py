@@ -47,7 +47,7 @@ class OASToConfigTranspiler:
             if match is not None:
                 name = match.group(1).strip()
                 new_segments.append('{{ %s }}' % name)
-                last_param_index = i + 1
+                last_param_index = i
             else:
                 new_segments.append(segment)
         return '/'.join(new_segments), last_param_index
