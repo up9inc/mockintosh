@@ -1,3 +1,7 @@
 FROM up9inc/mockintosh:latest
 
+WORKDIR /usr/src/mockintosh
+
 RUN pip3 install .[cloud]
+
+WORKDIR /tmp
