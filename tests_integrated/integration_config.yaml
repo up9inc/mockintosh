@@ -5,6 +5,7 @@ globals:
   headers:
     global-hdr1: globalval1
     global-hdr2: globalval2
+    global-hdr3: globalval3
   performanceProfile: never
 performanceProfiles:
   justDelay:
@@ -67,9 +68,7 @@ services:
           body: 'qstr match 1: {{request.queryString.param1}} {{capturedVar}} {{anyValIntoVar}}'
           status: '202'
           headers:
-            Content-Type: application/x-my-own
             param2: '{{request.queryString.param2}} {{request.queryString.param3}}'
-            global-hdr1: overridden
       - path: /header-matching1
         headers:
           hdr1: constant val
@@ -84,7 +83,7 @@ services:
               - name2={{request.headers.hdr3}}
       - path: /header-matching1
         headers:
-          hdr4: another header
+          hdr4: another header is broken
         response: alternative header
       - path: /body-jsonschema1
         method: POST
@@ -313,7 +312,7 @@ services:
   - name: Service with fallback
     port: 8007
     managementRoot: /sub/__admin
-    fallbackTo: https://mockintosh.io
+    fallbackTo: https://httpbin.org/
     endpoints:
       - path: /
         response: no fallback
