@@ -399,7 +399,8 @@ class Definition:
             name=service.name,
             definition=self,
             _id=service.internal_service_id,
-            ssl=service.ssl
+            ssl=service.ssl,
+            extra_kwargs=service.extra_kwargs
         )
         service._impl = async_service
 

@@ -26,6 +26,10 @@
             "mqtt"
           ]
         },
+        "extra_kwargs": {
+          "type": "object",
+          "default": {}
+        },
         "actors": {
           "type": "array",
           "items": {

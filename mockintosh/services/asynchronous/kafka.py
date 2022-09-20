@@ -103,6 +103,7 @@ class KafkaConsumerGroup(AsyncConsumerGroup):
             'bootstrap.servers': first_actor.service.address,
             'group.id': '0',
             'auto.offset.reset': 'earliest'
+            **first_actor.service.extra_kwargs,
         }
         if first_actor.service.ssl:
             config['security.protocol'] = 'SSL'
@@ -159,7 +160,7 @@ class KafkaProducerPayloadList(AsyncProducerPayloadList):
 class KafkaProducer(AsyncProducer):
 
     def _produce(self, key: str, value: str, headers: dict, payload: AsyncProducerPayload) -> None:
-        config = {'bootstrap.servers': self.actor.service.address}
+        config = {'bootstrap.servers': self.actor.service.address, **self.actor.service.extra_kwargs}
         if self.actor.service.ssl:
             config['security.protocol'] = 'SSL'
         producer = Producer(config)
@@ -190,7 +191,8 @@ class KafkaService(AsyncService):
         name: Union[str, None] = None,
         definition=None,
         _id: Union[int, None] = None,
-        ssl: bool = False
+        ssl: bool = False,
+        extra_kwargs: Union[dict, None] = None
     ):
         super().__init__(
             address,
@@ -200,6 +202,7 @@ class KafkaService(AsyncService):
             ssl=ssl
         )
         self.type = 'kafka'
+        self.extra_kwargs = extra_kwargs or {}
 
 
 def build_single_payload_producer(
