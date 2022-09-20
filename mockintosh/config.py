@@ -229,7 +229,8 @@ class ConfigAsyncService(ConfigService):
         actors: List[ConfigActor] = [],
         name: Union[str, None] = None,
         ssl: bool = False,
-        internal_service_id: Union[int, None] = None
+        internal_service_id: Union[int, None] = None,
+        extra_kwargs: Union[dict, None] = None
     ):
         super().__init__(_type, name, internal_service_id)
         ConfigAsyncService.services.append(self)
@@ -237,6 +238,7 @@ class ConfigAsyncService(ConfigService):
         self.address = address
         self.actors = actors
         self.ssl = ssl
+        self.extra_kwargs = extra_kwargs
 
     def get_hint(self):
         return '%s://%s' % (self.type, self.address) if self.name is None else self.name
